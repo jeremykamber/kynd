@@ -33,11 +33,19 @@ export function PersonaDetailModal({
 }: PersonaDetailModalProps) {
   const [searchTerm, setSearchTerm] = React.useState("")
 
-  if (!persona) return null
+  const allParagraphs = React.useMemo(() => 
+    persona?.backstory ? persona.backstory.split('\n\n') : [], 
+    [persona?.backstory]
+  )
 
-  const filteredBackstory = persona.backstory
-    ? persona.backstory.split('\n\n')
-    : []
+  const filteredBackstory = React.useMemo(() => {
+    if (!searchTerm) return allParagraphs
+    return allParagraphs.filter(paragraph => 
+      paragraph.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [allParagraphs, searchTerm])
+
+  if (!persona) return null
 
   const renderScalar = (label: string, value: number, leftLabel: string, rightLabel: string) => (
     <div className="flex flex-col gap-2">
@@ -72,9 +80,9 @@ export function PersonaDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[95vw] md:w-[90vw] lg:max-w-7xl xl:max-w-[1400px] p-0 overflow-hidden border-none bg-background/70 backdrop-blur-xl shadow-2xl ring-1 ring-white/10 max-h-[95vh] md:max-h-[90vh]">
+      <DialogContent className="w-[95vw] md:w-[90vw] lg:max-w-7xl xl:max-w-[1400px] p-0 border-none bg-background/70 backdrop-blur-xl shadow-2xl ring-1 ring-white/10 max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
         <motion.div 
-          className="flex flex-col h-[95vh] md:h-[90vh]"
+          className="flex flex-col min-h-full"
           initial="hidden"
           animate="visible"
           variants={containerVariants}
