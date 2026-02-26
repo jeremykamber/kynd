@@ -55,7 +55,10 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
       {onChatClick && (
         <button
           type="button"
-          onClick={onChatClick}
+          onClick={(e) => {
+            e.stopPropagation()
+            onChatClick()
+          }}
           className="mt-auto w-full inline-flex h-10 items-center justify-center rounded-lg bg-secondary/50 px-4 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary focus-visible:outline-none"
         >
           Chat with {persona.name.split(' ')[0]}

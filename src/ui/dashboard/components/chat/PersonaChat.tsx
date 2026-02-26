@@ -21,13 +21,28 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
   })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatRef = useRef<HTMLDivElement>(null)
   
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   })
 
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (chatRef.current && !chatRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [onClose])
+
   return (
-    <div className="fixed inset-y-0 right-0 w-full md:w-[480px] bg-card border-l border-border shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-500 sm:max-w-md md:max-w-lg lg:max-w-xl">
+    <div 
+      ref={chatRef}
+      className="fixed inset-y-0 right-0 w-full md:w-[480px] bg-card/70 backdrop-blur-2xl border-l border-border shadow-2xl flex flex-col z-[60] animate-in slide-in-from-right duration-500 sm:max-w-md md:max-w-lg lg:max-w-xl pointer-events-auto"
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background/50 backdrop-blur-md">
         <div className="flex items-center gap-3">

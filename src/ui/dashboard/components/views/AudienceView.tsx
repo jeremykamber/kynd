@@ -52,10 +52,7 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
               traits: persona.personalityTraits
             }} 
             onClick={() => handleOpenDetail(persona.id)}
-            onChatClick={() => {
-              setSelectedPersonaId(persona.id)
-              setIsChatOpen(true)
-            }}
+            onChatClick={() => handleOpenChat(persona)}
           />
         ))}
       </div>
@@ -87,18 +84,10 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
 
       {/* Chat Slide-Out */}
       {selectedPersona && isChatOpen && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <button 
-            type="button"
-            className="absolute inset-0 w-full h-full cursor-default focus:outline-none" 
-            onClick={() => setIsChatOpen(false)} 
-            aria-label="Close Chat Overlay"
-          />
-          <PersonaChat 
-            persona={selectedPersona} 
-            onClose={() => setIsChatOpen(false)} 
-          />
-        </div>
+        <PersonaChat 
+          persona={selectedPersona} 
+          onClose={() => setIsChatOpen(false)} 
+        />
       )}
     </div>
   )
