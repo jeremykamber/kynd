@@ -18,7 +18,7 @@ export interface PersonaProfilePanelProps extends React.HTMLAttributes<HTMLDivEl
 
 export function PersonaProfilePanel({ persona, onChatClick, className, ...props }: PersonaProfilePanelProps) {
   return (
-    <MinimalCard className={cn("flex flex-col gap-6", className)} hoverable {...props}>
+    <MinimalCard className={cn("flex flex-col gap-6 h-full", className)} hoverable {...props}>
       <div className="flex items-start gap-5">
         <PersonaAvatar 
           name={persona.name} 
@@ -37,7 +37,7 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
       <div className="flex flex-col gap-4">
         <div className="h-px w-full bg-border/40" />
         
-        <p className="text-sm text-foreground/80 leading-relaxed text-balance">
+        <p className="text-sm text-foreground/80 leading-relaxed text-balance line-clamp-2 min-h-[2.5rem]">
           {persona.description}
         </p>
 
