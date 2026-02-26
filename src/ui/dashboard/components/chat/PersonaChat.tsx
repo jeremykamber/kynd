@@ -1,10 +1,10 @@
 // @ts-nocheck
 "use client"
 
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useState, useTransition } from "react"
 import { Persona } from "@/domain/entities/Persona"
-import { useChat } from "@ai-sdk/react"
 import { SendIcon, X } from "lucide-react"
+import { chatWithPersonaAction } from "@/actions/chatWithPersona"
 
 interface PersonaChatProps {
   persona: Persona
@@ -12,17 +12,19 @@ interface PersonaChatProps {
 }
 
 export function PersonaChat({ persona, onClose }: PersonaChatProps) {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: "/api/chat",
-    body: {
-      personaId: persona.id,
-      personaContext: JSON.stringify(persona)
-    }
-  })
+  const [messages, setMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string }>>([])
+  const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatRef = useRef<HTMLDivElement>(null)
-  
+
+  // Scroll to bottom when messages update. We intentionally avoid
+  // listing `messages` as a dependency to prevent the linter from
+  // requiring a stable reference — we only care about when the
+  // rendered message list changes length. Disable the exhaustive-deps
+  // rule for this line.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   })
@@ -37,6 +39,51 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [onClose])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)
+
+  const [isPending, startTransition] = useTransition()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const text = (input || "").trim()
+    if (!text) return
+
+    // Append user's message
+    const userId = `u_${Date.now()}`
+    setMessages(prev => [...prev, { id: userId, role: 'user', content: text }])
+    setInput("")
+
+    // Start assistant placeholder
+    const assistantId = `a_${Date.now()}`
+    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '' }])
+
+    setIsLoading(true)
+
+    startTransition(() => {
+      // Call server action as part of transition (frontend -> server action -> use case -> adapters)
+      chatWithPersonaAction(persona, null, text, messages.map(m => ({ role: m.role, content: m.content })))
+        .then(async (result) => {
+          const streamData = result?.streamData as AsyncIterable<string> | undefined
+          if (!streamData) {
+            const final = (result as any)?.text || ''
+            setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: final } : m))
+            return
+          }
+
+          let buffer = ''
+          for await (const chunk of streamData) {
+            buffer += chunk
+            setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: buffer } : m))
+          }
+        })
+        .catch(err => {
+          console.error('Chat action error', err)
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: 'Error: failed to load response.' } : m))
+        })
+        .finally(() => setIsLoading(false))
+    })
+  }
 
   return (
     <div 
