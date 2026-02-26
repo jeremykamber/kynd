@@ -172,6 +172,12 @@ export interface LlmServicePort {
         prompt: string,
     ): Promise<{ isValid: boolean; reason?: string }>;
 
+    /**
+     * Generates a sharp, 2-sentence 'AI Insight' into a persona's primary motivation 
+     * and their biggest psychological barrier to conversion.
+     */
+    generatePersonaInsight(persona: Persona): Promise<string>;
+
     summarizeHtml(html: string): Promise<string>;
 }
 

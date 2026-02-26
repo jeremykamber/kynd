@@ -25,6 +25,7 @@ export interface Persona {
     favoriteColors: string[];
     livingEnvironment: string; // e.g. "Cluttered urban apartment", "Sleek minimalist home"
     backstory?: string;
+    aiInsight?: string;
 }
 
 export const PersonaSchema = z.object({
@@ -54,6 +55,7 @@ export const PersonaSchema = z.object({
     livingEnvironment: z.string().describe("Description of their physical workspace or home"),
 
     backstory: z.string().optional().describe("A brief initial backstory summary"),
+    aiInsight: z.string().optional().describe("A 2-sentence AI-generated behavioral insight"),
 });
 
 export function validatePersona(entity: Persona): boolean {
@@ -95,6 +97,8 @@ export function stringifyPersona(entity: Persona): string {
 
     const backstory = normalizeBackstory(entity.backstory);
     if (backstory) lines.push(`Backstory: ${backstory}`);
+
+    if (entity.aiInsight) lines.push(`AI Insight: ${entity.aiInsight}`);
 
     return lines.join("\n");
 }
