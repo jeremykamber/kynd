@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { PersonaAvatar } from "./PersonaAvatar"
 import { FileDown, Search, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface PersonaDetailModalProps {
   persona: Persona | null
@@ -52,10 +53,32 @@ export function PersonaDetailModal({
     </div>
   )
 
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        duration: 0.4,
+        staggerChildren: 0.05
+      }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl p-0 overflow-hidden border-none bg-background/70 backdrop-blur-xl shadow-2xl">
-        <div className="flex flex-col h-[90vh] md:h-[80vh]">
+      <DialogContent className="max-w-5xl p-0 overflow-hidden border-none bg-background/70 backdrop-blur-xl shadow-2xl ring-1 ring-white/10">
+        <motion.div 
+          className="flex flex-col h-[90vh] md:h-[80vh]"
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+        >
           {/* Header Section */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start justify-between border-b border-border/40 bg-background/50">
             <div className="flex gap-6 items-center">
@@ -91,7 +114,11 @@ export function PersonaDetailModal({
               
               {/* AI Insight - Full Width Top */}
               {persona.aiInsight && (
-                <div className="md:col-span-12 p-6 rounded-2xl bg-primary/5 border border-primary/20 relative overflow-hidden group">
+                <motion.div 
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.005 }}
+                  className="md:col-span-12 p-6 rounded-2xl bg-primary/5 border border-primary/20 relative overflow-hidden group shadow-inner"
+                >
                   <div className="absolute top-0 right-0 p-3 opacity-20">
                     <div className="w-12 h-12 rounded-full bg-primary/20 blur-xl" />
                   </div>
@@ -102,18 +129,22 @@ export function PersonaDetailModal({
                   <p className="text-lg font-medium leading-relaxed italic text-foreground/90">
                     "{persona.aiInsight}"
                   </p>
-                </div>
+                </motion.div>
               )}
 
               {/* Left Column: Human DNA */}
               <div className="md:col-span-4 flex flex-col gap-6">
                 {/* Goals & Interests */}
-                <div className="p-6 rounded-2xl bg-card border border-border/40 shadow-sm flex flex-col gap-6">
+                <motion.div 
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.01 }}
+                  className="p-6 rounded-2xl bg-card/40 border border-border/40 shadow-sm flex flex-col gap-6 backdrop-blur-sm"
+                >
                   <div>
                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Core Goals</h4>
                     <ul className="space-y-2">
                       {persona.goals.map((goal, i) => (
-                        <li key={i} className="text-sm flex gap-2">
+                        <li key={`${persona.id}-goal-${i}`} className="text-sm flex gap-2">
                           <span className="text-primary font-bold">•</span>
                           {goal}
                         </li>
@@ -124,16 +155,20 @@ export function PersonaDetailModal({
                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Interests</h4>
                     <div className="flex flex-wrap gap-2">
                       {persona.interests.map((interest, i) => (
-                        <Badge key={i} variant="secondary" className="font-normal rounded-md">
+                        <Badge key={`${persona.id}-interest-${i}`} variant="secondary" className="font-normal rounded-md">
                           {interest}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Aesthetic DNA */}
-                <div className="p-6 rounded-2xl bg-card border border-border/40 shadow-sm">
+                <motion.div 
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.01 }}
+                  className="p-6 rounded-2xl bg-card/40 border border-border/40 shadow-sm backdrop-blur-sm"
+                >
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Aesthetic DNA</h4>
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
@@ -149,8 +184,8 @@ export function PersonaDetailModal({
                       <div className="flex gap-2">
                         {persona.favoriteColors.map((color, i) => (
                           <div 
-                            key={i} 
-                            className="w-8 h-8 rounded-full border border-border/40 shadow-inner" 
+                            key={`${persona.id}-color-${i}`} 
+                            className="w-8 h-8 rounded-full border border-border/40 shadow-inner transition-transform hover:scale-110" 
                             style={{ backgroundColor: color }}
                             title={color}
                           />
@@ -158,12 +193,16 @@ export function PersonaDetailModal({
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               </div>
 
               {/* Center Column: Cognitive Engine */}
               <div className="md:col-span-4 flex flex-col gap-6">
-                <div className="p-6 rounded-2xl bg-card border border-border/40 shadow-sm flex flex-col gap-8">
+                <motion.div 
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.01 }}
+                  className="p-6 rounded-2xl bg-card/40 border border-border/40 shadow-sm flex flex-col gap-8 backdrop-blur-sm"
+                >
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Cognitive Engine</h4>
                   
                   {renderScalar("Cognitive Reflex", persona.cognitiveReflex, "Intuitive", "Analytical")}
@@ -180,12 +219,16 @@ export function PersonaDetailModal({
                     {renderScalar("Extraversion", persona.extraversion, "Introvert", "Extrovert")}
                     {renderScalar("Agreeableness", persona.agreeableness, "Competitive", "Compassionate")}
                   </div>
-                </div>
+                </motion.div>
               </div>
 
               {/* Right Column: Backstory Vault */}
               <div className="md:col-span-4 flex flex-col gap-6">
-                <div className="flex flex-col h-full p-6 rounded-2xl bg-card border border-border/40 shadow-sm overflow-hidden">
+                <motion.div 
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.01 }}
+                  className="flex flex-col h-full p-6 rounded-2xl bg-card/40 border border-border/40 shadow-sm overflow-hidden backdrop-blur-sm"
+                >
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Backstory Vault</h4>
                     <div className="relative">
@@ -194,7 +237,7 @@ export function PersonaDetailModal({
                         placeholder="Search..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-7 w-24 text-[10px] pl-7 rounded-full bg-muted/30 border-none"
+                        className="h-7 w-24 text-[10px] pl-7 rounded-full bg-muted/30 border-none transition-all focus:w-32"
                       />
                     </div>
                   </div>
@@ -205,7 +248,7 @@ export function PersonaDetailModal({
                         const isMatch = searchTerm && paragraph.toLowerCase().includes(searchTerm.toLowerCase())
                         return (
                           <p 
-                            key={i} 
+                            key={`${persona.id}-para-${i}`} 
                             className={cn(
                               "text-[13px] leading-relaxed text-foreground/80 transition-colors duration-300",
                               isMatch ? "bg-primary/10 rounded px-1 text-foreground" : ""
@@ -217,11 +260,11 @@ export function PersonaDetailModal({
                       })}
                     </div>
                   </ScrollArea>
-                </div>
+                </motion.div>
               </div>
             </div>
           </ScrollArea>
-        </div>
+        </motion.div>
       </DialogContent>
     </Dialog>
   )

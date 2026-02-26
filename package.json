@@ -26,6 +26,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
+    "framer-motion": "^12.34.3",
     "idb-keyval": "^6.2.2",
     "lightningcss": "^1.31.1",
     "lucide-react": "^0.553.0",
