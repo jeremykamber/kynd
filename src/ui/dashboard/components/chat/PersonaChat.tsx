@@ -1,10 +1,17 @@
 // @ts-nocheck
 "use client"
 
-import { useRef, useEffect, useState, useTransition } from "react"
+import React, { useState, useTransition, useRef, useEffect } from "react"
 import { Persona } from "@/domain/entities/Persona"
-import { SendIcon, X } from "lucide-react"
 import { chatWithPersonaAction } from "@/actions/chatWithPersona"
+import { useLocalStorage } from "@/ui/hooks/useLocalStorage"
+import { Send, X, Loader2 } from "lucide-react"
+import { readStreamableValue } from "@ai-sdk/rsc"
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+}
 
 interface PersonaChatProps {
   persona: Persona
@@ -12,22 +19,16 @@ interface PersonaChatProps {
 }
 
 export function PersonaChat({ persona, onClose }: PersonaChatProps) {
-  const [messages, setMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string }>>([])
+  const storageKey = `persona_chat_${persona.id}`
+  const [messages, setMessages] = useLocalStorage<Message[]>(storageKey, [])
   const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-
+  const [isPending, startTransition] = useTransition()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatRef = useRef<HTMLDivElement>(null)
 
-  // Scroll to bottom when messages update. We intentionally avoid
-  // listing `messages` as a dependency to prevent the linter from
-  // requiring a stable reference — we only care about when the
-  // rendered message list changes length. Disable the exhaustive-deps
-  // rule for this line.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  })
+  }, [messages])
 
   // Close on click outside
   useEffect(() => {
@@ -40,48 +41,46 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [onClose])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)
+  const handleSend = (overrideMessage?: string) => {
+    const messageToSend = (overrideMessage || input).trim()
+    if (!messageToSend || isPending) return
 
-  const [isPending, startTransition] = useTransition()
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const text = (input || "").trim()
-    if (!text) return
-
-    // Append user's message
-    const userId = `u_${Date.now()}`
-    setMessages(prev => [...prev, { id: userId, role: 'user', content: text }])
     setInput("")
+    const newMessages: Message[] = [...messages, { role: 'user', content: messageToSend }]
+    setMessages(newMessages)
 
-    // Start assistant placeholder
-    const assistantId = `a_${Date.now()}`
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '' }])
+    setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
 
-    setIsLoading(true)
+    startTransition(async () => {
+      try {
+        const { streamData } = await chatWithPersonaAction(
+          persona,
+          null, // analysis is null for audience view chat
+          messageToSend,
+          messages
+        )
 
-    startTransition(() => {
-      // Call server action as part of transition (frontend -> server action -> use case -> adapters)
-      chatWithPersonaAction(persona, null, text, messages.map(m => ({ role: m.role, content: m.content })))
-        .then(async (result) => {
-          const streamData = result?.streamData as AsyncIterable<string> | undefined
-          if (!streamData) {
-            const final = (result as any)?.text || ''
-            setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: final } : m))
-            return
+        for await (const content of readStreamableValue(streamData)) {
+          if (content) {
+            setMessages((prev) => {
+              const last = prev[prev.length - 1]
+              if (last && last.role === 'assistant') {
+                return [...prev.slice(0, -1), { role: 'assistant', content }]
+              }
+              return prev
+            })
           }
-
-          let buffer = ''
-          for await (const chunk of streamData) {
-            buffer += chunk
-            setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: buffer } : m))
+        }
+      } catch (error) {
+        console.error('Chat error:', error)
+        setMessages((prev) => {
+          const last = prev[prev.length - 1]
+          if (last && last.role === 'assistant' && last.content === '') {
+            return [...prev.slice(0, -1), { role: 'assistant', content: 'Connection lost. Please try again.' }]
           }
+          return [...prev, { role: 'assistant', content: 'Connection lost. Please try again.' }]
         })
-        .catch(err => {
-          console.error('Chat action error', err)
-          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: 'Error: failed to load response.' } : m))
-        })
-        .finally(() => setIsLoading(false))
+      }
     })
   }
 
@@ -91,7 +90,7 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
       className="fixed inset-y-0 right-0 w-full md:w-[480px] bg-card border-l border-border shadow-2xl flex flex-col z-[60] animate-in slide-in-from-right duration-500 sm:max-w-md md:max-w-lg lg:max-w-xl pointer-events-auto"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-card">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary font-medium text-secondary-foreground">
             {persona.name.substring(0, 2).toUpperCase()}
@@ -104,7 +103,7 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
         <button 
           type="button"
           onClick={onClose}
-          className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+          className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors absolute top-4 right-4"
           aria-label="Close chat"
         >
           <X className="w-5 h-5" />
@@ -123,13 +122,13 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
             </p>
           </div>
         ) : (
-          messages.map((m: any) => (
+          messages.map((m, i) => (
             <div 
-              key={m.id} 
+              key={`${m.role}-${i}`}
               className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'self-end items-end' : 'self-start items-start'}`}
             >
               <div 
-                className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                   m.role === 'user' 
                     ? 'bg-primary text-primary-foreground rounded-tr-sm' 
                     : 'bg-secondary text-secondary-foreground rounded-tl-sm border border-border/40'
@@ -143,7 +142,7 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
             </div>
           ))
         )}
-        {isLoading && (
+        {isPending && (
           <div className="self-start flex flex-col max-w-[85%] items-start">
              <div className="px-5 py-4 rounded-2xl rounded-tl-sm bg-secondary text-secondary-foreground border border-border/40 flex items-center gap-1.5">
                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -156,25 +155,32 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-background border-t border-border/40">
+      <div className="p-4 bg-card border-t border-border/40">
         <form 
-          onSubmit={handleSubmit}
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSend()
+          }}
           className="relative flex items-center"
         >
           <input
             type="text"
-            className="w-full h-12 pl-4 pr-12 rounded-full border border-input bg-card shadow-sm text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all placeholder:text-muted-foreground/70"
-            value={input ?? ""}
-            onChange={handleInputChange}
+            className="w-full h-12 pl-4 pr-12 rounded-full border border-input bg-background shadow-sm text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all placeholder:text-muted-foreground/70"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
             placeholder={`Message ${persona.name}...`}
-            disabled={isLoading}
+            disabled={isPending}
           />
           <button 
             type="submit" 
-            disabled={isLoading || (input || "").trim().length === 0}
+            disabled={isPending || !input.trim()}
             className="absolute right-1.5 h-9 w-9 flex items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none"
           >
-            <SendIcon className="w-4 h-4" />
+            {isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </button>
         </form>
       </div>
