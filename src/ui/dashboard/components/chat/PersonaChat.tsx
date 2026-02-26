@@ -41,12 +41,12 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
   return (
     <div 
       ref={chatRef}
-      className="fixed inset-y-0 right-0 w-full md:w-[480px] bg-card/70 backdrop-blur-2xl border-l border-border shadow-2xl flex flex-col z-[60] animate-in slide-in-from-right duration-500 sm:max-w-md md:max-w-lg lg:max-w-xl pointer-events-auto"
+      className="fixed inset-y-0 right-0 w-full md:w-[480px] bg-card border-l border-border shadow-2xl flex flex-col z-[60] animate-in slide-in-from-right duration-500 sm:max-w-md md:max-w-lg lg:max-w-xl pointer-events-auto"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background/50 backdrop-blur-md">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/50 font-medium text-secondary-foreground">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary font-medium text-secondary-foreground">
             {persona.name.substring(0, 2).toUpperCase()}
           </div>
           <div>
@@ -57,7 +57,7 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
         <button 
           type="button"
           onClick={onClose}
-          className="p-2 rounded-full hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors"
+          className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
           aria-label="Close chat"
         >
           <X className="w-5 h-5" />
@@ -68,7 +68,7 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scrollbar">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 text-muted-foreground">
-            <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
               💬
             </div>
             <p className="text-sm max-w-[250px] text-balance">
@@ -115,15 +115,16 @@ export function PersonaChat({ persona, onClose }: PersonaChatProps) {
           className="relative flex items-center"
         >
           <input
+            type="text"
             className="w-full h-12 pl-4 pr-12 rounded-full border border-input bg-card shadow-sm text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all placeholder:text-muted-foreground/70"
-            value={input}
+            value={input ?? ""}
             onChange={handleInputChange}
             placeholder={`Message ${persona.name}...`}
             disabled={isLoading}
           />
           <button 
             type="submit" 
-            disabled={isLoading || !input || !input.trim()}
+            disabled={isLoading || (input || "").trim().length === 0}
             className="absolute right-1.5 h-9 w-9 flex items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none"
           >
             <SendIcon className="w-4 h-4" />
