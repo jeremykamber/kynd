@@ -5,6 +5,7 @@ import { Persona } from '@/domain/entities/Persona'
 import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
 import { PersonaChat } from "../chat/PersonaChat"
+import { PersonaDetailModal } from "@/components/custom/PersonaDetailModal"
 
 interface AudienceViewProps {
   personas: Persona[]
@@ -13,9 +14,22 @@ interface AudienceViewProps {
 
 export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(false)
   
   const getPersona = (id: string) => personas.find(p => p.id === id)
   const selectedPersona = selectedPersonaId ? getPersona(selectedPersonaId) : null
+
+  const handleOpenDetail = (id: string) => {
+    setSelectedPersonaId(id)
+    setIsDetailModalOpen(true)
+  }
+
+  const handleOpenChat = (persona: Persona) => {
+    setSelectedPersonaId(persona.id)
+    setIsDetailModalOpen(false)
+    setIsChatOpen(true)
+  }
 
   return (
     <div className="flex flex-col gap-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -37,7 +51,11 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
               description: persona.backstory || `A ${persona.age}-year-old ${persona.occupation} interested in ${persona.interests?.join(', ')}.`,
               traits: persona.personalityTraits
             }} 
-            onChatClick={() => setSelectedPersonaId(persona.id)}
+            onClick={() => handleOpenDetail(persona.id)}
+            onChatClick={() => {
+              setSelectedPersonaId(persona.id)
+              setIsChatOpen(true)
+            }}
           />
         ))}
       </div>
@@ -59,18 +77,26 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
         </div>
       )}
 
+      {/* Detail Modal */}
+      <PersonaDetailModal 
+        persona={selectedPersona ?? null}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        onChatClick={handleOpenChat}
+      />
+
       {/* Chat Slide-Out */}
-      {selectedPersona && (
-        <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
+      {selectedPersona && isChatOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
           <button 
             type="button"
             className="absolute inset-0 w-full h-full cursor-default focus:outline-none" 
-            onClick={() => setSelectedPersonaId(null)} 
+            onClick={() => setIsChatOpen(false)} 
             aria-label="Close Chat Overlay"
           />
           <PersonaChat 
             persona={selectedPersona} 
-            onClose={() => setSelectedPersonaId(null)} 
+            onClose={() => setIsChatOpen(false)} 
           />
         </div>
       )}
