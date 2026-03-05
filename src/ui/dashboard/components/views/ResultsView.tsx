@@ -15,13 +15,13 @@ interface ResultsViewProps {
 
 export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
-  
+
   const getPersona = (id: string) => personas.find(p => p.id === id)
   const selectedPersona = selectedPersonaId ? getPersona(selectedPersonaId) : null
 
   return (
     <div className="flex flex-col gap-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between border-b border-border/40 pb-6">
         <div className="flex flex-col gap-2">
@@ -53,7 +53,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
           return (
             <MinimalCard key={analysis.id} className="p-8">
               <div className="flex flex-col md:flex-row gap-8">
-                
+
                 {/* Left Col: Persona Info & Scores */}
                 <div className="flex flex-col gap-6 w-full md:w-1/3 border-b md:border-b-0 md:border-r border-border/40 pb-8 md:pb-0 md:pr-8">
                   <div className="flex items-center gap-4">
@@ -85,10 +85,16 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
 
                 {/* Right Col: Qualitative Feedback */}
                 <div className="flex flex-col gap-8 w-full md:w-2/3">
-                  
+
                   <div className="flex flex-col gap-3">
-                    <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Gut Reaction</h4>
-                    <div className="bg-secondary/20 p-4 rounded-xl border border-border/40 text-foreground/90 font-medium italic">
+                    <div className="flex items-center gap-3">
+                      <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Gut Reaction</h4>
+                      <div
+                        className={`w-2 h-2 rounded-full ${getSentimentVariant(analysis.scores.likelihoodToBuy)}`}
+                        title="Tone Sentiment"
+                      />
+                    </div>
+                    <div className={`p-4 rounded-xl border text-foreground/90 font-medium italic shadow-inner ${getSentimentBoxVariant(analysis.scores.likelihoodToBuy)}`}>
                       &quot;{analysis.gutReaction}&quot;
                     </div>
                   </div>
@@ -105,7 +111,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                       <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Perceived Risks</h4>
                       <ul className="flex flex-col gap-2">
                         {analysis.risks.map((risk, i) => (
-                          <li key={`risk-${analysis.id}-${i}`} className="flex items-start gap-2 text-sm text-foreground/80">
+                          <li key={`risk-${analysis.id}-${i}`} className="flex items-start gap-2 text-sm text-foreground/80 leading-[1.6]">
                             <span className="text-destructive mt-0.5">•</span>
                             <span>{risk}</span>
                           </li>
@@ -114,6 +120,16 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                     </div>
                   )}
 
+                  {/* Actionable Badge */}
+                  <div className="mt-4 pt-6 border-t border-border/20 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <span className="bg-indigo-500/10 text-primary border border-primary/20 text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full flex items-center gap-2 w-fit">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+                      AI Suggestion
+                    </span>
+                    <span className="text-sm text-foreground/80 font-medium">
+                      {getAISuggestion(analysis.scores)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </MinimalCard>
@@ -124,15 +140,15 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
       {/* Chat Slide-Out */}
       {selectedPersona && (
         <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <button 
+          <button
             type="button"
-            className="absolute inset-0 w-full h-full cursor-default focus:outline-none" 
-            onClick={() => setSelectedPersonaId(null)} 
+            className="absolute inset-0 w-full h-full cursor-default focus:outline-none"
+            onClick={() => setSelectedPersonaId(null)}
             aria-label="Close Chat Overlay"
           />
-          <PersonaChat 
-            persona={selectedPersona} 
-            onClose={() => setSelectedPersonaId(null)} 
+          <PersonaChat
+            persona={selectedPersona}
+            onClose={() => setSelectedPersonaId(null)}
           />
         </div>
       )}
@@ -148,9 +164,39 @@ function ScoreMetric({ label, value }: { label: string, value: number }) {
   }
 
   return (
-    <div className="flex flex-col gap-1 bg-secondary/20 p-3 rounded-lg border border-border/30">
+    <div className="flex flex-col gap-1 bg-white/[0.02] backdrop-blur-md p-3 rounded-lg">
       <span className="text-xs text-muted-foreground font-medium">{label}</span>
-      <span className={`text-xl font-bold ${getColorClass(value)}`}>{value}/10</span>
+      <span className={`text-xl font-bold font-variant-numeric tabular-nums ${getColorClass(value)}`}>{value}/10</span>
     </div>
   )
+}
+
+function getSentimentBoxVariant(score: number) {
+  if (score >= 8) return "bg-green-500/5 border-green-500/10"
+  if (score >= 5) return "bg-amber-500/5 border-amber-500/10"
+  return "bg-red-500/5 border-red-500/10"
+}
+
+function getSentimentVariant(score: number) {
+  if (score >= 8) return "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+  if (score >= 5) return "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+  return "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+}
+
+function getAISuggestion(scores: { clarity: number, valuePerception: number, trust: number, likelihoodToBuy: number }) {
+  const arr = [
+    { key: "clarity", val: scores.clarity },
+    { key: "valuePerception", val: scores.valuePerception },
+    { key: "trust", val: scores.trust },
+    { key: "likelihoodToBuy", val: scores.likelihoodToBuy }
+  ].sort((a, b) => a.val - b.val);
+
+  const lowest = arr[0].key;
+  switch (lowest) {
+    case "clarity": return "Highlight key differences between tiers more explicitly.";
+    case "valuePerception": return "Emphasize ROI, core outcomes, and included value.";
+    case "trust": return "Add customer testimonials, social proof, and security badges.";
+    case "likelihoodToBuy": return "Consider adding a generous trial or money-back guarantee.";
+    default: return "Optimize the conversion funnel for better engagement.";
+  }
 }

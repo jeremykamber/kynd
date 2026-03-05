@@ -16,7 +16,7 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [isChatOpen, setIsChatOpen] = useState(false)
-  
+
   const getPersona = (id: string) => personas.find(p => p.id === id)
   const selectedPersona = selectedPersonaId ? getPersona(selectedPersonaId) : null
 
@@ -42,15 +42,9 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {personas.map((persona) => (
-          <PersonaProfilePanel 
-            key={persona.id} 
-            persona={{
-              id: persona.id,
-              name: persona.name,
-              title: persona.occupation,
-              description: persona.backstory || `A ${persona.age}-year-old ${persona.occupation} interested in ${persona.interests?.join(', ')}.`,
-              traits: persona.personalityTraits
-            }} 
+          <PersonaProfilePanel
+            key={persona.id}
+            persona={persona}
             onClick={() => handleOpenDetail(persona.id)}
             onChatClick={() => handleOpenChat(persona)}
           />
@@ -67,7 +61,7 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
           {analysisFlow.isPending ? "Simulating Feedback..." : "Run Pricing Simulation"}
         </button>
       </div>
-      
+
       {analysisFlow.error && (
         <div className="bg-destructive/10 text-destructive text-sm font-medium p-4 rounded-lg border border-destructive/20 mt-4">
           {analysisFlow.error}
@@ -75,7 +69,7 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
       )}
 
       {/* Detail Modal */}
-      <PersonaDetailModal 
+      <PersonaDetailModal
         persona={selectedPersona ?? null}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
@@ -84,9 +78,9 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
 
       {/* Chat Slide-Out */}
       {selectedPersona && isChatOpen && (
-        <PersonaChat 
-          persona={selectedPersona} 
-          onClose={() => setIsChatOpen(false)} 
+        <PersonaChat
+          persona={selectedPersona}
+          onClose={() => setIsChatOpen(false)}
         />
       )}
     </div>

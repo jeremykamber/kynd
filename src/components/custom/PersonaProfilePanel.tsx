@@ -4,15 +4,10 @@ import { MinimalCard } from "./MinimalCard"
 import { PersonaAvatar } from "./PersonaAvatar"
 import { StatusBadge } from "./StatusBadge"
 
+import { Persona } from "@/domain/entities/Persona"
+
 export interface PersonaProfilePanelProps extends React.HTMLAttributes<HTMLDivElement> {
-  persona: {
-    id: string
-    name: string
-    title: string
-    imageUrl?: string | null
-    description: string
-    traits?: string[]
-  }
+  persona: Persona
   onChatClick?: () => void
 }
 
@@ -20,36 +15,52 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
   return (
     <MinimalCard className={cn("flex flex-col gap-6 h-full", className)} hoverable {...props}>
       <div className="flex items-start gap-5">
-        <PersonaAvatar 
-          name={persona.name} 
-          imageUrl={persona.imageUrl} 
-          size="lg" 
+        <PersonaAvatar
+          name={persona.name}
+          imageUrl={(persona as any).imageUrl}
+          size="lg"
           className="shadow-sm"
         />
-        <div className="flex flex-col gap-1.5 flex-1">
+        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
           <div className="flex items-center justify-between gap-4">
-            <h3 className="font-semibold text-xl tracking-tight text-foreground">{persona.name}</h3>
+            <h3 className="font-semibold text-xl tracking-tight text-foreground truncate">{persona.name}</h3>
           </div>
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">{persona.title}</p>
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest truncate">{persona.occupation}</p>
         </div>
       </div>
-      
+
       <div className="flex flex-col gap-4">
         <div className="h-px w-full bg-border/40" />
-        
-        <p className="text-sm text-foreground/80 leading-relaxed text-balance line-clamp-2 min-h-[2.5rem]">
-          {persona.description}
-        </p>
 
-        {persona.traits && persona.traits.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {persona.traits.map(trait => (
-              <StatusBadge key={trait} variant="outline" className="text-xs font-normal px-3 py-1">
-                {trait}
-              </StatusBadge>
-            ))}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex justify-between items-end">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Tech Fluency</span>
+              <span className="text-xs font-bold font-variant-numeric tabular-nums">{persona.technicalFluency}%</span>
+            </div>
+            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full" style={{ width: `${persona.technicalFluency}%` }} />
+            </div>
+            <div className="flex justify-between text-[9px] text-muted-foreground/60 font-medium uppercase">
+              <span>Luddite</span>
+              <span>Hacker</span>
+            </div>
           </div>
-        )}
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex justify-between items-end">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Neuroticism (Risk)</span>
+              <span className="text-xs font-bold font-variant-numeric tabular-nums">{persona.neuroticism}%</span>
+            </div>
+            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full" style={{ width: `${persona.neuroticism}%` }} />
+            </div>
+            <div className="flex justify-between text-[9px] text-muted-foreground/60 font-medium uppercase">
+              <span>Stable</span>
+              <span>Anxious</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {onChatClick && (

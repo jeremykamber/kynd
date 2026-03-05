@@ -25,22 +25,22 @@ interface PersonaDetailModalProps {
   onChatClick?: (persona: Persona) => void
 }
 
-export function PersonaDetailModal({ 
-  persona, 
-  isOpen, 
+export function PersonaDetailModal({
+  persona,
+  isOpen,
   onClose,
-  onChatClick 
+  onChatClick
 }: PersonaDetailModalProps) {
   const [searchTerm, setSearchTerm] = React.useState("")
 
-  const allParagraphs = React.useMemo(() => 
-    persona?.backstory ? persona.backstory.split('\n\n') : [], 
+  const allParagraphs = React.useMemo(() =>
+    persona?.backstory ? persona.backstory.split('\n\n') : [],
     [persona?.backstory]
   )
 
   const filteredBackstory = React.useMemo(() => {
     if (!searchTerm) return allParagraphs
-    return allParagraphs.filter(paragraph => 
+    return allParagraphs.filter(paragraph =>
       paragraph.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [allParagraphs, searchTerm])
@@ -63,25 +63,32 @@ export function PersonaDetailModal({
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { 
-        duration: 0.4,
+      transition: {
+        duration: 0.3,
+        ease: [0.16, 1, 0.3, 1] as any,
         staggerChildren: 0.05
       }
     }
   }
 
   const itemVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: { opacity: 1, scale: 1 }
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.3,
+        ease: [0.16, 1, 0.3, 1] as any
+      }
+    }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="w-[95vw] md:w-[90vw] lg:max-w-7xl xl:max-w-[1400px] p-0 border-none bg-background/70 backdrop-blur-xl shadow-2xl ring-1 ring-white/10 max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
-        <motion.div 
+        <motion.div
           className="flex flex-col min-h-full"
           initial="hidden"
           animate="visible"
@@ -102,7 +109,7 @@ export function PersonaDetailModal({
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 justify-end">
               <Button variant="outline" size="sm" className="h-8 md:h-10 gap-2 rounded-full border-border/60 text-xs md:text-sm px-3 md:px-4" onClick={() => console.log("Export PDF for", persona.name)}>
                 <FileDown className="w-3.5 h-3.5 md:w-4 h-4" />
@@ -119,21 +126,20 @@ export function PersonaDetailModal({
           </div>
 
           <ScrollArea className="flex-1">
-            <div className="p-4 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6 pb-12">
-              
+            <div className="p-4 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 pb-12">
+
               {/* AI Insight - Full Width Top */}
               {persona.aiInsight && (
-                <motion.div 
+                <motion.div
                   variants={itemVariants}
-                  whileHover={{ scale: 1.002 }}
-                  className="grid-cols-1 md:col-span-2 lg:col-span-12 p-5 md:p-8 rounded-2xl bg-primary/5 border border-primary/20 relative overflow-hidden group shadow-inner"
+                  className="lg:col-span-2 p-5 md:p-8 rounded-2xl bg-indigo-500/10 border border-white/10 relative overflow-hidden group shadow-inner transition-colors duration-150 hover:border-white/20"
                 >
                   <div className="absolute top-0 right-0 p-3 opacity-20 pointer-events-none">
                     <div className="w-24 h-24 rounded-full bg-primary/20 blur-3xl" />
                   </div>
                   <h4 className="text-[10px] md:text-xs font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                    AI Behavioral Insight
+                    AI INSIGHT
                   </h4>
                   <p className="text-base md:text-xl font-medium leading-relaxed italic text-foreground/90">
                     "{persona.aiInsight}"
@@ -141,127 +147,33 @@ export function PersonaDetailModal({
                 </motion.div>
               )}
 
-              {/* Left Column: Human DNA */}
-              <div className="grid-cols-1 md:col-span-1 lg:col-span-4 flex flex-col gap-4 md:gap-6">
-                {/* Goals & Interests */}
-                <motion.div 
+              {/* Left Column */}
+              <div className="flex flex-col gap-4 md:gap-6">
+                {/* Backstory Vault */}
+                <motion.div
                   variants={itemVariants}
-                  whileHover={{ scale: 1.01 }}
-                  className="p-5 md:p-6 rounded-2xl bg-card/40 border border-border/40 shadow-sm flex flex-col gap-6 backdrop-blur-sm"
-                >
-                  <div>
-                    <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Core Goals</h4>
-                    <ul className="space-y-3">
-                      {persona.goals.map((goal, i) => (
-                        <li key={`${persona.id}-goal-${i}`} className="text-xs md:text-sm flex gap-2 leading-relaxed">
-                          <span className="text-primary font-bold shrink-0">•</span>
-                          {goal}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Interests</h4>
-                    <div className="flex flex-wrap gap-1.5 md:gap-2">
-                      {persona.interests.map((interest, i) => (
-                        <Badge key={`${persona.id}-interest-${i}`} variant="secondary" className="font-normal rounded-md text-[10px] md:text-xs px-2 py-0.5">
-                          {interest}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Aesthetic DNA */}
-                <motion.div 
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.01 }}
-                  className="p-5 md:p-6 rounded-2xl bg-card/40 border border-border/40 shadow-sm backdrop-blur-sm"
-                >
-                  <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Aesthetic DNA</h4>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] md:text-xs text-muted-foreground">Style</span>
-                      <span className="text-xs md:text-sm font-semibold">{persona.designStyle}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] md:text-xs text-muted-foreground">Environment</span>
-                      <span className="text-[10px] md:text-xs font-medium text-right max-w-[150px] leading-tight">{persona.livingEnvironment}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] md:text-xs text-muted-foreground block mb-3">Favorite Colors</span>
-                      <div className="flex gap-2.5">
-                        {persona.favoriteColors.map((color, i) => (
-                          <div 
-                            key={`${persona.id}-color-${i}`} 
-                            className="w-7 h-7 md:w-9 md:h-9 rounded-full border border-border/40 shadow-inner transition-transform hover:scale-110 active:scale-95" 
-                            style={{ backgroundColor: color }}
-                            title={color}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Center Column: Cognitive Engine */}
-              <div className="grid-cols-1 md:col-span-1 lg:col-span-4 flex flex-col gap-4 md:gap-6">
-                <motion.div 
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.01 }}
-                  className="p-5 md:p-6 rounded-2xl bg-card/40 border border-border/40 shadow-sm flex flex-col gap-8 backdrop-blur-sm h-full"
-                >
-                  <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">Cognitive Engine</h4>
-                  
-                  <div className="space-y-6">
-                    {renderScalar("Cognitive Reflex", persona.cognitiveReflex, "Intuitive", "Analytical")}
-                    {renderScalar("Technical Fluency", persona.technicalFluency, "Luddite", "Hacker")}
-                    {renderScalar("Economic Sensitivity", persona.economicSensitivity, "Value Blind", "Penny Pincher")}
-                  </div>
-                  
-                  <div className="h-px bg-border/40" />
-
-                  <div className="flex flex-col gap-5">
-                    <h4 className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Big Five Profile</h4>
-                    <div className="space-y-5">
-                      {renderScalar("Conscientiousness", persona.conscientiousness, "Chaotic", "Meticulous")}
-                      {renderScalar("Neuroticism", persona.neuroticism, "Stable", "Anxious")}
-                      {renderScalar("Openness", persona.openness, "Traditional", "Curious")}
-                      {renderScalar("Extraversion", persona.extraversion, "Introvert", "Extrovert")}
-                      {renderScalar("Agreeableness", persona.agreeableness, "Competitive", "Compassionate")}
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Right Column: Backstory Vault */}
-              <div className="grid-cols-1 md:col-span-2 lg:col-span-4 flex flex-col gap-4 md:gap-6">
-                <motion.div 
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.01 }}
-                  className="flex flex-col h-full min-h-[400px] lg:min-h-0 p-5 md:p-6 rounded-2xl bg-card/40 border border-border/40 shadow-sm overflow-hidden backdrop-blur-sm"
+                  className="flex flex-col h-[400px] p-5 md:p-6 rounded-2xl bg-card border border-white/10 shadow-sm overflow-hidden transition-colors duration-150 hover:border-white/20"
                 >
                   <div className="flex items-center justify-between mb-6">
-                    <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">Backstory Vault</h4>
+                    <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">THE BACKSTORY VAULT</h4>
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/50" />
-                      <Input 
-                        placeholder="Search..." 
+                      <Input
+                        placeholder="Search backstory..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-8 w-28 md:w-32 text-[10px] md:text-xs pl-8 rounded-full bg-muted/30 border-none transition-all focus:ring-1 focus:ring-primary/20 focus:w-36 md:focus:w-44"
+                        className="h-8 w-32 md:w-36 text-[10px] md:text-xs pl-8 rounded-full bg-muted/30 border-none transition-all focus:ring-1 focus:ring-primary/20"
                       />
                     </div>
                   </div>
-                  
+
                   <ScrollArea className="flex-1 pr-4 -mr-4">
                     <div className="flex flex-col gap-5">
                       {filteredBackstory.map((paragraph, i) => {
                         const isMatch = searchTerm && paragraph.toLowerCase().includes(searchTerm.toLowerCase())
                         return (
-                          <p 
-                            key={`${persona.id}-para-${i}`} 
+                          <p
+                            key={`${persona.id}-para-${i}`}
                             className={cn(
                               "text-xs md:text-[13px] leading-relaxed text-foreground/80 transition-colors duration-300",
                               isMatch ? "bg-primary/10 rounded-lg p-2 text-foreground font-medium ring-1 ring-primary/20" : ""
@@ -274,7 +186,80 @@ export function PersonaDetailModal({
                     </div>
                   </ScrollArea>
                 </motion.div>
+
+                {/* Goals */}
+                <motion.div
+                  variants={itemVariants}
+                  className="p-5 md:p-6 rounded-2xl bg-card border border-white/10 shadow-sm flex flex-col gap-6 transition-colors duration-150 hover:border-white/20"
+                >
+                  <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">GOALS</h4>
+                  <ul className="space-y-3">
+                    {persona.goals.map((goal, i) => (
+                      <li key={`${persona.id}-goal-${i}`} className="text-xs md:text-sm flex gap-2 leading-relaxed">
+                        <span className="text-primary font-bold shrink-0">•</span>
+                        {goal}
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
               </div>
+
+              {/* Right Column */}
+              <div className="flex flex-col gap-4 md:gap-6">
+                {/* Engine */}
+                <motion.div
+                  variants={itemVariants}
+                  className="p-5 md:p-6 rounded-2xl bg-card border border-white/10 shadow-sm flex flex-col gap-8 h-full transition-colors duration-150 hover:border-white/20"
+                >
+                  <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">THE ENGINE</h4>
+
+                  <div className="space-y-6">
+                    {renderScalar("TECH FLUENCY", persona.technicalFluency, "Luddite", "Hacker")}
+                    {renderScalar("NEUROTICISM", persona.neuroticism, "Stable", "Anxious")}
+                    {renderScalar("COG REFLEX", persona.cognitiveReflex, "Intuitive", "Analytical")}
+                  </div>
+
+                  <div className="h-px bg-border/40" />
+
+                  <div className="flex flex-col gap-5">
+                    <h4 className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-2">Big Five Profile</h4>
+                    <div className="space-y-5">
+                      {renderScalar("Conscientiousness", persona.conscientiousness, "Chaotic", "Meticulous")}
+                      {renderScalar("Openness", persona.openness, "Traditional", "Curious")}
+                      {renderScalar("Extraversion", persona.extraversion, "Introvert", "Extrovert")}
+                      {renderScalar("Agreeableness", persona.agreeableness, "Competitive", "Compassionate")}
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Aesthetic DNA */}
+                <motion.div
+                  variants={itemVariants}
+                  className="p-5 md:p-6 rounded-2xl bg-card border border-white/10 shadow-sm transition-colors duration-150 hover:border-white/20"
+                >
+                  <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">AESTHETIC DNA</h4>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] md:text-xs text-muted-foreground">Style</span>
+                      <span className="text-xs md:text-sm font-semibold">{persona.designStyle}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] md:text-xs text-muted-foreground block mb-3">Colors</span>
+                      <div className="flex gap-2.5">
+                        {persona.favoriteColors.map((color, i) => (
+                          <div
+                            key={`${persona.id}-color-${i}`}
+                            className="w-7 h-7 md:w-9 md:h-9 rounded-full border border-border/40 shadow-inner"
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+
             </div>
           </ScrollArea>
         </motion.div>
