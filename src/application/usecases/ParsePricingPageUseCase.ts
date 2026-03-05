@@ -150,12 +150,12 @@ export class ParsePricingPageUseCase {
             // Send live update
             onProgress?.({ step: 'FINDING_PRICING', screenshot: viewportShot });
 
-            const USE_VISION_SCOUT = true;
+            const SKIP_VISION_VERIFY_ON_HIGH_CONFIDENCE = true;
             const isHighConfidence = pricingLocation.selector?.startsWith('#') ||
               pricingLocation.selector?.toLowerCase().includes('pricing') ||
               pricingLocation.anchorText?.toLowerCase().includes('pricing');
 
-            if (isHighConfidence && USE_VISION_SCOUT) {
+            if (isHighConfidence && SKIP_VISION_VERIFY_ON_HIGH_CONFIDENCE) {
               console.log(`[ParsePricingPageUseCase] High confidence HTML target. Skipping vision verification.`);
               foundViaVision = true;
             } else {
