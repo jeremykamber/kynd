@@ -15,7 +15,9 @@ export class VisionAnalysisAdapter {
     persona: Persona,
     screenshotBase64: string,
     pageHtml?: string,
+    options: { tokenLimit?: number } = {}
   ) {
+    const tokenLimit = options.tokenLimit ?? 2000;
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
         PERSONA PROFILE:
@@ -32,12 +34,13 @@ export class VisionAnalysisAdapter {
         STRICT OUTPUT RULES:
         - Respond ONLY with a valid JSON object following the provided schema.
         - You MUST include ALL fields: gutReaction, thoughts, scores, and risks.
+        - NO conversational preamble. NO monologue. NO text before or after the JSON.
         - Use standard JSON double quotes (") for all keys and string values.
         - Escape any literal double quotes within strings using a backslash (\").
-        - NO conversational preamble. NO text before or after the JSON.
-        - List a MAXIMUM of 10 risks. 
-        - DO NOT repeat yourself. 
         - If you have nothing more to say, STOP.
+        - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens to avoid truncated JSON.
+        - RISK CAP: Limit the 'risks' array to a maximum of 3 highly specific items.
+        - NO REPETITION: Do NOT repeat information across different fields. Keep 'gutReaction' short and punchy.
         
         HYBRID GROUNDING RULES:
         - Use the screenshot to gauge visual appeal, layout, emotion, and visual hierarchy.
@@ -78,7 +81,7 @@ export class VisionAnalysisAdapter {
         },
       ],
       temperature: 0.4, // Balanced for persona voice vs JSON structure
-      maxTokens: 2048,
+      maxTokens: tokenLimit,
     } as any);
   }
 
@@ -168,7 +171,9 @@ export class VisionAnalysisAdapter {
     persona: Persona,
     screenshotBase64: string,
     pageHtml?: string,
+    options: { tokenLimit?: number } = {}
   ) {
+    const tokenLimit = options.tokenLimit ?? 2000;
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
         PERSONA PROFILE:
@@ -183,10 +188,13 @@ export class VisionAnalysisAdapter {
         Evaluate this page from YOUR perspective. Return ONLY a valid JSON object following the PricingAnalysis schema.
         
         STRICT OUTPUT RULES:
-        - Respond ONLY with a valid JSON object.
+        - Respond ONLY with a valid JSON object following the PricingAnalysis schema.
         - Use standard JSON double quotes (") for all keys and string values.
         - Escape any literal double quotes within strings using a backslash (\").
         - NO conversational preamble. NO monologue. NO text before or after the JSON.
+        - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens to avoid truncated JSON.
+        - RISK CAP: Limit the 'risks' array to a maximum of 3 items.
+        - NO REPETITION: Do NOT repeat information across different fields.
         
         BEHAVIORAL GUIDANCE:
         - CONSCIENTIOUSNESS: If High, pay close attention to the small details and fine print. If Low, skip over the details.
@@ -221,7 +229,7 @@ export class VisionAnalysisAdapter {
         {
           temperature: 0.1,
           model: this.llmService.visionModel,
-          max_tokens: 2048,
+          max_tokens: tokenLimit,
           response_format: { type: "json_object" },
           purpose: "Pricing Audit",
         },

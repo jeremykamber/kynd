@@ -48,8 +48,11 @@ export class ParsePricingPageUseCase {
     options: {
       nonStreamingAuditMode?: boolean;
       imageBase64?: string;
+      tokenLimit?: number;
     } = {}
   ): Promise<PricingAnalysis[]> {
+    const DEFAULT_TOKEN_LIMIT = 2000;
+    const tokenLimit = options.tokenLimit ?? DEFAULT_TOKEN_LIMIT;
     const nonStreamingAuditMode = options.nonStreamingAuditMode ?? false;
 
     // 1. Capture screenshot of the pricing page with adaptive scouting
@@ -108,8 +111,12 @@ export class ParsePricingPageUseCase {
         // 2. Get cleaned HTML for "Locator" strategy
         pageHtml = await this.browserService.getCleanedHtml();
 
-        // 3. Ask LLM to locate pricing in HTML
-        const pricingLocation = await this.llmService.isPricingVisibleInHtml(pageHtml);
+        // 3. Start HTML compacting and Pricing Location search concurrently
+        onProgress?.({ step: 'THINKING' });
+        const pricingLocationPromise = this.llmService.isPricingVisibleInHtml(pageHtml);
+        const compactHtmlPromise = this.llmService.summarizeHtml(pageHtml);
+
+        const pricingLocation = await pricingLocationPromise;
         let foundViaVision = false;
 
         // --- STRATEGY A: GUIDED STRIKE ---
@@ -143,8 +150,18 @@ export class ParsePricingPageUseCase {
             // Send live update
             onProgress?.({ step: 'FINDING_PRICING', screenshot: viewportShot });
 
-            foundViaVision = await this.llmService.isPricingVisible(viewportShot);
-            console.log(`[ParsePricingPageUseCase] Vision Confirmation: ${foundViaVision ? 'POSITIVE' : 'NEGATIVE'}`);
+            const SKIP_VISION_VERIFY_ON_HIGH_CONFIDENCE = true;
+            const isHighConfidence = pricingLocation.selector?.startsWith('#') ||
+              pricingLocation.selector?.toLowerCase().includes('pricing') ||
+              pricingLocation.anchorText?.toLowerCase().includes('pricing');
+
+            if (isHighConfidence && SKIP_VISION_VERIFY_ON_HIGH_CONFIDENCE) {
+              console.log(`[ParsePricingPageUseCase] High confidence HTML target. Skipping vision verification.`);
+              foundViaVision = true;
+            } else {
+              foundViaVision = await this.llmService.isPricingVisible(viewportShot);
+              console.log(`[ParsePricingPageUseCase] Vision Confirmation: ${foundViaVision ? 'POSITIVE' : 'NEGATIVE'}`);
+            }
           } else {
             console.warn(`[ParsePricingPageUseCase] Target element not found in DOM.`);
           }
@@ -187,14 +204,9 @@ export class ParsePricingPageUseCase {
           }
         }
 
-        // 4. Final Capture (Hydrated Page at Scrolled Position)
-        // Capture the DOM state after scrolling has triggered lazy loads/animations
-        const finalHtml = await this.browserService.getCleanedHtml();
-
-        // Compact the HTML into an objective summary
-        onProgress?.({ step: 'THINKING' }); // Start thinking earlier while summarization happens
-        console.log(`[ParsePricingPageUseCase] Compacting HTML...`);
-        const compactedHtml = await this.llmService.summarizeHtml(finalHtml);
+        // 4. Resolve HTML summarization that ran concurrently
+        console.log(`[ParsePricingPageUseCase] Awaiting concurrent HTML Compacting...`);
+        const compactedHtml = await compactHtmlPromise;
         console.log(`[ParsePricingPageUseCase] HTML Compacting complete.`);
 
         // Use the last targeted viewport instead of full page
@@ -222,7 +234,7 @@ export class ParsePricingPageUseCase {
     console.log(`[ParsePricingPageUseCase] Analyzing from ${personas.length} personas...`);
 
     const pLimit = (await import('p-limit')).default;
-    const limit = pLimit(2); // Reduced to 2 to prevent overwhelming vision provider/network
+    const limit = pLimit(5); // Increased to 5 to run personas concurrently for speed
 
     let finishedCount = 0;
     const totalCount = personas.length;
@@ -241,10 +253,7 @@ export class ParsePricingPageUseCase {
           throw new Error('Request cancelled during persona analysis');
         }
 
-        // Stagger only if running streaming mode (not necessary in completion mode, as LLM load distributed)
-        if (!nonStreamingAuditMode && index > 0) {
-          await new Promise(resolve => setTimeout(resolve, Math.min(index * 200, 1000)));
-        }
+        // Removed staggered delay to improve concurrency speed
 
         // Progress & logging
         onProgress?.({
@@ -264,7 +273,7 @@ export class ParsePricingPageUseCase {
           try {
             console.log(`[ParsePricingPageUseCase] [AUDIT] Starting non-streaming audit for persona: ${persona.name}`);
             analysisObj = await (this.llmService as any).analyzePricingPageCompletion(
-              persona, capturedScreenshot, pageHtml
+              persona, capturedScreenshot, pageHtml, { tokenLimit }
             );
             if (process.env.NODE_ENV !== 'production') {
               console.log(`[ParsePricingPageUseCase] [AUDIT] Audit analysis complete for: ${persona.name}`, analysisObj);
@@ -287,7 +296,7 @@ export class ParsePricingPageUseCase {
           try {
             console.log(`[ParsePricingPageUseCase] Starting streaming analysis for persona: ${persona.name}...`);
             const result = await (this.llmService as any).analyzePricingPageStream(
-              persona, capturedScreenshot, pageHtml
+              persona, capturedScreenshot, pageHtml, { tokenLimit }
             );
 
             // Set a timeout for the entire persona analysis to prevent indefinite hangs
@@ -305,9 +314,12 @@ export class ParsePricingPageUseCase {
                 chunkCount++;
                 lastDataTime = Date.now();
 
+                // Character threshold roughly from tokens (4:1 ratio)
+                const charThreshold = tokenLimit * 4;
+
                 // Emergency break: If a single persona generates too much data, it's likely a runaway loop
-                if (chunkCount > 3000 || lastThoughts.length > 90000) {
-                  console.error(`[ParsePricingPageUseCase] Persona ${persona.name}: Emergency break triggered due to excessive data (${chunkCount} chunks, ${lastThoughts.length} chars).`);
+                if (chunkCount > 3000 || lastThoughts.length > charThreshold) {
+                  console.error(`[ParsePricingPageUseCase] Persona ${persona.name}: Emergency break triggered due to excessive data (${chunkCount} chunks, ${lastThoughts.length} chars). Threshold: ${charThreshold}`);
                   break;
                 }
 
