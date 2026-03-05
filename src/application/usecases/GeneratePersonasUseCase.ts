@@ -74,7 +74,7 @@ export class GeneratePersonasUseCase {
         const totalSubSteps = totalCount * subStepsPerPersona;
 
         const pLimit = (await import('p-limit')).default;
-        const limit = pLimit(2); // Generate 2 backstories in parallel
+        const limit = pLimit(5); // Generate 5 backstories in parallel for speed
 
         await Promise.all(personas.map((persona) => limit(async () => {
             onProgress?.({

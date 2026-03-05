@@ -128,7 +128,7 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             window.scrollBy(0, px);
         }, pixels);
         // Brief wait for any lazy content
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(250);
     }
 
     /**
@@ -141,7 +141,7 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             window.scrollTo({ top: targetY, behavior: 'smooth' });
         }, y);
         // Wait for smooth scroll to settle
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(250);
     }
 
     /**
@@ -340,20 +340,19 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             .catch(() => console.log("Network didn't settle, continuing..."));
 
         // 3. Custom: Wait for no 'loading' text/spinners/skeletons to exist
-        const loaders = [
+        // Combine into one selector for efficiency
+        const loaderSelector = [
             ':text-matches("loading", "i")',
             '[class*="skeleton"]',
             '[class*="shimmer"]',
             '[class*="loading-indicator"]'
-        ];
+        ].join(', ');
 
-        for (const selector of loaders) {
-            await page.locator(selector).first().waitFor({ state: "hidden", timeout: 2000 }).catch(() => { });
-        }
+        await page.locator(loaderSelector).first().waitFor({ state: "hidden", timeout: 1500 }).catch(() => { });
 
-        // 4. Final "Settling" pause (the 1000ms breather)
+        // Final "Settling" pause (the 250ms breather)
         // Essential for animations/transitions to finish before a screenshot
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(250);
     }
 
     /**
