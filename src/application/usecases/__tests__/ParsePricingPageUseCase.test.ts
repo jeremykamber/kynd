@@ -153,10 +153,14 @@ describe('ParsePricingPageUseCase', () => {
       object: Promise.resolve({ scores: {} })
     });
 
+    const start = Date.now();
     await useCase.execute(url, [mockPersona]);
+    const elapsed = Date.now() - start;
 
     expect(scoutingStarted).toBe(true);
     expect(summarizationStarted).toBe(true);
+    // With 50ms delays in each mock, true parallelism should complete closer to 50ms than 100ms.
+    expect(elapsed).toBeLessThan(80);
   });
 
   it('should pass custom tokenLimit to LLM service', async () => {
