@@ -17,7 +17,7 @@ export class VisionAnalysisAdapter {
     pageHtml?: string,
     options: { tokenLimit?: number } = {}
   ) {
-    const tokenLimit = options.tokenLimit ?? 2048;
+    const tokenLimit = options.tokenLimit ?? 2000;
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
         PERSONA PROFILE:
