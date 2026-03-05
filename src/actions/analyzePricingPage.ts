@@ -13,10 +13,12 @@ const AUDIT_RATE_LIMIT_MAX = parseInt(process.env.AUDIT_RATE_LIMIT_MAX || '5');
 const AUDIT_RATE_LIMIT_WINDOW_MS = parseInt(process.env.AUDIT_RATE_LIMIT_WINDOW_MS || '60000');
 
 const auditRateLimiter = new RateLimiterMemory({
-  keyPrefix: 'audit',
-  points: AUDIT_RATE_LIMIT_MAX, // Number of requests
-  duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000), // Duration in seconds
+    keyPrefix: 'audit',
+    points: AUDIT_RATE_LIMIT_MAX, // Number of requests
+    duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000), // Duration in seconds
 });
+
+const PERSONA_TOKEN_LIMIT = parseInt(process.env.PERSONA_TOKEN_LIMIT || '2000');
 
 export async function analyzePricingPageAction(
     url: string,
@@ -75,7 +77,7 @@ export async function analyzePricingPageAction(
                     }
                 },
                 abortSignal,
-                { imageBase64 }
+                { imageBase64, tokenLimit: PERSONA_TOKEN_LIMIT }
             );
 
             if (!abortSignal.aborted) {

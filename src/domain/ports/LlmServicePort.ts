@@ -160,7 +160,8 @@ export interface LlmServicePort {
     analyzePricingPageStream(
         persona: Persona,
         screenshotBase64: string,
-        pageHtml?: string
+        pageHtml?: string,
+        options?: { tokenLimit?: number }
     ): Promise<any>; // Using any for the streamObject return type for now to avoid complex type issues in port
 
     /**

@@ -264,11 +264,13 @@ export class LlmServiceImpl implements LlmServicePort {
     persona: Persona,
     screenshot: string,
     html?: string,
+    options?: { tokenLimit?: number }
   ): Promise<any> {
     return this.visionAdapter.analyzePricingPageStream(
       persona,
       screenshot,
       html,
+      options,
     );
   }
 

@@ -15,7 +15,9 @@ export class VisionAnalysisAdapter {
     persona: Persona,
     screenshotBase64: string,
     pageHtml?: string,
+    options: { tokenLimit?: number } = {}
   ) {
+    const tokenLimit = options.tokenLimit ?? 2048;
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
         PERSONA PROFILE:
@@ -34,10 +36,8 @@ export class VisionAnalysisAdapter {
         - You MUST include ALL fields: gutReaction, thoughts, scores, and risks.
         - Use standard JSON double quotes (") for all keys and string values.
         - Escape any literal double quotes within strings using a backslash (\").
-        - NO conversational preamble. NO text before or after the JSON.
-        - List a MAXIMUM of 10 risks. 
-        - DO NOT repeat yourself. 
         - If you have nothing more to say, STOP.
+        - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens to avoid truncated JSON.
         
         HYBRID GROUNDING RULES:
         - Use the screenshot to gauge visual appeal, layout, emotion, and visual hierarchy.
@@ -78,7 +78,7 @@ export class VisionAnalysisAdapter {
         },
       ],
       temperature: 0.4, // Balanced for persona voice vs JSON structure
-      maxTokens: 2048,
+      maxTokens: tokenLimit,
     } as any);
   }
 
@@ -168,7 +168,9 @@ export class VisionAnalysisAdapter {
     persona: Persona,
     screenshotBase64: string,
     pageHtml?: string,
+    options: { tokenLimit?: number } = {}
   ) {
+    const tokenLimit = options.tokenLimit ?? 2048;
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
         PERSONA PROFILE:
@@ -187,6 +189,7 @@ export class VisionAnalysisAdapter {
         - Use standard JSON double quotes (") for all keys and string values.
         - Escape any literal double quotes within strings using a backslash (\").
         - NO conversational preamble. NO monologue. NO text before or after the JSON.
+        - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens to avoid truncated JSON.
         
         BEHAVIORAL GUIDANCE:
         - CONSCIENTIOUSNESS: If High, pay close attention to the small details and fine print. If Low, skip over the details.
@@ -221,7 +224,7 @@ export class VisionAnalysisAdapter {
         {
           temperature: 0.1,
           model: this.llmService.visionModel,
-          max_tokens: 2048,
+          max_tokens: tokenLimit,
           response_format: { type: "json_object" },
           purpose: "Pricing Audit",
         },
