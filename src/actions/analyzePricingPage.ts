@@ -27,7 +27,7 @@ export async function analyzePricingPageAction(
     const id = requestId || `pricing-${Date.now()}`;
     const abortController = cancellationManager.createRequest(id);
     const abortSignal = abortController.signal;
-    const stream = createStreamableValue<any>({ step: "SETTING_UP_AGENT", requestId: id });
+    const stream = createStreamableValue<any>({ step: "STARTING", requestId: id });
 
     // Get client IP for rate limiting
     let clientIP = 'unknown';

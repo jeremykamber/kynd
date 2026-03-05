@@ -401,6 +401,34 @@ Start the life story from the beginning. Write in first person. Be specific with
     );
   }
 
+  /**
+   * Generates a sharp, 2-sentence 'AI Insight' into a persona's primary motivation 
+   * and their biggest psychological barrier to conversion.
+   */
+  async generatePersonaInsight(persona: Persona): Promise<string> {
+    const system = `You are a behavioral psychologist. Analyze this persona's profile and backstory 
+to provide a sharp, 2-sentence 'AI Insight' into their primary motivation 
+and their biggest psychological barrier to conversion. 
+Speak with professional authority and deep empathy.`;
+
+    const user = `Analyze this persona:
+${JSON.stringify(persona, null, 2)}
+
+Provide a 2-sentence insight.`;
+
+    return await this.llmService.createChatCompletion(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      {
+        model: this.llmService.smallTextModel,
+        temperature: 0.5,
+        purpose: "Generate Persona Insight",
+      },
+    );
+  }
+
   private getAbbreviatedBackstorySystemPrompt(): string {
     return `You are a narrative psychologist building a concise but RICH life story of a buyer persona.
 Build a 3-5 paragraph "Mini-Biography" (approx 800-1200 tokens) that covers:

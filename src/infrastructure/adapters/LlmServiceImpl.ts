@@ -248,6 +248,10 @@ export class LlmServiceImpl implements LlmServicePort {
     yield* this.personaAdapter.generateAbbreviatedBackstoryStream(persona);
   }
 
+  async generatePersonaInsight(persona: Persona): Promise<string> {
+    return this.personaAdapter.generatePersonaInsight(persona);
+  }
+
   async isPricingVisible(screenshot: string): Promise<boolean> {
     return this.visionAdapter.isPricingVisible(screenshot);
   }

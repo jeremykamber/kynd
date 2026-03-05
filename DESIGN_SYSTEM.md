@@ -1,107 +1,90 @@
-## 1. Core Philosophy
-The DeepBound design system is built on **"Invisible Performance."** We prioritize **Simplicity over Everything.** The UI is not a destination; it is a clear lens through which the user views their data. 
-
-### The Ultimate Goal: Magic
-Everything must feel natural, intuitive, and "magical." If an interaction requires a manual, a tooltip to explain the UI itself (not the data), or more than one second of thought to find—**it is a failure.**
-
-### Design Principles
-- **The Law of Invisibility**: The best UI is the one you don't notice. Strip away every border, background, and element that isn't pulling its weight.
-- **Natural Placement**: Every button, metric, and insight must be exactly where the user's eye expects it to be. 
-- **Anticipatory Design**: The tool should feel like it's one step ahead of the user's next question. 
-- **Snappy Precision**: Latency destroys magic. Interactions must be instantaneous and mechanical.
-- **Simplicity at All Costs**: If there is any way to make a feature simpler or easier to operate, **DO IT.** Do not let "pro features" compromise the ease of use.
+# DeepBound Design System v1.1
+**Owner:** Kyiu (Lead Designer/UXR)  
+**Status:** DEFINITIVE / PRODUCTION READY  
+**Core Goal:** To facilitate "Magic" via Invisible Performance.
 
 ---
 
-## 2. Color System
-Optimized for high-contrast legibility in a dark environment.
+## 1. Core Philosophy: "Invisible Performance"
+DeepBound is a professional research instrument. The UI should be a clear lens, not a destination.
 
-### Base Palette
-| Token | Value (HEX/OKLCH) | UI Role |
+### The Three Pillars
+1. **The Law of Invisibility**: Strip away every border and background that isn't pulling weight. If a user notices the UI instead of the data, we failed.
+2. **Predictive Density**: Place metrics exactly where the eye expects them. High-density data must feel organized, not cluttered.
+3. **Tabular Precision**: Latency and "bouncy" animations are banned. Everything should feel mechanical, snappy, and intentional.
+
+---
+
+## 2. Global Style Foundations
+
+### Color Palette (High-Contrast Dark Mode)
+| Token | HEX | Role |
 | :--- | :--- | :--- |
-| `background` | `#0A0A0A` | Deep charcoal. Reduces eye strain during long analysis sessions. |
-| `foreground` | `#F5F5F5` | Clean white. High legibility for primary data. |
-| `card` | `#141414` | Solid surface. Clear boundaries between data modules. |
-| `primary` | `#6366F1` | **Direct Indigo**. High-visibility primary action color. |
-| `muted-foreground` | `#9CA3AF` | Secondary metadata. Subdued but still high-contrast for readability. |
+| `background` | `#0A0A0A` | Deep charcoal. Reduces eye strain. |
+| `foreground` | `#F5F5F5` | Primary text. High legibility. |
+| `card` | `#141414` | Level 1 surface. Standard data container. |
+| `primary` | `#6366F1` | **Direct Indigo**. Used for primary actions and active states. |
+| `muted` | `#9CA3AF` | Secondary metadata and helper text. |
 | `border` | `white / 10%` | Crisp, visible boundaries. |
-| `input` | `white / 15%` | Defined interactive zones. |
+| `accent-glow` | `indigo-500 / 10%` | Background for "AI Insight" callouts. |
+
+### Radii & Spacing (Modern Precision)
+- **Small (4px)**: Internal machinery—inputs, small buttons, tags.
+- **Standard (6px)**: Default for primary buttons and interface components.
+- **Large (16px)**: Primary cards, sections, and modal containers.
+- **Grid**: Strict adherence to an **8px baseline** for all padding and margins.
 
 ---
 
-## 3. Radii & Spacing
-"Modern Precision" — avoiding the "bubbly" look of consumer apps while maintaining a modern, professional softened edge.
+## 3. Typography: The "Dossier" Hierarchy
+**Font**: Geist Sans (or System Sans-Serif).
 
-| Level | Radius | Use Case |
-| :--- | :--- | :--- |
-| **Small** | `0.375rem` (6px) | Small buttons, tags, internal card markers. |
-| **Standard** | `0.5rem` (8px) | Default for buttons, inputs, components. |
-| **Large** | `1rem` (16px) | Primary cards, sections, modal containers. |
-| **Pill** | `9999px` | Badges, status indicators. |
-
-### Spacing & Density
-- **Standard Padding**: `p-4` (1rem) for most internal components.
-- **Section Margins**: `py-12` to `py-16` for main layout divisions. Avoid `py-24+` unless starting a new major flow.
-- **Alignment**: Strict adherence to an 8px grid for mechanical alignment.
+- **Headers**: Sentence-case, Medium (500), Tracking `-0.01em`.
+- **Data Labels**: Uppercase, Bold (700), Size `11px`, Tracking `0.1em`.
+- **Metrics/Numbers**: **`font-variant-numeric: tabular-nums`**. This is non-negotiable for progress bars and scores.
+- **Body Text**: Regular (400), Line-Height `1.5`.
 
 ---
 
-## 4. Typography
-Utilizing **Geist Sans** (or system-default sans) for technical clarity.
+## 4. Layout Architecture: The "Bento Logic"
 
-### Font Hierarchy
-- **Headers (H1/H2)**: 
-  - Weight: `Medium` (500).
-  - Letter Casing: **Sentence-case**. 
-  - Tracking: `-0.01em`.
-- **Primary Metrics**:
-  - Weight: `Semibold` (600).
-  - Numbers should always be legible and prominent.
-- **Body Text**:
-  - Weight: `Regular` (400).
-  - Line Height: `1.5` for balanced reading.
-- **Data Labels**:
-  - Weight: `Bold` (700).
-  - Letter Casing: **Uppercase**.
-  - Tracking: `0.1em`.
-  - Size: `11px`.
-
----
-
-## 5. Interactive Components
-
-### Buttons
-- **`primary`**: High-contrast fills. Interaction should be a simple opacity or color shift. No scaling.
-- **`outline`**: `border-white/10` base. `bg-white/5` on hover. Snappy `150ms` transition.
-- **`ghost`**: Clean, text-based actions.
-
-### Data Inputs
-- **Idle**: `bg-white/[0.03]` with a `border-white/10` stroke. 
-- **Focus**: Snappy `border-primary` or `border-white/20`.
-- **Utility**: All inputs must have clear, high-contrast focus rings for accessibility.
-
----
-
-## 6. Layout Patterns
-- **High-Density Grids**: Use 2, 3, or 4-column layouts to maximize data visibility.
-- **Surface Layering**: 
+### The Workspace
+- **Max Container**: `1440px` (centered).
+- **Gutter**: `16px` (gap-4).
+- **Layering**: 
   - Level 0: Background
-  - Level 1: Cards (`border-white/10`)
-  - Level 2: Modals (`border-white/15`, `shadow-2xl`)
-- **Trace Maps**: Analysis elements should be clearly boxed, not floating.
+  - Level 1: Bento Cards (`border-white/10`)
+  - Level 2: Modals (`backdrop-blur-xl`, `border-white/15`)
+
+### The "Dossier" Bento Layout
+Every Persona/Analysis view follows this 3-tier hierarchy:
+1. **The Pulse (Top)**: Critical summary/AI Insight banner.
+2. **The Engine (Middle)**: Quantitative psychometrics and scoring grid.
+3. **The Vault (Bottom)**: Long-form backstory (4k+ tokens) or session logs.
 
 ---
 
-## 7. Motion & Micro-interactions
-Motion is for **confirmation**, not decoration.
+## 5. Component Standards
 
-- **Duration**: `150ms` for hovers, `300ms` for layout shifts/modals.
-- **Easing**: `cubic-bezier(0.16, 1, 0.3, 1)` (Out-Expo) for snappiness.
-- **Rules**: Zero scaling on hover. Zero "bouncy" spring animations. Elements should snap into place with precision.
+### The "Friction Bar" (Psychometrics)
+- **Height**: `h-1.5` (6px).
+- **Track**: `bg-white/5`.
+- **Fill**: Linear gradient from `indigo-600` to `indigo-400`.
+- **Labels**: Every bar *must* have semantic labels at the poles (e.g., "Intuitive" vs. "Analytical").
+
+### The Backstory Vault
+- **Container**: `ScrollArea` with fixed height.
+- **Search**: Functional keyword filter at the top.
+- **Scrollbar**: `w-1`, `rounded-full`, only visible on hover.
+
+### Interactive States
+- **Hover**: No scaling. Use **Border Illumination** (`border-white/10` -> `border-white/20`) at `150ms`.
+- **Primary Buttons**: High-contrast fill. Opacity shift on hover.
+- **Modal Close**: `absolute top-6 right-6`, `rounded-lg` (Standard Radius).
 
 ---
 
-## 8. Specific UI Standards
-- **Icons**: Use `stroke-width={1.5}` or `2`. Avoid ultra-thin lines that sacrifice legibility.
-- **Scrollbars**: Minimal, narrow, and high-contrast. Only visible when hovering over a scrollable region.
-- **Modal Close Buttons**: Standardized to `absolute top-6 right-6`. `rounded-lg` (not circle).
+## 6. Motion & Micro-interactions
+- **Duration**: `150ms` (Hovers), `300ms` (Modals/Layout shifts).
+- **Easing**: `cubic-bezier(0.16, 1, 0.3, 1)` (Out-Expo).
+- **Rule**: All transitions must feel "snappy" and "mechanical." Zero bounce.

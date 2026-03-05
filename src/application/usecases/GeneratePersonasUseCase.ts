@@ -4,6 +4,7 @@ import { LlmServicePort } from "../../domain/ports/LlmServicePort";
 export type PersonaGenerationProgressStep =
     | 'BRAINSTORMING_PERSONAS'
     | 'GENERATING_BACKSTORIES'
+    | 'GENERATING_INSIGHTS'
     | 'DONE'
     | 'ERROR';
 
@@ -105,6 +106,29 @@ export class GeneratePersonasUseCase {
                 totalCount,
                 completedSubSteps,
                 totalSubSteps,
+                personas: JSON.parse(JSON.stringify(personas))
+            });
+        })));
+
+        // Phase 3: Generate AI Insights
+        console.log("[GeneratePersonasUseCase] Generating AI Insights...");
+        onProgress?.({
+            step: 'GENERATING_INSIGHTS',
+            personas: JSON.parse(JSON.stringify(personas)),
+            totalCount,
+            completedCount: 0,
+        });
+
+        completedCount = 0;
+        await Promise.all(personas.map((persona) => limit(async () => {
+            console.log(`[GeneratePersonasUseCase] Generating AI Insight for ${persona.name}...`);
+            const insight = await this.llmService.generatePersonaInsight(persona);
+            persona.aiInsight = insight;
+            completedCount++;
+            onProgress?.({
+                step: 'GENERATING_INSIGHTS',
+                completedCount,
+                totalCount,
                 personas: JSON.parse(JSON.stringify(personas))
             });
         })));
