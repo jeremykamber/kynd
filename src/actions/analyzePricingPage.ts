@@ -18,7 +18,10 @@ const auditRateLimiter = new RateLimiterMemory({
     duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000), // Duration in seconds
 });
 
-const PERSONA_TOKEN_LIMIT = parseInt(process.env.PERSONA_TOKEN_LIMIT || '2000');
+const rawPersonaTokenLimit = parseInt(process.env.PERSONA_TOKEN_LIMIT || '2000', 10);
+const PERSONA_TOKEN_LIMIT = Number.isFinite(rawPersonaTokenLimit) && rawPersonaTokenLimit > 0
+    ? rawPersonaTokenLimit
+    : 2000;
 
 export async function analyzePricingPageAction(
     url: string,
