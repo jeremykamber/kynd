@@ -30,11 +30,11 @@ export class LlmServiceImpl implements LlmServicePort {
   private extractionAdapter: ExtractionAdapter;
 
   // OpenRouter Defaults
-  private static readonly OR_TEXT_MODEL = "qwen/qwen3-235b-a22b-2507";
-  private static readonly OR_SMALL_TEXT_MODEL = "google/gemma-3-12b-it";
+  private static readonly OR_TEXT_MODEL = "qwen/qwen3.5-9b";
+  private static readonly OR_SMALL_TEXT_MODEL = "qwen/qwen3.5-9b";
   private static readonly OR_VISION_MODEL = "qwen/qwen3-vl-30b-a3b-instruct";
   private static readonly OR_SCOUT_MODEL = "qwen/qwen3-vl-8b-instruct";
-  private static readonly OR_EXTRACTION_MODEL = "google/gemma-3-12b-it";
+  private static readonly OR_EXTRACTION_MODEL = "qwen/qwen3.5-9b";
 
   // Ollama Defaults
   private static readonly OLLAMA_DEFAULT_MODEL = "gemma3:1b-it-qat";
