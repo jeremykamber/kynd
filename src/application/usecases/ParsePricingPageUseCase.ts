@@ -175,7 +175,7 @@ export class ParsePricingPageUseCase {
           // Reset to top to start clean
           await this.browserService.scrollTo(0);
 
-          const MAX_SCROLLS = 15;
+          const MAX_SCROLLS = 8;
           const SCROLL_AMOUNT = 800;
           const CENTER_OFFSET = 160; // 20% of 800px viewport
 
