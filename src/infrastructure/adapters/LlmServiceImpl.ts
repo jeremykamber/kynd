@@ -31,10 +31,10 @@ export class LlmServiceImpl implements LlmServicePort {
 
   // OpenRouter Defaults
   private static readonly OR_TEXT_MODEL = "qwen/qwen3.5-9b";
-  private static readonly OR_SMALL_TEXT_MODEL = "qwen/qwen3-8b";
+  private static readonly OR_SMALL_TEXT_MODEL = "qwen/qwen3.5-flash-02-23";
   private static readonly OR_VISION_MODEL = "qwen/qwen3-vl-30b-a3b-instruct";
   private static readonly OR_SCOUT_MODEL = "qwen/qwen3-vl-8b-instruct";
-  private static readonly OR_EXTRACTION_MODEL = "qwen/qwen3-8b";
+  private static readonly OR_EXTRACTION_MODEL = "qwen/qwen3.5-flash-02-23";
 
   // Ollama Defaults
   private static readonly OLLAMA_DEFAULT_MODEL = "gemma3:1b-it-qat";
