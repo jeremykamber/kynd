@@ -137,20 +137,12 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
         })}
       </div>
 
-      {/* Chat Slide-Out */}
       {selectedPersona && (
-        <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <button
-            type="button"
-            className="absolute inset-0 w-full h-full cursor-default focus:outline-none"
-            onClick={() => setSelectedPersonaId(null)}
-            aria-label="Close Chat Overlay"
-          />
-          <PersonaChat
-            persona={selectedPersona}
-            onClose={() => setSelectedPersonaId(null)}
-          />
-        </div>
+        <PersonaChat
+          persona={selectedPersona}
+          isOpen={!!selectedPersona}
+          onClose={() => setSelectedPersonaId(null)}
+        />
       )}
     </div>
   )

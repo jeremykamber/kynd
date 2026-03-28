@@ -34,7 +34,7 @@ export function FlowDialog({
 }: FlowDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl gap-8 p-8 md:p-12 border-border/40 rounded-[2rem] bg-card/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+      <DialogContent className="sm:max-w-2xl gap-8 p-8 md:p-12 border-border/40 rounded-[2rem] bg-background shadow-2xl overflow-hidden">
         
         {/* Decorative background glow */}
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />

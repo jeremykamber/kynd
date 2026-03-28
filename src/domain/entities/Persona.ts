@@ -22,7 +22,6 @@ export interface Persona {
   economicSensitivity: number;
   // Aesthetic & Environment
   designStyle: string; // e.g. Minimalist, Industrial, Bohemian
-  favoriteColors: string[];
   livingEnvironment: string; // e.g. "Cluttered urban apartment", "Sleek minimalist home"
   backstory?: string;
   aiInsight?: string;
@@ -83,9 +82,6 @@ export const PersonaSchema = z.object({
   designStyle: z
     .string()
     .describe("Preferred design aesthetic (e.g. Minimalist, Industrial)"),
-  favoriteColors: z
-    .array(z.string())
-    .describe("List of favorite colors (hex codes)"),
   livingEnvironment: z
     .string()
     .describe("Description of their physical workspace or home"),
@@ -133,7 +129,6 @@ export function stringifyPersona(entity: Persona): string {
     `Economic Sensitivity: ${entity.economicSensitivity ?? 50} (High=Price-Sensitive)`,
     `--- AESTHETIC DNA ---`,
     `Design Style: ${entity.designStyle ?? "Minimalist"}`,
-    `Favorite Colors: ${join(entity.favoriteColors)}`,
     `Living Environment: ${entity.livingEnvironment ?? "Organized habitat"}`,
   ];
 

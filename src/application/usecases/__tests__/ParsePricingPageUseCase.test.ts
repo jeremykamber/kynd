@@ -27,7 +27,6 @@ describe('ParsePricingPageUseCase', () => {
     technicalFluency: 90,
     economicSensitivity: 50,
     designStyle: 'Minimalist',
-    favoriteColors: ['#000000'],
     livingEnvironment: 'Clean office'
   };
 

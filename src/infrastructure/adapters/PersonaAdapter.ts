@@ -37,7 +37,6 @@ interface Persona {
   economicSensitivity: number;
   // Aesthetic & Environment
   designStyle: string;       // e.g. Minimalist, Industrial, Mid-Century Modern
-  favoriteColors: string[];
   livingEnvironment: string; // Describe their messy/organized home or office
 }
 
@@ -146,7 +145,6 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
             technicalFluency: Number(p.technicalFluency) || 50,
             economicSensitivity: Number(p.economicSensitivity) || 50,
             designStyle: (p.designStyle as string) ?? "Minimalist",
-            favoriteColors: Array.isArray(p.favoriteColors) ? (p.favoriteColors as string[]) : [],
             livingEnvironment: (p.livingEnvironment as string) ?? "Unknown",
             backstory: (p.backstory as string) ?? (p.story as string) ?? undefined,
           }) as Persona,
@@ -186,7 +184,6 @@ interface Persona {
   economicSensitivity: number;
   // Aesthetic & Environment
   designStyle: string;       // e.g. Minimalist, Industrial, Mid-Century Modern
-  favoriteColors: string[];
   livingEnvironment: string; // Describe their messy/organized home or office
 }
 CRITICAL REQUIREMENTS:
@@ -240,7 +237,7 @@ Your task: Build a RICH, LENGTHY, INTERNALLY CONSISTENT interview-style backstor
 8. Specific examples of successful and failed purchases
 9. Values around efficiency, risk, and spending
 10. Communication style and decision-making pace
-11. Design Taste: Their favorite colors, their preferred aesthetic (Minimalist, Brutalist, etc.), and a description of their living/working environment (Is it messy? Hyper-organized? Sterile? Cozy?). Describe how this environment reflects their personality scalars.
+11. Design Taste: Their preferred aesthetic (Minimalist, Brutalist, etc.) and a description of their living/working environment (Is it messy? Hyper-organized? Sterile? Cozy?). Describe how this environment reflects their personality scalars.
 
 CRITICAL REQUIREMENTS (Deep Binding research):
 - Write 8-12 substantial paragraphs, each 150-250 words
@@ -299,7 +296,7 @@ Start the life story from the beginning. Write in first person. Be specific with
         { role: "system", content: system },
         {
           role: "user",
-          content: `Finish this persona's backstory.\nPREVIOUS HISTORY:\n${part1}\n${part2}\n${part3}\nNow write 2-3 final paragraphs that:\n- Describe their physical world: their home or office, their favorite colors, and their design taste. Explain how their conscientiousness (or lack thereof) manifests in their environment.\n- Articulate their core values around money, efficiency, and risk based on their entire life history.\n- Explain how they evaluate ROI on new tools.\n- Describe their decision-making pace (tied to their Cognitive Reflex and Neuroticism).\n- End with their current mindset.`,
+          content: `Finish this persona's backstory.\nPREVIOUS HISTORY:\n${part1}\n${part2}\n${part3}\nNow write 2-3 final paragraphs that:\n- Describe their physical world: their home or office and their design taste. Explain how their conscientiousness (or lack thereof) manifests in their environment.\n- Articulate their core values around money, efficiency, and risk based on their entire life history.\n- Explain how they evaluate ROI on new tools.\n- Describe their decision-making pace (tied to their Cognitive Reflex and Neuroticism).\n- End with their current mindset.`,
         },
       ],
       { purpose: "Backstory Part 4" },
@@ -326,7 +323,7 @@ Your task: Build a RICH, LENGTHY, INTERNALLY CONSISTENT interview-style backstor
 8. Specific examples of successful and failed purchases
 9. Values around efficiency, risk, and spending
 10. Communication style and decision-making pace
-11. Design Taste: Their favorite colors, their preferred aesthetic (Minimalist, Brutalist, etc.), and a description of their living/working environment (Is it messy? Hyper-organized? Sterile? Cozy?). Describe how this environment reflects their personality scalars.
+11. Design Taste: Their preferred aesthetic (Minimalist, Brutalist, etc.) and a description of their living/working environment (Is it messy? Hyper-organized? Sterile? Cozy?). Describe how this environment reflects their personality scalars.
 CRITICAL REQUIREMENTS (Deep Binding research):
 - Write 8-12 substantial paragraphs, each 150-250 words
 - MULTI-TURN DEPTH: This is an extended interview, not a summary
@@ -396,7 +393,7 @@ Start the life story from the beginning. Write in first person. Be specific with
         { role: "system", content: system },
         {
           role: "user",
-          content: `Finish this persona's backstory.\nPREVIOUS HISTORY:\n${part1}\n${part2}\n${part3}\nNow write 2-3 final paragraphs that:\n- Describe their physical world: their home or office, their favorite colors, and their design taste. Explain how their conscientiousness (or lack thereof) manifests in their environment.\n- Articulate their core values around money, efficiency, and risk based on their entire life history.\n- Explain how they evaluate ROI on new tools.\n- Describe their decision-making pace (tied to their Cognitive Reflex and Neuroticism).\n- End with their current mindset.`,
+          content: `Finish this persona's backstory.\nPREVIOUS HISTORY:\n${part1}\n${part2}\n${part3}\nNow write 2-3 final paragraphs that:\n- Describe their physical world: their home or office and their design taste. Explain how their conscientiousness (or lack thereof) manifests in their environment.\n- Articulate their core values around money, efficiency, and risk based on their entire life history.\n- Explain how they evaluate ROI on new tools.\n- Describe their decision-making pace (tied to their Cognitive Reflex and Neuroticism).\n- End with their current mindset.`,
         },
       ],
       { purpose: "Backstory Part 4 (Stream)" },
@@ -476,7 +473,7 @@ CONCISE REQUIREMENTS:
 - Speak in FIRST PERSON. Natural, blunt language.
 - SPECIFICITY: Mention real roles, names, and dollar amounts.
 - PSYCHOLOGICAL BINDING: Anchor their story to their scalars (Neuroticism, Conscientiousness, Cognitive Reflex).
-- DESIGN DNA: Briefly describe their favorite colors and their living/office environment.
+- DESIGN DNA: Briefly describe their living/office environment and design aesthetic.
 
 Return plain text only. No headers, labels, or markdown.`;
   }

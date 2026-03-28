@@ -41,6 +41,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-chat-user-bubble: var(--chat-user-bubble);
+  --color-chat-assistant-bubble: var(--chat-assistant-bubble);
 }
 
 :root {
@@ -48,7 +50,7 @@
   --foreground: oklch(0.14 0.01 285);
   --card: rgba(255, 255, 255, 0.03);
   --card-foreground: oklch(0.14 0.01 285);
-  --popover: rgba(255, 255, 255, 0.03);
+  --popover: oklch(0.98 0 0);
   --popover-foreground: oklch(0.14 0.01 285);
   --primary: #2e5bff;
   --primary-foreground: oklch(0.98 0 0);
@@ -69,6 +71,9 @@
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
   --sidebar-border: rgba(0, 0, 0, 0.08);
+
+  --chat-user-bubble: oklch(0.93 0 0);
+  --chat-assistant-bubble: oklch(0.97 0 0);
 }
 
 .dark {
@@ -76,7 +81,7 @@
   --foreground: oklch(0.95 0 0);
   --card: rgba(255, 255, 255, 0.03);
   --card-foreground: oklch(0.95 0 0);
-  --popover: rgba(255, 255, 255, 0.03);
+  --popover: oklch(0.15 0 0);
   --popover-foreground: oklch(0.95 0 0);
   --primary: #2e5bff;
   --primary-foreground: oklch(0.98 0 0);
@@ -95,6 +100,9 @@
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
   --sidebar-border: rgba(255, 255, 255, 0.08);
+
+  --chat-user-bubble: oklch(0.22 0 0);
+  --chat-assistant-bubble: oklch(0.15 0 0);
 }
 
 @layer base {

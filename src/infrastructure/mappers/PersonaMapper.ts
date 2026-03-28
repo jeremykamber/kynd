@@ -25,7 +25,6 @@ export function dbToPersona(db: any): Persona {
     technicalFluency: db.technicalFluency ?? 50,
     economicSensitivity: db.economicSensitivity ?? 50,
     designStyle: db.designStyle ?? "Minimalist",
-    favoriteColors: db.favoriteColors || [],
     livingEnvironment: db.livingEnvironment ?? "Organized habitat",
   }
 }
@@ -52,7 +51,6 @@ export function personaToDb(entity: Persona): any {
     technicalFluency: entity.technicalFluency,
     economicSensitivity: entity.economicSensitivity,
     designStyle: entity.designStyle,
-    favoriteColors: entity.favoriteColors,
     livingEnvironment: entity.livingEnvironment,
   }
 }

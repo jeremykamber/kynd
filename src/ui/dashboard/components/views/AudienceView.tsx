@@ -76,10 +76,10 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
         onChatClick={handleOpenChat}
       />
 
-      {/* Chat Slide-Out */}
-      {selectedPersona && isChatOpen && (
+      {selectedPersona && (
         <PersonaChat
           persona={selectedPersona}
+          isOpen={isChatOpen}
           onClose={() => setIsChatOpen(false)}
         />
       )}

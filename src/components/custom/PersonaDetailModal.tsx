@@ -243,19 +243,6 @@ export function PersonaDetailModal({
                       <span className="text-[10px] md:text-xs text-muted-foreground">Style</span>
                       <span className="text-xs md:text-sm font-semibold">{persona.designStyle}</span>
                     </div>
-                    <div>
-                      <span className="text-[10px] md:text-xs text-muted-foreground block mb-3">Colors</span>
-                      <div className="flex gap-2.5">
-                        {persona.favoriteColors.map((color, i) => (
-                          <div
-                            key={`${persona.id}-color-${i}`}
-                            className="w-7 h-7 md:w-9 md:h-9 rounded-full border border-border/40 shadow-inner"
-                            style={{ backgroundColor: color }}
-                            title={color}
-                          />
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 </motion.div>
               </div>
