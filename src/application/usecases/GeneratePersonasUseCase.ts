@@ -69,49 +69,36 @@ export class GeneratePersonasUseCase {
         });
 
         const totalCount = personas.length;
-        let completedCount = 0;
-        let completedSubSteps = 0;
         const totalSubSteps = totalCount * subStepsPerPersona;
 
-        const pLimit = (await import('p-limit')).default;
-        const limit = pLimit(5); // Generate 5 backstories in parallel for speed
+        // OPTIMIZATION: Use batch generation instead of per-persona calls
+        // This reduces 3 LLM calls to 1 for backstories
+        console.log("[GeneratePersonasUseCase] Generating batch backstories...");
+        onProgress?.({
+            step: 'GENERATING_BACKSTORIES',
+            personas,
+            totalCount,
+            completedCount: 0,
+            totalSubSteps,
+            completedSubSteps: 0,
+        });
 
-        await Promise.all(personas.map((persona) => limit(async () => {
-            onProgress?.({
-                step: 'GENERATING_BACKSTORIES',
-                personaName: persona.name,
-                completedCount,
-                totalCount,
-                completedSubSteps,
-                totalSubSteps,
-                personas: JSON.parse(JSON.stringify(personas)),
-                streamingText: ""
-            });
+        const backstoryTexts = await (this.llmService as any).generateAbbreviatedBackstoriesBatch(personas);
+        personas.forEach((persona, i) => {
+            persona.backstory = backstoryTexts[i];
+        });
+        
+        onProgress?.({
+            step: 'GENERATING_BACKSTORIES',
+            completedCount: totalCount,
+            totalCount,
+            completedSubSteps: totalSubSteps,
+            totalSubSteps,
+            personas: JSON.parse(JSON.stringify(personas))
+        });
 
-            console.log(`[GeneratePersonasUseCase] Generating ${abbreviate ? 'abbreviated ' : ''}backstory for ${persona.name}...`);
-
-            const backstory = abbreviate
-                ? await this.llmService.generateAbbreviatedBackstory(persona)
-                : await this.llmService.generatePersonaBackstory(persona);
-
-            console.log(`[GeneratePersonasUseCase] Completed backstory for ${persona.name}`);
-
-            persona.backstory = backstory;
-            completedCount++;
-            completedSubSteps += subStepsPerPersona;
-
-            onProgress?.({
-                step: 'GENERATING_BACKSTORIES',
-                completedCount,
-                totalCount,
-                completedSubSteps,
-                totalSubSteps,
-                personas: JSON.parse(JSON.stringify(personas))
-            });
-        })));
-
-        // Phase 3: Generate AI Insights
-        console.log("[GeneratePersonasUseCase] Generating AI Insights...");
+        // Phase 3: Generate AI Insights (BATCH - single LLM call instead of 3)
+        console.log("[GeneratePersonasUseCase] Generating batch AI Insights...");
         onProgress?.({
             step: 'GENERATING_INSIGHTS',
             personas: JSON.parse(JSON.stringify(personas)),
@@ -119,19 +106,17 @@ export class GeneratePersonasUseCase {
             completedCount: 0,
         });
 
-        completedCount = 0;
-        await Promise.all(personas.map((persona) => limit(async () => {
-            console.log(`[GeneratePersonasUseCase] Generating AI Insight for ${persona.name}...`);
-            const insight = await this.llmService.generatePersonaInsight(persona);
-            persona.aiInsight = insight;
-            completedCount++;
-            onProgress?.({
-                step: 'GENERATING_INSIGHTS',
-                completedCount,
-                totalCount,
-                personas: JSON.parse(JSON.stringify(personas))
-            });
-        })));
+        const insightTexts = await (this.llmService as any).generatePersonaInsightsBatch(personas);
+        personas.forEach((persona, i) => {
+            persona.aiInsight = insightTexts[i];
+        });
+
+        onProgress?.({
+            step: 'GENERATING_INSIGHTS',
+            completedCount: totalCount,
+            totalCount,
+            personas: JSON.parse(JSON.stringify(personas))
+        });
 
         return personas;
     }

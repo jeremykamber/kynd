@@ -272,6 +272,14 @@ export class LlmServiceImpl implements LlmServicePort {
     return this.personaAdapter.generatePersonaInsight(persona);
   }
 
+  async generateAbbreviatedBackstoriesBatch(personas: Persona[]): Promise<string[]> {
+    return this.personaAdapter.generateAbbreviatedBackstoriesBatch(personas);
+  }
+
+  async generatePersonaInsightsBatch(personas: Persona[]): Promise<string[]> {
+    return this.personaAdapter.generatePersonaInsightsBatch(personas);
+  }
+
   async isPricingVisible(screenshot: string): Promise<boolean> {
     return this.visionAdapter.isPricingVisible(screenshot);
   }

@@ -179,6 +179,16 @@ export interface LlmServicePort {
      */
     generatePersonaInsight(persona: Persona): Promise<string>;
 
+    /**
+     * Batch version - generates backstories for all personas in a single LLM call.
+     */
+    generateAbbreviatedBackstoriesBatch(personas: Persona[]): Promise<string[]>;
+
+    /**
+     * Batch version - generates insights for all personas in a single LLM call.
+     */
+    generatePersonaInsightsBatch(personas: Persona[]): Promise<string[]>;
+
     summarizeHtml(html: string): Promise<string>;
 }
 
