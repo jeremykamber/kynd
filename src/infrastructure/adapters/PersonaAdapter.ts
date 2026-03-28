@@ -111,7 +111,7 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
             id:
               (p.id as string) ??
               (p.uuid as string) ??
-              `${((p.name as string) || "persona").toLowerCase().replace(/\s+/g, "-")}-${idx}`,
+              `persona-${idx}`,
             // Use the curated list of genderless, culture-neutral names (chosenNames) so
             // the LLM does not invent ad-hoc names. Assign deterministically from the pool.
             name: chosenNames[idx % chosenNames.length] ?? "Persona",
