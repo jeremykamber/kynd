@@ -4,13 +4,21 @@ import dotenv from "dotenv";
 import path from "path";
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
+// Debug: Check env vars
+const openrouterKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+console.log("API Key check:", {
+  hasKey: !!openrouterKey,
+  keyPrefix: openrouterKey?.slice(0, 15),
+  keyLength: openrouterKey?.length,
+});
+
 import { GeneratePersonasUseCase } from "@/application/usecases/GeneratePersonasUseCase";
 import { ParsePricingPageUseCase } from "@/application/usecases/ParsePricingPageUseCase";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
 
-const DEFAULT_URL = "https://pricing.example.com";
+const DEFAULT_URL = "https://linear.app/pricing";
 const DEFAULT_PERSONA_DESCRIPTION = "B2B SaaS pricing page users";
 
 export interface BenchmarkFlags {
