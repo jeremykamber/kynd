@@ -128,7 +128,7 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             window.scrollBy(0, px);
         }, pixels);
         // Brief wait for any lazy content
-        await this.page.waitForTimeout(250);
+        await this.page.waitForTimeout(100);
     }
 
     /**
@@ -141,7 +141,7 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             window.scrollTo({ top: targetY, behavior: 'smooth' });
         }, y);
         // Wait for smooth scroll to settle
-        await this.page.waitForTimeout(250);
+        await this.page.waitForTimeout(100);
     }
 
     /**
