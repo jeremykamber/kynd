@@ -94,13 +94,28 @@ async function runBenchmark() {
     console.log("[1/2] Generating personas...");
     const startPersonas = Date.now();
 
-    const llmService = LlmServiceImpl.createFromEnv("openrouter");
-    const useCase = new GeneratePersonasUseCase(llmService);
-    const personas = await useCase.execute(DEFAULT_PERSONA_DESCRIPTION);
-
-    const personasTime = Date.now() - startPersonas;
-    results.push({ phase: "persona_generation", timeMs: personasTime });
-    console.log(`      Done: ${formatTime(personasTime)}\n`);
+    let personas: Persona[] = [];
+    let personasTime = 0;
+    let llmService: any = null;
+    
+    try {
+      llmService = LlmServiceImpl.createFromEnv("openrouter");
+      const useCase = new GeneratePersonasUseCase(llmService);
+      personas = await useCase.execute(DEFAULT_PERSONA_DESCRIPTION);
+      personasTime = Date.now() - startPersonas;
+      results.push({ phase: "persona_generation", timeMs: personasTime });
+      console.log(`      Done: ${formatTime(personasTime)}\n`);
+    } catch (error: any) {
+      personasTime = Date.now() - startPersonas;
+      console.error(`      Error after ${formatTime(personasTime)}: ${error.message}\n`);
+      
+      if (flags.personasOnly) {
+        console.log("=== Results (with error) ===");
+        console.log(`Persona Generation: ${formatTime(personasTime)} (FAILED)`);
+        console.log("");
+        return;
+      }
+    }
 
     if (flags.personasOnly) {
       console.log("=== Results ===");
@@ -109,16 +124,27 @@ async function runBenchmark() {
       return;
     }
 
+    if (!llmService || personas.length === 0) {
+      console.error("Cannot proceed with analysis: persona generation failed");
+      return;
+    }
+
     console.log("[2/2] Analyzing pricing page...");
     const startAnalysis = Date.now();
 
     const browserService = RemotePlaywrightAdapter.createFromEnv();
     const analysisUseCase = new ParsePricingPageUseCase(browserService, llmService);
-    await analysisUseCase.execute(flags.url, personas);
-
-    const analysisTime = Date.now() - startAnalysis;
-    results.push({ phase: "pricing_analysis", timeMs: analysisTime });
-    console.log(`      Done: ${formatTime(analysisTime)}\n`);
+    
+    let analysisTime = 0;
+    try {
+      await analysisUseCase.execute(flags.url, personas);
+      analysisTime = Date.now() - startAnalysis;
+      results.push({ phase: "pricing_analysis", timeMs: analysisTime });
+      console.log(`      Done: ${formatTime(analysisTime)}\n`);
+    } catch (error: any) {
+      analysisTime = Date.now() - startAnalysis;
+      console.error(`      Analysis error after ${formatTime(analysisTime)}: ${error.message}\n`);
+    }
 
     await browserService.close();
 
@@ -134,11 +160,17 @@ async function runBenchmark() {
     const browserService = RemotePlaywrightAdapter.createFromEnv();
     const llmService = LlmServiceImpl.createFromEnv("openrouter");
     const analysisUseCase = new ParsePricingPageUseCase(browserService, llmService);
-    await analysisUseCase.execute(flags.url, personas);
-
-    const analysisTime = Date.now() - startAnalysis;
-    results.push({ phase: "pricing_analysis_mock", timeMs: analysisTime });
-    console.log(`      Done: ${formatTime(analysisTime)}\n`);
+    
+    let analysisTime = 0;
+    try {
+      await analysisUseCase.execute(flags.url, personas);
+      analysisTime = Date.now() - startAnalysis;
+      results.push({ phase: "pricing_analysis_mock", timeMs: analysisTime });
+      console.log(`      Done: ${formatTime(analysisTime)}\n`);
+    } catch (error: any) {
+      analysisTime = Date.now() - startAnalysis;
+      console.error(`      Analysis error after ${formatTime(analysisTime)}: ${error.message}\n`);
+    }
 
     await browserService.close();
 
