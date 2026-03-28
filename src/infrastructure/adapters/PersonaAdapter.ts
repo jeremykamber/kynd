@@ -2,6 +2,7 @@ import { Persona, PersonaSchema } from "@/domain/entities/Persona";
 import { LlmServiceImpl } from "./LlmServiceImpl";
 import { streamText, Output } from "ai";
 import { stripCodeFence } from "./llmUtils";
+import { GENDERLESS_NAMES } from "@/data/genderless_names";
 
 export class PersonaAdapter {
   constructor(private llmService: LlmServiceImpl) { }
@@ -71,14 +72,49 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
       if (!Array.isArray(parsed))
         throw new Error("Expected JSON array from LLM");
 
+      // Deterministically pick neutral, curated names from GENDERLESS_NAMES so the LLM
+      // does not invent potentially biased names on the fly. We seed the shuffle
+      // with the personaDescription so the same input yields stable name assignments.
+      const seedFrom = (s: string) => {
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < s.length; i++) {
+          h ^= s.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+      };
+
+      const mulberry32 = (a: number) => () => {
+        a |= 0;
+        a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+
+      const seededShuffle = (arr: string[], seed: number) => {
+        const copy = arr.slice();
+        const rnd = mulberry32(seed);
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(rnd() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      };
+
+      const seed = seedFrom(personaDescription || "");
+      const chosenNames = seededShuffle(GENDERLESS_NAMES, seed);
+
       return parsed.map(
         (p: Record<string, unknown>, idx: number) =>
           ({
             id:
               (p.id as string) ??
               (p.uuid as string) ??
-              `${((p.name as string) || "persona").toLowerCase().replace(/\s+/g, "-")}-${idx}`,
-            name: (p.name as string) ?? "Unknown",
+              `persona-${idx}`,
+            // Use the curated list of genderless, culture-neutral names (chosenNames) so
+            // the LLM does not invent ad-hoc names. Assign deterministically from the pool.
+            name: chosenNames[idx % chosenNames.length] ?? "Persona",
             age:
               typeof p.age === "number"
                 ? p.age
