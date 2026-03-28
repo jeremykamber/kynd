@@ -1,5 +1,9 @@
 #!/usr/bin/env tsx
 
+import dotenv from "dotenv";
+import path from "path";
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+
 import { GeneratePersonasUseCase } from "@/application/usecases/GeneratePersonasUseCase";
 import { ParsePricingPageUseCase } from "@/application/usecases/ParsePricingPageUseCase";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";

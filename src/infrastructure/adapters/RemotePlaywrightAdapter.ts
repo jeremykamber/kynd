@@ -218,70 +218,67 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             throw new Error("Browser not initialized. Call navigateTo first.");
 
         // Clean the DOM to only include meaningful text and basic structure
-        return await this.page.evaluate(() => {
-            // Helper to check if an element is likely visible
-            const isVisible = (el: HTMLElement) => {
-                const style = window.getComputedStyle(el);
-                return (
-                    style.display !== "none" &&
-                    style.visibility !== "hidden" &&
-                    style.opacity !== "0" &&
-                    el.offsetWidth > 0 &&
-                    el.offsetHeight > 0
-                );
-            };
+        // Using page.evaluateHandle + jsHandle to avoid __name issues
+        try {
+            const jsHandle = await this.page.evaluateHandle(function() {
+                // Helper to check if an element is likely visible
+                var isVisible = function(el) {
+                    var style = window.getComputedStyle(el);
+                    return (
+                        style.display !== "none" &&
+                        style.visibility !== "hidden" &&
+                        style.opacity !== "0" &&
+                        el.offsetWidth > 0 &&
+                        el.offsetHeight > 0
+                    );
+                };
 
-            // Recursive cleaner
-            const cleanNode = (node: Node): string => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    return node.textContent?.trim() || "";
-                }
-
-                if (node.nodeType !== Node.ELEMENT_NODE) return "";
-
-                const el = node as HTMLElement;
-                const tag = el.tagName.toLowerCase();
-
-                // Skip noisy/invisible tags
-                if (
-                    [
-                        "script",
-                        "style",
-                        "noscript",
-                        "svg",
-                        "path",
-                        "canvas",
-                        "img",
-                        "iframe",
-                    ].includes(tag)
-                ) {
-                    return "";
-                }
-
-                if (!isVisible(el)) return "";
-
-                // For pricing, we care about headers, divs, spans, buttons, etc.
-                let childrenContent = "";
-                el.childNodes.forEach((child) => {
-                    const content = cleanNode(child);
-                    if (content) {
-                        childrenContent += content + " ";
+                // Recursive cleaner
+                function cleanNode(node) {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        return node.textContent ? node.textContent.trim() : "";
                     }
-                });
 
-                childrenContent = childrenContent.trim();
-                if (!childrenContent) return "";
+                    if (node.nodeType !== Node.ELEMENT_NODE) return "";
 
-                // Wrap in tag for some structure if it's a "meaningful" container
-                if (["h1", "h2", "h3", "h4", "h5", "h6", "button", "a"].includes(tag)) {
-                    return `<${tag}>${childrenContent}</${tag}>`;
+                    var el = node;
+                    var tag = el.tagName.toLowerCase();
+
+                    // Skip noisy/invisible tags
+                    var skipTags = ["script", "style", "noscript", "svg", "path", "canvas", "img", "iframe"];
+                    if (skipTags.indexOf(tag) !== -1) return "";
+
+                    if (!isVisible(el)) return "";
+
+                    // For pricing, we care about headers, divs, spans, buttons, etc.
+                    var childrenContent = "";
+                    var childNodes = el.childNodes;
+                    for (var i = 0; i < childNodes.length; i++) {
+                        var content = cleanNode(childNodes[i]);
+                        if (content) {
+                            childrenContent += content + " ";
+                        }
+                    }
+
+                    childrenContent = childrenContent.trim();
+                    if (!childrenContent) return "";
+
+                    // Wrap in tag for some structure if it's a "meaningful" container
+                    var meaningfulTags = ["h1", "h2", "h3", "h4", "h5", "h6", "button", "a"];
+                    if (meaningfulTags.indexOf(tag) !== -1) {
+                        return "<" + tag + ">" + childrenContent + "</" + tag + ">";
+                    }
+
+                    return childrenContent;
                 }
 
-                return childrenContent;
-            };
-
-            return cleanNode(document.body);
-        });
+                return cleanNode(document.body);
+            });
+            return await jsHandle.jsonValue();
+        } catch (error) {
+            console.warn("[RemotePlaywrightAdapter] getCleanedHtml failed, returning empty string:", error.message);
+            return "";
+        }
     }
 
     /**
