@@ -20,6 +20,7 @@ Automate user testing with high-fidelity AI personas. DeepBound creates realisti
 
 - **[Architecture Guide](./docs/ARCHITECTURE.md)**: Rules for the Hexagonal MVP structure.
 - **[Code Examples](./docs/EXAMPLES.md)**: Gold-standard implementations for common tasks.
+- **[Report API](./docs/REPORT_API.md)**: JSON API endpoint for programmatic pricing analysis (ideal for test loops).
 - **[Design System](./DESIGN_SYSTEM.md)**: UI/UX principles and CSS tokens.
 - **[Research Foundation](./docs/RESEARCH.md)**: The "Deep Binding" science behind our personas.
 - **[Product Backlog](./BACKLOG.md)**: Roadmap, current sprints, and completed tasks.
