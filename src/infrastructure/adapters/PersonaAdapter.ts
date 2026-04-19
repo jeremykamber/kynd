@@ -462,6 +462,107 @@ Provide a 2-sentence insight.`;
     );
   }
 
+  /**
+   * Batch version - generates backstories for ALL personas in a SINGLE LLM call.
+   * Much faster than calling generateAbbreviatedBackstory for each persona.
+   */
+  async generateAbbreviatedBackstoriesBatch(personas: Persona[]): Promise<string[]> {
+    const system = `You are a narrative psychologist building concise but RICH life stories for buyer personas.
+For each persona, write a 3-5 paragraph backstory in first person, blunt language.
+Include specific roles, names, dollar amounts, and anchor to their personality scalars.
+Describe their living/office environment and design aesthetic.
+
+Return a JSON array of strings, one backstory per persona.`;
+    
+    const personasText = personas.map((p, i) => 
+      `Persona ${i + 1} (${p.name}, ${p.occupation}):\n${JSON.stringify(p, null, 2)}`
+    ).join('\n\n---\n\n');
+
+    const user = `Generate backstories for ALL ${personas.length} personas. Return a JSON array of strings.
+
+${personasText}`;
+
+    const result = await this.llmService.createChatCompletion(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      { 
+        model: this.llmService.smallTextModel,
+        temperature: 0.3,
+        purpose: "Batch Abbreviated Backstories",
+      },
+    );
+
+    try {
+      const cleaned = stripCodeFence(result);
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed) && parsed.length === personas.length) {
+        return parsed;
+      }
+      console.warn("[PersonaAdapter] Batch backstory result length mismatch:", parsed.length, "vs", personas.length);
+      console.warn("[PersonaAdapter] Raw result:", result.slice(0, 500));
+      throw new Error("Length mismatch");
+    } catch (e) {
+      console.warn("[PersonaAdapter] Failed to parse batch backstories:", e);
+      console.warn("[PersonaAdapter] Raw result:", result.slice(0, 500));
+      const fallback: string[] = [];
+      for (const persona of personas) {
+        fallback.push(await this.generateAbbreviatedBackstory(persona));
+      }
+      return fallback;
+    }
+  }
+
+  /**
+   * Batch version - generates insights for ALL personas in a SINGLE LLM call.
+   * Much faster than calling generatePersonaInsight for each persona.
+   */
+  async generatePersonaInsightsBatch(personas: Persona[]): Promise<string[]> {
+    const system = `You are a behavioral psychologist. Analyze each persona's profile and provide a sharp, 2-sentence AI Insight.
+Focus on their primary motivation and biggest psychological barrier to conversion.
+Return a JSON array of strings, one insight per persona.`;
+
+    const personasText = personas.map((p, i) => 
+      `Persona ${i + 1} (${p.name}, ${p.occupation}):\n${JSON.stringify(p, null, 2)}`
+    ).join('\n\n---\n\n');
+
+    const user = `Generate insights for ALL ${personas.length} personas. Return a JSON array of strings.
+
+${personasText}`;
+
+    const result = await this.llmService.createChatCompletion(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      { 
+        model: this.llmService.smallTextModel,
+        temperature: 0.3,
+        purpose: "Batch Persona Insights",
+      },
+    );
+
+    try {
+      const cleaned = stripCodeFence(result);
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed) && parsed.length === personas.length) {
+        return parsed;
+      }
+      console.warn("[PersonaAdapter] Batch insight result length mismatch:", parsed.length, "vs", personas.length);
+      console.warn("[PersonaAdapter] Raw result:", result.slice(0, 500));
+      throw new Error("Length mismatch");
+    } catch (e) {
+      console.warn("[PersonaAdapter] Failed to parse batch insights:", e);
+      console.warn("[PersonaAdapter] Raw result:", result.slice(0, 500));
+      const fallback: string[] = [];
+      for (const persona of personas) {
+        fallback.push(await this.generatePersonaInsight(persona));
+      }
+      return fallback;
+    }
+  }
+
   private getAbbreviatedBackstorySystemPrompt(): string {
     return `You are a narrative psychologist building a concise but RICH life story of a buyer persona.
 Build a 3-5 paragraph "Mini-Biography" (approx 800-1200 tokens) that covers:
