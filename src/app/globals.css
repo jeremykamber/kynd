@@ -6,8 +6,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-inter);
+  --font-serif: var(--font-fraunces);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -43,66 +44,75 @@
   --radius-xl: calc(var(--radius) + 4px);
   --color-chat-user-bubble: var(--chat-user-bubble);
   --color-chat-assistant-bubble: var(--chat-assistant-bubble);
+  --color-ink: #1A1A1B;
+  --color-linen: #F2F0E9;
+  --color-clay: #D9775F;
 }
 
 :root {
-  --background: #F5F7FA;
-  --foreground: oklch(0.14 0.01 285);
-  --card: rgba(255, 255, 255, 0.03);
-  --card-foreground: oklch(0.14 0.01 285);
-  --popover: oklch(0.98 0 0);
-  --popover-foreground: oklch(0.14 0.01 285);
-  --primary: #2e5bff;
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.21 0.01 285);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.55 0.01 285);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.21 0.01 285);
-  --destructive: oklch(0.6 0.18 28);
-  --border: rgba(0, 0, 0, 0.08);
-  --input: rgba(0, 0, 0, 0.08);
-  --ring: oklch(0.85 0 0);
-  --radius: 0.5rem;
+  /* Kynd Brand: Linen & Ink Palette */
+  --background: #F2F0E9;
+  --foreground: #1A1A1B;
+  --card: #F8F7F2;
+  --card-foreground: #1A1A1B;
+  --popover: #F2F0E9;
+  --popover-foreground: #1A1A1B;
+  --primary: #1A1A1B;
+  --primary-foreground: #F2F0E9;
+  --secondary: #E8E5DC;
+  --secondary-foreground: #1A1A1B;
+  --muted: #E8E5DC;
+  --muted-foreground: #6B6B6B;
+  --accent: #E8E5DC;
+  --accent-foreground: #1A1A1B;
+  --destructive: #D9775F;
+  --border: rgba(26, 26, 27, 0.1);
+  --input: rgba(26, 26, 27, 0.15);
+  --ring: #1A1A1B;
+  --radius: 0.75rem;
 
-  --sidebar: oklch(0.98 0 0);
-  --sidebar-foreground: oklch(0.21 0.01 285);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar: #E8E5DC;
+  --sidebar-foreground: #1A1A1B;
+  --sidebar-primary: #1A1A1B;
+  --sidebar-primary-foreground: #F2F0E9;
+  --sidebar-border: rgba(26, 26, 27, 0.1);
 
-  --chat-user-bubble: oklch(0.93 0 0);
-  --chat-assistant-bubble: oklch(0.97 0 0);
+  --chat-user-bubble: #E8E5DC;
+  --chat-assistant-bubble: #F8F7F2;
+
+  /* Animation tokens - 400ms breath-like rhythm */
+  --duration-fast: 200ms;
+  --duration-normal: 400ms;
+  --ease-breathe: ease-in-out;
 }
 
 .dark {
-  --background: #0f131a;
-  --foreground: oklch(0.95 0 0);
-  --card: rgba(255, 255, 255, 0.03);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.15 0 0);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: #2e5bff;
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.15 0 0);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.15 0 0);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.15 0 0);
-  --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.6 0.18 28);
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: oklch(0.3 0 0);
-  --sidebar: oklch(0.1 0 0);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --background: #141413;
+  --foreground: #F2F0E9;
+  --card: rgba(242, 240, 233, 0.05);
+  --card-foreground: #F2F0E9;
+  --popover: #1A1A1B;
+  --popover-foreground: #F2F0E9;
+  --primary: #F2F0E9;
+  --primary-foreground: #1A1A1B;
+  --secondary: #2A2A2B;
+  --secondary-foreground: #F2F0E9;
+  --muted: #2A2A2B;
+  --muted-foreground: #9A9A9A;
+  --accent: #2A2A2B;
+  --accent-foreground: #F2F0E9;
+  --destructive: #D9775F;
+  --border: rgba(242, 240, 233, 0.1);
+  --input: rgba(242, 240, 233, 0.15);
+  --ring: #F2F0E9;
+  --sidebar: #1A1A1B;
+  --sidebar-foreground: #F2F0E9;
+  --sidebar-primary: #F2F0E9;
+  --sidebar-primary-foreground: #1A1A1B;
+  --sidebar-border: rgba(242, 240, 233, 0.1);
 
-  --chat-user-bubble: oklch(0.22 0 0);
-  --chat-assistant-bubble: oklch(0.15 0 0);
+  --chat-user-bubble: #2A2A2B;
+  --chat-assistant-bubble: #1A1A1B;
 }
 
 @layer base {
@@ -113,9 +123,27 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Kynd typography: Fraunces for headings, Inter for body */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  /* Smooth cross-dissolve transitions */
+  *, *::before, *::after {
+    transition-duration: var(--duration-normal);
+    transition-timing-function: var(--ease-breathe);
+  }
+
+  /* Disable transitions for instant interactions */
+  .no-transition, .no-transition * {
+    transition-duration: 0ms !important;
+  }
 }
 
-/* Custom Scrollbar - Minimal */
+/* Custom Scrollbar - Minimal, warm feel */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
@@ -140,4 +168,41 @@
 
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+/* Kynd Pulse Animation for Loading States */
+@keyframes kynd-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-kynd-pulse {
+  animation: kynd-pulse 2s ease-in-out infinite;
+}
+
+/* Cross-dissolve for page transitions */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in var(--duration-normal) var(--ease-breathe);
 }

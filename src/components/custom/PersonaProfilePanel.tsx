@@ -30,7 +30,7 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="h-px w-full bg-border/40" />
+        <div className="h-px w-full bg-[rgba(26,26,27,0.08)]" />
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -38,26 +38,26 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Tech Fluency</span>
               <span className="text-xs font-bold font-variant-numeric tabular-nums">{persona.technicalFluency}%</span>
             </div>
-            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full" style={{ width: `${persona.technicalFluency}%` }} />
+            <div className="h-1.5 w-full bg-[rgba(26,26,27,0.05)] rounded-full overflow-hidden">
+              <div className="h-full bg-foreground rounded-full" style={{ width: `${persona.technicalFluency}%` }} />
             </div>
             <div className="flex justify-between text-[9px] text-muted-foreground/60 font-medium uppercase">
-              <span>Luddite</span>
-              <span>Hacker</span>
+              <span>Intuitive</span>
+              <span>Technical</span>
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-end">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Neuroticism (Risk)</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Decision Style</span>
               <span className="text-xs font-bold font-variant-numeric tabular-nums">{persona.neuroticism}%</span>
             </div>
-            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full" style={{ width: `${persona.neuroticism}%` }} />
+            <div className="h-1.5 w-full bg-[rgba(26,26,27,0.05)] rounded-full overflow-hidden">
+              <div className="h-full bg-foreground rounded-full" style={{ width: `${persona.neuroticism}%` }} />
             </div>
             <div className="flex justify-between text-[9px] text-muted-foreground/60 font-medium uppercase">
-              <span>Stable</span>
-              <span>Anxious</span>
+              <span>Confident</span>
+              <span>Considered</span>
             </div>
           </div>
         </div>
@@ -70,9 +70,9 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
             e.stopPropagation()
             onChatClick()
           }}
-          className="mt-auto w-full inline-flex h-10 items-center justify-center rounded-lg bg-secondary/50 px-4 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary focus-visible:outline-none"
+          className="mt-auto w-full inline-flex h-10 items-center justify-center rounded-lg bg-secondary/50 px-4 text-sm font-medium text-foreground transition-colors hover:bg-secondary focus-visible:outline-none"
         >
-          Chat with {persona.name.split(' ')[0]}
+          Talk to {persona.name.split(' ')[0]}
         </button>
       )}
     </MinimalCard>

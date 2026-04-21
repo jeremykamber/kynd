@@ -21,10 +21,10 @@ export function StepIndicator({ steps, currentStep, className, ...props }: StepI
             <div className="relative flex flex-col items-center">
               <div 
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors duration-300 z-10 bg-background",
-                  isCompleted ? "border-primary text-primary" : 
-                  isCurrent ? "border-primary text-primary" : 
-                  "border-muted text-muted-foreground"
+                  "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors duration-400 z-10 bg-background",
+                  isCompleted ? "border-foreground text-foreground" : 
+                  isCurrent ? "border-foreground text-foreground" : 
+                  "border-[rgba(26,26,27,0.2)] text-muted-foreground"
                 )}
               >
                 {isCompleted ? (
@@ -49,22 +49,22 @@ export function StepIndicator({ steps, currentStep, className, ...props }: StepI
               {index < steps.length - 1 && (
                 <div 
                   className={cn(
-                    "absolute top-8 w-0.5 h-full -mb-4 transition-colors duration-300",
-                    isCompleted ? "bg-primary" : "bg-border/50"
+                    "absolute top-8 w-0.5 h-full -mb-4 transition-colors duration-400",
+                    isCompleted ? "bg-foreground" : "bg-[rgba(26,26,27,0.1)]"
                   )} 
                 />
               )}
             </div>
             <div className="pt-1.5 pb-6 flex flex-col gap-1">
               <span className={cn(
-                "text-sm font-medium leading-none tracking-tight transition-colors duration-300",
+                "text-sm font-medium leading-none tracking-tight transition-colors duration-400",
                 (isCompleted || isCurrent) ? "text-foreground" : "text-muted-foreground"
               )}>
                 {step.title}
               </span>
               {step.description && (
                 <span className={cn(
-                  "text-sm transition-colors duration-300",
+                  "text-sm transition-colors duration-400",
                   (isCompleted || isCurrent) ? "text-muted-foreground" : "text-muted-foreground/60"
                 )}>
                   {step.description}

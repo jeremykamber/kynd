@@ -32,11 +32,11 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
   }
 
   return (
-    <div className="flex flex-col gap-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col gap-2 border-b border-border/40 pb-6">
-        <h2 className="text-2xl font-bold tracking-tight">Generated Audience</h2>
+    <div className="flex flex-col gap-10 w-full animate-fade-in">
+      <div className="flex flex-col gap-2 border-b border-[rgba(26,26,27,0.1)] pb-6">
+        <h2 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-fraunces)' }}>Your audience</h2>
         <p className="text-muted-foreground text-sm">
-          Review the personas synthesized from your target market description. You can also chat with them before running the simulation.
+          Meet the personas shaped from your description. Each has their own perspective—chat with them to understand their thinking.
         </p>
       </div>
 
@@ -56,19 +56,18 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
           type="button"
           disabled={analysisFlow.isPending || (!analysisFlow.pricingUrl && !analysisFlow.pricingImageBase64)}
           onClick={() => analysisFlow.handleAnalyzePricing(personas)}
-          className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-semibold text-primary-foreground shadow transition-all hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex h-12 items-center justify-center rounded-xl bg-foreground px-8 text-sm font-semibold text-background shadow transition-all hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
         >
-          {analysisFlow.isPending ? "Simulating Feedback..." : "Run Pricing Simulation"}
+          {analysisFlow.isPending ? "Listening..." : "Begin Observation"}
         </button>
       </div>
 
       {analysisFlow.error && (
-        <div className="bg-destructive/10 text-destructive text-sm font-medium p-4 rounded-lg border border-destructive/20 mt-4">
+        <div className="bg-destructive/10 text-destructive text-sm font-medium p-4 rounded-xl border border-destructive/20 mt-4">
           {analysisFlow.error}
         </div>
       )}
 
-      {/* Detail Modal */}
       <PersonaDetailModal
         persona={selectedPersona ?? null}
         isOpen={isDetailModalOpen}

@@ -34,7 +34,7 @@ export function PersonaAvatar({
   return (
     <div
       className={cn(
-        "relative flex shrink-0 overflow-hidden rounded-full border border-border/50 bg-secondary/50",
+        "relative flex shrink-0 overflow-hidden rounded-full border border-[rgba(26,26,27,0.1)] bg-secondary/50",
         sizeClasses[size],
         className
       )}
@@ -47,7 +47,7 @@ export function PersonaAvatar({
           className="aspect-square h-full w-full object-cover"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center font-medium text-secondary-foreground tracking-widest">
+        <div className="flex h-full w-full items-center justify-center font-medium text-foreground/70 tracking-widest">
           {getInitials(name)}
         </div>
       )}

@@ -1,6 +1,6 @@
-# DeepBound: AI-Powered User Testing
+# Kynd: AI-Powered User Understanding
 
-Automate user testing with high-fidelity AI personas. DeepBound creates realistic personas, runs them through your website/app, and produces deep behavioral insights.
+Observe your users before you build. Kynd crafts realistic AI personas from simple descriptions, letting you see your product through their eyes.
 
 ## 🚀 Quick Start
 
@@ -21,8 +21,8 @@ Automate user testing with high-fidelity AI personas. DeepBound creates realisti
 - **[Architecture Guide](./docs/ARCHITECTURE.md)**: Rules for the Hexagonal MVP structure.
 - **[Code Examples](./docs/EXAMPLES.md)**: Gold-standard implementations for common tasks.
 - **[Report API](./docs/REPORT_API.md)**: JSON API endpoint for programmatic pricing analysis (ideal for test loops).
-- **[Design System](./DESIGN_SYSTEM.md)**: UI/UX principles and CSS tokens.
-- **[Research Foundation](./docs/RESEARCH.md)**: The "Deep Binding" science behind our personas.
+- **[Brand Constitution](./BRAND_CONSTITUTION.md)**: The visual and verbal identity that defines Kynd.
+- **[Research Foundation](./docs/RESEARCH.md)**: The science behind our personas.
 - **[Product Backlog](./BACKLOG.md)**: Roadmap, current sprints, and completed tasks.
 
 ## 🛠 Tech Stack
