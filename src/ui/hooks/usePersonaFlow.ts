@@ -25,13 +25,33 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
   const [personaProgress, setPersonaProgress] = useState<PersonaProgress | null>(null)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
 
-  const handleCancel = () => {
+  const formatError = (error: string | Error | unknown): string => {
+  if (typeof error === 'string') {
+    if (error.includes('rate limit') || error.includes('Rate limit')) {
+      return "Kynd hit a limit here. Let's pause and try again in a moment."
+    }
+    if (error.includes('aborted') || error.includes('cancelled')) {
+      return 'Kynd stopped here. Ready when you are.'
+    }
+    return error
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  if (message.includes('rate limit') || message.includes('Rate limit')) {
+    return "Kynd hit a limit here. Let's pause and try again in a moment."
+  }
+  if (message.includes('aborted') || message.includes('cancelled')) {
+    return 'Kynd stopped here. Ready when you are.'
+  }
+  return "Kynd lost the trail here. Let's try that again."
+}
+
+const handleCancel = () => {
     if (abortController) {
       abortController.abort()
       setAbortController(null)
     }
     setPersonaProgress(null)
-    setError('Persona generation cancelled')
+    setError('Kynd stopped here. Ready when you are.')
   }
 
   const handleGeneratePersonas = () => {
@@ -60,7 +80,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
           if (update) {
             if (update.step === 'ERROR') {
-              setError(update.error)
+              setError(formatError(update.error))
               setPersonaProgress(null)
               setAbortController(null)
               return
@@ -95,7 +115,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
         }
       } catch (err) {
         if (!controller.signal.aborted) {
-          setError((err as Error).message)
+          setError(formatError(err))
         }
         setPersonaProgress(null)
         setAbortController(null)

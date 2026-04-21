@@ -30,7 +30,27 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null)
 
-  const handleCancel = async () => {
+const formatError = (error: string | Error | unknown): string => {
+  if (typeof error === 'string') {
+    if (error.includes('rate limit') || error.includes('Rate limit')) {
+      return "Kynd hit a limit here. Let's pause and try again in a moment."
+    }
+    if (error.includes('aborted') || error.includes('cancelled')) {
+      return 'Kynd stopped here. Ready when you are.'
+    }
+    return error
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  if (message.includes('rate limit') || message.includes('Rate limit')) {
+    return "Kynd hit a limit here. Let's pause and try again in a moment."
+  }
+  if (message.includes('aborted') || message.includes('cancelled')) {
+    return 'Kynd stopped here. Ready when you are.'
+  }
+  return "Kynd lost the trail here. Let's try that again."
+}
+
+const handleCancel = async () => {
     if (currentRequestId) {
       await cancelRequestAction(currentRequestId);
     }
@@ -40,7 +60,7 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     }
     setCurrentRequestId(null)
     setAnalysisProgress(null)
-    setError('Analysis cancelled by user')
+    setError('Kynd stopped here. Ready when you are.')
   }
 
   const handleAnalyzePricing = (personas: Persona[]) => {
@@ -75,12 +95,12 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
               setAnalysisProgress(null)
               setAbortController(null)
               setCurrentRequestId(null)
-              setError('Analysis was cancelled')
+              setError('Kynd stopped here. Ready when you are.')
               return
             }
 
             if (update.step === 'ERROR') {
-              setError(update.error)
+              setError(formatError(update.error))
               setAnalysisProgress(null)
               setAbortController(null)
               setCurrentRequestId(null)
@@ -122,7 +142,7 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
         }
       } catch (err) {
         if (!controller.signal.aborted) {
-          setError((err as Error).message)
+          setError(formatError(err))
         }
         setAnalysisProgress(null)
         setAbortController(null)
@@ -143,10 +163,10 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
             prev ? prev.map(a => a.id === analysis.id ? { ...a, gazePoints: result.data } : a) : null
           )
         } else {
-          setError(result.error || "Failed to predict gaze")
+          setError(formatError(result.error || 'Something went wrong'))
         }
       } catch (err) {
-        setError((err as Error).message)
+        setError(formatError(err))
       } finally {
         setPredictingGazeId(null)
       }
