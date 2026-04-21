@@ -119,9 +119,9 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
         setMessages((prev) => {
           const last = prev[prev.length - 1]
           if (last && last.role === 'assistant' && last.content === '') {
-            return [...prev.slice(0, -1), { role: 'assistant', content: 'Kynd lost the thread here. Let\'s try again.' }]
+            return [...prev.slice(0, -1), { role: 'assistant', content: 'Kynd lost the trail here. Let\'s try again.' }]
           }
-          return [...prev, { role: 'assistant', content: 'Kynd lost the thread here. Let\'s try again.' }]
+          return [...prev, { role: 'assistant', content: 'Kynd lost the trail here. Let\'s try again.' }]
         })
       }
     })
