@@ -55,18 +55,4 @@ export function personaToDb(entity: Persona): any {
   }
 }
 
-// Example: entity to DTO (uncomment if using DTO)
-// export function personaToDTO(entity: Persona): PersonaDTO {
-//   return {
-//     id: entity.id,
-//     // ...map other fields
-//   }
-// }
 
-// Example: DTO to entity (uncomment if using DTO)
-// export function dtoToPersona(dto: PersonaDTO): Persona {
-//   return {
-//     id: dto.id,
-//     // ...map other fields
-//   }
-// }

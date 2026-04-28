@@ -225,7 +225,9 @@ export class LlmServiceImpl implements LlmServicePort {
       return await this.client.chat.completions.create(requestParams);
     });
 
-    for await (const chunk of stream) {
+    // Cast to streaming type since we set stream: true
+    const chunkStream = stream as unknown as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
+    for await (const chunk of chunkStream) {
       const content = chunk.choices[0]?.delta?.content;
       if (content) yield content;
     }

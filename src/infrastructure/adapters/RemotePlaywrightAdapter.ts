@@ -222,7 +222,7 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
         try {
             const jsHandle = await this.page.evaluateHandle(function() {
                 // Helper to check if an element is likely visible
-                var isVisible = function(el) {
+                var isVisible = function(el: HTMLElement) {
                     var style = window.getComputedStyle(el);
                     return (
                         style.display !== "none" &&
@@ -234,14 +234,14 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
                 };
 
                 // Recursive cleaner
-                function cleanNode(node) {
+                function cleanNode(node: Node) {
                     if (node.nodeType === Node.TEXT_NODE) {
                         return node.textContent ? node.textContent.trim() : "";
                     }
 
                     if (node.nodeType !== Node.ELEMENT_NODE) return "";
 
-                    var el = node;
+                    var el = node as HTMLElement;
                     var tag = el.tagName.toLowerCase();
 
                     // Skip noisy/invisible tags
@@ -276,7 +276,7 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             });
             return await jsHandle.jsonValue();
         } catch (error) {
-            console.warn("[RemotePlaywrightAdapter] getCleanedHtml failed, returning empty string:", error.message);
+            console.warn("[RemotePlaywrightAdapter] getCleanedHtml failed, returning empty string:", (error as Error).message);
             return "";
         }
     }
