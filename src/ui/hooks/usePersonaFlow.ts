@@ -57,7 +57,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
           if (controller.signal.aborted) {
             setPersonaProgress(null)
             setAbortController(null)
-            return
+            throw new Error('CANCELLED')
           }
 
           if (update) {
@@ -96,6 +96,11 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
           }
         }
       } catch (err) {
+        if ((err as Error).message === 'CANCELLED') {
+          setPersonaProgress(null)
+          setAbortController(null)
+          return
+        }
         if (!controller.signal.aborted) {
           setError((err as Error).message)
         }
