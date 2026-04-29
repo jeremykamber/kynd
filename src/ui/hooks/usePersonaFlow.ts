@@ -1,4 +1,4 @@
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasAction } from '@/actions/generatePersonas'
 import { readStreamableValue } from '@ai-sdk/rsc'
@@ -24,10 +24,11 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
   const [isPending, startTransition] = useTransition()
   const [personaProgress, setPersonaProgress] = useState<PersonaProgress | null>(null)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const handleCancel = () => {
-    if (abortController) {
-      abortController.abort()
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
       setAbortController(null)
     }
     setPersonaProgress(null)
@@ -39,6 +40,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
     setError(null)
     const controller = new AbortController()
+    abortControllerRef.current = controller
     setAbortController(controller)
     setPersonaProgress({ step: 'BRAINSTORMING_PERSONAS' })
 
@@ -104,14 +106,14 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
   }
 
   useEffect(() => {
+    let aborted = false;
     return () => {
-      if (abortController) {
-        abortController.abort()
+      if (abortControllerRef.current && !aborted) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
       }
-      setPersonaProgress(null)
-      setError('Persona generation cancelled')
     }
-  }, [abortController])
+  }, [])
 
   return {
     customerProfile,
