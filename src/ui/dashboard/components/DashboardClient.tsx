@@ -48,6 +48,8 @@ export function DashboardClient() {
             analysisFlow.setPricingImageBase64(null)
             personaFlow.setError(null)
             analysisFlow.setError(null)
+            personaFlow.handleCancel()
+            analysisFlow.handleCancel()
           }}
         />
       )}
