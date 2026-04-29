@@ -46,6 +46,8 @@ export function DashboardClient() {
             personaFlow.setCustomerProfile('')
             analysisFlow.setPricingUrl('')
             analysisFlow.setPricingImageBase64(null)
+            personaFlow.setError(null)
+            analysisFlow.setError(null)
           }}
         />
       )}
