@@ -108,6 +108,8 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
       if (abortController) {
         abortController.abort()
       }
+      setPersonaProgress(null)
+      setError('Persona generation cancelled')
     }
   }, [abortController])
 
