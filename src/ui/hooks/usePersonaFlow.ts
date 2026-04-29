@@ -46,7 +46,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
     startTransition(async () => {
       try {
-        const { streamData } = await generatePersonasAction(customerProfile, controller.signal)
+        const { streamData } = await generatePersonasAction(customerProfile)
 
         let lastUpdate = 0;
         const THROTTLE_MS = 150;

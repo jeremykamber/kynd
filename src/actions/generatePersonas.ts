@@ -16,7 +16,7 @@ const personasRateLimiter = new RateLimiterMemory({
   duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
 });
 
-export async function generatePersonasAction(personaDescription: string, abortSignal?: AbortSignal) {
+export async function generatePersonasAction(personaDescription: string, _abortSignal?: AbortSignal) {
     console.log("generatePersonasAction called...");
     const stream = createStreamableValue<any>({ step: "BRAINSTORMING_PERSONAS" });
 
@@ -35,32 +35,18 @@ export async function generatePersonasAction(personaDescription: string, abortSi
         return { streamData: stream.value };
     }
 
-    if (abortSignal?.aborted) {
-        stream.done({ step: "ERROR", error: "Request cancelled" });
-        return { streamData: stream.value };
-    }
-
     (async () => {
         try {
             const llmService = LlmServiceImpl.createFromEnv("openrouter");
             const useCase = new GeneratePersonasUseCase(llmService);
 
-            if (abortSignal?.aborted) {
-                stream.done({ step: "ERROR", error: "Request cancelled" });
-                return;
-            }
-
             const personas = await useCase.execute(personaDescription, (progress) => {
-                if (abortSignal?.aborted) return;
                 stream.update(progress);
             });
-
-            if (abortSignal?.aborted) return;
 
             const finalPersonas = JSON.parse(JSON.stringify(personas));
             stream.done({ step: "DONE", personas: finalPersonas });
         } catch (error) {
-            if (abortSignal?.aborted) return;
             console.error("Error generating personas:", error);
             stream.done({ step: "ERROR", error: (error as Error).message });
         }
