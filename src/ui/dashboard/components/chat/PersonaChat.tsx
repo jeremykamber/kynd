@@ -213,7 +213,7 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
             />
             <button 
               type="submit" 
-              disabled={isPending || !input.trim()}
+              disabled={isPending || !input || !input.trim()}
               className="absolute right-1.5 h-9 w-9 flex items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none"
             >
               {isPending ? (
