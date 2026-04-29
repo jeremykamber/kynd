@@ -1,4 +1,4 @@
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { PricingAnalysis } from '@/domain/entities/PricingAnalysis'
 import { analyzePricingPageAction } from '@/actions/analyzePricingPage'
@@ -159,6 +159,14 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
       .map(([name, text]) => `### Thinking: ${name}\n${text}`)
       .join('\n\n---\n\n');
   }, [analysisProgress?.streamingTexts]);
+
+  useEffect(() => {
+    return () => {
+      if (abortController) {
+        abortController.abort()
+      }
+    }
+  }, [abortController])
 
   return {
     pricingUrl,

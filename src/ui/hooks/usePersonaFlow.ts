@@ -1,4 +1,4 @@
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasAction } from '@/actions/generatePersonas'
 import { readStreamableValue } from '@ai-sdk/rsc'
@@ -102,6 +102,14 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
       }
     })
   }
+
+  useEffect(() => {
+    return () => {
+      if (abortController) {
+        abortController.abort()
+      }
+    }
+  }, [abortController])
 
   return {
     customerProfile,
