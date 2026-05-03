@@ -13,25 +13,25 @@ export default function MarketingPage() {
 
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-8">
           <StatusBadge variant="secondary" className="px-4 py-1.5 text-sm mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            Introducing Kynd AI
+            Introducing Kynd
           </StatusBadge>
-          
+
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-balance leading-[1.1] animate-in fade-in slide-in-from-bottom-6 duration-1000">
             Know your user before you build.
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl text-balance leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
             Generate highly realistic AI user personas from minimal input. Test your landing pages, chat with your market, and validate pricing in minutes.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 mt-8 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300">
-            <Link 
+            <Link
               href="/dashboard"
               className="inline-flex h-14 items-center justify-center rounded-full bg-primary px-10 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 hover:scale-105 hover:shadow-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Start Generating
             </Link>
-            <Link 
+            <Link
               href="#features"
               className="inline-flex h-14 items-center justify-center rounded-full border border-border/60 bg-transparent px-10 text-base font-semibold text-foreground transition-all hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -45,7 +45,7 @@ export default function MarketingPage() {
       <section id="features" className="w-full py-24 md:py-32 bg-secondary/20">
         <div className="container max-w-screen-xl mx-auto px-4 md:px-8">
           <div className="flex flex-col md:flex-row gap-16 lg:gap-24 items-center">
-            
+
             <div className="flex-1 flex flex-col gap-6">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-balance">
                 Instant market feedback.
@@ -65,7 +65,7 @@ export default function MarketingPage() {
 
             <div className="flex-1 w-full relative">
               <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent blur-3xl -z-10 rounded-full" />
-              
+
               <div className="grid gap-6 relative">
                 {/* Floating Mock Components */}
                 <MinimalCard className="relative md:translate-x-8 md:rotate-2 shadow-2xl z-20" hoverable>
@@ -112,7 +112,7 @@ export default function MarketingPage() {
           <p className="text-xl text-muted-foreground text-balance">
             Jump straight into the dashboard. No credit card required.
           </p>
-          <Link 
+          <Link
             href="/dashboard"
             className="mt-4 inline-flex h-14 items-center justify-center rounded-full bg-foreground px-10 text-base font-semibold text-background shadow transition-all hover:bg-foreground/90 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >

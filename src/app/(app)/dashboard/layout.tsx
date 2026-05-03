@@ -12,7 +12,7 @@ export default function DashboardLayout({
         <div className="container flex h-14 items-center gap-4 px-4 sm:px-8">
           <Link href="/" className="flex items-center space-x-2 shrink-0">
             <span className="font-bold tracking-tight text-lg select-none">
-              Deep<span className="text-muted-foreground">Bound</span>
+              Kynd
             </span>
           </Link>
           <div className="flex flex-1 items-center justify-end space-x-4">
