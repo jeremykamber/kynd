@@ -13,7 +13,7 @@ export default function MarketingPage() {
 
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-8">
           <StatusBadge variant="secondary" className="px-4 py-1.5 text-sm mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            Introducing DeepBound AI
+            Introducing Kynd AI
           </StatusBadge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-balance leading-[1.1] animate-in fade-in slide-in-from-bottom-6 duration-1000">
@@ -51,7 +51,7 @@ export default function MarketingPage() {
                 Instant market feedback.
               </h2>
               <p className="text-lg text-muted-foreground leading-relaxed">
-                Stop guessing what your customers think. Provide a brief description of your target audience, and DeepBound generates a set of distinct, highly opinionated AI personas ready to critique your product.
+                Stop guessing what your customers think. Provide a brief description of your target audience, and Kynd generates a set of distinct, highly opinionated AI personas ready to critique your product.
               </p>
               <ul className="flex flex-col gap-4 mt-4">
                 {['Deep psychological profiling', 'Realistic conversational chat', 'Simulated visual gaze analysis'].map(feature => (

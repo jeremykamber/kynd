@@ -12,7 +12,7 @@ export default function MarketingLayout({
         <div className="container mx-auto flex h-16 max-w-screen-xl items-center justify-between px-6 md:px-8">
           <Link href="/" className="flex items-center space-x-2">
             <span className="font-bold tracking-tight text-lg select-none">
-              Deep<span className="text-muted-foreground">Bound</span>
+              Kynd
             </span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
@@ -43,10 +43,10 @@ export default function MarketingLayout({
         <div className="container mx-auto max-w-screen-xl px-6 md:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex flex-col items-center md:items-start">
             <span className="font-bold tracking-tight text-lg select-none">
-              Deep<span className="text-muted-foreground">Bound</span>
+              Kynd
             </span>
             <p className="text-sm text-muted-foreground mt-2 text-center md:text-left">
-              &copy; {new Date().getFullYear()} DeepBound. All rights reserved.
+              &copy; {new Date().getFullYear()} Kynd. All rights reserved.
             </p>
           </div>
           <div className="flex space-x-6 text-sm text-muted-foreground">

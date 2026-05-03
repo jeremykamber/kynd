@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'DeepBound',
+  title: 'Kynd',
   description: 'AI-driven persona generation and analysis.',
 };
 

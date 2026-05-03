@@ -46,7 +46,7 @@ export function SetupView({ personaFlow, analysisFlow, hasPersonas }: SetupViewP
           Define your target market
         </h1>
         <p className="text-lg text-muted-foreground text-balance max-w-2xl">
-          Provide a brief description of who you are trying to reach. DeepBound will synthesize a set of detailed personas that represent your audience.
+          Provide a brief description of who you are trying to reach. Kynd will synthesize a set of detailed personas that represent your audience.
         </p>
       </div>
 

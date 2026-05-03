@@ -92,7 +92,7 @@ export function createMockPersonas(): Persona[] {
 async function runBenchmark() {
   const flags = parseArgs();
 
-  console.log("\n=== DeepBound Benchmark ===");
+  console.log("\n=== Kynd Benchmark ===");
   console.log(`Mode: ${flags.personasOnly ? "personas-only" : flags.useMockPersonas ? "mock-personas+report" : "personas+report"}`);
   console.log(`URL: ${flags.url}\n`);
 

@@ -63,7 +63,7 @@ export function DashboardClient() {
           }
         }}
         title="Synthesizing Audience"
-        description="DeepBound is generating realistic personas based on your target profile."
+        description="Kynd is generating realistic personas based on your target profile."
         currentStep={
           personaFlow.personaProgress?.step === 'BRAINSTORMING_PERSONAS' ? 0 :
           personaFlow.personaProgress?.step === 'GENERATING_BACKSTORIES' ? 1 : 0
