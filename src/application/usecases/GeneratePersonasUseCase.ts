@@ -4,6 +4,7 @@ import { LlmServicePort } from "../../domain/ports/LlmServicePort";
 export type PersonaGenerationProgressStep =
     | 'BRAINSTORMING_PERSONAS'
     | 'GENERATING_BACKSTORIES'
+    | 'GENERATING_INSIGHTS'
     | 'DONE'
     | 'ERROR';
 
@@ -68,46 +69,54 @@ export class GeneratePersonasUseCase {
         });
 
         const totalCount = personas.length;
-        let completedCount = 0;
-        let completedSubSteps = 0;
         const totalSubSteps = totalCount * subStepsPerPersona;
 
-        const pLimit = (await import('p-limit')).default;
-        const limit = pLimit(2); // Generate 2 backstories in parallel
+        // OPTIMIZATION: Use batch generation instead of per-persona calls
+        // This reduces 3 LLM calls to 1 for backstories
+        console.log("[GeneratePersonasUseCase] Generating batch backstories...");
+        onProgress?.({
+            step: 'GENERATING_BACKSTORIES',
+            personas,
+            totalCount,
+            completedCount: 0,
+            totalSubSteps,
+            completedSubSteps: 0,
+        });
 
-        await Promise.all(personas.map((persona) => limit(async () => {
-            onProgress?.({
-                step: 'GENERATING_BACKSTORIES',
-                personaName: persona.name,
-                completedCount,
-                totalCount,
-                completedSubSteps,
-                totalSubSteps,
-                personas: JSON.parse(JSON.stringify(personas)),
-                streamingText: ""
-            });
+        const backstoryTexts = await (this.llmService as any).generateAbbreviatedBackstoriesBatch(personas);
+        personas.forEach((persona, i) => {
+            persona.backstory = backstoryTexts[i];
+        });
+        
+        onProgress?.({
+            step: 'GENERATING_BACKSTORIES',
+            completedCount: totalCount,
+            totalCount,
+            completedSubSteps: totalSubSteps,
+            totalSubSteps,
+            personas: JSON.parse(JSON.stringify(personas))
+        });
 
-            console.log(`[GeneratePersonasUseCase] Generating ${abbreviate ? 'abbreviated ' : ''}backstory for ${persona.name}...`);
+        // Phase 3: Generate AI Insights (BATCH - single LLM call instead of 3)
+        console.log("[GeneratePersonasUseCase] Generating batch AI Insights...");
+        onProgress?.({
+            step: 'GENERATING_INSIGHTS',
+            personas: JSON.parse(JSON.stringify(personas)),
+            totalCount,
+            completedCount: 0,
+        });
 
-            const backstory = abbreviate
-                ? await this.llmService.generateAbbreviatedBackstory(persona)
-                : await this.llmService.generatePersonaBackstory(persona);
+        const insightTexts = await (this.llmService as any).generatePersonaInsightsBatch(personas);
+        personas.forEach((persona, i) => {
+            persona.aiInsight = insightTexts[i];
+        });
 
-            console.log(`[GeneratePersonasUseCase] Completed backstory for ${persona.name}`);
-
-            persona.backstory = backstory;
-            completedCount++;
-            completedSubSteps += subStepsPerPersona;
-
-            onProgress?.({
-                step: 'GENERATING_BACKSTORIES',
-                completedCount,
-                totalCount,
-                completedSubSteps,
-                totalSubSteps,
-                personas: JSON.parse(JSON.stringify(personas))
-            });
-        })));
+        onProgress?.({
+            step: 'GENERATING_INSIGHTS',
+            completedCount: totalCount,
+            totalCount,
+            personas: JSON.parse(JSON.stringify(personas))
+        });
 
         return personas;
     }

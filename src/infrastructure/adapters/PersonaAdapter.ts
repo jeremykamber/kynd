@@ -2,6 +2,7 @@ import { Persona, PersonaSchema } from "@/domain/entities/Persona";
 import { LlmServiceImpl } from "./LlmServiceImpl";
 import { streamText, Output } from "ai";
 import { stripCodeFence } from "./llmUtils";
+import { GENDERLESS_NAMES } from "@/data/genderless_names";
 
 export class PersonaAdapter {
   constructor(private llmService: LlmServiceImpl) { }
@@ -36,7 +37,6 @@ interface Persona {
   economicSensitivity: number;
   // Aesthetic & Environment
   designStyle: string;       // e.g. Minimalist, Industrial, Mid-Century Modern
-  favoriteColors: string[];
   livingEnvironment: string; // Describe their messy/organized home or office
 }
 
@@ -71,14 +71,49 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
       if (!Array.isArray(parsed))
         throw new Error("Expected JSON array from LLM");
 
+      // Deterministically pick neutral, curated names from GENDERLESS_NAMES so the LLM
+      // does not invent potentially biased names on the fly. We seed the shuffle
+      // with the personaDescription so the same input yields stable name assignments.
+      const seedFrom = (s: string) => {
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < s.length; i++) {
+          h ^= s.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+      };
+
+      const mulberry32 = (a: number) => () => {
+        a |= 0;
+        a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+
+      const seededShuffle = (arr: string[], seed: number) => {
+        const copy = arr.slice();
+        const rnd = mulberry32(seed);
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(rnd() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      };
+
+      const seed = seedFrom(personaDescription || "");
+      const chosenNames = seededShuffle(GENDERLESS_NAMES, seed);
+
       return parsed.map(
         (p: Record<string, unknown>, idx: number) =>
           ({
             id:
               (p.id as string) ??
               (p.uuid as string) ??
-              `${((p.name as string) || "persona").toLowerCase().replace(/\s+/g, "-")}-${idx}`,
-            name: (p.name as string) ?? "Unknown",
+              `persona-${idx}`,
+            // Use the curated list of genderless, culture-neutral names (chosenNames) so
+            // the LLM does not invent ad-hoc names. Assign deterministically from the pool.
+            name: chosenNames[idx % chosenNames.length] ?? "Persona",
             age:
               typeof p.age === "number"
                 ? p.age
@@ -110,7 +145,6 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
             technicalFluency: Number(p.technicalFluency) || 50,
             economicSensitivity: Number(p.economicSensitivity) || 50,
             designStyle: (p.designStyle as string) ?? "Minimalist",
-            favoriteColors: Array.isArray(p.favoriteColors) ? (p.favoriteColors as string[]) : [],
             livingEnvironment: (p.livingEnvironment as string) ?? "Unknown",
             backstory: (p.backstory as string) ?? (p.story as string) ?? undefined,
           }) as Persona,
@@ -150,7 +184,6 @@ interface Persona {
   economicSensitivity: number;
   // Aesthetic & Environment
   designStyle: string;       // e.g. Minimalist, Industrial, Mid-Century Modern
-  favoriteColors: string[];
   livingEnvironment: string; // Describe their messy/organized home or office
 }
 CRITICAL REQUIREMENTS:
@@ -204,7 +237,7 @@ Your task: Build a RICH, LENGTHY, INTERNALLY CONSISTENT interview-style backstor
 8. Specific examples of successful and failed purchases
 9. Values around efficiency, risk, and spending
 10. Communication style and decision-making pace
-11. Design Taste: Their favorite colors, their preferred aesthetic (Minimalist, Brutalist, etc.), and a description of their living/working environment (Is it messy? Hyper-organized? Sterile? Cozy?). Describe how this environment reflects their personality scalars.
+11. Design Taste: Their preferred aesthetic (Minimalist, Brutalist, etc.) and a description of their living/working environment (Is it messy? Hyper-organized? Sterile? Cozy?). Describe how this environment reflects their personality scalars.
 
 CRITICAL REQUIREMENTS (Deep Binding research):
 - Write 8-12 substantial paragraphs, each 150-250 words
@@ -263,7 +296,7 @@ Start the life story from the beginning. Write in first person. Be specific with
         { role: "system", content: system },
         {
           role: "user",
-          content: `Finish this persona's backstory.\nPREVIOUS HISTORY:\n${part1}\n${part2}\n${part3}\nNow write 2-3 final paragraphs that:\n- Describe their physical world: their home or office, their favorite colors, and their design taste. Explain how their conscientiousness (or lack thereof) manifests in their environment.\n- Articulate their core values around money, efficiency, and risk based on their entire life history.\n- Explain how they evaluate ROI on new tools.\n- Describe their decision-making pace (tied to their Cognitive Reflex and Neuroticism).\n- End with their current mindset.`,
+          content: `Finish this persona's backstory.\nPREVIOUS HISTORY:\n${part1}\n${part2}\n${part3}\nNow write 2-3 final paragraphs that:\n- Describe their physical world: their home or office and their design taste. Explain how their conscientiousness (or lack thereof) manifests in their environment.\n- Articulate their core values around money, efficiency, and risk based on their entire life history.\n- Explain how they evaluate ROI on new tools.\n- Describe their decision-making pace (tied to their Cognitive Reflex and Neuroticism).\n- End with their current mindset.`,
         },
       ],
       { purpose: "Backstory Part 4" },
@@ -290,7 +323,7 @@ Your task: Build a RICH, LENGTHY, INTERNALLY CONSISTENT interview-style backstor
 8. Specific examples of successful and failed purchases
 9. Values around efficiency, risk, and spending
 10. Communication style and decision-making pace
-11. Design Taste: Their favorite colors, their preferred aesthetic (Minimalist, Brutalist, etc.), and a description of their living/working environment (Is it messy? Hyper-organized? Sterile? Cozy?). Describe how this environment reflects their personality scalars.
+11. Design Taste: Their preferred aesthetic (Minimalist, Brutalist, etc.) and a description of their living/working environment (Is it messy? Hyper-organized? Sterile? Cozy?). Describe how this environment reflects their personality scalars.
 CRITICAL REQUIREMENTS (Deep Binding research):
 - Write 8-12 substantial paragraphs, each 150-250 words
 - MULTI-TURN DEPTH: This is an extended interview, not a summary
@@ -360,7 +393,7 @@ Start the life story from the beginning. Write in first person. Be specific with
         { role: "system", content: system },
         {
           role: "user",
-          content: `Finish this persona's backstory.\nPREVIOUS HISTORY:\n${part1}\n${part2}\n${part3}\nNow write 2-3 final paragraphs that:\n- Describe their physical world: their home or office, their favorite colors, and their design taste. Explain how their conscientiousness (or lack thereof) manifests in their environment.\n- Articulate their core values around money, efficiency, and risk based on their entire life history.\n- Explain how they evaluate ROI on new tools.\n- Describe their decision-making pace (tied to their Cognitive Reflex and Neuroticism).\n- End with their current mindset.`,
+          content: `Finish this persona's backstory.\nPREVIOUS HISTORY:\n${part1}\n${part2}\n${part3}\nNow write 2-3 final paragraphs that:\n- Describe their physical world: their home or office and their design taste. Explain how their conscientiousness (or lack thereof) manifests in their environment.\n- Articulate their core values around money, efficiency, and risk based on their entire life history.\n- Explain how they evaluate ROI on new tools.\n- Describe their decision-making pace (tied to their Cognitive Reflex and Neuroticism).\n- End with their current mindset.`,
         },
       ],
       { purpose: "Backstory Part 4 (Stream)" },
@@ -401,6 +434,135 @@ Start the life story from the beginning. Write in first person. Be specific with
     );
   }
 
+  /**
+   * Generates a sharp, 2-sentence 'AI Insight' into a persona's primary motivation 
+   * and their biggest psychological barrier to conversion.
+   */
+  async generatePersonaInsight(persona: Persona): Promise<string> {
+    const system = `You are a behavioral psychologist. Analyze this persona's profile and backstory 
+to provide a sharp, 2-sentence 'AI Insight' into their primary motivation 
+and their biggest psychological barrier to conversion. 
+Speak with professional authority and deep empathy.`;
+
+    const user = `Analyze this persona:
+${JSON.stringify(persona, null, 2)}
+
+Provide a 2-sentence insight.`;
+
+    return await this.llmService.createChatCompletion(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      {
+        model: this.llmService.smallTextModel,
+        temperature: 0.5,
+        purpose: "Generate Persona Insight",
+      },
+    );
+  }
+
+  /**
+   * Batch version - generates backstories for ALL personas in a SINGLE LLM call.
+   * Much faster than calling generateAbbreviatedBackstory for each persona.
+   */
+  async generateAbbreviatedBackstoriesBatch(personas: Persona[]): Promise<string[]> {
+    const system = `You are a narrative psychologist building concise but RICH life stories for buyer personas.
+For each persona, write a 3-5 paragraph backstory in first person, blunt language.
+Include specific roles, names, dollar amounts, and anchor to their personality scalars.
+Describe their living/office environment and design aesthetic.
+
+Return a JSON array of strings, one backstory per persona.`;
+    
+    const personasText = personas.map((p, i) => 
+      `Persona ${i + 1} (${p.name}, ${p.occupation}):\n${JSON.stringify(p, null, 2)}`
+    ).join('\n\n---\n\n');
+
+    const user = `Generate backstories for ALL ${personas.length} personas. Return a JSON array of strings.
+
+${personasText}`;
+
+    const result = await this.llmService.createChatCompletion(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      { 
+        model: this.llmService.smallTextModel,
+        temperature: 0.3,
+        purpose: "Batch Abbreviated Backstories",
+      },
+    );
+
+    try {
+      const cleaned = stripCodeFence(result);
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed) && parsed.length === personas.length) {
+        return parsed;
+      }
+      console.warn("[PersonaAdapter] Batch backstory result length mismatch:", parsed.length, "vs", personas.length);
+      console.warn("[PersonaAdapter] Raw result:", result.slice(0, 500));
+      throw new Error("Length mismatch");
+    } catch (e) {
+      console.warn("[PersonaAdapter] Failed to parse batch backstories:", e);
+      console.warn("[PersonaAdapter] Raw result:", result.slice(0, 500));
+      const fallback: string[] = [];
+      for (const persona of personas) {
+        fallback.push(await this.generateAbbreviatedBackstory(persona));
+      }
+      return fallback;
+    }
+  }
+
+  /**
+   * Batch version - generates insights for ALL personas in a SINGLE LLM call.
+   * Much faster than calling generatePersonaInsight for each persona.
+   */
+  async generatePersonaInsightsBatch(personas: Persona[]): Promise<string[]> {
+    const system = `You are a behavioral psychologist. Analyze each persona's profile and provide a sharp, 2-sentence AI Insight.
+Focus on their primary motivation and biggest psychological barrier to conversion.
+Return a JSON array of strings, one insight per persona.`;
+
+    const personasText = personas.map((p, i) => 
+      `Persona ${i + 1} (${p.name}, ${p.occupation}):\n${JSON.stringify(p, null, 2)}`
+    ).join('\n\n---\n\n');
+
+    const user = `Generate insights for ALL ${personas.length} personas. Return a JSON array of strings.
+
+${personasText}`;
+
+    const result = await this.llmService.createChatCompletion(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      { 
+        model: this.llmService.smallTextModel,
+        temperature: 0.3,
+        purpose: "Batch Persona Insights",
+      },
+    );
+
+    try {
+      const cleaned = stripCodeFence(result);
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed) && parsed.length === personas.length) {
+        return parsed;
+      }
+      console.warn("[PersonaAdapter] Batch insight result length mismatch:", parsed.length, "vs", personas.length);
+      console.warn("[PersonaAdapter] Raw result:", result.slice(0, 500));
+      throw new Error("Length mismatch");
+    } catch (e) {
+      console.warn("[PersonaAdapter] Failed to parse batch insights:", e);
+      console.warn("[PersonaAdapter] Raw result:", result.slice(0, 500));
+      const fallback: string[] = [];
+      for (const persona of personas) {
+        fallback.push(await this.generatePersonaInsight(persona));
+      }
+      return fallback;
+    }
+  }
+
   private getAbbreviatedBackstorySystemPrompt(): string {
     return `You are a narrative psychologist building a concise but RICH life story of a buyer persona.
 Build a 3-5 paragraph "Mini-Biography" (approx 800-1200 tokens) that covers:
@@ -412,7 +574,7 @@ CONCISE REQUIREMENTS:
 - Speak in FIRST PERSON. Natural, blunt language.
 - SPECIFICITY: Mention real roles, names, and dollar amounts.
 - PSYCHOLOGICAL BINDING: Anchor their story to their scalars (Neuroticism, Conscientiousness, Cognitive Reflex).
-- DESIGN DNA: Briefly describe their favorite colors and their living/office environment.
+- DESIGN DNA: Briefly describe their living/office environment and design aesthetic.
 
 Return plain text only. No headers, labels, or markdown.`;
   }

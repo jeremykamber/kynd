@@ -1,12 +1,27 @@
 "use server";
 import { createStreamableValue } from "@ai-sdk/rsc";
+import { headers } from 'next/headers';
+import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 import { ParsePricingPageUseCase } from "@/application/usecases/ParsePricingPageUseCase";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
-import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { cancellationManager } from "@/infrastructure/RequestCancellationManager";
+
+const AUDIT_RATE_LIMIT_MAX = parseInt(process.env.AUDIT_RATE_LIMIT_MAX || '5');
+const AUDIT_RATE_LIMIT_WINDOW_MS = parseInt(process.env.AUDIT_RATE_LIMIT_WINDOW_MS || '60000');
+
+const auditRateLimiter = new RateLimiterMemory({
+    keyPrefix: 'audit',
+    points: AUDIT_RATE_LIMIT_MAX, // Number of requests
+    duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000), // Duration in seconds
+});
+
+const rawPersonaTokenLimit = parseInt(process.env.PERSONA_TOKEN_LIMIT || '2000', 10);
+const PERSONA_TOKEN_LIMIT = Number.isFinite(rawPersonaTokenLimit) && rawPersonaTokenLimit > 0
+    ? rawPersonaTokenLimit
+    : 2000;
 
 export async function analyzePricingPageAction(
     url: string,
@@ -17,7 +32,26 @@ export async function analyzePricingPageAction(
     const id = requestId || `pricing-${Date.now()}`;
     const abortController = cancellationManager.createRequest(id);
     const abortSignal = abortController.signal;
-    const stream = createStreamableValue<any>({ step: "SETTING_UP_AGENT", requestId: id });
+    const stream = createStreamableValue<any>({ step: "STARTING", requestId: id });
+
+    // Get client IP for rate limiting
+    let clientIP = 'unknown';
+    try {
+        const headersList = await headers();
+        clientIP = headersList.get('x-forwarded-for')?.split(',')[0] || headersList.get('x-real-ip') || 'unknown';
+    } catch {
+        // In case headers fail, use unknown
+    }
+
+    // Check rate limit
+    try {
+        await auditRateLimiter.consume(clientIP);
+    } catch (rejRes: any) {
+        const msBeforeNext = rejRes.msBeforeNext;
+        const retryAfter = Math.round(msBeforeNext / 1000);
+        stream.done({ step: "ERROR", error: `Rate limit exceeded. Try again in ${retryAfter} seconds.`, requestId: id });
+        return { streamData: stream.value, requestId: id };
+    }
 
     (async () => {
         try {
@@ -46,7 +80,7 @@ export async function analyzePricingPageAction(
                     }
                 },
                 abortSignal,
-                { imageBase64 }
+                { imageBase64, tokenLimit: PERSONA_TOKEN_LIMIT }
             );
 
             if (!abortSignal.aborted) {

@@ -30,11 +30,11 @@ export class LlmServiceImpl implements LlmServicePort {
   private extractionAdapter: ExtractionAdapter;
 
   // OpenRouter Defaults
-  private static readonly OR_TEXT_MODEL = "qwen/qwen3-235b-a22b-2507";
-  private static readonly OR_SMALL_TEXT_MODEL = "google/gemma-3-12b-it";
+  private static readonly OR_TEXT_MODEL = "qwen/qwen3.5-9b";
+  private static readonly OR_SMALL_TEXT_MODEL = "qwen/qwen3.5-flash-02-23";
   private static readonly OR_VISION_MODEL = "qwen/qwen3-vl-30b-a3b-instruct";
-  private static readonly OR_SCOUT_MODEL = "qwen/qwen3-vl-8b-instruct";
-  private static readonly OR_EXTRACTION_MODEL = "google/gemma-3-12b-it";
+  private static readonly OR_SCOUT_MODEL = "qwen/qwen3-vl-30b-a3b-instruct";
+  private static readonly OR_EXTRACTION_MODEL = "qwen/qwen3.5-flash-02-23";
 
   // Ollama Defaults
   private static readonly OLLAMA_DEFAULT_MODEL = "gemma3:1b-it-qat";
@@ -144,6 +144,11 @@ export class LlmServiceImpl implements LlmServicePort {
     return new LlmServiceImpl(client, providerInstance, models);
   }
 
+  private shouldDisableThinking(model?: string): boolean {
+    const modelToCheck = model || this.textModel;
+    return modelToCheck.toLowerCase().includes("qwen");
+  }
+
   public async createChatCompletion(
     messages: any,
     options: {
@@ -157,19 +162,26 @@ export class LlmServiceImpl implements LlmServicePort {
     return this.withRetry(async () => {
       const reqId = ++LlmServiceImpl.requestCount;
       const purpose = options.purpose || "General";
+      const model = options.model || this.textModel;
       console.log(
-        `[LlmService] [Req #${reqId}] [${purpose}] Sending request to ${options.model || this.textModel}...`,
+        `[LlmService] [Req #${reqId}] [${purpose}] Sending request to ${model}...`,
       );
       const startTime = Date.now();
 
+      const requestParams: any = {
+        model,
+        messages,
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.max_tokens ?? undefined,
+        response_format: options.response_format,
+      };
+
+      if (this.shouldDisableThinking(model)) {
+        requestParams.reasoning = { enabled: false };
+      }
+
       const resp = await LlmServiceImpl.limiter(() =>
-        this.client.chat.completions.create({
-          model: options.model || this.textModel,
-          messages,
-          temperature: options.temperature ?? 0.7,
-          max_tokens: options.max_tokens ?? undefined,
-          response_format: options.response_format,
-        }),
+        this.client.chat.completions.create(requestParams),
       );
 
       console.log(
@@ -192,20 +204,30 @@ export class LlmServiceImpl implements LlmServicePort {
     const stream = await this.withRetry(async () => {
       const reqId = ++LlmServiceImpl.requestCount;
       const purpose = options.purpose || "General";
+      const model = options.model || this.textModel;
       console.log(
-        `[LlmService] [Req #${reqId}] [${purpose}] Starting stream to ${options.model || this.textModel}...`,
+        `[LlmService] [Req #${reqId}] [${purpose}] Starting stream to ${model}...`,
       );
-      return await this.client.chat.completions.create({
-        model: options.model || this.textModel,
+
+      const requestParams: any = {
+        model,
         messages,
         temperature: options.temperature ?? 0.7,
         max_tokens: options.max_tokens ?? undefined,
         response_format: options.response_format,
         stream: true,
-      });
+      };
+
+      if (this.shouldDisableThinking(model)) {
+        requestParams.reasoning = { enabled: false };
+      }
+
+      return await this.client.chat.completions.create(requestParams);
     });
 
-    for await (const chunk of stream) {
+    // Cast to streaming type since we set stream: true
+    const chunkStream = stream as unknown as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
+    for await (const chunk of chunkStream) {
       const content = chunk.choices[0]?.delta?.content;
       if (content) yield content;
     }
@@ -248,6 +270,18 @@ export class LlmServiceImpl implements LlmServicePort {
     yield* this.personaAdapter.generateAbbreviatedBackstoryStream(persona);
   }
 
+  async generatePersonaInsight(persona: Persona): Promise<string> {
+    return this.personaAdapter.generatePersonaInsight(persona);
+  }
+
+  async generateAbbreviatedBackstoriesBatch(personas: Persona[]): Promise<string[]> {
+    return this.personaAdapter.generateAbbreviatedBackstoriesBatch(personas);
+  }
+
+  async generatePersonaInsightsBatch(personas: Persona[]): Promise<string[]> {
+    return this.personaAdapter.generatePersonaInsightsBatch(personas);
+  }
+
   async isPricingVisible(screenshot: string): Promise<boolean> {
     return this.visionAdapter.isPricingVisible(screenshot);
   }
@@ -260,11 +294,13 @@ export class LlmServiceImpl implements LlmServicePort {
     persona: Persona,
     screenshot: string,
     html?: string,
+    options?: { tokenLimit?: number }
   ): Promise<any> {
     return this.visionAdapter.analyzePricingPageStream(
       persona,
       screenshot,
       html,
+      options,
     );
   }
 

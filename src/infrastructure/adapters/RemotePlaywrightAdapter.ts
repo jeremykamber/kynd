@@ -128,7 +128,7 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             window.scrollBy(0, px);
         }, pixels);
         // Brief wait for any lazy content
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(100);
     }
 
     /**
@@ -141,7 +141,7 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             window.scrollTo({ top: targetY, behavior: 'smooth' });
         }, y);
         // Wait for smooth scroll to settle
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(100);
     }
 
     /**
@@ -218,70 +218,67 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             throw new Error("Browser not initialized. Call navigateTo first.");
 
         // Clean the DOM to only include meaningful text and basic structure
-        return await this.page.evaluate(() => {
-            // Helper to check if an element is likely visible
-            const isVisible = (el: HTMLElement) => {
-                const style = window.getComputedStyle(el);
-                return (
-                    style.display !== "none" &&
-                    style.visibility !== "hidden" &&
-                    style.opacity !== "0" &&
-                    el.offsetWidth > 0 &&
-                    el.offsetHeight > 0
-                );
-            };
+        // Using page.evaluateHandle + jsHandle to avoid __name issues
+        try {
+            const jsHandle = await this.page.evaluateHandle(function() {
+                // Helper to check if an element is likely visible
+                var isVisible = function(el: HTMLElement) {
+                    var style = window.getComputedStyle(el);
+                    return (
+                        style.display !== "none" &&
+                        style.visibility !== "hidden" &&
+                        style.opacity !== "0" &&
+                        el.offsetWidth > 0 &&
+                        el.offsetHeight > 0
+                    );
+                };
 
-            // Recursive cleaner
-            const cleanNode = (node: Node): string => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    return node.textContent?.trim() || "";
-                }
-
-                if (node.nodeType !== Node.ELEMENT_NODE) return "";
-
-                const el = node as HTMLElement;
-                const tag = el.tagName.toLowerCase();
-
-                // Skip noisy/invisible tags
-                if (
-                    [
-                        "script",
-                        "style",
-                        "noscript",
-                        "svg",
-                        "path",
-                        "canvas",
-                        "img",
-                        "iframe",
-                    ].includes(tag)
-                ) {
-                    return "";
-                }
-
-                if (!isVisible(el)) return "";
-
-                // For pricing, we care about headers, divs, spans, buttons, etc.
-                let childrenContent = "";
-                el.childNodes.forEach((child) => {
-                    const content = cleanNode(child);
-                    if (content) {
-                        childrenContent += content + " ";
+                // Recursive cleaner
+                function cleanNode(node: Node) {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        return node.textContent ? node.textContent.trim() : "";
                     }
-                });
 
-                childrenContent = childrenContent.trim();
-                if (!childrenContent) return "";
+                    if (node.nodeType !== Node.ELEMENT_NODE) return "";
 
-                // Wrap in tag for some structure if it's a "meaningful" container
-                if (["h1", "h2", "h3", "h4", "h5", "h6", "button", "a"].includes(tag)) {
-                    return `<${tag}>${childrenContent}</${tag}>`;
+                    var el = node as HTMLElement;
+                    var tag = el.tagName.toLowerCase();
+
+                    // Skip noisy/invisible tags
+                    var skipTags = ["script", "style", "noscript", "svg", "path", "canvas", "img", "iframe"];
+                    if (skipTags.indexOf(tag) !== -1) return "";
+
+                    if (!isVisible(el)) return "";
+
+                    // For pricing, we care about headers, divs, spans, buttons, etc.
+                    var childrenContent = "";
+                    var childNodes = el.childNodes;
+                    for (var i = 0; i < childNodes.length; i++) {
+                        var content = cleanNode(childNodes[i]);
+                        if (content) {
+                            childrenContent += content + " ";
+                        }
+                    }
+
+                    childrenContent = childrenContent.trim();
+                    if (!childrenContent) return "";
+
+                    // Wrap in tag for some structure if it's a "meaningful" container
+                    var meaningfulTags = ["h1", "h2", "h3", "h4", "h5", "h6", "button", "a"];
+                    if (meaningfulTags.indexOf(tag) !== -1) {
+                        return "<" + tag + ">" + childrenContent + "</" + tag + ">";
+                    }
+
+                    return childrenContent;
                 }
 
-                return childrenContent;
-            };
-
-            return cleanNode(document.body);
-        });
+                return cleanNode(document.body);
+            });
+            return await jsHandle.jsonValue();
+        } catch (error) {
+            console.warn("[RemotePlaywrightAdapter] getCleanedHtml failed, returning empty string:", (error as Error).message);
+            return "";
+        }
     }
 
     /**
@@ -340,20 +337,19 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
             .catch(() => console.log("Network didn't settle, continuing..."));
 
         // 3. Custom: Wait for no 'loading' text/spinners/skeletons to exist
-        const loaders = [
+        // Combine into one selector for efficiency
+        const loaderSelector = [
             ':text-matches("loading", "i")',
             '[class*="skeleton"]',
             '[class*="shimmer"]',
             '[class*="loading-indicator"]'
-        ];
+        ].join(', ');
 
-        for (const selector of loaders) {
-            await page.locator(selector).first().waitFor({ state: "hidden", timeout: 2000 }).catch(() => { });
-        }
+        await page.locator(loaderSelector).first().waitFor({ state: "hidden", timeout: 1500 }).catch(() => { });
 
-        // 4. Final "Settling" pause (the 1000ms breather)
+        // Final "Settling" pause (the 250ms breather)
         // Essential for animations/transitions to finish before a screenshot
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(250);
     }
 
     /**

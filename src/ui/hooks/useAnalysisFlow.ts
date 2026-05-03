@@ -1,4 +1,4 @@
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect, useRef } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { PricingAnalysis } from '@/domain/entities/PricingAnalysis'
 import { analyzePricingPageAction } from '@/actions/analyzePricingPage'
@@ -29,13 +29,14 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
   const [predictingGazeId, setPredictingGazeId] = useState<string | null>(null)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const handleCancel = async () => {
     if (currentRequestId) {
       await cancelRequestAction(currentRequestId);
     }
-    if (abortController) {
-      abortController.abort()
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
       setAbortController(null)
     }
     setCurrentRequestId(null)
@@ -49,6 +50,7 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
 
     setError(null)
     const controller = new AbortController()
+    abortControllerRef.current = controller
     setAbortController(controller)
     setAnalysisProgress({ step: 'STARTING' })
 
@@ -159,6 +161,15 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
       .map(([name, text]) => `### Thinking: ${name}\n${text}`)
       .join('\n\n---\n\n');
   }, [analysisProgress?.streamingTexts]);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+    }
+  }, [])
 
   return {
     pricingUrl,

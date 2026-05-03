@@ -160,7 +160,8 @@ export interface LlmServicePort {
     analyzePricingPageStream(
         persona: Persona,
         screenshotBase64: string,
-        pageHtml?: string
+        pageHtml?: string,
+        options?: { tokenLimit?: number }
     ): Promise<any>; // Using any for the streamObject return type for now to avoid complex type issues in port
 
     /**
@@ -171,6 +172,22 @@ export interface LlmServicePort {
         persona: Persona,
         prompt: string,
     ): Promise<{ isValid: boolean; reason?: string }>;
+
+    /**
+     * Generates a sharp, 2-sentence 'AI Insight' into a persona's primary motivation 
+     * and their biggest psychological barrier to conversion.
+     */
+    generatePersonaInsight(persona: Persona): Promise<string>;
+
+    /**
+     * Batch version - generates backstories for all personas in a single LLM call.
+     */
+    generateAbbreviatedBackstoriesBatch(personas: Persona[]): Promise<string[]>;
+
+    /**
+     * Batch version - generates insights for all personas in a single LLM call.
+     */
+    generatePersonaInsightsBatch(personas: Persona[]): Promise<string[]>;
 
     summarizeHtml(html: string): Promise<string>;
 }

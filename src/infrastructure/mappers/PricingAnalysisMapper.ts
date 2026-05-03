@@ -35,18 +35,4 @@ export function pricingAnalysisToDb(entity: PricingAnalysis): any {
   }
 }
 
-// Example: entity to DTO (uncomment if using DTO)
-// export function pricingAnalysisToDTO(entity: PricingAnalysis): PricingAnalysisDTO {
-//   return {
-//     id: entity.id,
-//     // ...map other fields
-//   }
-// }
 
-// Example: DTO to entity (uncomment if using DTO)
-// export function dtoToPricingAnalysis(dto: PricingAnalysisDTO): PricingAnalysis {
-//   return {
-//     id: dto.id,
-//     // ...map other fields
-//   }
-// }

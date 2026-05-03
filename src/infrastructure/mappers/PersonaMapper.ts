@@ -25,7 +25,6 @@ export function dbToPersona(db: any): Persona {
     technicalFluency: db.technicalFluency ?? 50,
     economicSensitivity: db.economicSensitivity ?? 50,
     designStyle: db.designStyle ?? "Minimalist",
-    favoriteColors: db.favoriteColors || [],
     livingEnvironment: db.livingEnvironment ?? "Organized habitat",
   }
 }
@@ -52,23 +51,8 @@ export function personaToDb(entity: Persona): any {
     technicalFluency: entity.technicalFluency,
     economicSensitivity: entity.economicSensitivity,
     designStyle: entity.designStyle,
-    favoriteColors: entity.favoriteColors,
     livingEnvironment: entity.livingEnvironment,
   }
 }
 
-// Example: entity to DTO (uncomment if using DTO)
-// export function personaToDTO(entity: Persona): PersonaDTO {
-//   return {
-//     id: entity.id,
-//     // ...map other fields
-//   }
-// }
 
-// Example: DTO to entity (uncomment if using DTO)
-// export function dtoToPersona(dto: PersonaDTO): Persona {
-//   return {
-//     id: dto.id,
-//     // ...map other fields
-//   }
-// }
