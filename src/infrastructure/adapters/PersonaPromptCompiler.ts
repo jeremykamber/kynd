@@ -23,12 +23,14 @@ export class PersonaPromptCompiler {
 
   /** Build the full compartmentalized system prompt for a persona. */
   compileSystemPrompt(persona: Persona, context?: string): string {
-    return [
+    const prompt = [
       this.compileDemographicSection(persona),
       this.compilePsychographicSection(persona),
       this.compileEpistemicSection(persona),
       this.compileGuardrailsSection(persona, context),
     ].join("\n");
+    console.log("[PersonaPromptCompiler] Compartmentalized prompt built for", persona.name, "- sections: PERSONA IDENTITY, PSYCHOGRAPHIC PROFILE, EPISTEMIC BOUNDARIES, BEHAVIORAL GUARDRAILS");
+    return prompt;
   }
 
   /** Section 1: Who the persona is. */
@@ -41,9 +43,6 @@ export class PersonaPromptCompiler {
       `Education: ${persona.educationLevel ?? "—"}`,
       `Interests: ${join(persona.interests)}`,
       `Goals: ${join(persona.goals)}`,
-      `Traits: ${join(persona.personalityTraits)}`,
-      `Design Style: ${persona.designStyle ?? "—"}`,
-      `Living Environment: ${persona.livingEnvironment ?? "—"}`,
     ];
 
     const backstory = normalize(persona.backstory);
@@ -54,28 +53,35 @@ export class PersonaPromptCompiler {
     return parts.join("\n");
   }
 
-  /** Section 2: Psychological profile. */
+  /** Section 2: Psychographic profile — Joshi et al. (2025) Big Five + Wang et al. (2024b) psychographic spec. */
   private compilePsychographicSection(persona: Persona): string {
     return [
       "<<PSYCHOGRAPHIC PROFILE>>",
+      "",
+      "--- Big Five (OCEAN) ---",
       `Conscientiousness: ${persona.conscientiousness ?? 50}/100 (High=Meticulous, Low=Chaotic)`,
       `Neuroticism: ${persona.neuroticism ?? 50}/100 (High=Anxious, Low=Stable)`,
       `Openness: ${persona.openness ?? 50}/100 (High=Curious, Low=Traditional)`,
       `Extraversion: ${persona.extraversion ?? 50}/100 (High=Outgoing, Low=Solitary)`,
       `Agreeableness: ${persona.agreeableness ?? 50}/100 (High=Compassionate, Low=Competitive)`,
-      `Cognitive Reflex: ${persona.cognitiveReflex ?? 50}/100 (0=System 1/Intuitive, 100=System 2/Analytical)`,
-      `Technical Fluency: ${persona.technicalFluency ?? 50}/100`,
-      `Economic Sensitivity: ${persona.economicSensitivity ?? 50}/100 (High=Price-Sensitive)`,
       "",
-      `CORE RULE: Your psychometric scalars are the ROOT CAUSE of your behavior.`,
-      `- If High Conscientiousness: You read everything, notice details, don't skip.`,
-      `- If Low Conscientiousness: You skim, miss fine print, go with gut.`,
-      `- If High Neuroticism: You're risk-averse, worry about contract traps, need reassurance.`,
-      `- If Low Neuroticism: You're bold, adventuresome, don't sweat small risks.`,
-      `- If High Openness: You love new tools, early adopter, curious.`,
-      `- If Low Openness: You stick with what works, skeptical of change.`,
-      `- If High Cognitive Reflex (System 2): You calculate unit economics, compare plans line-by-line.`,
-      `- If Low Cognitive Reflex (System 1): You decide emotionally, based on trust and gut feel.`,
+      `--- Values & Motivations ---`,
+      `Values: ${join(persona.values)}`,
+      `Fears: ${join(persona.fears)}`,
+      `Communication Style: ${persona.communicationStyle ?? "—"}`,
+      `Decision Style: ${persona.decisionStyle ?? "—"}`,
+      "",
+      `CORE RULE: Your Big Five profile is the ROOT CAUSE of your behavior. Every response MUST reflect these.`,
+      `- High Conscientiousness: You read everything, notice details, don't skip.`,
+      `- Low Conscientiousness: You skim, miss fine print, go with gut.`,
+      `- High Neuroticism: You're risk-averse, worry about contract traps, need reassurance.`,
+      `- Low Neuroticism: You're bold, adventuresome, don't sweat small risks.`,
+      `- High Openness: You love new tools, early adopter, curious.`,
+      `- Low Openness: You stick with what works, skeptical of change.`,
+      `- High Extraversion: You seek input from others, collaborative.`,
+      `- Low Extraversion: You decide independently, introspective.`,
+      `- High Agreeableness: You avoid conflict, trust others' recommendations.`,
+      `- Low Agreeableness: You're skeptical, challenge claims, prioritize your own analysis.`,
     ].join("\n");
   }
 

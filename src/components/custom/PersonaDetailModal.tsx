@@ -213,18 +213,11 @@ export function PersonaDetailModal({
                 >
                   <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">THE ENGINE</h4>
 
-                  <div className="space-y-6">
-                    {renderScalar("TECH FLUENCY", persona.technicalFluency, "Luddite", "Hacker")}
-                    {renderScalar("NEUROTICISM", persona.neuroticism, "Stable", "Anxious")}
-                    {renderScalar("COG REFLEX", persona.cognitiveReflex, "Intuitive", "Analytical")}
-                  </div>
-
-                  <div className="h-px bg-border/40" />
-
-                  <div className="flex flex-col gap-5">
-                    <h4 className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-2">Big Five Profile</h4>
+                  <div className="space-y-5">
+                    <h4 className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-2">Big Five (OCEAN) — Joshi et al. (2025)</h4>
                     <div className="space-y-5">
                       {renderScalar("Conscientiousness", persona.conscientiousness, "Chaotic", "Meticulous")}
+                      {renderScalar("Neuroticism", persona.neuroticism, "Stable", "Anxious")}
                       {renderScalar("Openness", persona.openness, "Traditional", "Curious")}
                       {renderScalar("Extraversion", persona.extraversion, "Introvert", "Extrovert")}
                       {renderScalar("Agreeableness", persona.agreeableness, "Competitive", "Compassionate")}
@@ -232,17 +225,48 @@ export function PersonaDetailModal({
                   </div>
                 </motion.div>
 
-                {/* Aesthetic DNA */}
+                {/* Psychographic Specification — Wang et al. (2024b) */}
                 <motion.div
                   variants={itemVariants}
                   className="p-5 md:p-6 rounded-2xl bg-card border border-white/10 shadow-sm transition-colors duration-150 hover:border-white/20"
                 >
-                  <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">AESTHETIC DNA</h4>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] md:text-xs text-muted-foreground">Style</span>
-                      <span className="text-xs md:text-sm font-semibold">{persona.designStyle}</span>
-                    </div>
+                  <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">PSYCHOGRAPHIC SPECIFICATION</h4>
+                  <div className="flex flex-col gap-5">
+                    {persona.values && persona.values.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Values</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {persona.values.map((v, i) => (
+                            <span key={i} className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full">{v}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {persona.fears && persona.fears.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Fears</span>
+                        <ul className="space-y-1.5">
+                          {persona.fears.map((f, i) => (
+                            <li key={i} className="text-xs md:text-sm flex gap-2 leading-relaxed text-foreground/80">
+                              <span className="text-destructive shrink-0">•</span>
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {persona.communicationStyle && (
+                      <div className="flex items-center justify-between py-2 border-t border-border/20">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Communication</span>
+                        <span className="text-xs md:text-sm font-medium capitalize">{persona.communicationStyle}</span>
+                      </div>
+                    )}
+                    {persona.decisionStyle && (
+                      <div className="flex items-center justify-between py-2 border-t border-border/20">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Decision Style</span>
+                        <span className="text-xs md:text-sm font-medium capitalize">{persona.decisionStyle}</span>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               </div>

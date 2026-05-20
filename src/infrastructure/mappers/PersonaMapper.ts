@@ -1,9 +1,5 @@
-// Mapper for Persona
 import { Persona } from '../../domain/entities/Persona'
-// Uncomment if using DTO:
-// import { PersonaDTO } from '../../domain/dtos/PersonaDTO'
 
-// Example: DB record to entity
 export function dbToPersona(db: any): Persona {
   return {
     id: db.id,
@@ -13,23 +9,21 @@ export function dbToPersona(db: any): Persona {
     educationLevel: db.educationLevel,
     interests: db.interests || [],
     goals: db.goals || [],
-    personalityTraits: db.personalityTraits || [],
     backstory: db.backstory,
-    // Psychometric and Aesthetic properties
+    // Big Five
     conscientiousness: db.conscientiousness ?? 50,
     neuroticism: db.neuroticism ?? 50,
     openness: db.openness ?? 50,
     extraversion: db.extraversion ?? 50,
     agreeableness: db.agreeableness ?? 50,
-    cognitiveReflex: db.cognitiveReflex ?? 50,
-    technicalFluency: db.technicalFluency ?? 50,
-    economicSensitivity: db.economicSensitivity ?? 50,
-    designStyle: db.designStyle ?? "Minimalist",
-    livingEnvironment: db.livingEnvironment ?? "Organized habitat",
+    // Psychographic spec
+    values: db.values || [],
+    fears: db.fears || [],
+    communicationStyle: db.communicationStyle ?? "",
+    decisionStyle: db.decisionStyle ?? "",
   }
 }
 
-// Example: entity to DB record
 export function personaToDb(entity: Persona): any {
   return {
     id: entity.id,
@@ -39,20 +33,17 @@ export function personaToDb(entity: Persona): any {
     educationLevel: entity.educationLevel,
     interests: entity.interests,
     goals: entity.goals,
-    personalityTraits: entity.personalityTraits,
     backstory: entity.backstory,
-    // Psychometric and Aesthetic properties
+    // Big Five
     conscientiousness: entity.conscientiousness,
     neuroticism: entity.neuroticism,
     openness: entity.openness,
     extraversion: entity.extraversion,
     agreeableness: entity.agreeableness,
-    cognitiveReflex: entity.cognitiveReflex,
-    technicalFluency: entity.technicalFluency,
-    economicSensitivity: entity.economicSensitivity,
-    designStyle: entity.designStyle,
-    livingEnvironment: entity.livingEnvironment,
+    // Psychographic spec
+    values: entity.values,
+    fears: entity.fears,
+    communicationStyle: entity.communicationStyle,
+    decisionStyle: entity.decisionStyle,
   }
 }
-
-

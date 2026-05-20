@@ -21,11 +21,12 @@ const jordan: Persona = {
   id: "p1", name: "Jordan Chen", age: 34,
   occupation: "Product Manager", educationLevel: "MBA",
   interests: ["SaaS tools", "hiking"], goals: ["optimize team velocity"],
-  personalityTraits: ["analytical", "skeptical"],
   conscientiousness: 80, neuroticism: 60, openness: 70,
-  extraversion: 45, agreeableness: 55, cognitiveReflex: 75,
-  technicalFluency: 65, economicSensitivity: 50,
-  designStyle: "Minimalist", livingEnvironment: "Clean apartment with home office",
+  extraversion: 45, agreeableness: 55,
+  values: ["Transparency", "Data-driven decisions", "Team empowerment"],
+  fears: ["Wasting budget on tools nobody uses", "Hidden contract traps"],
+  communicationStyle: "Analytical and collaborative",
+  decisionStyle: "Evidence-based with a bias toward action",
   backstory: `I grew up in a family of engineers. My father was a software architect who taught me to question everything. After my MBA at Stanford, I joined a Series B SaaS company.
 
 My biggest professional mistake was approving a $50k annual contract for an analytics platform we barely used. The sales demo was impressive, but the ROI never materialized. That experience made me deeply skeptical of flashy demos and long-term commitments.
