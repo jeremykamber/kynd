@@ -4,6 +4,7 @@ import { LlmServicePort } from "../../domain/ports/LlmServicePort";
 export type PersonaGenerationProgressStep =
     | 'BRAINSTORMING_PERSONAS'
     | 'GENERATING_BACKSTORIES'
+    | 'ENHANCING_WITH_PBJ'
     | 'GENERATING_INSIGHTS'
     | 'DONE'
     | 'ERROR';
@@ -97,7 +98,20 @@ export class GeneratePersonasUseCase {
             personas: JSON.parse(JSON.stringify(personas))
         });
 
-        // Phase 3: Generate AI Insights (BATCH - single LLM call instead of 3)
+        // Phase 3: PB&J Rationalization — causally connect Big Five to psychographics
+        // Joshi et al. (2025): improves persona alignment by 6-9% over backstory-only
+        console.log("[GeneratePersonasUseCase] Enhancing personas with PB&J psychological rationales...");
+        onProgress?.({
+            step: 'ENHANCING_WITH_PBJ',
+            personas: JSON.parse(JSON.stringify(personas)),
+            totalCount,
+            completedCount: 0,
+        });
+
+        personas = await (this.llmService as any).enhancePersonasWithPbj(personas);
+        console.log("[GeneratePersonasUseCase] PB&J enhancement complete for all personas");
+
+        // Phase 4: Generate AI Insights (BATCH - single LLM call instead of 3)
         console.log("[GeneratePersonasUseCase] Generating batch AI Insights...");
         onProgress?.({
             step: 'GENERATING_INSIGHTS',

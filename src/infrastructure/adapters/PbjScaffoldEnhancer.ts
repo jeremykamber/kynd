@@ -17,6 +17,10 @@ export interface PbjRationale {
  * rationales grounded in psychological scaffolds (Big Five, Primal World
  * Beliefs) that explain WHY a persona holds specific traits and judgments.
  *
+ * The generated rationales are appended to the persona's backstory as a
+ * <<PSYCHOLOGICAL RATIONALES (PB&J)>> section, creating causal coherence
+ * between the Big Five profile and the psychographic spec.
+ *
  * Reference: Joshi et al. (2025) "Improving LLM Personas via Rationalization
  * with Psychological Scaffolds" — Findings of EMNLP 2025.
  */
@@ -64,13 +68,15 @@ export class PbjScaffoldEnhancer {
           const system = "You are a personality psychologist. Given a persona's Big Five profile, explain in 2-3 sentences why they have each trait level based on plausible life experiences.";
           const user = [
             `Persona: ${persona.name}, ${persona.occupation}`,
-            `Conscientiousness: ${persona.conscientiousness}/100`,
-            `Neuroticism: ${persona.neuroticism}/100`,
-            `Openness: ${persona.openness}/100`,
-            `Extraversion: ${persona.extraversion}/100`,
-            `Agreeableness: ${persona.agreeableness}/100`,
+            `Conscientiousness: ${persona.conscientiousness}/100 (High=Meticulous, Low=Chaotic)`,
+            `Neuroticism: ${persona.neuroticism}/100 (High=Anxious, Low=Stable)`,
+            `Openness: ${persona.openness}/100 (High=Curious, Low=Traditional)`,
+            `Extraversion: ${persona.extraversion}/100 (High=Outgoing, Low=Solitary)`,
+            `Agreeableness: ${persona.agreeableness}/100 (High=Compassionate, Low=Competitive)`,
+            `Values: ${(persona.values ?? []).join(", ")}`,
+            `Fears: ${(persona.fears ?? []).join(", ")}`,
             "",
-            `Explain the psychological roots of each trait level using the Big Five framework. Focus on cause-and-effect: "This person has high X because..."`,
+            `Explain the psychological roots of each trait level using the Big Five framework. Focus on cause-and-effect: "This person has high X because...". Then explain how these traits connect to their stated values and fears.`,
           ].join("\n");
           return this.llmService.createChatCompletion(
             [{ role: "system", content: system }, { role: "user", content: user }],
@@ -79,37 +85,44 @@ export class PbjScaffoldEnhancer {
         },
       },
       {
-        label: "Cognitive-Reflex Decision Style",
+        label: "Decision Style & Values Integration",
         generate: async (persona: Persona) => {
-          const system = "You are a behavioral economist. Explain how this persona's cognitive reflex score (System 1 vs System 2 thinking) manifests in their real-world decision-making.";
+          const system = "You are a behavioral economist. Explain how this persona's Big Five profile and decision style manifest in their real-world decision-making, and how their values and fears drive their choices.";
           const user = [
             `Persona: ${persona.name}, ${persona.occupation}`,
-            `Cognitive Reflex: ${persona.cognitiveReflex}/100 (0=System 1/Intuitive, 100=System 2/Analytical)`,
+            `Conscientiousness: ${persona.conscientiousness}/100`,
             `Neuroticism: ${persona.neuroticism}/100`,
             `Openness: ${persona.openness}/100`,
+            `Extraversion: ${persona.extraversion}/100`,
+            `Agreeableness: ${persona.agreeableness}/100`,
+            `Decision Style: ${persona.decisionStyle}`,
+            `Communication Style: ${persona.communicationStyle}`,
+            `Values: ${(persona.values ?? []).join(", ")}`,
+            `Fears: ${(persona.fears ?? []).join(", ")}`,
             "",
-            `Describe their default decision-making process when faced with a significant purchase or commitment. Do they trust their gut? Do they spreadsheet every option? Why?`,
+            `Describe their default decision-making process when evaluating a new tool or service. How do their Big Five traits drive their decision style? How do their values and fears manifest in the specific things they look for and the red flags they watch out for?`,
           ].join("\n");
           return this.llmService.createChatCompletion(
             [{ role: "system", content: system }, { role: "user", content: user }],
-            { purpose: "PB&J Cognitive Scaffold", temperature: 0.5 },
+            { purpose: "PB&J Decision Scaffold", temperature: 0.5 },
           );
         },
       },
       {
         label: "Core Values & Risk Worldview",
         generate: async (persona: Persona) => {
-          const system = "You are a values psychologist. Based on the persona's profile, articulate their core values around money, risk, efficiency, and trust in 2-3 sentences.";
+          const system = "You are a values psychologist. Based on the persona's complete profile, articulate their core values around money, risk, efficiency, and trust in 2-3 sentences.";
           const user = [
             `Persona: ${persona.name}, ${persona.occupation}`,
-            `Economic Sensitivity: ${persona.economicSensitivity}/100 (High=Price-Sensitive)`,
-            `Technical Fluency: ${persona.technicalFluency}/100`,
-            `Agreeableness: ${persona.agreeableness}/100`,
-            `Neuroticism: ${persona.neuroticism}/100`,
+            `Neuroticism: ${persona.neuroticism}/100 (High=Risk-averse)`,
+            `Openness: ${persona.openness}/100 (High=Early adopter)`,
+            `Agreeableness: ${persona.agreeableness}/100 (High=Trusting)`,
+            `Values: ${(persona.values ?? []).join(", ")}`,
+            `Fears: ${(persona.fears ?? []).join(", ")}`,
             `Goals: ${persona.goals.join(", ")}`,
             persona.backstory ? `Backstory excerpt: ${persona.backstory.slice(0, 500)}` : "",
             "",
-            "Explain what they fundamentally value when making decisions about tools and services. How do they weigh cost vs quality? What makes them trust (or distrust) a vendor?",
+            "Explain what they fundamentally value when making decisions about tools and services. How do they weigh cost vs quality? What makes them trust (or distrust) a vendor? Connect their values and fears back to their Big Five profile.",
           ].join("\n");
           return this.llmService.createChatCompletion(
             [{ role: "system", content: system }, { role: "user", content: user }],

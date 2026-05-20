@@ -282,6 +282,27 @@ export class LlmServiceImpl implements LlmServicePort {
     return this.personaAdapter.generatePersonaInsightsBatch(personas);
   }
 
+  /**
+   * PB&J scaffold enhancement for all personas.
+   * Generates psychological rationales that causally connect the persona's
+   * Big Five profile to their values, fears, and decision style.
+   * The rationales are appended to each persona's backstory.
+   */
+  async enhancePersonasWithPbj(personas: Persona[]): Promise<Persona[]> {
+    const { PbjScaffoldEnhancer } = await import("./PbjScaffoldEnhancer");
+    const enhancer = new PbjScaffoldEnhancer(this);
+    const enhanced = await Promise.allSettled(
+      personas.map(async (persona) => {
+        const pbjText = await enhancer.enhanceBackstory(persona);
+        if (pbjText) {
+          persona.backstory = (persona.backstory ?? "") + pbjText;
+        }
+        return persona;
+      }),
+    );
+    return enhanced.map((r) => (r.status === "fulfilled" ? r.value : r.reason as any));
+  }
+
   async isPricingVisible(screenshot: string): Promise<boolean> {
     return this.visionAdapter.isPricingVisible(screenshot);
   }
