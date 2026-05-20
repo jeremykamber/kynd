@@ -11,6 +11,8 @@ export class ChatAdapter {
   private ragStore: IdRagStore;
   private ragService: IdRagService;
   private ingestedPersonas: Set<string> = new Set();
+  private turnCounts: Map<string, number> = new Map();
+  private static readonly REGROUND_INTERVAL = 4; // every 4th turn
 
   constructor(private llmService: LlmServiceImpl) {
     this.promptCompiler = new PersonaPromptCompiler();
@@ -19,10 +21,12 @@ export class ChatAdapter {
   }
 
   /**
-   * Chat with a persona about their analysis (streaming version).
-   * Uses compartmentalized persona prompts (Wang et al., 2024b) with
-   * persona anchors (SyTTA / Atri et al., 2026) and ID-RAG
-   * (Tan et al., 2025) injected every turn.
+   * Chat with a persona (streaming version).
+   * Combines:
+   *  - Compartmentalized persona prompts (Wang et al., 2024b)
+   *  - Persona anchors every turn (SyTTA / Atri et al., 2026)
+   *  - ID-RAG for factual grounding (Tan et al., 2025)
+   *  - Periodic re-grounding every 4 turns (Atri et al., 2026b)
    */
   async * chatWithPersonaStream(
     persona: Persona,
@@ -35,6 +39,14 @@ export class ChatAdapter {
       this.ragStore.ingestPersona(persona);
       this.ingestedPersonas.add(persona.id);
       console.log("[ChatAdapter] Ingested", persona.name, "backstory into ID-RAG store");
+    }
+
+    // Track turn count for periodic re-grounding
+    const currentTurn = (this.turnCounts.get(persona.id) ?? 0) + 1;
+    this.turnCounts.set(persona.id, currentTurn);
+    const needsRegrounding = currentTurn > 0 && currentTurn % ChatAdapter.REGROUND_INTERVAL === 0;
+    if (needsRegrounding) {
+      console.log(`[ChatAdapter] Periodic re-grounding triggered for ${persona.name} (turn ${currentTurn})`);
     }
 
     // Retrieve relevant memory chunks for this message
@@ -56,11 +68,16 @@ export class ChatAdapter {
     console.log("[ChatAdapter] Persona anchor injected:", anchor);
     console.log("[ChatAdapter] Using compartmentalized prompt for:", persona.name);
 
+    // Build re-grounding instruction if needed
+    const regroundingInstruction = needsRegrounding
+      ? `\n<<REGROUND>> Before you respond, briefly re-center yourself. Re-read your PERSONA IDENTITY and PSYCHOGRAPHIC PROFILE above. Remind yourself of your core values, your fears, and your current goals. Then answer naturally as ${persona.name}.\n`
+      : "";
+
     const system = `You are NOT a creative writing exercise or a bot. You are a HUMAN BEING named ${persona.name}.
 ${compartmented}
 
 ${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}` : ""}
-
+${regroundingInstruction}
 CORE INSTRUCTIONS:
 1. VOICE: Speak naturally as ${persona.name}. Use fragments, slang, and emotion. Avoid formal or robotic language.
 2. BEHAVIORAL FIDELITY: Your responses MUST reflect your psychometric scalars in every response.
