@@ -2,21 +2,38 @@ import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysisSchema } from "@/domain/entities/PricingAnalysis";
 import { LlmServiceImpl } from "./LlmServiceImpl";
 import { PersonaPromptCompiler } from "./PersonaPromptCompiler";
+import { IdRagStore } from "./IdRagStore";
+import { IdRagService } from "./IdRagService";
 import { streamObject } from "ai";
 import { PricingLocation } from "@/domain/ports/LlmServicePort";
 
 export class VisionAnalysisAdapter {
   private promptCompiler: PersonaPromptCompiler;
+  private ragStore: IdRagStore;
+  private ragService: IdRagService;
+  private ingestedPersonas: Set<string> = new Set();
 
   constructor(private llmService: LlmServiceImpl) {
     this.promptCompiler = new PersonaPromptCompiler();
+    this.ragStore = new IdRagStore();
+    this.ragService = new IdRagService(this.ragStore);
+  }
+
+  /** Ensure persona backstory is ingested into ID-RAG store. */
+  private ensureIngested(persona: Persona): void {
+    if (!this.ingestedPersonas.has(persona.id) && persona.backstory) {
+      this.ragStore.ingestPersona(persona);
+      this.ingestedPersonas.add(persona.id);
+      console.log("[VisionAnalysisAdapter] Ingested", persona.name, "backstory into ID-RAG store");
+    }
   }
 
   /**
-   * Consolidated Pricing Analysis using Hybrid Grounding (Screenshot + HTML).
+   * Consolidated Pricing Analysis using Hybrid Grounding (Screenshot + HTML + ID-RAG).
    * Uses the same compartmentalized PersonaPromptCompiler (Wang et al. 2024b)
    * as the chat system — the 4 compartments prevent attention dilution between
-   * persona identity and the structured analysis task.
+   * persona identity and the structured analysis task. ID-RAG (Tan et al. 2025)
+   * injects relevant backstory chunks for factual grounding.
    */
   async analyzePricingPageStream(
     persona: Persona,
@@ -25,8 +42,19 @@ export class VisionAnalysisAdapter {
     options: { tokenLimit?: number } = {}
   ) {
     const tokenLimit = options.tokenLimit ?? 2000;
+    this.ensureIngested(persona);
+
+    // Retrieve relevant memories based on the page context
+    const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
+    const ragContext = this.ragService.retrieveContext(persona, query, 3);
+    if (ragContext.chunkCount > 0) {
+      console.log(`[VisionAnalysisAdapter] Retrieved ${ragContext.chunkCount} ID-RAG chunks for ${persona.name}`);
+    }
+
     const compartments = this.promptCompiler.compileSystemPrompt(persona);
+    const personaAnchor = this.promptCompiler.generateAnchor(persona);
     console.log(`[VisionAnalysisAdapter] Compartmentalized analysis prompt for ${persona.name}:\n${compartments}`);
+    console.log(`[VisionAnalysisAdapter] Persona anchor: ${personaAnchor}`);
 
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
@@ -37,8 +65,9 @@ export class VisionAnalysisAdapter {
         1. A screenshot of the exact viewport containing the pricing.
         2. A verified factual summary of the page's HTML (including product info, tier data, and fine print).
         
-        TASK:
-        Evaluate this page from YOUR perspective. Use your personality, values, and scalars.
+        ${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}\n` : ""}
+        
+        ${personaAnchor} Evaluate this page from YOUR perspective. Use your personality, values, and scalars.
         
         STRICT OUTPUT RULES:
         - Respond ONLY with a valid JSON object following the provided schema.
@@ -179,7 +208,16 @@ export class VisionAnalysisAdapter {
     options: { tokenLimit?: number } = {}
   ) {
     const tokenLimit = options.tokenLimit ?? 2000;
+    this.ensureIngested(persona);
+
+    const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
+    const ragContext = this.ragService.retrieveContext(persona, query, 3);
+    if (ragContext.chunkCount > 0) {
+      console.log(`[VisionAnalysisAdapter] [AUDIT] Retrieved ${ragContext.chunkCount} ID-RAG chunks for ${persona.name}`);
+    }
+
     const compartments = this.promptCompiler.compileSystemPrompt(persona);
+    const personaAnchor = this.promptCompiler.generateAnchor(persona);
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
         ${compartments}
@@ -189,8 +227,9 @@ export class VisionAnalysisAdapter {
         1. A screenshot of the exact viewport containing the pricing.
         2. A verified factual summary of the page's HTML (including product info, tier data, and fine print).
         
-        TASK:
-        Evaluate this page from YOUR perspective. Return ONLY a valid JSON object following the PricingAnalysis schema.
+        ${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}\n` : ""}
+        
+        ${personaAnchor} Evaluate this page from YOUR perspective. Return ONLY a valid JSON object following the PricingAnalysis schema.
         
         STRICT OUTPUT RULES:
         - Respond ONLY with a valid JSON object following the PricingAnalysis schema.

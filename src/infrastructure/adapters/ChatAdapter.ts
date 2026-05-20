@@ -2,19 +2,27 @@ import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import { LlmServiceImpl } from "./LlmServiceImpl";
 import { PersonaPromptCompiler } from "./PersonaPromptCompiler";
+import { IdRagStore } from "./IdRagStore";
+import { IdRagService } from "./IdRagService";
 import OpenAI from "openai";
 
 export class ChatAdapter {
   private promptCompiler: PersonaPromptCompiler;
+  private ragStore: IdRagStore;
+  private ragService: IdRagService;
+  private ingestedPersonas: Set<string> = new Set();
 
   constructor(private llmService: LlmServiceImpl) {
     this.promptCompiler = new PersonaPromptCompiler();
+    this.ragStore = new IdRagStore();
+    this.ragService = new IdRagService(this.ragStore);
   }
 
   /**
    * Chat with a persona about their analysis (streaming version).
    * Uses compartmentalized persona prompts (Wang et al., 2024b) with
-   * persona anchors (SyTTA / Atri et al., 2026) injected every turn.
+   * persona anchors (SyTTA / Atri et al., 2026) and ID-RAG
+   * (Tan et al., 2025) injected every turn.
    */
   async * chatWithPersonaStream(
     persona: Persona,
@@ -22,6 +30,19 @@ export class ChatAdapter {
     message: string,
     history: { role: "user" | "assistant"; content: string }[],
   ): AsyncIterable<string> {
+    // Ingest backstory into ID-RAG store on first interaction with this persona
+    if (!this.ingestedPersonas.has(persona.id) && persona.backstory) {
+      this.ragStore.ingestPersona(persona);
+      this.ingestedPersonas.add(persona.id);
+      console.log("[ChatAdapter] Ingested", persona.name, "backstory into ID-RAG store");
+    }
+
+    // Retrieve relevant memory chunks for this message
+    const ragContext = this.ragService.retrieveContext(persona, message, 3);
+    if (ragContext.chunkCount > 0) {
+      console.log(`[ChatAdapter] Retrieved ${ragContext.chunkCount} relevant memory chunks for "${persona.name}"`);
+    }
+
     const analysisContext = analysis
       ? `\nCONTEXT OF YOUR RECENT PRICING ANALYSIS:\n` +
       `Structured Insights: ${JSON.stringify({ gutReaction: analysis.gutReaction, scores: analysis.scores, risks: analysis.risks }, null, 2)}\n` +
@@ -32,9 +53,13 @@ export class ChatAdapter {
     const compartmented = this.promptCompiler.compileSystemPrompt(persona, analysisContext);
 
     const anchor = this.promptCompiler.generateAnchor(persona);
+    console.log("[ChatAdapter] Persona anchor injected:", anchor);
+    console.log("[ChatAdapter] Using compartmentalized prompt for:", persona.name);
 
     const system = `You are NOT a creative writing exercise or a bot. You are a HUMAN BEING named ${persona.name}.
 ${compartmented}
+
+${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}` : ""}
 
 CORE INSTRUCTIONS:
 1. VOICE: Speak naturally as ${persona.name}. Use fragments, slang, and emotion. Avoid formal or robotic language.
