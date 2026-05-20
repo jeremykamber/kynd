@@ -32,28 +32,19 @@ export class GeneratePersonasUseCase {
     ): Promise<Persona[]> {
         console.log("Executing GeneratePersonas use case");
 
-        // Stream structured personas directly
-        let partialPersonas: Partial<Persona>[] = [];
-        for await (const partialArray of this.llmService.generateInitialPersonasStream(personaDescription)) {
-            partialPersonas = partialArray;
-            // Snapshot the partial personas to prevent proxy/serialization issues
-            const snapshot = JSON.parse(JSON.stringify(partialPersonas));
-            onProgress?.({
-                step: 'BRAINSTORMING_PERSONAS',
-                personas: snapshot,
-                streamingText: JSON.stringify(snapshot, null, 2)
-            });
-        }
+        // Generate personas via non-streaming call (reliable, no stream issues)
+        onProgress?.({
+            step: 'BRAINSTORMING_PERSONAS',
+            streamingText: "Generating persona profiles..."
+        });
 
-        // Finalize personas (ensure they are fully formed)
-        // Deep clone to strip any AI SDK proxy objects before further processing
-        let personas: Persona[] = JSON.parse(JSON.stringify(partialPersonas));
+        let personas: Persona[] = await this.llmService.generateInitialPersonas(personaDescription);
 
-        // Safety check: if stream yielded nothing or empty, fallback
         if (!personas || personas.length === 0) {
-            console.warn("Stream yielded no personas, falling back to legacy generation");
-            personas = await this.llmService.generateInitialPersonas(personaDescription);
+            throw new Error("Failed to generate any personas from the description");
         }
+
+        console.log(`[GeneratePersonasUseCase] Generated ${personas.length} personas`);
 
         const abbreviate = GeneratePersonasUseCase.ABBREVIATE_BACKSTORIES;
         const subStepsPerPersona = abbreviate ? 1 : 4;
