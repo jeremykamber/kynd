@@ -1,15 +1,22 @@
-import { Persona, stringifyPersona } from "@/domain/entities/Persona";
+import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysisSchema } from "@/domain/entities/PricingAnalysis";
 import { LlmServiceImpl } from "./LlmServiceImpl";
+import { PersonaPromptCompiler } from "./PersonaPromptCompiler";
 import { streamObject } from "ai";
 import { PricingLocation } from "@/domain/ports/LlmServicePort";
 
 export class VisionAnalysisAdapter {
-  constructor(private llmService: LlmServiceImpl) { }
+  private promptCompiler: PersonaPromptCompiler;
+
+  constructor(private llmService: LlmServiceImpl) {
+    this.promptCompiler = new PersonaPromptCompiler();
+  }
 
   /**
    * Consolidated Pricing Analysis using Hybrid Grounding (Screenshot + HTML).
-   * Returns a stream of the structured PricingAnalysis object.
+   * Uses the same compartmentalized PersonaPromptCompiler (Wang et al. 2024b)
+   * as the chat system — the 4 compartments prevent attention dilution between
+   * persona identity and the structured analysis task.
    */
   async analyzePricingPageStream(
     persona: Persona,
@@ -18,24 +25,14 @@ export class VisionAnalysisAdapter {
     options: { tokenLimit?: number } = {}
   ) {
     const tokenLimit = options.tokenLimit ?? 2000;
-    const personaProfile = stringifyPersona(persona);
-    console.log(`[VisionAnalysisAdapter] Analysis prompt for ${persona.name}: 
-=== PERSONA PROFILE ===
-${personaProfile}
-=== BEHAVIORAL GUIDANCE ===
-Big Five: C=${persona.conscientiousness}, N=${persona.neuroticism}, O=${persona.openness}, E=${persona.extraversion}, A=${persona.agreeableness}
-Values: ${(persona.values ?? []).join(", ")}
-Fears: ${(persona.fears ?? []).join(", ")}
-Decision Style: ${persona.decisionStyle}
-Communication: ${persona.communicationStyle}
-=== END PROFILE ===`);
+    const compartments = this.promptCompiler.compileSystemPrompt(persona);
+    console.log(`[VisionAnalysisAdapter] Compartmentalized analysis prompt for ${persona.name}:\n${compartments}`);
 
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
-        PERSONA PROFILE:
-        ${personaProfile}
+        ${compartments}
         
-        CONTEXT:
+        <<ANALYSIS TASK>>
         You are looking at a pricing page. You have been provided with:
         1. A screenshot of the exact viewport containing the pricing.
         2. A verified factual summary of the page's HTML (including product info, tier data, and fine print).
@@ -58,19 +55,6 @@ Communication: ${persona.communicationStyle}
         - Use the screenshot to gauge visual appeal, layout, emotion, and visual hierarchy.
         - Use the HTML summary to verify specific prices, plan names, and fine print that might be cut off or hard to read in the image.
         - If there is a contradiction, trust the HTML summary for hard data (prices/features) and the screenshot for layout/emotion.
-        
-        BEHAVIORAL GUIDANCE — Your Big Five profile is the ROOT CAUSE of how you react:
-        - CONSCIENTIOUSNESS: High = You read everything, notice fine print, don't skip. Low = You skim, miss details, go with gut.
-        - NEUROTICISM: High = You're anxious, look for hidden fees, traps, and risks. Low = You're bold, don't sweat small risks.
-        - OPENNESS: High = You love new tools, early adopter, curious about features. Low = You stick with what works, skeptical of change.
-        - EXTRAVERSION: High = You seek social proof, ask others' opinions. Low = You decide independently, introspective.
-        - AGREEABLENESS: High = You trust the vendor, take recommendations at face value. Low = You're skeptical, challenge claims.
-        
-        VALUES + FEARS DRIVE YOUR MOTIVATION:
-        - Your VALUES (${(persona.values ?? []).join(", ") || "not specified"}) determine what you prioritize. Every score must align with these.
-        - Your FEARS (${(persona.fears ?? []).join(", ") || "not specified"}) determine what you're scanning for. If you spot a fear trigger, your Trust and Buy Intent MUST drop.
-        - Your COMMUNICATION STYLE (${persona.communicationStyle || "not specified"}) affects how you express yourself.
-        - Your DECISION STYLE (${persona.decisionStyle || "not specified"}) determines how you weigh evidence.
         
         SCORING LOGIC REINFORCEMENT:
         - Likelihood to Buy MUST be the logical conclusion of your thoughts, psychographics, and other scores.
@@ -195,12 +179,12 @@ Communication: ${persona.communicationStyle}
     options: { tokenLimit?: number } = {}
   ) {
     const tokenLimit = options.tokenLimit ?? 2000;
+    const compartments = this.promptCompiler.compileSystemPrompt(persona);
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
-        PERSONA PROFILE:
-        ${stringifyPersona(persona)}
+        ${compartments}
         
-        CONTEXT:
+        <<ANALYSIS TASK>>
         You are looking at a pricing page. You have been provided with:
         1. A screenshot of the exact viewport containing the pricing.
         2. A verified factual summary of the page's HTML (including product info, tier data, and fine print).
@@ -217,18 +201,6 @@ Communication: ${persona.communicationStyle}
         - RISK CAP: Limit the 'risks' array to a maximum of 3 items.
         - NO REPETITION: Do NOT repeat information across different fields.
         
-        BEHAVIORAL GUIDANCE — Your Big Five profile is the ROOT CAUSE of how you react:
-        - CONSCIENTIOUSNESS: High = You read everything, notice fine print. Low = You skim, go with gut.
-        - NEUROTICISM: High = You're anxious, look for traps. Low = You're bold, don't sweat risks.
-        - OPENNESS: High = You're curious about new tools. Low = You're skeptical of change.
-        - EXTRAVERSION: High = You seek social proof. Low = You decide independently.
-        - AGREEABLENESS: High = You trust the vendor. Low = You're skeptical, challenge claims.
-        
-        VALUES + FEARS DRIVE YOUR MOTIVATION:
-        - Your VALUES (${(persona.values ?? []).join(", ") || "not specified"}) determine what you prioritize.
-        - Your FEARS (${(persona.fears ?? []).join(", ") || "not specified"}) determine what you're scanning for.
-        - Your DECISION STYLE (${persona.decisionStyle || "not specified"}) determines how you weigh evidence.
-
         SCORING LOGIC REINFORCEMENT:
         - Likelihood to Buy MUST align with your unique psychographics.
         - Different personas MUST give DIFFERENT scores based on their Big Five, values, and fears.
