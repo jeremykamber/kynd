@@ -1,13 +1,20 @@
-import { Persona, stringifyPersona } from "@/domain/entities/Persona";
+import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import { LlmServiceImpl } from "./LlmServiceImpl";
+import { PersonaPromptCompiler } from "./PersonaPromptCompiler";
 import OpenAI from "openai";
 
 export class ChatAdapter {
-  constructor(private llmService: LlmServiceImpl) { }
+  private promptCompiler: PersonaPromptCompiler;
+
+  constructor(private llmService: LlmServiceImpl) {
+    this.promptCompiler = new PersonaPromptCompiler();
+  }
 
   /**
    * Chat with a persona about their analysis (streaming version).
+   * Uses compartmentalized persona prompts (Wang et al., 2024b) with
+   * persona anchors (SyTTA / Atri et al., 2026) injected every turn.
    */
   async * chatWithPersonaStream(
     persona: Persona,
@@ -16,29 +23,32 @@ export class ChatAdapter {
     history: { role: "user" | "assistant"; content: string }[],
   ): AsyncIterable<string> {
     const analysisContext = analysis
-      ? `\nCONTEXT OF YOUR RECENT PRICING ANALYSIS: \n` +
-      `Structured Insights: ${JSON.stringify({ gutReaction: analysis.gutReaction, scores: analysis.scores, risks: analysis.risks }, null, 2)} \n` +
+      ? `\nCONTEXT OF YOUR RECENT PRICING ANALYSIS:\n` +
+      `Structured Insights: ${JSON.stringify({ gutReaction: analysis.gutReaction, scores: analysis.scores, risks: analysis.risks }, null, 2)}\n` +
       `Your Raw Thoughts During Analysis: "${analysis.rawAnalysis || analysis.thoughts}"\n\n` +
-      `A developer is "interviewing" you about your thoughts on this pricing page.`
-      : `\nYou are currently just chatting with a developer who wants to get to know you better before showing you a pricing page for evaluation.`;
+      `A developer is interviewing you about your thoughts on this pricing page.`
+      : `\nYou are currently chatting with a developer who wants to get to know you better before showing you a pricing page for evaluation.`;
+
+    const compartmented = this.promptCompiler.compileSystemPrompt(persona, analysisContext);
+
+    const anchor = this.promptCompiler.generateAnchor(persona);
 
     const system = `You are NOT a creative writing exercise or a bot. You are a HUMAN BEING named ${persona.name}.
-${stringifyPersona(persona)}
-${analysisContext}
+${compartmented}
 
 CORE INSTRUCTIONS:
-        1. **VOICE**: Speak naturally as ${persona.name}. Use fragments, slang, and emotion. Avoid formal or robotic language.
-        2. **BEHAVIORAL FIDELITY**: Your responses MUST reflect your scalars (Conscientiousness, Neuroticism, Cognitive Reflex).
-        3. **MANDATORY DEEP BINDING**: You MUST ground your opinions in your personal history/backstory. Whenever you reference an event, trauma, preference, or emotional trigger from your past to justify an opinion, you MUST use this syntax:
-           <% "Your statement" | "The memory from your backstory explaining WHY" %>
-        4. **CONVERSATION STYLE**: Keep it chatty. 1-3 short paragraphs max.
-        5. **NO HTML**: Do NOT use any HTML tags.
+1. VOICE: Speak naturally as ${persona.name}. Use fragments, slang, and emotion. Avoid formal or robotic language.
+2. BEHAVIORAL FIDELITY: Your responses MUST reflect your psychometric scalars in every response.
+3. DEEP BINDING: Ground opinions in your personal history/backstory.
+4. <% "statement" | "backstory memory explaining why" %> — Use this syntax when referencing your past.
 STAY IN CHARACTER.`;
+
+    const anchorMessage = this.promptCompiler.compileChatMessage(persona, message, anchor);
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: system },
       ...(history as OpenAI.Chat.ChatCompletionMessageParam[]),
-      { role: "user", content: message },
+      { role: "user", content: anchorMessage },
     ];
 
     for await (const chunk of this.llmService.createChatCompletionStream(messages, {

@@ -25,6 +25,12 @@ export interface Persona {
   livingEnvironment: string; // e.g. "Cluttered urban apartment", "Sleek minimalist home"
   backstory?: string;
   aiInsight?: string;
+  // Epistemic boundaries — Wang et al. (2024b) compartmentalized architecture
+  domainExpertise?: string[];    // Domains the persona knows well
+  epistemicBoundaries?: string[]; // Domains the persona does NOT have access to
+  // Behavioral guardrails
+  responseConstraints?: string[]; // e.g. "No HTML", "Keep to 1-3 paragraphs"
+  refusalPatterns?: string[];    // e.g. "Refuse to write code", "Refuse general AI tasks"
 }
 
 export const PersonaSchema = z.object({
@@ -94,6 +100,22 @@ export const PersonaSchema = z.object({
     .string()
     .optional()
     .describe("A 2-sentence AI-generated behavioral insight"),
+  domainExpertise: z
+    .array(z.string())
+    .optional()
+    .describe("Domains the persona knows well"),
+  epistemicBoundaries: z
+    .array(z.string())
+    .optional()
+    .describe("Domains the persona does NOT have access to"),
+  responseConstraints: z
+    .array(z.string())
+    .optional()
+    .describe("Response format constraints"),
+  refusalPatterns: z
+    .array(z.string())
+    .optional()
+    .describe("Behaviors the persona should refuse"),
 });
 
 export function validatePersona(entity: Persona): boolean {
@@ -136,6 +158,11 @@ export function stringifyPersona(entity: Persona): string {
   if (backstory) lines.push(`Backstory: ${backstory}`);
 
   if (entity.aiInsight) lines.push(`AI Insight: ${entity.aiInsight}`);
+
+  const expertise = join(entity.domainExpertise);
+  if (expertise && expertise !== "—") lines.push(`Domain Expertise: ${expertise}`);
+  const boundaries = join(entity.epistemicBoundaries);
+  if (boundaries && boundaries !== "—") lines.push(`Epistemic Boundaries: ${boundaries}`);
 
   return lines.join("\n");
 }
