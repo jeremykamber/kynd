@@ -343,7 +343,16 @@ export class ParsePricingPageUseCase {
                 }
               }
               console.log(`[ParsePricingPageUseCase] Persona ${persona.name}: Stream finished after ${chunkCount} chunks. Waiting for full object...`);
-              return await (result as any).object;
+              const fullObject = await (result as any).object;
+              if (fullObject) {
+                console.log(`[ParsePricingPageUseCase] === ANALYSIS RESULT FOR ${persona.name} ===`);
+                console.log(`[ParsePricingPageUseCase] Gut: "${fullObject.gutReaction}"`);
+                console.log(`[ParsePricingPageUseCase] Scores: Clarity=${fullObject.scores?.clarity}, Value=${fullObject.scores?.valuePerception}, Trust=${fullObject.scores?.trust}, BuyIntent=${fullObject.scores?.likelihoodToBuy}`);
+                console.log(`[ParsePricingPageUseCase] Risks: ${JSON.stringify(fullObject.risks)}`);
+                console.log(`[ParsePricingPageUseCase] Thoughts (first 300): ${(fullObject.thoughts ?? "").slice(0, 300)}...`);
+                console.log(`[ParsePricingPageUseCase] === END ANALYSIS FOR ${persona.name} ===`);
+              }
+              return fullObject;
             })();
 
             analysisObj = await Promise.race([streamPromise, timeoutPromise]);
