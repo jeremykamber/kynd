@@ -66,12 +66,14 @@ export function DashboardClient() {
         description="Kynd is generating realistic personas based on your target profile."
         currentStep={
           personaFlow.personaProgress?.step === 'BRAINSTORMING_PERSONAS' ? 0 :
-          personaFlow.personaProgress?.step === 'GENERATING_BACKSTORIES' ? 1 : 0
+          personaFlow.personaProgress?.step === 'GENERATING_BACKSTORIES' ? 1 :
+          personaFlow.personaProgress?.step === 'ENHANCING_WITH_PBJ' ? 2 : 3
         }
         steps={[
           { title: "Analyzing Market", description: "Mapping demographics and psychographics" },
           { title: "Generating Personas", description: "Creating detailed backstories and traits" },
-          { title: "Finalizing", description: "Preparing avatars and profiles" }
+          { title: "Rationalizing Behavior", description: "Anchoring psychographics to personality (PB&J)" },
+          { title: "Finalizing", description: "Preparing avatars, insights, and profiles" }
         ]}
       >
         {personaFlow.personaProgress && (
@@ -81,6 +83,7 @@ export function DashboardClient() {
               {personaFlow.personaProgress.step === 'GENERATING_BACKSTORIES' && (
                 `Fleshing out backstories (${personaFlow.personaProgress.completedCount || 0}/${personaFlow.personaProgress.totalCount || 3})`
               )}
+              {personaFlow.personaProgress.step === 'ENHANCING_WITH_PBJ' && "Building psychological rationales..."}
             </p>
             {personaFlow.personaProgress.personaName && (
               <p className="text-sm text-foreground/80">Currently generating: <span className="font-semibold">{personaFlow.personaProgress.personaName}</span></p>

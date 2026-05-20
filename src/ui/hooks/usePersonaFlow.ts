@@ -3,7 +3,7 @@ import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasAction } from '@/actions/generatePersonas'
 import { readStreamableValue } from '@ai-sdk/rsc'
 
-export type PersonaProgressStep = 'BRAINSTORMING_PERSONAS' | 'GENERATING_BACKSTORIES' | 'DONE' | 'ERROR'
+export type PersonaProgressStep = 'BRAINSTORMING_PERSONAS' | 'GENERATING_BACKSTORIES' | 'ENHANCING_WITH_PBJ' | 'DONE' | 'ERROR'
 
 export interface PersonaProgress {
   step: PersonaProgressStep
