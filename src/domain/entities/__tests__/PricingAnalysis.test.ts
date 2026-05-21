@@ -9,11 +9,20 @@ describe('PricingAnalysis entity', () => {
     thoughts: 'Some thoughts',
     scores: {
       clarity: 8,
+      clarityReason: "The tiers are well laid out and easy to compare.",
       valuePerception: 7,
+      valuePerceptionReason: "Good value for the features offered.",
       trust: 9,
-      likelihoodToBuy: 6
+      trustReason: "Transparent pricing builds confidence.",
+      explorationIntent: 8,
+      explorationIntentReason: "Would explore further to see integrations.",
+      analysisIntent: 7,
+      analysisIntentReason: "Worth a deeper look with the team.",
+      buyIntent: 6,
+      buyIntentReason: "Likely to buy after evaluation.",
     },
-    risks: ['Risk 1']
+    risks: ['Risk 1'],
+    recommendations: [],
   }
 
   it('should validate a correct analysis', () => {

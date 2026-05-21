@@ -67,10 +67,18 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   <div className="flex flex-col gap-4 mt-2">
                     <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Scoring</h4>
                     <div className="grid grid-cols-2 gap-4">
-                      <ScoreMetric label="Clarity" value={analysis.scores.clarity} />
-                      <ScoreMetric label="Value" value={analysis.scores.valuePerception} />
-                      <ScoreMetric label="Trust" value={analysis.scores.trust} />
-                      <ScoreMetric label="Buy Intent" value={analysis.scores.likelihoodToBuy} />
+                      <ScoreMetric label="Clarity" value={analysis.scores.clarity} reason={analysis.scores.clarityReason} />
+                      <ScoreMetric label="Value" value={analysis.scores.valuePerception} reason={analysis.scores.valuePerceptionReason} />
+                      <ScoreMetric label="Trust" value={analysis.scores.trust} reason={analysis.scores.trustReason} />
+                    </div>
+
+                    <div className="h-px bg-border/20 my-2" />
+
+                    <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Intent Funnel</h4>
+                    <div className="flex flex-col gap-3">
+                      <FunnelStage label="Exploration" value={analysis.scores.explorationIntent} reason={analysis.scores.explorationIntentReason} color="bg-blue-500" />
+                      <FunnelStage label="Analysis" value={analysis.scores.analysisIntent} reason={analysis.scores.analysisIntentReason} color="bg-indigo-500" />
+                      <FunnelStage label="Buy Intent" value={analysis.scores.buyIntent} reason={analysis.scores.buyIntentReason} color="bg-emerald-500" />
                     </div>
                   </div>
 
@@ -90,11 +98,11 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                     <div className="flex items-center gap-3">
                       <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Gut Reaction</h4>
                       <div
-                        className={`w-2 h-2 rounded-full ${getSentimentVariant(analysis.scores.likelihoodToBuy)}`}
+                        className={`w-2 h-2 rounded-full ${getSentimentVariant(analysis.scores.buyIntent)}`}
                         title="Tone Sentiment"
                       />
                     </div>
-                    <div className={`p-4 rounded-xl border text-foreground/90 font-medium italic shadow-inner ${getSentimentBoxVariant(analysis.scores.likelihoodToBuy)}`}>
+                    <div className={`p-4 rounded-xl border text-foreground/90 font-medium italic shadow-inner ${getSentimentBoxVariant(analysis.scores.buyIntent)}`}>
                       &quot;{analysis.gutReaction}&quot;
                     </div>
                   </div>
@@ -148,7 +156,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
   )
 }
 
-function ScoreMetric({ label, value }: { label: string, value: number }) {
+function ScoreMetric({ label, value, reason }: { label: string, value: number, reason?: string }) {
   const getColorClass = (val: number) => {
     if (val >= 8) return "text-emerald-500"
     if (val >= 5) return "text-amber-500"
@@ -159,6 +167,31 @@ function ScoreMetric({ label, value }: { label: string, value: number }) {
     <div className="flex flex-col gap-1 bg-white/[0.02] backdrop-blur-md p-3 rounded-lg">
       <span className="text-xs text-muted-foreground font-medium">{label}</span>
       <span className={`text-xl font-bold font-variant-numeric tabular-nums ${getColorClass(value)}`}>{value}/10</span>
+      {reason && (
+        <span className="text-[10px] text-muted-foreground/70 leading-tight mt-1">{reason}</span>
+      )}
+    </div>
+  )
+}
+
+function FunnelStage({ label, value, reason, color }: { label: string, value: number, reason?: string, color: string }) {
+  const getWidthPercent = (val: number) => Math.max(val * 10, 5)
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-medium text-foreground/80">{label}</span>
+        <span className={`font-bold ${value >= 6 ? 'text-emerald-500' : value >= 4 ? 'text-amber-500' : 'text-destructive'}`}>{value}/10</span>
+      </div>
+      <div className="h-4 w-full bg-white/5 rounded-full overflow-hidden relative">
+        <div
+          className={`h-full ${value >= 6 ? color : value >= 4 ? 'bg-amber-500' : 'bg-destructive'} rounded-full transition-all duration-500`}
+          style={{ width: `${getWidthPercent(value)}%` }}
+        />
+      </div>
+      {reason && (
+        <span className="text-[10px] text-muted-foreground/70 leading-tight">{reason}</span>
+      )}
     </div>
   )
 }
@@ -175,20 +208,18 @@ function getSentimentVariant(score: number) {
   return "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
 }
 
-function getAISuggestion(scores: { clarity: number, valuePerception: number, trust: number, likelihoodToBuy: number }) {
-  const arr = [
-    { key: "clarity", val: scores.clarity },
-    { key: "valuePerception", val: scores.valuePerception },
-    { key: "trust", val: scores.trust },
-    { key: "likelihoodToBuy", val: scores.likelihoodToBuy }
+function getAISuggestion(scores: { clarity: number, valuePerception: number, trust: number, explorationIntent: number, analysisIntent: number, buyIntent: number }) {
+  const funnel = [
+    { key: "Exploration", val: scores.explorationIntent },
+    { key: "Analysis", val: scores.analysisIntent },
+    { key: "Buy Intent", val: scores.buyIntent },
   ].sort((a, b) => a.val - b.val);
 
-  const lowest = arr[0].key;
-  switch (lowest) {
-    case "clarity": return "Highlight key differences between tiers more explicitly.";
-    case "valuePerception": return "Emphasize ROI, core outcomes, and included value.";
-    case "trust": return "Add customer testimonials, social proof, and security badges.";
-    case "likelihoodToBuy": return "Consider adding a generous trial or money-back guarantee.";
+  const biggestDrop = funnel[0];
+  switch (biggestDrop.key) {
+    case "Exploration": return "Users aren't interested enough to explore further. Improve initial value proposition and visual hierarchy.";
+    case "Analysis": return "Users explore but don't dig deeper. Add comparison tools, feature highlights, or a free trial CTA.";
+    case "Buy Intent": return "Users evaluate but don't convert. Add social proof, testimonials, or a risk-free guarantee.";
     default: return "Optimize the conversion funnel for better engagement.";
   }
 }

@@ -286,7 +286,14 @@ export class ParsePricingPageUseCase {
             analysisObj = {
               gutReaction: "Overall, this audit could not be completed due to a system issue.",
               thoughts: "An error occurred during pricing analysis.",
-              scores: { clarity: 1, valuePerception: 1, trust: 1, likelihoodToBuy: 1 },
+              scores: {
+                clarity: 1, clarityReason: "System error.",
+                valuePerception: 1, valuePerceptionReason: "System error.",
+                trust: 1, trustReason: "System error.",
+                explorationIntent: 1, explorationIntentReason: "System error.",
+                analysisIntent: 1, analysisIntentReason: "System error.",
+                buyIntent: 1, buyIntentReason: "System error.",
+              },
               risks: ["[SYSTEM] LLM completion or analysis failed"],
               recommendations: [],
             };
@@ -348,7 +355,7 @@ export class ParsePricingPageUseCase {
               if (fullObject) {
                 console.log(`[ParsePricingPageUseCase] === ANALYSIS RESULT FOR ${persona.name} ===`);
                 console.log(`[ParsePricingPageUseCase] Gut: "${fullObject.gutReaction}"`);
-                console.log(`[ParsePricingPageUseCase] Scores: Clarity=${fullObject.scores?.clarity}, Value=${fullObject.scores?.valuePerception}, Trust=${fullObject.scores?.trust}, BuyIntent=${fullObject.scores?.likelihoodToBuy}`);
+                console.log(`[ParsePricingPageUseCase] Scores: Clarity=${fullObject.scores?.clarity}, Value=${fullObject.scores?.valuePerception}, Trust=${fullObject.scores?.trust}, BuyIntent=${fullObject.scores?.buyIntent}`);
                 console.log(`[ParsePricingPageUseCase] Risks: ${JSON.stringify(fullObject.risks)}`);
                 console.log(`[ParsePricingPageUseCase] Thoughts (first 300): ${(fullObject.thoughts ?? "").slice(0, 300)}...`);
                 console.log(`[ParsePricingPageUseCase] === END ANALYSIS FOR ${persona.name} ===`);
@@ -365,7 +372,14 @@ export class ParsePricingPageUseCase {
             analysisObj = {
               gutReaction: "Honestly, I'm having a hard time focusing on this right now.",
               thoughts: "The analysis failed to complete properly.",
-              scores: { clarity: 1, valuePerception: 1, trust: 1, likelihoodToBuy: 1 },
+              scores: {
+                clarity: 1, clarityReason: "Analysis error.",
+                valuePerception: 1, valuePerceptionReason: "Analysis error.",
+                trust: 1, trustReason: "Analysis error.",
+                explorationIntent: 1, explorationIntentReason: "Analysis error.",
+                analysisIntent: 1, analysisIntentReason: "Analysis error.",
+                buyIntent: 1, buyIntentReason: "Analysis error.",
+              },
               risks: ["[SYSTEM] Technical difficulty during analysis"],
               recommendations: [],
             };
@@ -399,7 +413,14 @@ export class ParsePricingPageUseCase {
           fullAnalysis.url = fullAnalysis.url || url;
           fullAnalysis.screenshotBase64 = fullAnalysis.screenshotBase64 || capturedScreenshot;
           fullAnalysis.thoughts = fullAnalysis.thoughts || "Analysis validation failed.";
-          fullAnalysis.scores = fullAnalysis.scores || { clarity: 1, valuePerception: 1, trust: 1, likelihoodToBuy: 1 };
+          fullAnalysis.scores = fullAnalysis.scores || {
+      clarity: 1, clarityReason: "Default fallback.",
+      valuePerception: 1, valuePerceptionReason: "Default fallback.",
+      trust: 1, trustReason: "Default fallback.",
+      explorationIntent: 1, explorationIntentReason: "Default fallback.",
+      analysisIntent: 1, analysisIntentReason: "Default fallback.",
+      buyIntent: 1, buyIntentReason: "Default fallback.",
+    };
           fullAnalysis.risks = fullAnalysis.risks || [];
         }
 

@@ -67,13 +67,14 @@ export class VisionAnalysisAdapter {
         
         ${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}\n` : ""}
         
-        ${personaAnchor} Evaluate this page from YOUR perspective. Use your personality, values, and scalars.
+        <<OPENNESS PRIMING>>
+        ${personaAnchor} You're open to this. You're approaching this as someone who COULD genuinely use a tool like this. You're not looking for reasons to reject it — you're evaluating honestly, looking for what works and what doesn't. A skeptical but fair assessment.
         
         CALIBRATION — Your evaluation should be consistent with your own pricing sensitivity and typical budget. You have real experience in your domain and know what things should cost. Let YOUR unique profile — not generic expectations — drive your reaction.
         
         STRICT OUTPUT RULES:
         - Respond ONLY with a valid JSON object following the provided schema.
-        - You MUST include ALL fields: gutReaction, thoughts, scores, risks, and recommendations.
+        - You MUST include ALL fields: gutReaction, thoughts, scores (with reasons), risks, and recommendations.
         - NO conversational preamble. NO monologue. NO text before or after the JSON.
         - Use standard JSON double quotes (") for all keys and string values.
         - Escape any literal double quotes within strings using a backslash (\").
@@ -83,20 +84,37 @@ export class VisionAnalysisAdapter {
         - RECOMMENDATIONS: Provide 2-3 specific, actionable recommendations. What should the company change or test?
         - NO REPETITION: Do NOT repeat information across different fields. Keep 'gutReaction' short and punchy.
         
+        SCORING: INTENT FUNNEL + RATIONALES
+        For each score, you MUST provide both a number (1-10) AND a 1-2 sentence reason explaining WHY.
+        
+        The three intent scores form a funnel: Exploration → Analysis → Buy.
+        - explorationIntent (1-10): Would you explore this further? Click around? Read docs? Compare?
+          1=I'd close the tab. 10=I'm already digging into the features page.
+        - analysisIntent (1-10): Would you do a deep analysis? Run a trial? Compare with alternatives?
+          1=Not worth my time. 10=I'm already planning a pilot with my team.
+        - buyIntent (1-10): Would you actually purchase?
+          1=Never. 10=Ready to buy now.
+        
+        The funnel should generally narrow: explorationIntent >= analysisIntent >= buyIntent.
+        If you'd explore but not buy, that's normal. A high buyIntent with low exploration is suspicious.
+        
+        STRUCTURE: Scores → Reasons → Narrative Thoughts
+        1. Your scores come first: clarity, valuePerception, trust — each with a reason
+        2. Then the intent funnel: explorationIntent, analysisIntent, buyIntent — each with a reason
+        3. Then your narrative thoughts, gut reaction, risks, and recommendations
+        Your reasons should be specific and grounded in what you see on the page.
+        
         HYBRID GROUNDING RULES:
         - Use the screenshot to gauge visual appeal, layout, emotion, and visual hierarchy.
         - Use the HTML summary to verify specific prices, plan names, and fine print that might be cut off or hard to read in the image.
         - If there is a contradiction, trust the HTML summary for hard data (prices/features) and the screenshot for layout/emotion.
         
-        SCORING LOGIC REINFORCEMENT:
-        - SCORE-SENTIMENT ALIGNMENT: Your scores MUST be consistent with your gut reaction and thoughts.
-          If your gut reaction is positive, scores should be 6+. If critical, scores should be 4 or below.
-        - Likelihood to Buy MUST be the logical conclusion of your thoughts, psychographics, and other scores.
-        - If Clarity, Trust, or Value Perception are low, Likelihood to Buy SHOULD BE LOW.
-        - Do NOT give a high 'likelihoodToBuy' if your 'thoughts' or 'gutReaction' are critical/negative.
+        SCORING LOGIC:
         - Different personas MUST give DIFFERENT scores based on their unique Big Five, values, fears, and pricing sensitivity.
         - Disagreement between score dimensions is fine: you can love the clarity but distrust the vendor.
-        - Consistency is mandatory. If you feel "burned" or "skeptical", your numerical scores must reflect that accurately.
+        - Consistency is mandatory. If you feel "burned" or "skeptical", your scores must reflect that.
+        - Funnel logic: low exploration → low analysis → low buy. High exploration → could go either way.
+        - Score-sentiment alignment: If your gut reaction is positive, scores should be 6+. If critical, 4 or below.
 
         SPEAK IN FIRST PERSON (within the JSON fields only). Be blunt, honest, and natural. Be your persona.`;
 
@@ -235,9 +253,10 @@ export class VisionAnalysisAdapter {
         
         ${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}\n` : ""}
         
-        ${personaAnchor} Evaluate this page from YOUR perspective. Return ONLY a valid JSON object following the PricingAnalysis schema.
+        <<OPENNESS PRIMING>>
+        ${personaAnchor} You're open to this. You're approaching this as someone who COULD use a tool like this. A skeptical but fair assessment.
         
-        CALIBRATION — Let YOUR pricing sensitivity, domain expertise, and typical budget drive your reaction. You know what things should cost in your space.
+        CALIBRATION — Let YOUR pricing sensitivity, domain expertise, and typical budget drive your reaction.
         
         STRICT OUTPUT RULES:
         - Respond ONLY with a valid JSON object following the PricingAnalysis schema.
@@ -247,12 +266,18 @@ export class VisionAnalysisAdapter {
         - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens.
         - RISK CAP: Limit the 'risks' array to a maximum of 3 items.
         - RECOMMENDATIONS: Provide 2-3 specific, actionable recommendations.
+        - For every score, provide both the number AND a 1-2 sentence reason.
         - NO REPETITION: Do NOT repeat information across different fields.
         
-        SCORING LOGIC REINFORCEMENT:
-        - Likelihood to Buy MUST align with your unique psychographics.
-        - Different personas MUST give DIFFERENT scores based on their Big Five, values, and fears.
-        - Consistency is mandatory. If you feel skeptical, your scores must reflect that.
+        INTENT FUNNEL: explorationIntent >= analysisIntent >= buyIntent.
+        - explorationIntent: Would you explore this further?
+        - analysisIntent: Would you deep-dive or trial it?
+        - buyIntent: Would you actually purchase?
+        
+        SCORES → REASONS → NARRATIVE. Each score needs a rationale.
+        
+        Different personas MUST give DIFFERENT scores based on their unique Big Five, values, and fears.
+        Consistency is mandatory. If you feel skeptical, your scores must reflect that.
         
         SPEAK IN FIRST PERSON (within the JSON fields only). Be blunt, honest, and natural. Be your persona.`;
 
@@ -309,9 +334,17 @@ export class VisionAnalysisAdapter {
         thoughts: "An error occurred during pricing analysis.",
         scores: {
           clarity: 1,
+          clarityReason: "System error — analysis could not be completed.",
           valuePerception: 1,
+          valuePerceptionReason: "System error — analysis could not be completed.",
           trust: 1,
-          likelihoodToBuy: 1,
+          trustReason: "System error — analysis could not be completed.",
+          explorationIntent: 1,
+          explorationIntentReason: "System error — analysis could not be completed.",
+          analysisIntent: 1,
+          analysisIntentReason: "System error — analysis could not be completed.",
+          buyIntent: 1,
+          buyIntentReason: "System error — analysis could not be completed.",
         },
         risks: ["[SYSTEM] LLM completion or analysis failed"],
         recommendations: [],

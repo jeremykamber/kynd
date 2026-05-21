@@ -75,7 +75,14 @@ describe('ParsePricingPageUseCase', () => {
       object: Promise.resolve({
         gutReaction: 'Positive',
         thoughts: 'Good pricing',
-        scores: { clarity: 5, valuePerception: 5, trust: 5, likelihoodToBuy: 5 },
+        scores: {
+          clarity: 5, clarityReason: "Test reason.",
+          valuePerception: 5, valuePerceptionReason: "Test reason.",
+          trust: 5, trustReason: "Test reason.",
+          explorationIntent: 5, explorationIntentReason: "Test reason.",
+          analysisIntent: 5, analysisIntentReason: "Test reason.",
+          buyIntent: 5, buyIntentReason: "Test reason.",
+        },
         risks: []
       })
     });
@@ -113,7 +120,14 @@ describe('ParsePricingPageUseCase', () => {
       object: Promise.resolve({
         gutReaction: 'Positive',
         thoughts: 'Good pricing',
-        scores: { clarity: 5, valuePerception: 5, trust: 5, likelihoodToBuy: 5 },
+        scores: {
+          clarity: 5, clarityReason: "Test reason.",
+          valuePerception: 5, valuePerceptionReason: "Test reason.",
+          trust: 5, trustReason: "Test reason.",
+          explorationIntent: 5, explorationIntentReason: "Test reason.",
+          analysisIntent: 5, analysisIntentReason: "Test reason.",
+          buyIntent: 5, buyIntentReason: "Test reason.",
+        },
         risks: []
       })
     });
