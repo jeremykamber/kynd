@@ -39,27 +39,27 @@ interface Persona {
   fears: string[];                // Anxieties and risk concerns (2-3 items)
   communicationStyle: string;     // How they speak (e.g. "direct", "analytical", "warm", "cautious")
   decisionStyle: string;          // Decision process (e.g. "data-driven", "gut-driven", "consensus-seeking")
+
+  // Pricing calibration — MUST be generated based on persona's role, industry, and experience
+  pricingSensitivity: number;     // 0-100: Derived from Big Five + their role. A bootstrapped founder will be higher than a well-funded VP.
+  typicalBudget: string;          // What they're used to paying based on their role and experience (e.g. "Up to $20/user/month")
+
+  // Domain knowledge
+  domainExpertise: string[];      // Domains they know well (e.g. ["cloud infrastructure", "B2B SaaS", "product management"])
 }
 
 CRITICAL REQUIREMENTS:
-- BIG FIVE ROOT CAUSES: Assign high-fidelity Big Five scalars (0-100). These are the "genes" of the persona. Every behavior should stem from these.
+- BIG FIVE ROOT CAUSES: Assign high-fidelity Big Five scalars (0-100). These are the "genes" of the persona.
+- PRICING CALIBRATION: Derive pricingSensitivity and typicalBudget from the persona's Big Five, role, and the target market description. A well-funded VP of Engineering at a Series B will have very different expectations than a bootstrapped indie developer. This calibration MUST be consistent with their other psychographics.
+- DOMAIN EXPERTISE: Generate 2-4 relevant domains based on the persona's role and the target market.
 - CONSCIENTIOUSNESS: High=Meticulous/reads everything; Low=Chaotic/skips details.
 - NEUROTICISM: High=Risk-averse/anxious about contract traps; Low=Bold/adventuresome.
 - OPENNESS: High=Early adopter/curious about new tools; Low=Traditional/sticks with what works.
 - EXTRAVERSION: High=Collaborative/seeks peer input; Low=Independent/self-directed.
 - AGREEABLENESS: High=Trusting/takes recommendations; Low=Skeptical/challenges claims.
-- VALUES + FEARS: These drive motivation. A price-sensitive persona fears waste; a growth-oriented one fears missing opportunities.
-- COMMUNICATION + DECISION STYLE: These determine how the persona engages. "Analytical, data-driven" personas ask for evidence. "Gut-driven" ones respond to trust signals.
-- DISTRIBUTION: Ensure the 3 personas represent a spectrum across Big Five, values, and decision styles.
-- REALISM: Occupations and goals must match the description.
-
-DOMAIN CALIBRATION — These personas are B2B SaaS buyers:
-- $10-16/user/month is STANDARD for professional engineering tools. VPs of Eng do NOT blink at this.
-- Enterprise "Contact Sales" pricing is NORMAL — it exists for compliance, SAML/SSO, custom SLAs.
-- Beta features on paid tiers are COMMON in fast-moving SaaS products.
-- Free tier limits (250 issues, 2 teams) are standard trial/evaluation constraints.
-- The personas should find pricing within normal B2B ranges, NOT be shocked by standard pricing.
-- Their skepticism should come from their unique Big Five profile, not from unrealistic expectations.
+- VALUES + FEARS: These drive motivation. Must align with Big Five and pricing calibration.
+- DISTRIBUTION: Ensure the 3 personas represent a spectrum across Big Five, pricing sensitivity, and decision styles.
+- REALISM: Occupations, budgets, and goals must match the description.
 
 Return ONLY valid JSON without explanatory text or markdown code blocks.`;
 
@@ -168,6 +168,17 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
                 : [],
             communicationStyle: (p.communicationStyle as string) ?? (p.communication_style as string) ?? "",
             decisionStyle: (p.decisionStyle as string) ?? (p.decision_style as string) ?? "",
+
+            // Pricing calibration — LLM-generated, context-dependent
+            pricingSensitivity: Number(p.pricingSensitivity) ?? 50,
+            typicalBudget: (p.typicalBudget as string) ?? (p.budget as string) ?? "",
+
+            // Domain knowledge
+            domainExpertise: Array.isArray(p.domainExpertise)
+              ? (p.domainExpertise as string[])
+              : p.domainExpertise
+                ? [p.domainExpertise as string]
+                : [],
 
             backstory: (p.backstory as string) ?? (p.story as string) ?? undefined,
           }) as Persona,

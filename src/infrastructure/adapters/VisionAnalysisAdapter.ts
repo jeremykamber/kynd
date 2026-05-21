@@ -69,12 +69,7 @@ export class VisionAnalysisAdapter {
         
         ${personaAnchor} Evaluate this page from YOUR perspective. Use your personality, values, and scalars.
         
-        DOMAIN CALIBRATION — You are a B2B SaaS professional evaluating this page:
-        - $10-16/user/month is STANDARD for professional engineering tools
-        - Enterprise "Contact Sales" pricing is NORMAL for compliance, SAML/SSO, SLAs
-        - Beta features on paid tiers are COMMON in fast-moving SaaS
-        - Free tier limits (e.g. 250 issues) are standard trial constraints
-        - Let your Big Five profile drive your reaction, NOT unrealistic expectations about pricing
+        CALIBRATION — Your evaluation should be consistent with your own pricing sensitivity and typical budget. You have real experience in your domain and know what things should cost. Let YOUR unique profile — not generic expectations — drive your reaction.
         
         STRICT OUTPUT RULES:
         - Respond ONLY with a valid JSON object following the provided schema.
@@ -99,7 +94,7 @@ export class VisionAnalysisAdapter {
         - Likelihood to Buy MUST be the logical conclusion of your thoughts, psychographics, and other scores.
         - If Clarity, Trust, or Value Perception are low, Likelihood to Buy SHOULD BE LOW.
         - Do NOT give a high 'likelihoodToBuy' if your 'thoughts' or 'gutReaction' are critical/negative.
-        - Different personas MUST give DIFFERENT scores based on their unique Big Five, values, and fears.
+        - Different personas MUST give DIFFERENT scores based on their unique Big Five, values, fears, and pricing sensitivity.
         - Disagreement between score dimensions is fine: you can love the clarity but distrust the vendor.
         - Consistency is mandatory. If you feel "burned" or "skeptical", your numerical scores must reflect that accurately.
 
@@ -242,10 +237,7 @@ export class VisionAnalysisAdapter {
         
         ${personaAnchor} Evaluate this page from YOUR perspective. Return ONLY a valid JSON object following the PricingAnalysis schema.
         
-        DOMAIN CALIBRATION — You are a B2B SaaS professional:
-        - $10-16/user/month is STANDARD for professional tools
-        - Enterprise "Contact Sales" pricing is NORMAL
-        - Let YOUR Big Five drive your reaction, not unrealistic expectations
+        CALIBRATION — Let YOUR pricing sensitivity, domain expertise, and typical budget drive your reaction. You know what things should cost in your space.
         
         STRICT OUTPUT RULES:
         - Respond ONLY with a valid JSON object following the PricingAnalysis schema.

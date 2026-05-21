@@ -21,6 +21,11 @@ export function dbToPersona(db: any): Persona {
     fears: db.fears || [],
     communicationStyle: db.communicationStyle ?? "",
     decisionStyle: db.decisionStyle ?? "",
+    // Pricing calibration
+    pricingSensitivity: db.pricingSensitivity ?? 50,
+    typicalBudget: db.typicalBudget ?? "",
+    // Domain knowledge
+    domainExpertise: db.domainExpertise || [],
   }
 }
 
@@ -45,5 +50,10 @@ export function personaToDb(entity: Persona): any {
     fears: entity.fears,
     communicationStyle: entity.communicationStyle,
     decisionStyle: entity.decisionStyle,
+    // Pricing calibration
+    pricingSensitivity: entity.pricingSensitivity,
+    typicalBudget: entity.typicalBudget,
+    // Domain knowledge
+    domainExpertise: entity.domainExpertise,
   }
 }
