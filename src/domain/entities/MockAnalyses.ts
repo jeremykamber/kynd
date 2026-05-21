@@ -18,6 +18,11 @@ export const MOCK_ANALYSES: Record<string, PricingAnalysis> = {
       "The Enterprise tier is 'Contact Sales', which creates a friction point for future scaling.",
       "Dependencies on Zendesk/Intercom integrations might make migration harder."
     ],
+    recommendations: [
+      "Add a clear price or starting price for the Enterprise tier to reduce friction for growing teams.",
+      "Highlight the ROI of Triage Intelligence and Issue SLAs more prominently to justify the Business tier upgrade.",
+      "Consider a monthly billing option that shows checked by default to reduce perceived commitment."
+    ],
     gazePoints: [
       { x: 50, y: 15, focusLabel: "Main Pricing Headline" },
       { x: 55, y: 45, focusLabel: "Business Tier Price ($16)" },

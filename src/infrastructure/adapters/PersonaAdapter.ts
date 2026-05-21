@@ -53,6 +53,14 @@ CRITICAL REQUIREMENTS:
 - DISTRIBUTION: Ensure the 3 personas represent a spectrum across Big Five, values, and decision styles.
 - REALISM: Occupations and goals must match the description.
 
+DOMAIN CALIBRATION — These personas are B2B SaaS buyers:
+- $10-16/user/month is STANDARD for professional engineering tools. VPs of Eng do NOT blink at this.
+- Enterprise "Contact Sales" pricing is NORMAL — it exists for compliance, SAML/SSO, custom SLAs.
+- Beta features on paid tiers are COMMON in fast-moving SaaS products.
+- Free tier limits (250 issues, 2 teams) are standard trial/evaluation constraints.
+- The personas should find pricing within normal B2B ranges, NOT be shocked by standard pricing.
+- Their skepticism should come from their unique Big Five profile, not from unrealistic expectations.
+
 Return ONLY valid JSON without explanatory text or markdown code blocks.`;
 
     const user = `Create 3 diverse personas for: "${personaDescription}". Ensure a spectrum of decision-making styles and value systems.`;

@@ -69,15 +69,23 @@ export class VisionAnalysisAdapter {
         
         ${personaAnchor} Evaluate this page from YOUR perspective. Use your personality, values, and scalars.
         
+        DOMAIN CALIBRATION — You are a B2B SaaS professional evaluating this page:
+        - $10-16/user/month is STANDARD for professional engineering tools
+        - Enterprise "Contact Sales" pricing is NORMAL for compliance, SAML/SSO, SLAs
+        - Beta features on paid tiers are COMMON in fast-moving SaaS
+        - Free tier limits (e.g. 250 issues) are standard trial constraints
+        - Let your Big Five profile drive your reaction, NOT unrealistic expectations about pricing
+        
         STRICT OUTPUT RULES:
         - Respond ONLY with a valid JSON object following the provided schema.
-        - You MUST include ALL fields: gutReaction, thoughts, scores, and risks.
+        - You MUST include ALL fields: gutReaction, thoughts, scores, risks, and recommendations.
         - NO conversational preamble. NO monologue. NO text before or after the JSON.
         - Use standard JSON double quotes (") for all keys and string values.
         - Escape any literal double quotes within strings using a backslash (\").
         - If you have nothing more to say, STOP.
         - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens to avoid truncated JSON.
         - RISK CAP: Limit the 'risks' array to a maximum of 3 highly specific items.
+        - RECOMMENDATIONS: Provide 2-3 specific, actionable recommendations. What should the company change or test?
         - NO REPETITION: Do NOT repeat information across different fields. Keep 'gutReaction' short and punchy.
         
         HYBRID GROUNDING RULES:
@@ -86,10 +94,13 @@ export class VisionAnalysisAdapter {
         - If there is a contradiction, trust the HTML summary for hard data (prices/features) and the screenshot for layout/emotion.
         
         SCORING LOGIC REINFORCEMENT:
+        - SCORE-SENTIMENT ALIGNMENT: Your scores MUST be consistent with your gut reaction and thoughts.
+          If your gut reaction is positive, scores should be 6+. If critical, scores should be 4 or below.
         - Likelihood to Buy MUST be the logical conclusion of your thoughts, psychographics, and other scores.
         - If Clarity, Trust, or Value Perception are low, Likelihood to Buy SHOULD BE LOW.
         - Do NOT give a high 'likelihoodToBuy' if your 'thoughts' or 'gutReaction' are critical/negative.
         - Different personas MUST give DIFFERENT scores based on their unique Big Five, values, and fears.
+        - Disagreement between score dimensions is fine: you can love the clarity but distrust the vendor.
         - Consistency is mandatory. If you feel "burned" or "skeptical", your numerical scores must reflect that accurately.
 
         SPEAK IN FIRST PERSON (within the JSON fields only). Be blunt, honest, and natural. Be your persona.`;
@@ -231,13 +242,19 @@ export class VisionAnalysisAdapter {
         
         ${personaAnchor} Evaluate this page from YOUR perspective. Return ONLY a valid JSON object following the PricingAnalysis schema.
         
+        DOMAIN CALIBRATION — You are a B2B SaaS professional:
+        - $10-16/user/month is STANDARD for professional tools
+        - Enterprise "Contact Sales" pricing is NORMAL
+        - Let YOUR Big Five drive your reaction, not unrealistic expectations
+        
         STRICT OUTPUT RULES:
         - Respond ONLY with a valid JSON object following the PricingAnalysis schema.
         - Use standard JSON double quotes (") for all keys and string values.
         - Escape any literal double quotes within strings using a backslash (\").
         - NO conversational preamble. NO monologue. NO text before or after the JSON.
-        - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens to avoid truncated JSON.
+        - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens.
         - RISK CAP: Limit the 'risks' array to a maximum of 3 items.
+        - RECOMMENDATIONS: Provide 2-3 specific, actionable recommendations.
         - NO REPETITION: Do NOT repeat information across different fields.
         
         SCORING LOGIC REINFORCEMENT:
@@ -305,6 +322,7 @@ export class VisionAnalysisAdapter {
           likelihoodToBuy: 1,
         },
         risks: ["[SYSTEM] LLM completion or analysis failed"],
+        recommendations: [],
       };
     }
   }

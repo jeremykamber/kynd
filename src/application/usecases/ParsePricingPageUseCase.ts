@@ -288,6 +288,7 @@ export class ParsePricingPageUseCase {
               thoughts: "An error occurred during pricing analysis.",
               scores: { clarity: 1, valuePerception: 1, trust: 1, likelihoodToBuy: 1 },
               risks: ["[SYSTEM] LLM completion or analysis failed"],
+              recommendations: [],
             };
           }
 
@@ -365,7 +366,8 @@ export class ParsePricingPageUseCase {
               gutReaction: "Honestly, I'm having a hard time focusing on this right now.",
               thoughts: "The analysis failed to complete properly.",
               scores: { clarity: 1, valuePerception: 1, trust: 1, likelihoodToBuy: 1 },
-              risks: ["[SYSTEM] Technical difficulty during analysis"]
+              risks: ["[SYSTEM] Technical difficulty during analysis"],
+              recommendations: [],
             };
           }
         }

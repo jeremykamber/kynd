@@ -18,6 +18,7 @@ export interface PricingAnalysis {
         likelihoodToBuy: number; // 1 - 10
     };
     risks: string[];
+    recommendations: string[]; // Actionable copy, pricing, or UX suggestions
     gazePoints?: GazePoint[];
     gutReaction?: string;
     rawAnalysis?: string;
@@ -32,7 +33,8 @@ export const PricingAnalysisSchema = z.object({
         trust: z.number().min(1).max(10).describe("How much do you trust this page?"),
         likelihoodToBuy: z.number().min(1).max(10).describe("How likely are you to buy?"),
     }),
-    risks: z.array(z.string()).describe("A list of 5-10 specific things that bothered you or felt like risks."),
+    risks: z.array(z.string()).describe("A list of 3 specific things that bothered you or felt like risks."),
+    recommendations: z.array(z.string()).describe("2-3 specific, actionable recommendations for what the company should change or test."),
 });
 
 
@@ -80,6 +82,12 @@ export function validatePricingAnalysis(entity: PricingAnalysis): boolean {
     // risks - must be an array of strings (can be empty)
     if (!Array.isArray(entity.risks)) return false;
     for (const r of entity.risks) {
+        if (typeof r !== "string") return false;
+    }
+
+    // recommendations - must be an array of strings
+    if (!Array.isArray(entity.recommendations)) return false;
+    for (const r of entity.recommendations) {
         if (typeof r !== "string") return false;
     }
 
