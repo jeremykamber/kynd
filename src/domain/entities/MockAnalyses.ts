@@ -64,6 +64,11 @@ export const MOCK_ANALYSES: Record<string, PricingAnalysis> = {
       "Doesn't explicitly highlight API rate limits on this page.",
       "Might be too minimalist for less technical clients."
     ],
+    recommendations: [
+      "Add a note about API rate limits on the pricing page to address developer concerns proactively.",
+      "Consider a 'Team' tier between Basic and Business for small groups that don't need premium features.",
+      "Highlight the integration ecosystem more prominently to differentiate from competitors."
+    ],
     gazePoints: [
       { x: 30, y: 45, focusLabel: "Free Tier: $0" },
       { x: 30, y: 65, focusLabel: "Free Feature: 250 issues" },
@@ -96,6 +101,11 @@ export const MOCK_ANALYSES: Record<string, PricingAnalysis> = {
       "Onboarding seems self-serve, which might be a burden for non-technical teams.",
       "Support responsiveness isn't clearly defined for the Business tier.",
       "The UI might feel 'sterile' or 'uninviting' to non-engineers."
+    ],
+    recommendations: [
+      "Add a 'Customer Success' mention to the Business tier to reassure non-technical buyers.",
+      "Include screenshots or testimonials from non-engineering teams to broaden appeal.",
+      "Consider a guided demo CTA for enterprise prospects rather than self-serve only."
     ],
     gazePoints: [
       { x: 70, y: 45, focusLabel: "Enterprise Tier: Contact Us" },
