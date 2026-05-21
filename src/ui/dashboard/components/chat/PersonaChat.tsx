@@ -17,7 +17,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { ThinkingBlock } from "@/components/custom/ThinkingBlock"
 
 const TAG_REGEX = /<%(.*?)%>/g
-const REASONING_REGEX = /<<REASONING>>(.*?)<</REASONING>>/gs
+const REASONING_REGEX = /<<REASONING>>([\s\S]*?)<</REASONING>>/g
 
 function parseMessageContent(content: string): React.ReactNode[] {
   const parts: React.ReactNode[] = []
