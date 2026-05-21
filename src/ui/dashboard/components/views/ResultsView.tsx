@@ -135,7 +135,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                       AI Suggestion
                     </span>
                     <span className="text-sm text-foreground/80 font-medium">
-                      {getAISuggestion(analysis.scores)}
+                      {analysis.aiSuggestion || "No AI suggestion available."}
                     </span>
                   </div>
                 </div>
@@ -206,20 +206,4 @@ function getSentimentVariant(score: number) {
   if (score >= 8) return "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
   if (score >= 5) return "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
   return "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
-}
-
-function getAISuggestion(scores: { clarity: number, valuePerception: number, trust: number, explorationIntent: number, analysisIntent: number, buyIntent: number }) {
-  const funnel = [
-    { key: "Exploration", val: scores.explorationIntent },
-    { key: "Analysis", val: scores.analysisIntent },
-    { key: "Buy Intent", val: scores.buyIntent },
-  ].sort((a, b) => a.val - b.val);
-
-  const biggestDrop = funnel[0];
-  switch (biggestDrop.key) {
-    case "Exploration": return "Users aren't interested enough to explore further. Improve initial value proposition and visual hierarchy.";
-    case "Analysis": return "Users explore but don't dig deeper. Add comparison tools, feature highlights, or a free trial CTA.";
-    case "Buy Intent": return "Users evaluate but don't convert. Add social proof, testimonials, or a risk-free guarantee.";
-    default: return "Optimize the conversion funnel for better engagement.";
-  }
 }

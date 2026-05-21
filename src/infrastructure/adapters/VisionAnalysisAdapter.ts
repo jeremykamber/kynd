@@ -82,6 +82,7 @@ export class VisionAnalysisAdapter {
         - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens to avoid truncated JSON.
         - RISK CAP: Limit the 'risks' array to a maximum of 3 highly specific items.
         - RECOMMENDATIONS: Provide 2-3 specific, actionable recommendations. What should the company change or test?
+        - AI SUGGESTION: Provide ONE persona-specific actionable insight. This is THE ONE THING this company should change based on YOUR unique perspective. Reference something specific you saw on the page. Do NOT use generic advice like "add social proof" — be specific to what you experienced. This MUST be unique per persona.
         - NO REPETITION: Do NOT repeat information across different fields. Keep 'gutReaction' short and punchy.
         
         SCORING: INTENT FUNNEL + RATIONALES
@@ -266,6 +267,7 @@ export class VisionAnalysisAdapter {
         - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens.
         - RISK CAP: Limit the 'risks' array to a maximum of 3 items.
         - RECOMMENDATIONS: Provide 2-3 specific, actionable recommendations.
+        - AI SUGGESTION: Provide ONE persona-specific actionable insight. Reference something specific on the page. No boilerplate.
         - For every score, provide both the number AND a 1-2 sentence reason.
         - NO REPETITION: Do NOT repeat information across different fields.
         
@@ -348,6 +350,7 @@ export class VisionAnalysisAdapter {
         },
         risks: ["[SYSTEM] LLM completion or analysis failed"],
         recommendations: [],
+        aiSuggestion: "System error — analysis could not be completed.",
       };
     }
   }

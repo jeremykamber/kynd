@@ -31,6 +31,7 @@ export const MOCK_ANALYSES: Record<string, PricingAnalysis> = {
       "Highlight the ROI of Triage Intelligence and Issue SLAs more prominently to justify the Business tier upgrade.",
       "Consider a monthly billing option that shows checked by default to reduce perceived commitment."
     ],
+    aiSuggestion: "The Business tier's Triage Intelligence and Issue SLAs are compelling, but their value isn't clear at a glance. Add a one-line ROI calculator or case study snippet next to the price to justify the $6/user jump from Basic.",
     gazePoints: [
       { x: 50, y: 15, focusLabel: "Main Pricing Headline" },
       { x: 55, y: 45, focusLabel: "Business Tier Price ($16)" },
@@ -69,6 +70,7 @@ export const MOCK_ANALYSES: Record<string, PricingAnalysis> = {
       "Consider a 'Team' tier between Basic and Business for small groups that don't need premium features.",
       "Highlight the integration ecosystem more prominently to differentiate from competitors."
     ],
+    aiSuggestion: "The free tier is strong enough for real evaluation, but the 250-issue cap isn't clearly called out as a hard limit. Add a visible 'Free tier includes 250 active issues' badge to set expectations upfront and reduce friction when teams hit the cap.",
     gazePoints: [
       { x: 30, y: 45, focusLabel: "Free Tier: $0" },
       { x: 30, y: 65, focusLabel: "Free Feature: 250 issues" },
@@ -107,6 +109,7 @@ export const MOCK_ANALYSES: Record<string, PricingAnalysis> = {
       "Include screenshots or testimonials from non-engineering teams to broaden appeal.",
       "Consider a guided demo CTA for enterprise prospects rather than self-serve only."
     ],
+    aiSuggestion: "The dark theme and developer-focused language create a perception that this tool isn't for cross-functional teams. Adding a screenshot showing how marketing or design teams use Linear — even just a testimonial — would broaden the appeal without changing the product.",
     gazePoints: [
       { x: 70, y: 45, focusLabel: "Enterprise Tier: Contact Us" },
       { x: 70, y: 65, focusLabel: "Enterprise Feature: Migration Support" },

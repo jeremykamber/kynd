@@ -296,6 +296,7 @@ export class ParsePricingPageUseCase {
               },
               risks: ["[SYSTEM] LLM completion or analysis failed"],
               recommendations: [],
+              aiSuggestion: "System error — analysis could not be completed.",
             };
           }
 
@@ -382,6 +383,7 @@ export class ParsePricingPageUseCase {
               },
               risks: ["[SYSTEM] Technical difficulty during analysis"],
               recommendations: [],
+              aiSuggestion: "Analysis could not be completed — no suggestion available.",
             };
           }
         }
@@ -422,6 +424,7 @@ export class ParsePricingPageUseCase {
       buyIntent: 1, buyIntentReason: "Default fallback.",
     };
           fullAnalysis.risks = fullAnalysis.risks || [];
+    fullAnalysis.aiSuggestion = fullAnalysis.aiSuggestion || "No AI suggestion available.";
         }
 
         return fullAnalysis;

@@ -27,6 +27,7 @@ export interface PricingAnalysis {
     };
     risks: string[];
     recommendations: string[];
+    aiSuggestion: string;  // Persona-specific actionable insight — LLM-generated, NOT boilerplate
     gazePoints?: GazePoint[];
     gutReaction?: string;
     rawAnalysis?: string;
@@ -51,6 +52,7 @@ export const PricingAnalysisSchema = z.object({
     }),
     risks: z.array(z.string()).describe("A list of 3 specific things that bothered you or felt like risks."),
     recommendations: z.array(z.string()).describe("2-3 specific, actionable recommendations for what the company should change or test."),
+    aiSuggestion: z.string().describe("A single, persona-specific actionable insight. What is THE ONE THING this company should change based on YOUR unique perspective? Be specific — reference what you saw on the page. This is NOT boilerplate."),
 });
 
 
@@ -93,6 +95,8 @@ export function validatePricingAnalysis(entity: PricingAnalysis): boolean {
 
     if (!Array.isArray(entity.recommendations)) return false;
     for (const r of entity.recommendations) { if (typeof r !== "string") return false; }
+
+    if (!entity.aiSuggestion || typeof entity.aiSuggestion !== "string" || entity.aiSuggestion.trim().length === 0) return false;
 
     if (entity.gazePoints !== undefined) {
         if (!Array.isArray(entity.gazePoints)) return false;
