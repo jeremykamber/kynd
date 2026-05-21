@@ -14,18 +14,35 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import { ThinkingBlock } from "@/components/custom/ThinkingBlock"
 
 const TAG_REGEX = /<%(.*?)%>/g
+const REASONING_REGEX = /<<REASONING>>(.*?)<</REASONING>>/gs
 
 function parseMessageContent(content: string): React.ReactNode[] {
   const parts: React.ReactNode[] = []
   let lastIndex = 0
+
+  // First, check if the content starts with reasoning
+  const reasoningMatch = content.match(REASONING_REGEX)
+  let textWithoutReasoning = content.replace(REASONING_REGEX, "").trim()
+
+  if (reasoningMatch) {
+    const reasoningText = reasoningMatch[0].replace("<<REASONING>>", "").replace("<</REASONING>>", "").trim()
+    parts.push(
+      <ThinkingBlock key="reasoning" content={reasoningText} className="mb-3" />
+    )
+  }
+
+  if (!textWithoutReasoning) return parts
+
+  // Parse the remaining content for <%...%> deep binding tags
   const regex = /<%(.*?)%>/g
-  let match = regex.exec(content)
+  let match = regex.exec(textWithoutReasoning)
 
   while (match !== null) {
     if (match.index > lastIndex) {
-      parts.push(content.slice(lastIndex, match.index))
+      parts.push(textWithoutReasoning.slice(lastIndex, match.index))
     }
 
     const inner = match[1]
@@ -51,11 +68,11 @@ function parseMessageContent(content: string): React.ReactNode[] {
     }
 
     lastIndex = match.index + match[0].length
-    match = regex.exec(content)
+    match = regex.exec(textWithoutReasoning)
   }
 
-  if (lastIndex < content.length) {
-    parts.push(content.slice(lastIndex))
+  if (lastIndex < textWithoutReasoning.length) {
+    parts.push(textWithoutReasoning.slice(lastIndex))
   }
 
   return parts

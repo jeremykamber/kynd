@@ -29,12 +29,12 @@ export class LlmServiceImpl implements LlmServicePort {
   private chatAdapter: ChatAdapter;
   private extractionAdapter: ExtractionAdapter;
 
-  // OpenRouter Defaults
-  private static readonly OR_TEXT_MODEL = "qwen/qwen3.5-9b";
-  private static readonly OR_SMALL_TEXT_MODEL = "qwen/qwen3.5-flash-02-23";
+  // OpenRouter Defaults — using DeepSeek V4 Flash (fast, strong reasoning, same price)
+  private static readonly OR_TEXT_MODEL = "deepseek/deepseek-v4-flash";
+  private static readonly OR_SMALL_TEXT_MODEL = "deepseek/deepseek-v4-flash";
   private static readonly OR_VISION_MODEL = "qwen/qwen3-vl-30b-a3b-instruct";
   private static readonly OR_SCOUT_MODEL = "qwen/qwen3-vl-30b-a3b-instruct";
-  private static readonly OR_EXTRACTION_MODEL = "qwen/qwen3.5-flash-02-23";
+  private static readonly OR_EXTRACTION_MODEL = "deepseek/deepseek-v4-flash";
 
   // Ollama Defaults
   private static readonly OLLAMA_DEFAULT_MODEL = "gemma3:1b-it-qat";
@@ -146,6 +146,8 @@ export class LlmServiceImpl implements LlmServicePort {
 
   private shouldDisableThinking(model?: string): boolean {
     const modelToCheck = model || this.textModel;
+    // DeepSeek V4 Flash has reasoning enabled by default — we want to capture it
+    // Only disable for models that don't support reasoning or need it off
     return modelToCheck.toLowerCase().includes("qwen");
   }
 
@@ -187,6 +189,13 @@ export class LlmServiceImpl implements LlmServicePort {
       console.log(
         `[LlmService] [Req #${reqId}] [${purpose}] Completed in ${Date.now() - startTime}ms.`,
       );
+
+      // Capture and log reasoning tokens if present (DeepSeek V4 Flash)
+      const reasoning = (resp?.choices?.[0]?.message as any)?.reasoning || (resp?.choices?.[0]?.message as any)?.reasoning_content;
+      if (reasoning) {
+        console.log(`[LlmService] [Req #${reqId}] [${purpose}] Reasoning (${reasoning.length} chars): ${reasoning.slice(0, 300)}...`);
+      }
+
       return resp?.choices?.[0]?.message?.content || "";
     });
   }
@@ -225,10 +234,15 @@ export class LlmServiceImpl implements LlmServicePort {
       return await this.client.chat.completions.create(requestParams);
     });
 
-    // Cast to streaming type since we set stream: true
     const chunkStream = stream as unknown as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
     for await (const chunk of chunkStream) {
-      const content = chunk.choices[0]?.delta?.content;
+      const delta = chunk.choices[0]?.delta as any;
+      // Yield reasoning tokens first (if present) — DeepSeek V4 Flash returns them as reasoning/reasoning_content
+      const reasoning = delta?.reasoning || delta?.reasoning_content;
+      if (reasoning) {
+        yield `<<REASONING>>${reasoning}<</REASONING>>`;
+      }
+      const content = delta?.content;
       if (content) yield content;
     }
   }
