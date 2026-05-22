@@ -237,28 +237,37 @@ export class LlmServiceImpl implements LlmServicePort {
 
     const chunkStream = stream as unknown as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
     let debugLogged = false;
+    let reasoningAccum = "";
+    let contentStarted = false;
     for await (const chunk of chunkStream) {
       const delta = chunk.choices[0]?.delta as any;
-      if (!debugLogged && delta) {
-        console.log(`[LlmService] [Req #${reqId}] Raw delta keys:`, Object.keys(delta));
-        console.log(`[LlmService] [Req #${reqId}] reasoning_content (native):`, JSON.stringify(delta?.reasoning_content?.slice(0, 200)));
-        console.log(`[LlmService] [Req #${reqId}] reasoning (normalized):`, JSON.stringify(delta?.reasoning?.slice(0, 200)));
-        console.log(`[LlmService] [Req #${reqId}] reasoning_details (array):`, JSON.stringify(delta?.reasoning_details)?.slice(0, 300));
+      if (!debugLogged && delta && chunk.choices[0]?.finish_reason === null) {
+        console.log(`[LlmService] [Req #${reqId}] FULL RAW CHUNK:`, JSON.stringify(chunk).slice(0, 500));
         debugLogged = true;
       }
-      // Yield reasoning tokens first (if present)
-      // DeepSeek native API: delta.reasoning_content (plain string)
-      // OpenRouter normalized: could be delta.reasoning (string) or delta.reasoning_details (array of {text, type})
+      // Collect reasoning tokens across chunks
       const reasoning =
         delta?.reasoning_content ||
         delta?.reasoning ||
         (delta?.reasoning_details?.[0]?.text) ||
         (Array.isArray(delta?.reasoning_details) ? delta.reasoning_details.map((r: any) => r.text || "").join("") : null);
       if (reasoning) {
-        yield `<<REASONING>>${reasoning}<</REASONING>>`;
+        reasoningAccum += reasoning;
       }
       const content = delta?.content;
-      if (content) yield content;
+      if (content) {
+        // First content token: flush accumulated reasoning, then yield content
+        if (reasoningAccum && !contentStarted) {
+          yield `<<REASONING>>${reasoningAccum}<</REASONING>>`;
+          reasoningAccum = "";
+          contentStarted = true;
+        }
+        yield content;
+      }
+    }
+    // Flush any remaining reasoning (in case content never came)
+    if (reasoningAccum) {
+      yield `<<REASONING>>${reasoningAccum}<</REASONING>>`;
     }
   }
 
