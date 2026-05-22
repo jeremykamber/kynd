@@ -65,6 +65,7 @@ export class ChatAdapter {
     const compartmented = this.promptCompiler.compileSystemPrompt(persona, analysisContext);
 
     const anchor = this.promptCompiler.generateAnchor(persona);
+    const anchorTag = anchor.replace(/^As an? /, "").replace(/:$/, "").trim();
     console.log("[ChatAdapter] Persona anchor injected:", anchor);
     console.log("[ChatAdapter] Using compartmentalized prompt for:", persona.name);
 
@@ -90,7 +91,9 @@ STAY IN CHARACTER.`;
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: system },
       ...(history as OpenAI.Chat.ChatCompletionMessageParam[]),
-      { role: "user", content: anchorMessage },
+      // Anchor as a system message right before generation — primacy effect, not user speech
+      { role: "system", content: `[Frame: ${anchorTag}]` },
+      { role: "user", content: message },
     ];
 
     for await (const chunk of this.llmService.createChatCompletionStream(messages, {

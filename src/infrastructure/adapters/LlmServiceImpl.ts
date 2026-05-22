@@ -210,8 +210,9 @@ export class LlmServiceImpl implements LlmServicePort {
       purpose?: string;
     },
   ): AsyncIterable<string> {
+    let reqId = 0;
     const stream = await this.withRetry(async () => {
-      const reqId = ++LlmServiceImpl.requestCount;
+      reqId = ++LlmServiceImpl.requestCount;
       const purpose = options.purpose || "General";
       const model = options.model || this.textModel;
       console.log(
@@ -235,10 +236,24 @@ export class LlmServiceImpl implements LlmServicePort {
     });
 
     const chunkStream = stream as unknown as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
+    let debugLogged = false;
     for await (const chunk of chunkStream) {
       const delta = chunk.choices[0]?.delta as any;
-      // Yield reasoning tokens first (if present) — DeepSeek V4 Flash returns them as reasoning/reasoning_content
-      const reasoning = delta?.reasoning || delta?.reasoning_content;
+      if (!debugLogged && delta) {
+        console.log(`[LlmService] [Req #${reqId}] Raw delta keys:`, Object.keys(delta));
+        console.log(`[LlmService] [Req #${reqId}] reasoning_content (native):`, JSON.stringify(delta?.reasoning_content?.slice(0, 200)));
+        console.log(`[LlmService] [Req #${reqId}] reasoning (normalized):`, JSON.stringify(delta?.reasoning?.slice(0, 200)));
+        console.log(`[LlmService] [Req #${reqId}] reasoning_details (array):`, JSON.stringify(delta?.reasoning_details)?.slice(0, 300));
+        debugLogged = true;
+      }
+      // Yield reasoning tokens first (if present)
+      // DeepSeek native API: delta.reasoning_content (plain string)
+      // OpenRouter normalized: could be delta.reasoning (string) or delta.reasoning_details (array of {text, type})
+      const reasoning =
+        delta?.reasoning_content ||
+        delta?.reasoning ||
+        (delta?.reasoning_details?.[0]?.text) ||
+        (Array.isArray(delta?.reasoning_details) ? delta.reasoning_details.map((r: any) => r.text || "").join("") : null);
       if (reasoning) {
         yield `<<REASONING>>${reasoning}<</REASONING>>`;
       }
