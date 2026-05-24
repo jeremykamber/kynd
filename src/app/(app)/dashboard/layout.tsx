@@ -24,6 +24,12 @@ export default function DashboardLayout({
                 Overview
               </Link>
               <Link
+                href="/dashboard/interviews"
+                className="text-foreground/60 hover:text-foreground transition-colors"
+              >
+                Interviews
+              </Link>
+              <Link
                 href="/dashboard/settings"
                 className="text-foreground/60 hover:text-foreground transition-colors"
               >
