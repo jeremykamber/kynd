@@ -275,14 +275,15 @@ export class LlmServiceImpl implements LlmServicePort {
 
   // --- Domain Gateways (Delegating to Adapters) ---
 
-  async generateInitialPersonas(description: string) {
-    return this.personaAdapter.generateInitialPersonas(description);
+  async generateInitialPersonas(description: string, count?: number) {
+    return this.personaAdapter.generateInitialPersonas(description, count);
   }
 
   async *generateInitialPersonasStream(
     description: string,
+    count?: number,
   ): AsyncIterable<Partial<Persona>[]> {
-    yield* this.personaAdapter.generateInitialPersonasStream(description);
+    yield* this.personaAdapter.generateInitialPersonasStream(description, count);
   }
 
   async generatePersonaBackstory(

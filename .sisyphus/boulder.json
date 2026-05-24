@@ -8,7 +8,7 @@
       "plan_name": "interview-to-persona-pipeline",
       "status": "active",
       "started_at": "2026-05-24T22:55:56.267Z",
-      "updated_at": "2026-05-24T23:04:26.956Z",
+      "updated_at": "2026-05-24T23:06:57.926Z",
       "session_ids": [
         "ses_1a4e4834bffe0rPsMyRSEiyZDt",
         "ses_1a3cb8bceffe5rUCXijfliVEhq",
@@ -33,6 +33,17 @@
           "updated_at": "2026-05-24T23:04:26.956Z",
           "ended_at": "2026-05-24T23:04:26.956Z",
           "elapsed_ms": 345828
+        },
+        "todo:7": {
+          "task_key": "todo:7",
+          "task_label": "7",
+          "task_title": "Implement InterviewSignalExtractor (port implementor)",
+          "session_id": "ses_1a3c3417effe1A7NHfyr7Nfd3g",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-low",
+          "updated_at": "2026-05-24T23:06:57.926Z",
+          "started_at": "2026-05-24T23:06:57.926Z",
+          "status": "running"
         }
       }
     }
@@ -40,7 +51,7 @@
   "active_plan": "/Users/jeremykamber/core/2_areas/kynd/.sisyphus/plans/interview-to-persona-pipeline.md",
   "started_at": "2026-05-24T22:55:56.267Z",
   "status": "active",
-  "updated_at": "2026-05-24T23:04:26.956Z",
+  "updated_at": "2026-05-24T23:06:57.926Z",
   "session_ids": [
     "ses_1a4e4834bffe0rPsMyRSEiyZDt",
     "ses_1a3cb8bceffe5rUCXijfliVEhq",
@@ -65,6 +76,17 @@
       "updated_at": "2026-05-24T23:04:26.956Z",
       "ended_at": "2026-05-24T23:04:26.956Z",
       "elapsed_ms": 345828
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "Implement InterviewSignalExtractor (port implementor)",
+      "session_id": "ses_1a3c3417effe1A7NHfyr7Nfd3g",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "updated_at": "2026-05-24T23:06:57.926Z",
+      "started_at": "2026-05-24T23:06:57.926Z",
+      "status": "running"
     }
   },
   "agent": "atlas"

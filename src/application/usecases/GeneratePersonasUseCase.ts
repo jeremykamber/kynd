@@ -28,7 +28,8 @@ export class GeneratePersonasUseCase {
 
     async execute(
         personaDescription: string,
-        onProgress?: (progress: PersonaGenerationProgress) => void
+        onProgress?: (progress: PersonaGenerationProgress) => void,
+        count?: number
     ): Promise<Persona[]> {
         console.log("Executing GeneratePersonas use case");
 
@@ -38,7 +39,7 @@ export class GeneratePersonasUseCase {
             streamingText: "Generating persona profiles..."
         });
 
-        let personas: Persona[] = await this.llmService.generateInitialPersonas(personaDescription);
+        let personas: Persona[] = await this.llmService.generateInitialPersonas(personaDescription, count);
 
         if (!personas || personas.length === 0) {
             throw new Error("Failed to generate any personas from the description");

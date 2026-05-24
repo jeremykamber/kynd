@@ -20,13 +20,13 @@ export interface LlmServicePort {
      * @param personaDescription - A textual description of the persona(s) to generate.
      * @returns A promise that resolves to an array of Persona objects.
      */
-    generateInitialPersonas(personaDescription: string): Promise<Persona[]>;
+    generateInitialPersonas(personaDescription: string, count?: number): Promise<Persona[]>;
 
     /**
      * Generates personas based on a description (streaming version).
      * Yields raw tokens of the JSON array.
      */
-    generateInitialPersonasStream(personaDescription: string): AsyncIterable<Partial<Persona>[]>;
+    generateInitialPersonasStream(personaDescription: string, count?: number): AsyncIterable<Partial<Persona>[]>;
 
     /**
      * Generates a deep narrative backstory for a persona.

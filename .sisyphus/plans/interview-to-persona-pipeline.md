@@ -519,7 +519,7 @@ Max Concurrent: 6 (Wave 1)
   - Files: `src/infrastructure/adapters/IdRagStore.ts`, `src/infrastructure/adapters/IdRagService.ts`, test files
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 6. Git commit: Wave 1 foundation
+- [x] 6. Git commit: Wave 1 foundation
 
   **What to do**:
   - Stage all files from Tasks 1-5
@@ -696,7 +696,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 2 commit)
   - Pre-commit: `bunx --bun tsc --noEmit`
 
-- [ ] 9. Implement sampling function (weighted random draw + inline coherence validation)
+- [x] 9. Implement sampling function (weighted random draw + inline coherence validation)
 
   **What to do**:
   - Create a sampling module (e.g., `src/application/interviewPipeline/sampling.ts`):
@@ -763,7 +763,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 2 commit)
   - Pre-commit: `bunx --bun tsc --noEmit`
 
-- [ ] 10. Modify GeneratePersonasUseCase for variable count
+- [x] 10. Modify GeneratePersonasUseCase for variable count
 
   **What to do**:
   - Update `src/application/usecases/GeneratePersonasUseCase.ts`:
@@ -838,7 +838,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 2 commit)
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 11. Implement chunkInterviewSignals function
+- [x] 11. Implement chunkInterviewSignals function
 
   **What to do**:
   - Create `chunkInterviewSignals` function (exported from a module, e.g., alongside pooling/sampling or in `src/infrastructure/adapters/IdRagStore.ts`):

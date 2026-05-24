@@ -13,10 +13,11 @@ export class PersonaAdapter {
    * - Big Five (OCEAN): Joshi et al. (2025) — psychometric grounding
    * - Values, fears, communication style, decision style: Wang et al. (2024b) — psychographic specification
    */
-  async generateInitialPersonas(personaDescription: string): Promise<Persona[]> {
+  async generateInitialPersonas(personaDescription: string, count?: number): Promise<Persona[]> {
+    const personaCount = count ?? 3;
     const system = `You are a persona generator creating realistic buyer personas for SaaS pricing evaluation.
 
-Generate a JSON array of 3 DISTINCT personas matching this TypeScript interface:
+Generate a JSON array of ${personaCount} DISTINCT personas matching this TypeScript interface:
 
 interface Persona {
   id: string;
@@ -58,12 +59,12 @@ CRITICAL REQUIREMENTS:
 - EXTRAVERSION: High=Collaborative/seeks peer input; Low=Independent/self-directed.
 - AGREEABLENESS: High=Trusting/takes recommendations; Low=Skeptical/challenges claims.
 - VALUES + FEARS: These drive motivation. Must align with Big Five and pricing calibration.
-- DISTRIBUTION: Ensure the 3 personas represent a spectrum across Big Five, pricing sensitivity, and decision styles.
+- DISTRIBUTION: Ensure the ${personaCount} personas represent a spectrum across Big Five, pricing sensitivity, and decision styles.
 - REALISM: Occupations, budgets, and goals must match the description.
 
 Return ONLY valid JSON without explanatory text or markdown code blocks.`;
 
-    const user = `Create 3 diverse personas for: "${personaDescription}". Ensure a spectrum of decision-making styles and value systems.`;
+    const user = `Create ${personaCount} diverse personas for: "${personaDescription}". Ensure a spectrum of decision-making styles and value systems.`;
 
     const content = await this.llmService.createChatCompletion(
       [
@@ -193,9 +194,10 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
   /**
    * Streaming version of generateInitialPersonas using Vercel AI SDK's streamObject.
    */
-  async * generateInitialPersonasStream(personaDescription: string): AsyncIterable<Partial<Persona>[]> {
+  async * generateInitialPersonasStream(personaDescription: string, count?: number): AsyncIterable<Partial<Persona>[]> {
+    const personaCount = count ?? 3;
     const system = `You are a persona generator creating realistic buyer personas for SaaS pricing evaluation.
-Generate a JSON array of 3 DISTINCT personas matching this TypeScript interface:
+Generate a JSON array of ${personaCount} DISTINCT personas matching this TypeScript interface:
 interface Persona {
   id: string;
   name: string;
@@ -220,7 +222,7 @@ CRITICAL REQUIREMENTS:
 - BIG FIVE ROOT CAUSES: Assign high-fidelity Big Five scalars (0-100). These are the "genes" of the persona.
 - VALUES + FEARS: These drive motivation and must align with their Big Five profile.
 - COMMUNICATION + DECISION STYLE: Must be consistent with their Big Five and occupation.
-- DISTRIBUTION: Ensure the 3 personas represent a spectrum across Big Five, values, and decision styles.
+- DISTRIBUTION: Ensure the ${personaCount} personas represent a spectrum across Big Five, values, and decision styles.
 Return ONLY valid JSON.`;
 
     const { partialOutputStream } = streamText({
@@ -229,7 +231,7 @@ Return ONLY valid JSON.`;
         element: PersonaSchema,
       }),
       system,
-      prompt: `Create 3 diverse personas for: "${personaDescription}". Ensure a spectrum of decision-making styles and value systems.`,
+      prompt: `Create ${personaCount} diverse personas for: "${personaDescription}". Ensure a spectrum of decision-making styles and value systems.`,
     });
 
     if (!partialOutputStream) {
