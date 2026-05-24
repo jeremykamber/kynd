@@ -548,7 +548,7 @@ Max Concurrent: 6 (Wave 1)
   - Message: `feat(pipeline): wave 1 foundation — types, ports, adapter renames, IdRag generalization`
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 7. Implement InterviewSignalExtractor (port implementor)
+- [x] 7. Implement InterviewSignalExtractor (port implementor)
 
   **What to do**:
   - Create `src/infrastructure/adapters/InterviewSignalExtractor.ts`:
@@ -621,7 +621,7 @@ Max Concurrent: 6 (Wave 1)
   - Message: included in Wave 2 commit
   - Pre-commit: `bunx --bun tsc --noEmit`
 
-- [ ] 8. Implement pooling function (trigram-similarity based dedup + frequency normalization)
+- [x] 8. Implement pooling function (trigram-similarity based dedup + frequency normalization)
 
   **What to do**:
   - Create a pooling module (e.g., `src/application/interviewPipeline/pooling.ts`):

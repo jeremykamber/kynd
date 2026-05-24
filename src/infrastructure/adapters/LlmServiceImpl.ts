@@ -6,6 +6,7 @@ import { PersonaAdapter } from "./PersonaAdapter";
 import { VisionAnalysisAdapter } from "./VisionAnalysisAdapter";
 import { ChatAdapter } from "./ChatAdapter";
 import { HtmlSummarizer } from "./HtmlSummarizer";
+import { InterviewSignalExtractor } from "./InterviewSignalExtractor";
 import { PsychographicRationalizer } from "./PsychographicRationalizer";
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
@@ -30,6 +31,7 @@ export class LlmServiceImpl implements LlmServicePort {
   private visionAdapter: VisionAnalysisAdapter;
   private chatAdapter: ChatAdapter;
   private htmlSummarizer: HtmlSummarizer;
+  private interviewSignalExtractor: InterviewSignalExtractor;
 
   // OpenRouter Defaults — using DeepSeek V4 Flash (fast, strong reasoning, same price)
   private static readonly OR_TEXT_MODEL = "deepseek/deepseek-v4-flash";
@@ -64,6 +66,7 @@ export class LlmServiceImpl implements LlmServicePort {
     this.visionAdapter = new VisionAnalysisAdapter(this);
     this.chatAdapter = new ChatAdapter(this);
     this.htmlSummarizer = new HtmlSummarizer(this);
+    this.interviewSignalExtractor = new InterviewSignalExtractor(this);
   }
 
   private sleep(ms: number): Promise<void> {
@@ -345,11 +348,10 @@ export class LlmServiceImpl implements LlmServicePort {
 
   /**
    * Extracts structured signals from an interview transcript.
-   * Delegates to InterviewSignalExtractor (implementation in Wave 2).
+   * Delegates to InterviewSignalExtractor.
    */
   async extractInterviewSignals(transcript: string, interviewId: string): Promise<ExtractedInterviewSignals> {
-    // TODO: Implement InterviewSignalExtractor in Wave 2
-    throw new Error("extractInterviewSignals not yet implemented");
+    return this.interviewSignalExtractor.extract(transcript, interviewId);
   }
 
   async isPricingVisible(screenshot: string): Promise<boolean> {

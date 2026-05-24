@@ -8,6 +8,7 @@
  * - Top-K retrieval with relevance scoring
  */
 import { Persona } from "@/domain/entities/Persona";
+import { ngramFingerprint, cosineSimilarity } from "@/application/interviewPipeline/ngramUtils";
 
 export interface Chunk {
   id: string;
@@ -21,8 +22,6 @@ export interface RetrievalResult {
   chunk: Chunk;
   score: number;
 }
-
-type NGramVector = Map<string, number>;
 
 export function detectTone(text: string): "positive" | "negative" | "neutral" | "mixed" {
   const lower = text.toLowerCase();
@@ -120,36 +119,6 @@ export function chunkBackstory(personaId: string, backstory: string): Chunk[] {
 export class IdRagStore {
   private chunks: Map<string, Chunk[]> = new Map();
 
-  /** Build character trigram fingerprint for a text. */
-  private ngramFingerprint(text: string, n = 3): NGramVector {
-    const vec = new Map<string, number>();
-    const cleaned = text.toLowerCase().replace(/\s+/g, " ");
-    for (let i = 0; i <= cleaned.length - n; i++) {
-      const gram = cleaned.slice(i, i + n);
-      vec.set(gram, (vec.get(gram) ?? 0) + 1);
-    }
-    return vec;
-  }
-
-  /** Cosine similarity between two n-gram vectors. */
-  private cosineSimilarity(a: NGramVector, b: NGramVector): number {
-    let dot = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (const [key, valA] of a) {
-      const valB = b.get(key) ?? 0;
-      dot += valA * valB;
-      normA += valA * valA;
-    }
-    for (const val of b.values()) {
-      normB += val * val;
-    }
-
-    const denom = Math.sqrt(normA) * Math.sqrt(normB);
-    return denom === 0 ? 0 : dot / denom;
-  }
-
   // NOTE: The instance-private chunkBackstory implementation was removed.
   // The exported standalone `chunkBackstory(personaId, backstory)` above is the
   // canonical implementation and the backwards-compatible wrapper below
@@ -182,11 +151,11 @@ export class IdRagStore {
     const personaChunks = this.chunks.get(personaId);
     if (!personaChunks || personaChunks.length === 0) return [];
 
-    const queryVec = this.ngramFingerprint(query);
+    const queryVec = ngramFingerprint(query);
 
     const scored = personaChunks.map((chunk) => ({
       chunk,
-      score: this.cosineSimilarity(queryVec, this.ngramFingerprint(chunk.text)),
+      score: cosineSimilarity(queryVec, ngramFingerprint(chunk.text)),
     }));
 
     scored.sort((a, b) => b.score - a.score);
