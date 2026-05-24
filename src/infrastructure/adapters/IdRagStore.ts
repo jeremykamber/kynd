@@ -9,25 +9,116 @@
  */
 import { Persona } from "@/domain/entities/Persona";
 
-export interface BackstoryChunk {
+export interface Chunk {
   id: string;
   personaId: string;
   text: string;
-  topic: string;
-  emotionalTone: "positive" | "negative" | "neutral" | "mixed";
-  relatedChunkIds: string[];
-  relationshipType: "causal" | "temporal" | "thematic" | "contrast";
+  chunkType: "backstory" | "interview";
+  metadata: Record<string, unknown>; // emotionalTone, topic for backstory; signalTypes, sourceInterviewId for interview
 }
 
 export interface RetrievalResult {
-  chunk: BackstoryChunk;
+  chunk: Chunk;
   score: number;
 }
 
 type NGramVector = Map<string, number>;
 
+export function detectTone(text: string): "positive" | "negative" | "neutral" | "mixed" {
+  const lower = text.toLowerCase();
+  const positive = ["love", "great", "excited", "happy", "success", "proud", "wonderful", "thrilled"];
+  const negative = ["hate", "terrible", "awful", "angry", "regret", "fail", "worst", "trauma", "scam", "loss"];
+
+  let posScore = 0;
+  let negScore = 0;
+
+  for (const w of positive) {
+    if (lower.includes(w)) posScore++;
+  }
+  for (const w of negative) {
+    if (lower.includes(w)) negScore++;
+  }
+
+  if (posScore > 0 && negScore > 0) return "mixed";
+  if (posScore > 0) return "positive";
+  if (negScore > 0) return "negative";
+  return "neutral";
+}
+
+/** Link related chunks (those adjacent or same-topic). Works on generic Chunk[] (expects metadata.topic). */
+export function linkRelated(chunks: Chunk[]): void {
+  for (let i = 0; i < chunks.length; i++) {
+    const related: string[] = [];
+
+    if (i > 0) related.push(chunks[i - 1].id);
+    if (i < chunks.length - 1) related.push(chunks[i + 1].id);
+
+    for (let j = 0; j < chunks.length; j++) {
+      if (j !== i) {
+        const topicJ = String(chunks[j].metadata["topic"] ?? "");
+        const topicI = String(chunks[i].metadata["topic"] ?? "");
+        if (topicJ && topicJ === topicI) {
+          if (!related.includes(chunks[j].id)) {
+            related.push(chunks[j].id);
+          }
+        }
+      }
+    }
+
+    // store up to 5 related ids
+    chunks[i].metadata["relatedChunkIds"] = related.slice(0, 5);
+  }
+}
+
+/** Split backstory text into semantically coherent chunks with metadata. Exported for reuse. */
+export function chunkBackstory(personaId: string, backstory: string): Chunk[] {
+  if (!backstory || !backstory.trim()) {
+    return [];
+  }
+
+  const paragraphs = backstory
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 50);
+
+  const topicTags = [
+    { keywords: ["childhood", "grew up", "family", "parent", "school", "college", "university"], topic: "early-life" },
+    { keywords: ["career", "job", "work", "company", "startup", "role", "position", "promotion", "fired", "laid off"], topic: "career" },
+    { keywords: ["money", "purchase", "buy", "cost", "price", "budget", "spend", "saving", "invest", "roi"], topic: "finance" },
+    { keywords: ["fail", "loss", "trauma", "scam", "mistake", "regret", "bad", "waste", "terrible"], topic: "setback" },
+    { keywords: ["home", "office", "apartment", "environment", "design", "decor", "aesthetic", "style", "clutter"], topic: "environment" },
+    { keywords: ["value", "believe", "philosophy", "principle", "priority", "trust", "risk", "efficiency"], topic: "values" },
+    { keywords: ["current", "now", "recent", "today", "present", "looking"], topic: "present-outlook" },
+  ];
+
+  const chunks: Chunk[] = paragraphs.map((text, idx) => {
+    const lower = text.toLowerCase();
+    const matched = topicTags
+      .filter((t) => t.keywords.some((kw) => lower.includes(kw)))
+      .map((t) => t.topic);
+
+    const tone = detectTone(text);
+    const chunk: Chunk = {
+      id: `chunk-${personaId}-${idx}`,
+      personaId,
+      text,
+      chunkType: "backstory",
+      metadata: {
+        topic: matched.length > 0 ? matched.join(", ") : "general",
+        emotionalTone: tone,
+        relatedChunkIds: [] as string[],
+        relationshipType: "temporal",
+      },
+    };
+    return chunk;
+  });
+
+  linkRelated(chunks);
+  return chunks;
+}
+
 export class IdRagStore {
-  private chunks: Map<string, BackstoryChunk[]> = new Map();
+  private chunks: Map<string, Chunk[]> = new Map();
 
   /** Build character trigram fingerprint for a text. */
   private ngramFingerprint(text: string, n = 3): NGramVector {
@@ -59,97 +150,27 @@ export class IdRagStore {
     return denom === 0 ? 0 : dot / denom;
   }
 
-  /** Split backstory text into semantically coherent chunks with metadata. */
-  chunkBackstory(
-    personaId: string,
-    backstory: string,
-  ): BackstoryChunk[] {
-    if (!backstory || !backstory.trim()) {
-      return [];
-    }
-
-    const paragraphs = backstory
-      .split(/\n\n+/)
-      .map((p) => p.trim())
-      .filter((p) => p.length > 50);
-
-    const topicTags = [
-      { keywords: ["childhood", "grew up", "family", "parent", "school", "college", "university"], topic: "early-life" },
-      { keywords: ["career", "job", "work", "company", "startup", "role", "position", "promotion", "fired", "laid off"], topic: "career" },
-      { keywords: ["money", "purchase", "buy", "cost", "price", "budget", "spend", "saving", "invest", "roi"], topic: "finance" },
-      { keywords: ["fail", "loss", "trauma", "scam", "mistake", "regret", "bad", "waste", "terrible"], topic: "setback" },
-      { keywords: ["home", "office", "apartment", "environment", "design", "decor", "aesthetic", "style", "clutter"], topic: "environment" },
-      { keywords: ["value", "believe", "philosophy", "principle", "priority", "trust", "risk", "efficiency"], topic: "values" },
-      { keywords: ["current", "now", "recent", "today", "present", "looking"], topic: "present-outlook" },
-    ];
-
-    return paragraphs.map((text, idx) => {
-      const lower = text.toLowerCase();
-      const matched = topicTags
-        .filter((t) => t.keywords.some((kw) => lower.includes(kw)))
-        .map((t) => t.topic);
-
-      const tone = this.detectTone(text);
-      const chunk: BackstoryChunk = {
-        id: `chunk-${personaId}-${idx}`,
-        personaId,
-        text,
-        topic: matched.length > 0 ? matched.join(", ") : "general",
-        emotionalTone: tone,
-        relatedChunkIds: [],
-        relationshipType: "temporal",
-      };
-      return chunk;
-    });
-  }
-
-  private detectTone(text: string): BackstoryChunk["emotionalTone"] {
-    const lower = text.toLowerCase();
-    const positive = ["love", "great", "excited", "happy", "success", "proud", "wonderful", "thrilled"];
-    const negative = ["hate", "terrible", "awful", "angry", "regret", "fail", "worst", "trauma", "scam", "loss"];
-
-    let posScore = 0;
-    let negScore = 0;
-
-    for (const w of positive) {
-      if (lower.includes(w)) posScore++;
-    }
-    for (const w of negative) {
-      if (lower.includes(w)) negScore++;
-    }
-
-    if (posScore > 0 && negScore > 0) return "mixed";
-    if (posScore > 0) return "positive";
-    if (negScore > 0) return "negative";
-    return "neutral";
-  }
-
-  /** Link related chunks (those adjacent or same-topic). */
-  private linkRelated(chunks: BackstoryChunk[]): void {
-    for (let i = 0; i < chunks.length; i++) {
-      const related: string[] = [];
-
-      if (i > 0) related.push(chunks[i - 1].id);
-      if (i < chunks.length - 1) related.push(chunks[i + 1].id);
-
-      for (let j = 0; j < chunks.length; j++) {
-        if (j !== i && chunks[j].topic === chunks[i].topic) {
-          if (!related.includes(chunks[j].id)) {
-            related.push(chunks[j].id);
-          }
-        }
-      }
-
-      chunks[i].relatedChunkIds = related.slice(0, 5);
-    }
-  }
+  // NOTE: The instance-private chunkBackstory implementation was removed.
+  // The exported standalone `chunkBackstory(personaId, backstory)` above is the
+  // canonical implementation and the backwards-compatible wrapper below
+  // delegates to it. Keeping this class small avoids duplicate implementations
+  // and references to removed types like `BackstoryChunk`.
 
   /** Ingest a persona's backstory into the store. */
   ingestPersona(persona: Persona): void {
     if (!persona.backstory) return;
-    const chunks = this.chunkBackstory(persona.id, persona.backstory);
-    this.linkRelated(chunks);
+    const chunks = chunkBackstory(persona.id, persona.backstory);
     this.chunks.set(persona.id, chunks);
+  }
+
+  /** Ingest pre-built chunks for a persona. */
+  ingestChunks(personaId: string, chunks: Chunk[]): void {
+    this.chunks.set(personaId, chunks);
+  }
+
+  /** Backwards-compatible method kept for tests and callers: delegates to exported chunkBackstory. */
+  chunkBackstory(personaId: string, backstory: string): Chunk[] {
+    return chunkBackstory(personaId, backstory);
   }
 
   /** Retrieve top-K chunks most relevant to a query. */
@@ -178,8 +199,19 @@ export class IdRagStore {
 
     return results
       .map(
-        (r, i) =>
-          `[Relevant Memory ${i + 1}] (Topic: ${r.chunk.topic}, Tone: ${r.chunk.emotionalTone})\n${r.chunk.text}`,
+        (r, i) => {
+          const meta = r.chunk.metadata;
+          if (r.chunk.chunkType === "backstory") {
+            const topic = String(meta["topic"] ?? "");
+            const tone = String(meta["emotionalTone"] ?? "");
+            return `[Relevant Memory ${i + 1}] (Topic: ${topic}, Tone: ${tone})\n${r.chunk.text}`;
+          }
+
+          // interview or unknown
+          const src = String(meta["sourceInterviewId"] ?? "");
+          const signals = Array.isArray(meta["signalTypes"]) ? (meta["signalTypes"] as string[]).join(", ") : String(meta["signalTypes"] ?? "");
+          return `[Relevant Memory ${i + 1}] (Source: ${src}, Signals: ${signals})\n${r.chunk.text}`;
+        },
       )
       .join("\n\n");
   }

@@ -5,7 +5,8 @@ import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
 import { PersonaAdapter } from "./PersonaAdapter";
 import { VisionAnalysisAdapter } from "./VisionAnalysisAdapter";
 import { ChatAdapter } from "./ChatAdapter";
-import { ExtractionAdapter } from "./ExtractionAdapter";
+import { HtmlSummarizer } from "./HtmlSummarizer";
+import { PsychographicRationalizer } from "./PsychographicRationalizer";
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 
@@ -27,7 +28,7 @@ export class LlmServiceImpl implements LlmServicePort {
   private personaAdapter: PersonaAdapter;
   private visionAdapter: VisionAnalysisAdapter;
   private chatAdapter: ChatAdapter;
-  private extractionAdapter: ExtractionAdapter;
+  private htmlSummarizer: HtmlSummarizer;
 
   // OpenRouter Defaults — using DeepSeek V4 Flash (fast, strong reasoning, same price)
   private static readonly OR_TEXT_MODEL = "deepseek/deepseek-v4-flash";
@@ -61,7 +62,7 @@ export class LlmServiceImpl implements LlmServicePort {
     this.personaAdapter = new PersonaAdapter(this);
     this.visionAdapter = new VisionAnalysisAdapter(this);
     this.chatAdapter = new ChatAdapter(this);
-    this.extractionAdapter = new ExtractionAdapter(this);
+    this.htmlSummarizer = new HtmlSummarizer(this);
   }
 
   private sleep(ms: number): Promise<void> {
@@ -321,17 +322,16 @@ export class LlmServiceImpl implements LlmServicePort {
   }
 
   /**
-   * PB&J scaffold enhancement for all personas.
+   * Rationalizes personas using psychological scaffolds (PB&J).
    * Generates psychological rationales that causally connect the persona's
    * Big Five profile to their values, fears, and decision style.
    * The rationales are appended to each persona's backstory.
    */
-  async enhancePersonasWithPbj(personas: Persona[]): Promise<Persona[]> {
-    const { PbjScaffoldEnhancer } = await import("./PbjScaffoldEnhancer");
-    const enhancer = new PbjScaffoldEnhancer(this);
+  async rationalizePersonas(personas: Persona[]): Promise<Persona[]> {
+    const enhancer = new PsychographicRationalizer(this);
     const enhanced = await Promise.allSettled(
       personas.map(async (persona) => {
-        const pbjText = await enhancer.enhanceBackstory(persona);
+        const pbjText = await enhancer.rationalizeBackstory(persona);
         if (pbjText) {
           persona.backstory = (persona.backstory ?? "") + pbjText;
         }
@@ -339,6 +339,15 @@ export class LlmServiceImpl implements LlmServicePort {
       }),
     );
     return enhanced.map((r) => (r.status === "fulfilled" ? r.value : r.reason as any));
+  }
+
+  /**
+   * Extracts structured signals from an interview transcript.
+   * Delegates to InterviewSignalExtractor (implementation in Wave 2).
+   */
+  async extractInterviewSignals(transcript: string, interviewId: string): Promise<ExtractedInterviewSignals> {
+    // TODO: Implement InterviewSignalExtractor in Wave 2
+    throw new Error("extractInterviewSignals not yet implemented");
   }
 
   async isPricingVisible(screenshot: string): Promise<boolean> {

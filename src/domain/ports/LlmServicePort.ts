@@ -1,5 +1,6 @@
 import { Persona } from "../entities/Persona";
 import { PricingAnalysis } from "../entities/PricingAnalysis";
+import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 
 export type AgentAction =
     | { type: "CLICK"; selector: string; reasoning: string }
@@ -190,5 +191,20 @@ export interface LlmServicePort {
     generatePersonaInsightsBatch(personas: Persona[]): Promise<string[]>;
 
     summarizeHtml(html: string): Promise<string>;
+
+    /**
+     * Extracts structured signals from an interview transcript.
+     * @param transcript - The raw interview transcript text.
+     * @param interviewId - Unique identifier for the interview.
+     */
+    extractInterviewSignals(transcript: string, interviewId: string): Promise<ExtractedInterviewSignals>;
+
+    /**
+     * Rationalizes personas using psychological scaffolds (PB&J).
+     * Replaces enhancePersonasWithPbj — generates causal rationales
+     * connecting Big Five profiles to values, fears, and decision styles.
+     * @param personas - The personas to rationalize.
+     */
+    rationalizePersonas(personas: Persona[]): Promise<Persona[]>;
 }
 

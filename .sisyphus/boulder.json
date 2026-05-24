@@ -1,0 +1,67 @@
+{
+  "schema_version": 2,
+  "active_work_id": "interview-to-persona-pipeline-f088af25",
+  "works": {
+    "interview-to-persona-pipeline-f088af25": {
+      "work_id": "interview-to-persona-pipeline-f088af25",
+      "active_plan": "/Users/jeremykamber/core/2_areas/kynd/.sisyphus/plans/interview-to-persona-pipeline.md",
+      "plan_name": "interview-to-persona-pipeline",
+      "status": "active",
+      "started_at": "2026-05-24T22:55:56.267Z",
+      "updated_at": "2026-05-24T22:59:53.824Z",
+      "session_ids": [
+        "ses_1a4e4834bffe0rPsMyRSEiyZDt",
+        "ses_1a3cb8bceffe5rUCXijfliVEhq",
+        "ses_1a3c89eb9ffe35EXF2GuKZ2dUz"
+      ],
+      "session_origins": {
+        "ses_1a4e4834bffe0rPsMyRSEiyZDt": "direct",
+        "ses_1a3cb8bceffe5rUCXijfliVEhq": "direct",
+        "ses_1a3c89eb9ffe35EXF2GuKZ2dUz": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "Define application-layer types for extraction, pooling, and sampling",
+          "session_id": "ses_1a3caba87ffeL3W19UpOMk2Qdl",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-05-24T22:58:41.128Z",
+          "started_at": "2026-05-24T22:58:41.128Z",
+          "status": "running"
+        }
+      }
+    }
+  },
+  "active_plan": "/Users/jeremykamber/core/2_areas/kynd/.sisyphus/plans/interview-to-persona-pipeline.md",
+  "started_at": "2026-05-24T22:55:56.267Z",
+  "status": "active",
+  "updated_at": "2026-05-24T22:59:53.824Z",
+  "session_ids": [
+    "ses_1a4e4834bffe0rPsMyRSEiyZDt",
+    "ses_1a3cb8bceffe5rUCXijfliVEhq",
+    "ses_1a3c89eb9ffe35EXF2GuKZ2dUz"
+  ],
+  "session_origins": {
+    "ses_1a4e4834bffe0rPsMyRSEiyZDt": "direct",
+    "ses_1a3cb8bceffe5rUCXijfliVEhq": "direct",
+    "ses_1a3c89eb9ffe35EXF2GuKZ2dUz": "direct"
+  },
+  "plan_name": "interview-to-persona-pipeline",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Define application-layer types for extraction, pooling, and sampling",
+      "session_id": "ses_1a3caba87ffeL3W19UpOMk2Qdl",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-24T22:58:41.128Z",
+      "started_at": "2026-05-24T22:58:41.128Z",
+      "status": "running"
+    }
+  },
+  "agent": "atlas"
+}
