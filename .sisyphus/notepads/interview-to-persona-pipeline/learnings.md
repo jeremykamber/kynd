@@ -13,6 +13,15 @@
 - New ingestChunks(personaId, chunks) allows ingesting prebuilt chunks
 - formatRetrievedContext is chunk-type aware (backstory vs interview)
 
+## Verification: IdRagService + Chat flow for interview chunks
+
+- IdRagService.retrieveContext(persona, query, k) calls IdRagStore.retrieve() and then IdRagStore.formatRetrievedContext(). Confirmed in src/infrastructure/adapters/IdRagService.ts lines 28-37.
+- ChatAdapter.chatWithPersonaStream() calls ragService.retrieveContext() and inserts the returned contextString into the system prompt under <<RETRIEVED MEMORY>>. Confirmed in src/infrastructure/adapters/ChatAdapter.ts lines 52-56 and 77-81.
+- PersonaPromptCompiler compiles the <<RETRIEVED MEMORY>> section as a plain string (text-agnostic). Confirmed in src/infrastructure/adapters/PersonaPromptCompiler.ts lines 195-201.
+- No code changes required for interview chunk retrieval; the existing generic Chunk flow covers both backstory and interview chunks.
+
+Note: Global TypeScript check (bunx --bun tsc --noEmit) failed due to unrelated test/type fixture issues (missing/incorrect Persona test fixtures). These do not affect the runtime RAG flow but block a full repo typecheck. Recommend fixing test fixtures in a follow-up if a clean build is required.
+
 Notes:
 - Kept retrieval algorithm and function signatures (retrieve, ingestPersona) intact.
 - Tests will need imports updated if they referenced BackstoryChunk type directly.

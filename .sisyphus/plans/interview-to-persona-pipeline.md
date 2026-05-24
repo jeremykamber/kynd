@@ -933,7 +933,7 @@ Max Concurrent: 6 (Wave 1)
   - Message: `feat(pipeline): wave 2 core components — extraction, pooling, sampling, persona count parameterization`
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 13. Implement GeneratePersonasFromInterviewsUseCase (orchestrator)
+- [x] 13. Implement GeneratePersonasFromInterviewsUseCase (orchestrator)
 
   **What to do**:
   - Create `src/application/usecases/GeneratePersonasFromInterviewsUseCase.ts`:
@@ -1090,7 +1090,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 3 commit)
   - Pre-commit: `bunx --bun tsc --noEmit`
 
-- [ ] 15. Wire interview chunk retrieval into IdRagService
+- [x] 15. Wire interview chunk retrieval into IdRagService
 
   **What to do**:
   - Update `src/infrastructure/adapters/IdRagService.ts`:

@@ -8,7 +8,7 @@
       "plan_name": "interview-to-persona-pipeline",
       "status": "active",
       "started_at": "2026-05-24T22:55:56.267Z",
-      "updated_at": "2026-05-24T23:09:27.121Z",
+      "updated_at": "2026-05-24T23:11:19.913Z",
       "session_ids": [
         "ses_1a4e4834bffe0rPsMyRSEiyZDt",
         "ses_1a3cb8bceffe5rUCXijfliVEhq",
@@ -46,6 +46,17 @@
           "updated_at": "2026-05-24T23:09:27.121Z",
           "ended_at": "2026-05-24T23:09:27.121Z",
           "elapsed_ms": 149195
+        },
+        "todo:12": {
+          "task_key": "todo:12",
+          "task_label": "12",
+          "task_title": "Git commit: Wave 2 core components",
+          "session_id": "ses_1a3bf8c18ffe7oxb5xClTZ3Jc1",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-05-24T23:11:19.913Z",
+          "started_at": "2026-05-24T23:11:19.913Z",
+          "status": "running"
         }
       }
     }
@@ -53,7 +64,7 @@
   "active_plan": "/Users/jeremykamber/core/2_areas/kynd/.sisyphus/plans/interview-to-persona-pipeline.md",
   "started_at": "2026-05-24T22:55:56.267Z",
   "status": "active",
-  "updated_at": "2026-05-24T23:09:27.121Z",
+  "updated_at": "2026-05-24T23:11:19.913Z",
   "session_ids": [
     "ses_1a4e4834bffe0rPsMyRSEiyZDt",
     "ses_1a3cb8bceffe5rUCXijfliVEhq",
@@ -91,6 +102,17 @@
       "updated_at": "2026-05-24T23:09:27.121Z",
       "ended_at": "2026-05-24T23:09:27.121Z",
       "elapsed_ms": 149195
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "Git commit: Wave 2 core components",
+      "session_id": "ses_1a3bf8c18ffe7oxb5xClTZ3Jc1",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-24T23:11:19.913Z",
+      "started_at": "2026-05-24T23:11:19.913Z",
+      "status": "running"
     }
   },
   "agent": "atlas"

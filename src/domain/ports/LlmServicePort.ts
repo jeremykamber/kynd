@@ -200,6 +200,21 @@ export interface LlmServicePort {
     extractInterviewSignals(transcript: string, interviewId: string): Promise<ExtractedInterviewSignals>;
 
     /**
+     * Generic chat completion for ad-hoc LLM calls (e.g., coherence validation).
+     * @param messages - The chat messages.
+     * @param options - Optional parameters (temperature, response_format, etc.).
+     */
+    createChatCompletion(
+        messages: { role: string; content: string }[],
+        options?: {
+            temperature?: number;
+            response_format?: { type: "json_object" | "text" };
+            max_tokens?: number | null;
+            purpose?: string;
+        },
+    ): Promise<string>;
+
+    /**
      * Rationalizes personas using psychological scaffolds (PB&J).
      * Replaces enhancePersonasWithPbj — generates causal rationales
      * connecting Big Five profiles to values, fears, and decision styles.
