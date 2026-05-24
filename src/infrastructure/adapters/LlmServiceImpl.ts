@@ -9,6 +9,7 @@ import { HtmlSummarizer } from "./HtmlSummarizer";
 import { PsychographicRationalizer } from "./PsychographicRationalizer";
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
+import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 
 /**
  * Lean core implementation of the LlmServicePort that handles LLM plumbing.
@@ -394,7 +395,7 @@ export class LlmServiceImpl implements LlmServicePort {
   }
 
   async summarizeHtml(html: string): Promise<string> {
-    return this.extractionAdapter.summarizeHtml(html);
+    return this.htmlSummarizer.summarizeHtml(html);
   }
 
   // --- Legacy / Compatibility ---

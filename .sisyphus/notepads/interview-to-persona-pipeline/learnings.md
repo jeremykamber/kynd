@@ -16,3 +16,10 @@
 Notes:
 - Kept retrieval algorithm and function signatures (retrieve, ingestPersona) intact.
 - Tests will need imports updated if they referenced BackstoryChunk type directly.
+
+## Recent fix (IdRagStore duplicate removal)
+- Removed a stale private chunkBackstory() implementation that referenced the removed `BackstoryChunk` type and an instance `detectTone()` method. The canonical, exported chunkBackstory(personaId, backstory) implementation remains and is used by ingestPersona().
+- Verified: project TypeScript compile output contains NO errors referencing `src/infrastructure/adapters/IdRagStore.ts` (duplicate function errors resolved). Some unrelated test/type issues remain elsewhere in the repo and are outside the scope of this small fix.
+
+Why safe:
+- The exported chunkBackstory() is identical in behavior and kept as the single source of truth. Removing the duplicate avoids drift and type mismatches.

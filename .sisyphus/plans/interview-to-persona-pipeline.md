@@ -183,7 +183,7 @@ Max Concurrent: 6 (Wave 1)
 
 ## TODOs
 
-- [ ] 1. Define application-layer types for extraction, pooling, and sampling
+- [x] 1. Define application-layer types for extraction, pooling, and sampling
 
   **What to do**:
   - Create a new file (e.g., `src/application/interviewPipeline/types.ts`) with the following types:
@@ -245,7 +245,7 @@ Max Concurrent: 6 (Wave 1)
   - Files: `src/application/interviewPipeline/types.ts`
   - Pre-commit: `bunx --bun tsc --noEmit`
 
-- [ ] 2. Extend LlmServicePort with new methods
+- [x] 2. Extend LlmServicePort with new methods
 
   **What to do**:
   - Add to `src/domain/ports/LlmServicePort.ts`:
@@ -300,7 +300,7 @@ Max Concurrent: 6 (Wave 1)
   - Files: `src/domain/ports/LlmServicePort.ts`, `src/infrastructure/adapters/LlmServiceImpl.ts`
   - Pre-commit: `bunx --bun tsc --noEmit`
 
-- [ ] 3. Rename ExtractionAdapter → HtmlSummarizer with port conversion
+- [x] 3. Rename ExtractionAdapter → HtmlSummarizer with port conversion
 
   **What to do**:
   - Rename file: `src/infrastructure/adapters/ExtractionAdapter.ts` → `src/infrastructure/adapters/HtmlSummarizer.ts`
@@ -366,7 +366,7 @@ Max Concurrent: 6 (Wave 1)
   - Files: `src/infrastructure/adapters/HtmlSummarizer.ts` (new), `src/infrastructure/adapters/ExtractionAdapter.ts` (deleted), `src/infrastructure/adapters/LlmServiceImpl.ts`
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 4. Convert PbjScaffoldEnhancer → PsychographicRationalizer with port conversion
+- [x] 4. Convert PbjScaffoldEnhancer → PsychographicRationalizer with port conversion
 
   **What to do**:
   - Rename file: `src/infrastructure/adapters/PbjScaffoldEnhancer.ts` → `src/infrastructure/adapters/PsychographicRationalizer.ts`
@@ -432,7 +432,7 @@ Max Concurrent: 6 (Wave 1)
   - Files: `src/infrastructure/adapters/PsychographicRationalizer.ts` (new), `src/infrastructure/adapters/PbjScaffoldEnhancer.ts` (deleted), `src/infrastructure/adapters/LlmServiceImpl.ts`, `src/application/usecases/GeneratePersonasUseCase.ts`, test files
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 5. Generalize IdRagStore to generic Chunk type
+- [x] 5. Generalize IdRagStore to generic Chunk type
 
   **What to do**:
   - Refactor `src/infrastructure/adapters/IdRagStore.ts`:
