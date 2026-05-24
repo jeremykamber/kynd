@@ -99,7 +99,7 @@ export class GeneratePersonasUseCase {
             completedCount: 0,
         });
 
-        personas = await (this.llmService as any).enhancePersonasWithPbj(personas);
+        personas = await this.llmService.rationalizePersonas(personas);
         console.log("[GeneratePersonasUseCase] PB&J enhancement complete for all personas");
 
         // Phase 4: Generate AI Insights (BATCH - single LLM call instead of 3)
