@@ -1021,7 +1021,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 3 commit)
   - Pre-commit: `bunx --bun tsc --noEmit`
 
-- [ ] 14. Implement server action for interview upload + pipeline trigger
+- [x] 14. Implement server action for interview upload + pipeline trigger
 
   **What to do**:
   - Create `src/actions/generatePersonasFromInterviews.ts`:
