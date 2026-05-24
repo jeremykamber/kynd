@@ -1174,7 +1174,7 @@ Max Concurrent: 6 (Wave 1)
   - Message: `feat(pipeline): wave 3 integration — orchestrator, server action, ID-RAG wiring`
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 17. Tests for pooling + sampling functions
+- [x] 17. Tests for pooling + sampling functions
 
   **What to do**:
   - Write tests for pooling:
@@ -1234,7 +1234,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 4 commit)
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 18. Tests for InterviewSignalExtractor
+- [x] 18. Tests for InterviewSignalExtractor
 
   **What to do**:
   - Write tests in `src/infrastructure/adapters/__tests__/InterviewSignalExtractor.test.ts`:
@@ -1277,7 +1277,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 4 commit)
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 19. Tests for GeneratePersonasFromInterviewsUseCase
+- [x] 19. Tests for GeneratePersonasFromInterviewsUseCase
 
   **What to do**:
   - Write tests in `src/application/usecases/__tests__/GeneratePersonasFromInterviewsUseCase.test.ts`:
@@ -1321,7 +1321,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 4 commit)
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 20. Tests for IdRagStore generalization + interview chunk retrieval
+- [x] 20. Tests for IdRagStore generalization + interview chunk retrieval
 
   **What to do**:
   - Write tests in `src/infrastructure/adapters/__tests__/IdRagStore.test.ts` (add to existing file):
@@ -1365,7 +1365,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 4 commit)
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 21. Tests for PsychographicRationalizer port conversion
+- [x] 21. Tests for PsychographicRationalizer port conversion
 
   **What to do**:
   - Update existing test file after rename: `src/infrastructure/adapters/__tests__/PsychographicRationalizer.test.ts` (was `PbjScaffoldEnhancer.test.ts`):
@@ -1419,7 +1419,7 @@ Max Concurrent: 6 (Wave 1)
   **Commit**: YES (will group with Wave 4 commit)
   - Pre-commit: `bunx --bun tsc --noEmit && bunx --bun vitest run`
 
-- [ ] 22. Integration test: full pipeline with mock transcripts
+- [x] 22. Integration test: full pipeline with mock transcripts
 
   **What to do**:
   - Create `src/application/usecases/__tests__/GeneratePersonasFromInterviewsUseCase.integration.test.ts`:

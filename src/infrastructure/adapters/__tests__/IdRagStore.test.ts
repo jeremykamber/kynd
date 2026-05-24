@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { IdRagStore } from "../IdRagStore";
+import { IdRagStore, type Chunk } from "../IdRagStore";
 import type { Persona } from "@/domain/entities/Persona";
 
 const makePersona = (overrides: Partial<Persona> = {}): Persona => ({
@@ -10,17 +10,17 @@ const makePersona = (overrides: Partial<Persona> = {}): Persona => ({
   educationLevel: "MBA",
   interests: ["saas"],
   goals: ["optimize"],
-  personalityTraits: ["analytical"],
   conscientiousness: 80,
   neuroticism: 60,
   openness: 70,
   extraversion: 45,
   agreeableness: 55,
-  cognitiveReflex: 75,
-  technicalFluency: 65,
-  economicSensitivity: 50,
-  designStyle: "Minimalist",
-  livingEnvironment: "Clean apartment",
+  values: ["efficiency", "value"],
+  fears: ["wasted time", "bad investments"],
+  communicationStyle: "direct",
+  decisionStyle: "data-driven",
+  pricingSensitivity: 50,
+  typicalBudget: "$50/user/month",
   ...overrides,
 });
 
@@ -35,8 +35,8 @@ describe("IdRagStore", () => {
 
     expect(chunks.length).toBeGreaterThanOrEqual(2);
     expect(chunks[0].personaId).toBe("test-1");
-    expect(chunks[0].topic).toBeTruthy();
-    expect(chunks[0].emotionalTone).toBeTruthy();
+    expect(chunks[0].metadata.topic).toBeTruthy();
+    expect(chunks[0].metadata.emotionalTone).toBeTruthy();
     expect(chunks[0].id).toContain("chunk-test-1");
   });
 
@@ -127,5 +127,155 @@ describe("IdRagStore", () => {
 
     // Related should at minimum include adjacent chunks
     expect(chunks.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("backstory chunks stored with chunkType 'backstory'", () => {
+    const store = new IdRagStore();
+    const persona = makePersona({
+      backstory: "I grew up in a small town. My family always emphasized the value of a dollar.",
+    });
+
+    store.ingestPersona(persona);
+
+    const results = store.retrieve("test-1", "family value money");
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    for (const r of results) {
+      expect(r.chunk.chunkType).toBe("backstory");
+    }
+  });
+
+  it("interview chunks stored with chunkType 'interview'", () => {
+    const store = new IdRagStore();
+    const interviewChunks: Chunk[] = [
+      {
+        id: "chunk-test-1-interview-pain_point-0",
+        personaId: "test-1",
+        text: "The onboarding process takes way too long for new users",
+        chunkType: "interview",
+        metadata: { sourceInterviewId: "interview-0", sourceSegmentId: "seg-1", signalType: "pain_point", topic: "pain_point" },
+      },
+    ];
+
+    store.ingestChunks("test-1", interviewChunks);
+
+    const results = store.retrieve("test-1", "onboarding process");
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    for (const r of results) {
+      expect(r.chunk.chunkType).toBe("interview");
+    }
+  });
+
+  it("both chunk types retrieved together", () => {
+    const store = new IdRagStore();
+    const persona = makePersona({
+      id: "persona-1",
+      backstory: "I grew up in a small town where my father taught me the value of hard work.",
+    });
+    store.ingestPersona(persona);
+
+    const interviewChunks: Chunk[] = [
+      {
+        id: "chunk-persona-1-interview-pain_point-0",
+        personaId: "persona-1",
+        text: "The onboarding process takes way too long for new users at our company",
+        chunkType: "interview",
+        metadata: { sourceInterviewId: "interview-0", sourceSegmentId: "seg-1", signalType: "pain_point", topic: "pain_point" },
+      },
+    ];
+    store.ingestChunks("persona-1", interviewChunks);
+
+    const results = store.retrieve("persona-1", "onboarding process company", 3);
+    expect(results.length).toBeGreaterThanOrEqual(2);
+
+    const types = new Set(results.map((r) => r.chunk.chunkType));
+    expect(types.has("backstory")).toBe(true);
+    expect(types.has("interview")).toBe(true);
+  });
+
+  it("formatRetrievedContext shows correct metadata per chunk type", () => {
+    const store = new IdRagStore();
+
+    // Backstory chunk
+    const backstoryChunks = store.chunkBackstory("persona-2", "I grew up valuing money carefully and learned to save every penny.");
+    expect(backstoryChunks.length).toBeGreaterThanOrEqual(1);
+
+    // Interview chunk
+    const interviewChunks: Chunk[] = [
+      {
+        id: "chunk-persona-2-interview-0",
+        personaId: "persona-2",
+        text: "I find the pricing confusing and hard to compare",
+        chunkType: "interview",
+        metadata: { sourceInterviewId: "interview-1", sourceSegmentId: "seg-2", signalType: "pain_point", topic: "pricing" },
+      },
+    ];
+
+    store.ingestChunks("persona-2", [...backstoryChunks, ...interviewChunks]);
+
+    const results = store.retrieve("persona-2", "pricing confusing compare", 3);
+    expect(results.length).toBeGreaterThanOrEqual(1);
+
+    const formatted = store.formatRetrievedContext(results);
+
+    // Backstory chunks should show Topic: and Tone:
+    if (results.some((r) => r.chunk.chunkType === "backstory")) {
+      expect(formatted).toContain("Topic:");
+      expect(formatted).toContain("Tone:");
+    }
+    // Interview chunks should show Source: and Signals:
+    if (results.some((r) => r.chunk.chunkType === "interview")) {
+      expect(formatted).toContain("Source:");
+      expect(formatted).toContain("Signals:");
+    }
+  });
+
+  it("ingestChunks adds to existing persona chunks", () => {
+    const store = new IdRagStore();
+    const persona = makePersona({
+      backstory: "I grew up in a family that valued frugality above all else.",
+    });
+
+    store.ingestPersona(persona);
+
+    const interviewChunks: Chunk[] = [
+      {
+        id: "chunk-test-1-interview-0",
+        personaId: "test-1",
+        text: "I think the monthly subscription is too expensive for what you get",
+        chunkType: "interview",
+        metadata: { sourceInterviewId: "interview-2", sourceSegmentId: "seg-3", signalType: "pain_point", topic: "pricing" },
+      },
+    ];
+    store.ingestChunks("test-1", interviewChunks);
+
+    const results = store.retrieve("test-1", "expensive monthly subscription", 5);
+    expect(results.length).toBeGreaterThanOrEqual(2);
+
+    const types = new Set(results.map((r) => r.chunk.chunkType));
+    expect(types.has("backstory")).toBe(true);
+    expect(types.has("interview")).toBe(true);
+  });
+
+  it("clearing a persona removes all chunk types", () => {
+    const store = new IdRagStore();
+    const persona = makePersona({
+      backstory: "Some backstory text here for testing purposes.",
+    });
+
+    store.ingestPersona(persona);
+    const interviewChunks: Chunk[] = [
+      {
+        id: "chunk-test-1-interview-clear-0",
+        personaId: "test-1",
+        text: "Test interview chunk for clearing",
+        chunkType: "interview",
+        metadata: { sourceInterviewId: "interview-clear", sourceSegmentId: "seg-clear", signalType: "pain_point", topic: "test" },
+      },
+    ];
+    store.ingestChunks("test-1", interviewChunks);
+
+    store.clearPersona("test-1");
+    const results = store.retrieve("test-1", "test");
+    expect(results).toEqual([]);
   });
 });

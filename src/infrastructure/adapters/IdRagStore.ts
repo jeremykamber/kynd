@@ -132,9 +132,10 @@ export class IdRagStore {
     this.chunks.set(persona.id, chunks);
   }
 
-  /** Ingest pre-built chunks for a persona. */
+  /** Append pre-built chunks to a persona's existing chunks. */
   ingestChunks(personaId: string, chunks: Chunk[]): void {
-    this.chunks.set(personaId, chunks);
+    const existing = this.chunks.get(personaId) ?? [];
+    this.chunks.set(personaId, [...existing, ...chunks]);
   }
 
   /** Backwards-compatible method kept for tests and callers: delegates to exported chunkBackstory. */
