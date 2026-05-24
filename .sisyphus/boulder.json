@@ -8,7 +8,7 @@
       "plan_name": "interview-to-persona-pipeline",
       "status": "active",
       "started_at": "2026-05-24T22:55:56.267Z",
-      "updated_at": "2026-05-24T23:15:26.461Z",
+      "updated_at": "2026-05-24T23:20:04.757Z",
       "session_ids": [
         "ses_1a4e4834bffe0rPsMyRSEiyZDt",
         "ses_1a3cb8bceffe5rUCXijfliVEhq",
@@ -55,8 +55,61 @@
           "agent": "Sisyphus-Junior",
           "category": "unspecified-low",
           "started_at": "2026-05-24T23:11:19.913Z",
-          "status": "running",
-          "updated_at": "2026-05-24T23:15:26.461Z"
+          "status": "completed",
+          "updated_at": "2026-05-24T23:19:58.615Z",
+          "ended_at": "2026-05-24T23:19:58.615Z",
+          "elapsed_ms": 518702
+        },
+        "final-wave:f2": {
+          "task_key": "final-wave:f2",
+          "task_label": "F2",
+          "task_title": "**Code Quality Review** — Review all changed files for code quality issues.",
+          "session_id": "ses_1a3b96b71ffe95oFmTaiLiS8D1",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-05-24T23:20:03.779Z",
+          "started_at": "2026-05-24T23:17:57.468Z",
+          "status": "completed",
+          "ended_at": "2026-05-24T23:20:03.779Z",
+          "elapsed_ms": 126311
+        },
+        "final-wave:f4": {
+          "task_key": "final-wave:f4",
+          "task_label": "F4",
+          "task_title": "**Scope Fidelity Check** — Verify every implementation matches the plan spec exactly. No missing features, no scope creep.",
+          "session_id": "ses_1a3b94a5cffeGW1MrwXEuWMQjD",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-05-24T23:20:04.757Z",
+          "started_at": "2026-05-24T23:17:58.896Z",
+          "status": "completed",
+          "ended_at": "2026-05-24T23:20:04.757Z",
+          "elapsed_ms": 125861
+        },
+        "final-wave:f3": {
+          "task_key": "final-wave:f3",
+          "task_label": "F3",
+          "task_title": "**Real Manual QA** — Execute key test scenarios to verify pipeline components work correctly.",
+          "session_id": "ses_1a3b95c4bffeG5yd63TLHv7ri2",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-05-24T23:20:04.259Z",
+          "started_at": "2026-05-24T23:17:59.442Z",
+          "status": "completed",
+          "ended_at": "2026-05-24T23:20:04.259Z",
+          "elapsed_ms": 124817
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "**Plan Compliance Audit** — Read the plan end-to-end and verify every deliverable.",
+          "session_id": "ses_1a3b979c3ffeLOqOkrUTgt2AJP",
+          "agent": "oracle",
+          "updated_at": "2026-05-24T23:20:03.326Z",
+          "started_at": "2026-05-24T23:19:39.038Z",
+          "status": "completed",
+          "ended_at": "2026-05-24T23:20:03.326Z",
+          "elapsed_ms": 24288
         }
       }
     }
@@ -64,7 +117,7 @@
   "active_plan": "/Users/jeremykamber/core/2_areas/kynd/.sisyphus/plans/interview-to-persona-pipeline.md",
   "started_at": "2026-05-24T22:55:56.267Z",
   "status": "active",
-  "updated_at": "2026-05-24T23:15:26.461Z",
+  "updated_at": "2026-05-24T23:20:04.757Z",
   "session_ids": [
     "ses_1a4e4834bffe0rPsMyRSEiyZDt",
     "ses_1a3cb8bceffe5rUCXijfliVEhq",
@@ -111,8 +164,61 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-low",
       "started_at": "2026-05-24T23:11:19.913Z",
-      "status": "running",
-      "updated_at": "2026-05-24T23:15:26.461Z"
+      "status": "completed",
+      "updated_at": "2026-05-24T23:19:58.615Z",
+      "ended_at": "2026-05-24T23:19:58.615Z",
+      "elapsed_ms": 518702
+    },
+    "final-wave:f2": {
+      "task_key": "final-wave:f2",
+      "task_label": "F2",
+      "task_title": "**Code Quality Review** — Review all changed files for code quality issues.",
+      "session_id": "ses_1a3b96b71ffe95oFmTaiLiS8D1",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-24T23:20:03.779Z",
+      "started_at": "2026-05-24T23:17:57.468Z",
+      "status": "completed",
+      "ended_at": "2026-05-24T23:20:03.779Z",
+      "elapsed_ms": 126311
+    },
+    "final-wave:f4": {
+      "task_key": "final-wave:f4",
+      "task_label": "F4",
+      "task_title": "**Scope Fidelity Check** — Verify every implementation matches the plan spec exactly. No missing features, no scope creep.",
+      "session_id": "ses_1a3b94a5cffeGW1MrwXEuWMQjD",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-24T23:20:04.757Z",
+      "started_at": "2026-05-24T23:17:58.896Z",
+      "status": "completed",
+      "ended_at": "2026-05-24T23:20:04.757Z",
+      "elapsed_ms": 125861
+    },
+    "final-wave:f3": {
+      "task_key": "final-wave:f3",
+      "task_label": "F3",
+      "task_title": "**Real Manual QA** — Execute key test scenarios to verify pipeline components work correctly.",
+      "session_id": "ses_1a3b95c4bffeG5yd63TLHv7ri2",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-24T23:20:04.259Z",
+      "started_at": "2026-05-24T23:17:59.442Z",
+      "status": "completed",
+      "ended_at": "2026-05-24T23:20:04.259Z",
+      "elapsed_ms": 124817
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — Read the plan end-to-end and verify every deliverable.",
+      "session_id": "ses_1a3b979c3ffeLOqOkrUTgt2AJP",
+      "agent": "oracle",
+      "updated_at": "2026-05-24T23:20:03.326Z",
+      "started_at": "2026-05-24T23:19:39.038Z",
+      "status": "completed",
+      "ended_at": "2026-05-24T23:20:03.326Z",
+      "elapsed_ms": 24288
     }
   },
   "agent": "atlas"
