@@ -1,6 +1,7 @@
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasAction } from '@/actions/generatePersonas'
+import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
 import { readStreamableValue } from '@ai-sdk/rsc'
 
 export type PersonaProgressStep = 'BRAINSTORMING_PERSONAS' | 'GENERATING_BACKSTORIES' | 'ENHANCING_WITH_PBJ' | 'DONE' | 'ERROR'
@@ -69,6 +70,14 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
             }
 
             if (update.step === 'DONE') {
+              const batch: PersonaBatch = {
+                id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+                label: `"${customerProfile.slice(0, 40)}${customerProfile.length > 40 ? '...' : ''}"`,
+                source: 'description',
+                createdAt: new Date().toISOString(),
+                personas: update.personas!,
+              }
+              usePersonaStore.getState().addBatch(batch)
               setPersonas(update.personas)
               setPersonaProgress(null)
               setAbortController(null)

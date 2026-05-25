@@ -1,159 +1,272 @@
-"use client"
+'use client'
 
+import { usePersonaStore } from '@/ui/stores/personaStore'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
 import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import { SetupView } from './views/SetupView'
-import { AudienceView } from './views/AudienceView'
-import { ResultsView } from './views/ResultsView'
+import { MinimalCard } from '@/components/custom/MinimalCard'
+import { LayersIcon } from 'lucide-react'
+import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
 
 export function DashboardClient() {
+  const batches = usePersonaStore((s) => s.batches)
+  const activeBatchId = usePersonaStore((s) => s.activeBatchId)
+  const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
   const personaFlow = usePersonaFlow()
   const analysisFlow = useAnalysisFlow()
 
-  // State mapping
-  const hasPersonas = personaFlow.personas && personaFlow.personas.length > 0
-  const hasAnalyses = analysisFlow.analyses && analysisFlow.analyses.length > 0
+  const activeBatch = activeBatchId
+    ? batches.find((b) => b.id === activeBatchId)
+    : null
 
-  return (
-    <div className="flex flex-col gap-12 w-full animate-in fade-in duration-500">
-      
-      {/* 1. Setup View: Inputs for Customer Profile & Pricing URL */}
-      {(!hasPersonas || !hasAnalyses) && (
-        <SetupView 
-          personaFlow={personaFlow} 
-          analysisFlow={analysisFlow} 
-          hasPersonas={!!hasPersonas} 
-        />
-      )}
+  // No batches yet — show the setup flow with streaming dialogs
+  if (batches.length === 0) {
+    return (
+      <>
+        <div className="animate-in fade-in duration-500">
+          <SetupView
+            personaFlow={personaFlow}
+            analysisFlow={analysisFlow}
+            hasPersonas={false}
+          />
+        </div>
 
-      {/* 2. Audience View: Show generated Personas */}
-      {hasPersonas && !hasAnalyses && (
-        <AudienceView 
-          personas={personaFlow.personas!} 
-          analysisFlow={analysisFlow}
-        />
-      )}
-
-      {/* 3. Results View: Show Pricing Analyses & Chat */}
-      {hasPersonas && hasAnalyses && (
-        <ResultsView 
-          personas={personaFlow.personas!} 
-          analyses={analysisFlow.analyses!}
-          onReset={() => {
-            personaFlow.setPersonas(null)
-            analysisFlow.setAnalyses(null)
-            personaFlow.setCustomerProfile('')
-            analysisFlow.setPricingUrl('')
-            analysisFlow.setPricingImageBase64(null)
-            personaFlow.setError(null)
-            analysisFlow.setError(null)
-            personaFlow.handleCancel()
-            analysisFlow.handleCancel()
+        {/* Persona Generation Streaming Dialog */}
+        <FlowDialog
+          open={!!personaFlow.personaProgress}
+          onOpenChange={(open) => {
+            if (!open && personaFlow.personaProgress) {
+              personaFlow.handleCancel()
+            }
           }}
-        />
-      )}
-
-      {/* Persona Generation Streaming Dialog */}
-      <FlowDialog
-        open={!!personaFlow.personaProgress}
-        onOpenChange={(open) => {
-          if (!open && personaFlow.personaProgress) {
-            personaFlow.handleCancel()
+          title="Synthesizing Audience"
+          description="Kynd is generating realistic personas based on your target profile."
+          currentStep={
+            personaFlow.personaProgress?.step === 'BRAINSTORMING_PERSONAS'
+              ? 0
+              : personaFlow.personaProgress?.step === 'GENERATING_BACKSTORIES'
+                ? 1
+                : personaFlow.personaProgress?.step === 'ENHANCING_WITH_PBJ'
+                  ? 2
+                  : 3
           }
-        }}
-        title="Synthesizing Audience"
-        description="Kynd is generating realistic personas based on your target profile."
-        currentStep={
-          personaFlow.personaProgress?.step === 'BRAINSTORMING_PERSONAS' ? 0 :
-          personaFlow.personaProgress?.step === 'GENERATING_BACKSTORIES' ? 1 :
-          personaFlow.personaProgress?.step === 'ENHANCING_WITH_PBJ' ? 2 : 3
-        }
-        steps={[
-          { title: "Analyzing Market", description: "Mapping demographics and psychographics" },
-          { title: "Generating Personas", description: "Creating detailed backstories and traits" },
-          { title: "Rationalizing Behavior", description: "Anchoring psychographics to personality (PB&J)" },
-          { title: "Finalizing", description: "Preparing avatars, insights, and profiles" }
-        ]}
-      >
-        {personaFlow.personaProgress && (
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <p className="text-sm font-medium text-muted-foreground animate-pulse">
-              {personaFlow.personaProgress.step === 'BRAINSTORMING_PERSONAS' && "Identifying key demographic segments..."}
-              {personaFlow.personaProgress.step === 'GENERATING_BACKSTORIES' && (
-                `Fleshing out backstories (${personaFlow.personaProgress.completedCount || 0}/${personaFlow.personaProgress.totalCount || 3})`
+          steps={[
+            { title: 'Analyzing Market', description: 'Mapping demographics and psychographics' },
+            { title: 'Generating Personas', description: 'Creating detailed backstories and traits' },
+            { title: 'Rationalizing Behavior', description: 'Anchoring psychographics to personality (PB&J)' },
+            { title: 'Finalizing', description: 'Preparing avatars, insights, and profiles' },
+          ]}
+        >
+          {personaFlow.personaProgress && (
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <p className="text-sm font-medium text-muted-foreground animate-pulse">
+                {personaFlow.personaProgress.step === 'BRAINSTORMING_PERSONAS' &&
+                  'Identifying key demographic segments...'}
+                {personaFlow.personaProgress.step === 'GENERATING_BACKSTORIES' &&
+                  `Fleshing out backstories (${personaFlow.personaProgress.completedCount || 0}/${personaFlow.personaProgress.totalCount || 3})`}
+                {personaFlow.personaProgress.step === 'ENHANCING_WITH_PBJ' &&
+                  'Building psychological rationales...'}
+              </p>
+              {personaFlow.personaProgress.personaName && (
+                <p className="text-sm text-foreground/80">
+                  Currently generating:{' '}
+                  <span className="font-semibold">
+                    {personaFlow.personaProgress.personaName}
+                  </span>
+                </p>
               )}
-              {personaFlow.personaProgress.step === 'ENHANCING_WITH_PBJ' && "Building psychological rationales..."}
-            </p>
-            {personaFlow.personaProgress.personaName && (
-              <p className="text-sm text-foreground/80">Currently generating: <span className="font-semibold">{personaFlow.personaProgress.personaName}</span></p>
-            )}
-          </div>
-        )}
-      </FlowDialog>
+            </div>
+          )}
+        </FlowDialog>
 
-      {/* Analysis Generation Streaming Dialog */}
-      <FlowDialog
-        open={!!analysisFlow.analysisProgress}
-        onOpenChange={(open) => {
-          if (!open && analysisFlow.analysisProgress) {
-            analysisFlow.handleCancel()
+        {/* Analysis Generation Streaming Dialog */}
+        <FlowDialog
+          open={!!analysisFlow.analysisProgress}
+          onOpenChange={(open) => {
+            if (!open && analysisFlow.analysisProgress) {
+              analysisFlow.handleCancel()
+            }
+          }}
+          title="Running Simulations"
+          description="Personas are actively reviewing your product and pricing strategy."
+          currentStep={
+            analysisFlow.analysisProgress?.step === 'STARTING' ||
+            analysisFlow.analysisProgress?.step === 'OPENING_PAGE'
+              ? 0
+              : analysisFlow.analysisProgress?.step === 'FINDING_PRICING'
+                ? 1
+                : analysisFlow.analysisProgress?.step === 'THINKING'
+                  ? 2
+                  : 0
           }
-        }}
-        title="Running Simulations"
-        description="Personas are actively reviewing your product and pricing strategy."
-        currentStep={
-          analysisFlow.analysisProgress?.step === 'STARTING' || analysisFlow.analysisProgress?.step === 'OPENING_PAGE' ? 0 :
-          analysisFlow.analysisProgress?.step === 'FINDING_PRICING' ? 1 : 
-          analysisFlow.analysisProgress?.step === 'THINKING' ? 2 : 0
-        }
-        steps={[
-          { title: "Initialization", description: "Loading target experience" },
-          { title: "Visual Capture", description: "Scanning pricing structure" },
-          { title: "Cognitive Analysis", description: "Simulating persona thoughts and reactions" }
-        ]}
-      >
-        {analysisFlow.analysisProgress && (
-          <div className="flex flex-col items-center justify-center space-y-4 w-full">
-            <p className="text-sm font-medium text-muted-foreground animate-pulse">
-              {analysisFlow.analysisProgress.step === 'OPENING_PAGE' && "Loading pricing page..."}
-              {analysisFlow.analysisProgress.step === 'FINDING_PRICING' && "Capturing visual layout..."}
-              {analysisFlow.analysisProgress.step === 'THINKING' && (
-                `Gathering feedback (${analysisFlow.analysisProgress.completedCount || 0}/${analysisFlow.analysisProgress.totalCount || 3})`
-              )}
-            </p>
+          steps={[
+            { title: 'Initialization', description: 'Loading target experience' },
+            { title: 'Visual Capture', description: 'Scanning pricing structure' },
+            { title: 'Cognitive Analysis', description: 'Simulating persona thoughts and reactions' },
+          ]}
+        >
+          {analysisFlow.analysisProgress && (
+            <div className="flex flex-col items-center justify-center space-y-4 w-full">
+              <p className="text-sm font-medium text-muted-foreground animate-pulse">
+                {analysisFlow.analysisProgress.step === 'OPENING_PAGE' &&
+                  'Loading pricing page...'}
+                {analysisFlow.analysisProgress.step === 'FINDING_PRICING' &&
+                  'Capturing visual layout...'}
+                {analysisFlow.analysisProgress.step === 'THINKING' &&
+                  `Gathering feedback (${analysisFlow.analysisProgress.completedCount || 0}/${analysisFlow.analysisProgress.totalCount || 3})`}
+              </p>
 
-            {/* AI Vision Stream (Screenshot Preview) */}
-            {analysisFlow.analysisProgress.screenshot && (
-              <div className="relative w-full max-w-lg aspect-video rounded-xl overflow-hidden border border-border shadow-sm bg-muted/30">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={`data:image/jpeg;base64,${analysisFlow.analysisProgress.screenshot}`} 
-                  alt="AI Agent View" 
-                  className="w-full h-full object-cover object-top opacity-80"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end justify-center pb-2 pointer-events-none">
-                   <span className="text-[10px] font-mono text-muted-foreground px-2 py-1 rounded-full bg-background/80 backdrop-blur-sm border border-border/50">
-                     LIVE AGENT VISION
-                   </span>
+              {/* AI Vision Stream (Screenshot Preview) */}
+              {analysisFlow.analysisProgress.screenshot && (
+                <div className="relative w-full max-w-lg aspect-video rounded-xl overflow-hidden border border-border shadow-sm bg-muted/30">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`data:image/jpeg;base64,${analysisFlow.analysisProgress.screenshot}`}
+                    alt="AI Agent View"
+                    className="w-full h-full object-cover object-top opacity-80"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end justify-center pb-2 pointer-events-none">
+                    <span className="text-[10px] font-mono text-muted-foreground px-2 py-1 rounded-full bg-background/80 backdrop-blur-sm border border-border/50">
+                      LIVE AGENT VISION
+                    </span>
+                  </div>
                 </div>
+              )}
+
+              {/* Show streaming thoughts if available */}
+              {analysisFlow.analysisProgress.streamingTexts &&
+                Object.keys(analysisFlow.analysisProgress.streamingTexts).length > 0 && (
+                  <div className="w-full max-w-lg bg-secondary/30 rounded-lg p-4 max-h-[200px] overflow-y-auto custom-scrollbar border border-border/40 text-left">
+                    {Object.entries(analysisFlow.analysisProgress.streamingTexts).map(
+                      ([name, text]) => (
+                        <div key={name} className="mb-4 last:mb-0">
+                          <p className="text-xs font-semibold text-primary mb-1">
+                            {name} is thinking:
+                          </p>
+                          <p className="text-xs text-foreground/80 font-mono whitespace-pre-wrap">
+                            {text.slice(-200)}...
+                          </p>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                )}
+            </div>
+          )}
+        </FlowDialog>
+      </>
+    )
+  }
+
+  // Batches exist — show batch list or active batch personas
+  return (
+    <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+      {/* Batch selector header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Personas</h1>
+        <Link
+          href="/dashboard/interviews"
+          className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-5 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90"
+        >
+          + New from Interviews
+        </Link>
+      </div>
+
+      {!activeBatch ? (
+        /* Batch list when none selected */
+        <div className="flex flex-col gap-4">
+          {batches.map((batch) => (
+            <button
+              key={batch.id}
+              onClick={() => setActiveBatch(batch.id)}
+              className="flex items-center gap-4 rounded-xl border border-white/10 bg-card p-5 text-left transition-colors hover:border-white/20"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <LayersIcon className="h-5 w-5 text-primary" />
               </div>
-            )}
-            
-            {/* Show streaming thoughts if available */}
-            {analysisFlow.analysisProgress.streamingTexts && Object.keys(analysisFlow.analysisProgress.streamingTexts).length > 0 && (
-              <div className="w-full max-w-lg bg-secondary/30 rounded-lg p-4 max-h-[200px] overflow-y-auto custom-scrollbar border border-border/40 text-left">
-                 {Object.entries(analysisFlow.analysisProgress.streamingTexts).map(([name, text]) => (
-                    <div key={name} className="mb-4 last:mb-0">
-                      <p className="text-xs font-semibold text-primary mb-1">{name} is thinking:</p>
-                      <p className="text-xs text-foreground/80 font-mono whitespace-pre-wrap">{text.slice(-200)}...</p>
-                    </div>
-                 ))}
+              <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                <span className="font-semibold truncate">{batch.label}</span>
+                <span className="text-sm text-muted-foreground">
+                  {batch.personas.length} personas ·{' '}
+                  {batch.source === 'interviews'
+                    ? `${batch.transcriptCount} transcripts`
+                    : 'from description'}
+                </span>
               </div>
-            )}
+              <span className="text-xs text-muted-foreground shrink-0">
+                {new Date(batch.createdAt).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        /* Active batch personas */
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between border-b border-border/40 pb-4">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xl font-bold tracking-tight">
+                {activeBatch.label}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {activeBatch.personas.length} personas ·{' '}
+                {activeBatch.source === 'interviews'
+                  ? `${activeBatch.transcriptCount} interview transcripts`
+                  : 'Generated from description'}
+                · {new Date(activeBatch.createdAt).toLocaleString()}
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveBatch(null)}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
+            >
+              All Batches
+            </button>
           </div>
-        )}
-      </FlowDialog>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {activeBatch.personas.map((persona) => (
+              <MinimalCard key={persona.id} hoverable>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
+                      {persona.name
+                        .split(' ')
+                        .map((n) => n[0])
+                        .join('')
+                        .slice(0, 2)}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sm">
+                        {persona.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {persona.occupation}
+                      </span>
+                    </div>
+                  </div>
+                  {persona.values && persona.values.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {persona.values.slice(0, 3).map((v, i) => (
+                        <span
+                          key={i}
+                          className="text-[10px] px-2 py-0.5 rounded-full border border-white/10 text-muted-foreground"
+                        >
+                          {v}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </MinimalCard>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

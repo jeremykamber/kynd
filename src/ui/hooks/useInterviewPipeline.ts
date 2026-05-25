@@ -1,6 +1,7 @@
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasFromInterviewsAction } from '@/actions/generatePersonasFromInterviews'
+import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
 import { readStreamableValue } from '@ai-sdk/rsc'
 
 export type InterviewProgressStep = 'UPLOADING' | 'EXTRACTING' | 'POOLING' | 'SAMPLING' | 'GENERATING' | 'INGESTING' | 'DONE' | 'ERROR'
@@ -83,6 +84,15 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
             }
 
             if (update.step === 'DONE') {
+              const batch: PersonaBatch = {
+                id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+                label: `${files.length} Interview${files.length !== 1 ? 's' : ''}${files.length > 0 ? ' (' + files[0].name + (files.length > 1 ? ` +${files.length - 1}` : '') + ')' : ''}`,
+                source: 'interviews',
+                transcriptCount: files.length,
+                createdAt: new Date().toISOString(),
+                personas: update.personas!,
+              }
+              usePersonaStore.getState().addBatch(batch)
               setPersonas(update.personas)
               setProgress(null)
               abortControllerRef.current = null
