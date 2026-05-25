@@ -17,9 +17,7 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
       <div className="flex items-start gap-5">
         <PersonaAvatar
           name={persona.name}
-          imageUrl={(persona as any).imageUrl}
           size="lg"
-          className="shadow-sm"
         />
         <div className="flex flex-col gap-1.5 flex-1 min-w-0">
           <div className="flex items-center justify-between gap-4">
@@ -39,8 +37,8 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Conscientiousness</span>
               <span className="text-xs font-bold font-variant-numeric tabular-nums">{persona.conscientiousness}%</span>
             </div>
-            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full" style={{ width: `${persona.conscientiousness}%` }} />
+            <div className="h-1.5 w-full bg-muted rounded-sm overflow-hidden">
+              <div className="h-full bg-primary rounded-sm" style={{ width: `${persona.conscientiousness}%` }} />
             </div>
             <div className="flex justify-between text-[9px] text-muted-foreground/60 font-medium uppercase">
               <span>Chaotic</span>
@@ -53,8 +51,8 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Neuroticism</span>
               <span className="text-xs font-bold font-variant-numeric tabular-nums">{persona.neuroticism}%</span>
             </div>
-            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full" style={{ width: `${persona.neuroticism}%` }} />
+            <div className="h-1.5 w-full bg-muted rounded-sm overflow-hidden">
+              <div className="h-full bg-primary rounded-sm" style={{ width: `${persona.neuroticism}%` }} />
             </div>
             <div className="flex justify-between text-[9px] text-muted-foreground/60 font-medium uppercase">
               <span>Stable</span>
@@ -65,7 +63,7 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
           {/* Psychographic snapshot */}
           <div className="flex flex-wrap gap-1.5 mt-2">
             {persona.values?.slice(0, 2).map((v, i) => (
-              <span key={i} className="text-[9px] font-medium text-primary/80 bg-primary/5 px-2 py-0.5 rounded-full truncate max-w-[100px]">
+              <span key={i} className="text-[9px] font-medium text-primary/80 bg-primary/10 px-2 py-0.5 rounded-sm truncate max-w-[100px]">
                 {v}
               </span>
             ))}
@@ -86,7 +84,7 @@ export function PersonaProfilePanel({ persona, onChatClick, className, ...props 
             e.stopPropagation()
             onChatClick()
           }}
-          className="mt-auto w-full inline-flex h-10 items-center justify-center rounded-lg bg-secondary/50 px-4 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary focus-visible:outline-none"
+          className="mt-auto w-full inline-flex h-10 items-center justify-center rounded-md bg-secondary/50 px-4 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary focus-visible:outline-none"
         >
           Chat with {persona.name.split(' ')[0]}
         </button>

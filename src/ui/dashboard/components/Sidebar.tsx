@@ -16,7 +16,7 @@ export function Sidebar() {
   const isSettings = pathname === '/dashboard/settings'
 
   return (
-    <aside className="w-64 shrink-0 border-r border-border/40 bg-background flex flex-col h-full">
+    <aside className="w-60 shrink-0 border-r border-border/40 bg-sidebar flex flex-col h-full">
       {/* Logo area */}
       <div className="h-14 flex items-center px-6 border-b border-border/40">
         <Link href="/" className="font-bold tracking-tight text-lg select-none">Kynd</Link>
@@ -26,7 +26,7 @@ export function Sidebar() {
       <nav className="flex flex-col p-3 gap-1">
         <Link
           href="/dashboard"
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
             !isInterviews && !isSettings
               ? 'bg-primary/10 text-primary'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
@@ -37,7 +37,7 @@ export function Sidebar() {
         </Link>
         <Link
           href="/dashboard/interviews"
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
             isInterviews
               ? 'bg-primary/10 text-primary'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
@@ -62,7 +62,7 @@ export function Sidebar() {
                 <button
                   key={batch.id}
                   onClick={() => setActiveBatch(batch.id)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-colors text-left w-full ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-xs transition-colors text-left w-full ${
                     activeBatchId === batch.id
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'

@@ -7,8 +7,7 @@ import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import { SetupView } from './views/SetupView'
 import { MinimalCard } from '@/components/custom/MinimalCard'
 import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
-import { PersonaDetailModal } from '@/components/custom/PersonaDetailModal'
-import { PersonaChat } from './chat/PersonaChat'
+import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
 import { LayersIcon } from 'lucide-react'
 import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
@@ -16,8 +15,8 @@ import { Persona } from '@/domain/entities/Persona'
 
 export function DashboardClient() {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false)
+  const [sheetDefaultTab, setSheetDefaultTab] = useState<"profile" | "chat">("profile")
   const batches = usePersonaStore((s) => s.batches)
   const activeBatchId = usePersonaStore((s) => s.activeBatchId)
   const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
@@ -33,13 +32,19 @@ export function DashboardClient() {
 
   const handleOpenDetail = (id: string) => {
     setSelectedPersonaId(id)
-    setIsDetailModalOpen(true)
+    setSheetDefaultTab("profile")
+    setIsDetailSheetOpen(true)
   }
 
   const handleOpenChat = (persona: Persona) => {
     setSelectedPersonaId(persona.id)
-    setIsDetailModalOpen(false)
-    setIsChatOpen(true)
+    setSheetDefaultTab("chat")
+    setIsDetailSheetOpen(true)
+  }
+
+  const handleCloseSheet = () => {
+    setIsDetailSheetOpen(false)
+    setSelectedPersonaId(null)
   }
 
   // No batches yet — show the setup flow with streaming dialogs
@@ -62,6 +67,7 @@ export function DashboardClient() {
               personaFlow.handleCancel()
             }
           }}
+          transparentOverlay
           title="Synthesizing Audience"
           description="Kynd is generating realistic personas based on your target profile."
           currentStep={
@@ -110,6 +116,7 @@ export function DashboardClient() {
               analysisFlow.handleCancel()
             }
           }}
+          transparentOverlay
           title="Running Simulations"
           description="Personas are actively reviewing your product and pricing strategy."
           currentStep={
@@ -141,7 +148,7 @@ export function DashboardClient() {
 
               {/* AI Vision Stream (Screenshot Preview) */}
               {analysisFlow.analysisProgress.screenshot && (
-                <div className="relative w-full max-w-lg aspect-video rounded-xl overflow-hidden border border-border shadow-sm bg-muted/30">
+                <div className="relative w-full max-w-lg aspect-video rounded-lg overflow-hidden border border-border bg-muted/30">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`data:image/jpeg;base64,${analysisFlow.analysisProgress.screenshot}`}
@@ -149,7 +156,7 @@ export function DashboardClient() {
                     className="w-full h-full object-cover object-top opacity-80"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end justify-center pb-2 pointer-events-none">
-                    <span className="text-[10px] font-mono text-muted-foreground px-2 py-1 rounded-full bg-background/80 backdrop-blur-sm border border-border/50">
+                    <span className="text-[10px] font-mono text-muted-foreground px-2 py-1 rounded-md bg-muted/80 border border-border">
                       LIVE AGENT VISION
                     </span>
                   </div>
@@ -189,7 +196,7 @@ export function DashboardClient() {
         <h1 className="text-2xl font-bold tracking-tight">Personas</h1>
         <Link
           href="/dashboard/interviews"
-          className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-5 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90"
+          className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           + New from Interviews
         </Link>
@@ -202,7 +209,7 @@ export function DashboardClient() {
             <button
               key={batch.id}
               onClick={() => setActiveBatch(batch.id)}
-              className="flex items-center gap-4 rounded-xl border border-white/10 bg-card p-5 text-left transition-colors hover:border-white/20"
+              className="flex items-center gap-4 rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <LayersIcon className="h-5 w-5 text-primary" />
@@ -273,7 +280,7 @@ export function DashboardClient() {
                 <div className="flex flex-col sm:flex-row gap-4">
                   <input
                     type="url"
-                    className="flex h-12 w-full rounded-xl border border-input bg-transparent px-4 py-2 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-12 w-full rounded-md border border-input bg-transparent px-4 py-2 text-base transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     placeholder="https://your-startup.com/pricing"
                     value={analysisFlow.pricingUrl}
                     onChange={(e) => analysisFlow.setPricingUrl(e.target.value)}
@@ -283,7 +290,7 @@ export function DashboardClient() {
                     type="button"
                     disabled={!analysisFlow.pricingUrl.trim() || analysisFlow.isPending}
                     onClick={() => analysisFlow.handleAnalyzePricing(activeBatch.personas)}
-                    className="inline-flex h-12 whitespace-nowrap items-center justify-center rounded-full bg-foreground px-8 text-sm font-semibold text-background shadow transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                    className="inline-flex h-12 whitespace-nowrap items-center justify-center rounded-md bg-foreground px-8 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                   >
                     {analysisFlow.isPending ? "Simulating..." : "Run Pricing Simulation"}
                   </button>
@@ -297,20 +304,12 @@ export function DashboardClient() {
         </div>
       )}
 
-      <PersonaDetailModal
+      <PersonaDetailSheet
         persona={selectedPersona}
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        onChatClick={handleOpenChat}
+        isOpen={isDetailSheetOpen}
+        onClose={handleCloseSheet}
+        defaultTab={sheetDefaultTab}
       />
-
-      {selectedPersona && (
-        <PersonaChat
-          persona={selectedPersona}
-          isOpen={isChatOpen}
-          onClose={() => setIsChatOpen(false)}
-        />
-      )}
     </div>
   )
 }

@@ -110,14 +110,14 @@ export function InterviewUploadClient() {
             <div className="flex gap-4 pt-4">
               <Link
                 href="/dashboard"
-                className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-8 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 View Personas
               </Link>
               <button
                 type="button"
                 onClick={handleReset}
-                className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-transparent px-8 text-sm font-semibold text-foreground shadow transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex h-12 items-center justify-center rounded-md border border-border bg-transparent px-8 text-sm font-semibold text-foreground transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Start Over
               </button>
@@ -165,10 +165,10 @@ export function InterviewUploadClient() {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 gap-4 transition-colors cursor-pointer ${
+                className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 gap-4 transition-colors cursor-pointer ${
                   isDragging
                     ? 'border-primary/70 bg-primary/5'
-                    : 'border-white/10 hover:border-primary/50 bg-secondary/20'
+                    : 'border-border/60 hover:border-primary/50 bg-secondary/20'
                 }`}
               >
                 <Upload className="h-12 w-12 text-muted-foreground/60" />
@@ -194,7 +194,7 @@ export function InterviewUploadClient() {
                   {files.map((file) => (
                     <div
                       key={file.id}
-                      className="flex items-center justify-between rounded-lg border border-white/10 bg-secondary/30 px-4 py-3"
+                      className="flex items-center justify-between rounded-lg border border-border/60 bg-secondary/30 px-4 py-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <FileText className="h-4 w-4 text-primary shrink-0" />
@@ -253,7 +253,7 @@ export function InterviewUploadClient() {
                   type="button"
                   disabled={files.length < 2 || isPending}
                   onClick={handleSubmit}
-                  className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-8 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                 >
                   {isPending ? 'Processing...' : files.length < 2 ? 'Need 2+ Transcripts' : 'Generate Personas from Interviews'}
                 </button>

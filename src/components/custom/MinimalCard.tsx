@@ -11,8 +11,8 @@ export const MinimalCard = React.forwardRef<HTMLDivElement, MinimalCardProps>(
       <div
         ref={ref}
         className={cn(
-          "rounded-[1.25rem] border border-white/10 bg-card p-6 md:p-8 text-card-foreground shadow-sm transition-colors duration-150",
-          hoverable && "hover:border-white/20 cursor-pointer",
+          "rounded-lg border border-border bg-card p-6 md:p-8 text-card-foreground transition-colors duration-150",
+          hoverable && "hover:border-border/80 cursor-pointer",
           className
         )}
         {...props}

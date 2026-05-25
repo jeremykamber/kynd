@@ -33,7 +33,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
         <button
           type="button"
           onClick={onReset}
-          className="inline-flex h-10 items-center justify-center rounded-full border border-border/60 bg-transparent px-6 text-sm font-medium text-foreground transition-all hover:bg-secondary/40 focus-visible:outline-none"
+          className="inline-flex h-10 items-center justify-center rounded-md border border-border/60 bg-transparent px-6 text-sm font-medium text-foreground transition-all hover:bg-secondary/40 focus-visible:outline-none"
         >
           Start New Analysis
         </button>
@@ -85,7 +85,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   <button
                     type="button"
                     onClick={() => setSelectedPersonaId(persona.id)}
-                    className="mt-auto w-full inline-flex h-12 items-center justify-center rounded-xl bg-secondary/50 px-4 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary focus-visible:outline-none"
+                    className="mt-auto w-full inline-flex h-12 items-center justify-center rounded-md bg-secondary/50 px-4 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary focus-visible:outline-none"
                   >
                     Chat with {persona.name.split(' ')[0]}
                   </button>
@@ -102,7 +102,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                         title="Tone Sentiment"
                       />
                     </div>
-                    <div className={`p-4 rounded-xl border text-foreground/90 font-medium italic shadow-inner ${getSentimentBoxVariant(analysis.scores.buyIntent)}`}>
+                    <div className={`p-4 rounded-lg border text-foreground/90 font-medium italic ${getSentimentBoxVariant(analysis.scores.buyIntent)}`}>
                       &quot;{analysis.gutReaction}&quot;
                     </div>
                   </div>
@@ -130,8 +130,8 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
 
                   {/* Actionable Badge */}
                   <div className="mt-4 pt-6 border-t border-border/20 flex flex-col sm:flex-row sm:items-center gap-3">
-                    <span className="bg-indigo-500/10 text-primary border border-primary/20 text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full flex items-center gap-2 w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+                    <span className="bg-primary/10 text-primary border border-primary/20 text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm flex items-center gap-2 w-fit">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                       AI Suggestion
                     </span>
                     <span className="text-sm text-foreground/80 font-medium">
@@ -164,7 +164,7 @@ function ScoreMetric({ label, value, reason }: { label: string, value: number, r
   }
 
   return (
-    <div className="flex flex-col gap-1 bg-white/[0.02] backdrop-blur-md p-3 rounded-lg">
+    <div className="flex flex-col gap-1 bg-muted/20 p-3 rounded-lg">
       <span className="text-xs text-muted-foreground font-medium">{label}</span>
       <span className={`text-xl font-bold font-variant-numeric tabular-nums ${getColorClass(value)}`}>{value}/10</span>
       {reason && (
@@ -183,9 +183,9 @@ function FunnelStage({ label, value, reason, color }: { label: string, value: nu
         <span className="font-medium text-foreground/80">{label}</span>
         <span className={`font-bold ${value >= 6 ? 'text-emerald-500' : value >= 4 ? 'text-amber-500' : 'text-destructive'}`}>{value}/10</span>
       </div>
-      <div className="h-4 w-full bg-white/5 rounded-full overflow-hidden relative">
+      <div className="h-4 w-full bg-muted/30 rounded-sm overflow-hidden relative">
         <div
-          className={`h-full ${value >= 6 ? color : value >= 4 ? 'bg-amber-500' : 'bg-destructive'} rounded-full transition-all duration-500`}
+          className={`h-full ${value >= 6 ? color : value >= 4 ? 'bg-amber-500' : 'bg-destructive'} rounded-sm transition-all duration-500`}
           style={{ width: `${getWidthPercent(value)}%` }}
         />
       </div>
@@ -203,7 +203,7 @@ function getSentimentBoxVariant(score: number) {
 }
 
 function getSentimentVariant(score: number) {
-  if (score >= 8) return "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-  if (score >= 5) return "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
-  return "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+  if (score >= 8) return "bg-emerald-500"
+  if (score >= 5) return "bg-amber-500"
+  return "bg-destructive"
 }

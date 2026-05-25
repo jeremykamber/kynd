@@ -6,15 +6,9 @@ import { chatWithPersonaAction } from "@/actions/chatWithPersona"
 import { useLocalStorage } from "@/ui/hooks/useLocalStorage"
 import { Send, Loader2 } from "lucide-react"
 import { readStreamableValue } from "@ai-sdk/rsc"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { ThinkingBlock } from "@/components/custom/ThinkingBlock"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const TAG_REGEX = /<%(.*?)%>/g
 const REASONING_REGEX = new RegExp("<<REASONING>>([\\s\\S]*?)<</REASONING>>", "g")
@@ -23,7 +17,6 @@ function parseMessageContent(content: string): React.ReactNode[] {
   const parts: React.ReactNode[] = []
   let lastIndex = 0
 
-  // First, check if the content starts with reasoning
   const reasoningMatch = content.match(REASONING_REGEX)
   let textWithoutReasoning = content.replace(REASONING_REGEX, "").trim()
 
@@ -36,7 +29,6 @@ function parseMessageContent(content: string): React.ReactNode[] {
 
   if (!textWithoutReasoning) return parts
 
-  // Parse the remaining content for <%...%> deep binding tags
   const regex = /<%(.*?)%>/g
   let match = regex.exec(textWithoutReasoning)
 
@@ -47,7 +39,7 @@ function parseMessageContent(content: string): React.ReactNode[] {
 
     const inner = match[1]
     const pipeIndex = inner.indexOf('|')
-    
+
     if (pipeIndex !== -1) {
       const displayText = inner.slice(0, pipeIndex).trim()
       const excerpt = inner.slice(pipeIndex + 1).trim()
@@ -83,13 +75,11 @@ interface Message {
   content: string
 }
 
-interface PersonaChatProps {
+interface PersonaChatInlineProps {
   persona: Persona
-  isOpen: boolean
-  onClose: () => void
 }
 
-export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
+export function PersonaChatInline({ persona }: PersonaChatInlineProps) {
   const storageKey = `persona_chat_${persona.id}`
   const [messages, setMessages] = useLocalStorage<Message[]>(storageKey, [])
   const [input, setInput] = useState("")
@@ -146,43 +136,30 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
 
   return (
     <TooltipProvider>
-      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-md sm:max-w-lg max-h-[85vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="px-6 py-4 border-b border-border/40 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary font-medium text-secondary-foreground">
-                {persona.name.substring(0, 2).toUpperCase()}
+      <div className="flex flex-col h-full">
+        <div
+          ref={chatRef}
+          className="flex-1 overflow-y-auto p-5 flex flex-col gap-5 custom-scrollbar"
+        >
+          {messages.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 text-muted-foreground">
+              <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center text-xl">
+                💬
               </div>
-              <div>
-                <DialogTitle className="text-base">{persona.name}</DialogTitle>
-                <DialogDescription className="text-xs">{persona.occupation}</DialogDescription>
-              </div>
+              <p className="text-sm max-w-[250px] text-balance">
+                Start a conversation with {persona.name}. Ask them about your product, pricing, or their pain points.
+              </p>
             </div>
-          </DialogHeader>
-
-          <div 
-            ref={chatRef}
-            className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scrollbar"
-          >
-            {messages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 text-muted-foreground">
-                <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-                  💬
-                </div>
-                <p className="text-sm max-w-[250px] text-balance">
-                  Start a conversation with {persona.name}. Ask them about your product, pricing, or their pain points.
-                </p>
-              </div>
-            ) : (
-              messages.map((m, i) => (
-              <div 
+          ) : (
+            messages.map((m, i) => (
+              <div
                 key={`${m.role}-${i}`}
                 className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'self-end items-end' : 'self-start items-start'}`}
               >
-                <div 
+                <div
                   style={{
-                    backgroundColor: m.role === 'user' 
-                      ? 'var(--chat-user-bubble)' 
+                    backgroundColor: m.role === 'user'
+                      ? 'var(--chat-user-bubble)'
                       : 'var(--chat-assistant-bubble)',
                   }}
                   className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap text-foreground ${
@@ -199,13 +176,13 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
           )}
           {isPending && (
             <div className="self-start flex flex-col max-w-[85%] items-start">
-               <div 
+               <div
                  style={{ backgroundColor: 'var(--chat-assistant-bubble)' }}
                  className="px-5 py-4 rounded-2xl rounded-tl-sm text-foreground border border-border/40 flex items-center gap-1.5"
                >
                  <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-[fade-in-out_1.4s_ease-in-out_infinite]" style={{ animationDelay: '0ms' }} />
-                  <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-[fade-in-out_1.4s_ease-in-out_infinite]" style={{ animationDelay: '467ms' }} />
-                  <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-[fade-in-out_1.4s_ease-in-out_infinite]" style={{ animationDelay: '933ms' }} />
+                 <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-[fade-in-out_1.4s_ease-in-out_infinite]" style={{ animationDelay: '467ms' }} />
+                 <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-[fade-in-out_1.4s_ease-in-out_infinite]" style={{ animationDelay: '933ms' }} />
                </div>
             </div>
           )}
@@ -213,7 +190,7 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
         </div>
 
         <div className="p-4 bg-card border-t border-border/40 shrink-0">
-          <form 
+          <form
             onSubmit={(e) => {
               e.preventDefault()
               handleSend()
@@ -228,8 +205,8 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
               placeholder={`Message ${persona.name}...`}
               disabled={isPending}
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isPending || !input || !input.trim()}
               className="absolute right-1.5 h-9 w-9 flex items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none"
             >
@@ -241,8 +218,7 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
             </button>
           </form>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
     </TooltipProvider>
   )
 }
