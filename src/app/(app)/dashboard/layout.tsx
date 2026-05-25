@@ -15,7 +15,7 @@ export default function DashboardLayout({
             <ThemeToggle />
           </div>
         </header>
-        <main className="flex-1 flex flex-col p-6 sm:p-8 max-w-5xl w-full">
+        <main className="flex-1 flex flex-col p-6 sm:p-8 max-w-5xl mx-auto w-full">
           {children}
         </main>
       </div>

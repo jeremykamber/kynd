@@ -1,15 +1,23 @@
 'use client'
 
+import { useState } from 'react'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
 import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import { SetupView } from './views/SetupView'
 import { MinimalCard } from '@/components/custom/MinimalCard'
+import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
+import { PersonaDetailModal } from '@/components/custom/PersonaDetailModal'
+import { PersonaChat } from './chat/PersonaChat'
 import { LayersIcon } from 'lucide-react'
 import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
+import { Persona } from '@/domain/entities/Persona'
 
 export function DashboardClient() {
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(false)
   const batches = usePersonaStore((s) => s.batches)
   const activeBatchId = usePersonaStore((s) => s.activeBatchId)
   const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
@@ -19,6 +27,20 @@ export function DashboardClient() {
   const activeBatch = activeBatchId
     ? batches.find((b) => b.id === activeBatchId)
     : null
+
+  const getPersona = (id: string) => activeBatch?.personas.find(p => p.id === id) ?? null
+  const selectedPersona = selectedPersonaId ? getPersona(selectedPersonaId) : null
+
+  const handleOpenDetail = (id: string) => {
+    setSelectedPersonaId(id)
+    setIsDetailModalOpen(true)
+  }
+
+  const handleOpenChat = (persona: Persona) => {
+    setSelectedPersonaId(persona.id)
+    setIsDetailModalOpen(false)
+    setIsChatOpen(true)
+  }
 
   // No batches yet — show the setup flow with streaming dialogs
   if (batches.length === 0) {
@@ -230,42 +252,64 @@ export function DashboardClient() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {activeBatch.personas.map((persona) => (
-              <MinimalCard key={persona.id} hoverable>
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
-                      {persona.name
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .slice(0, 2)}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-sm">
-                        {persona.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {persona.occupation}
-                      </span>
-                    </div>
-                  </div>
-                  {persona.values && persona.values.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {persona.values.slice(0, 3).map((v, i) => (
-                        <span
-                          key={i}
-                          className="text-[10px] px-2 py-0.5 rounded-full border border-white/10 text-muted-foreground"
-                        >
-                          {v}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </MinimalCard>
+              <PersonaProfilePanel
+                key={persona.id}
+                persona={persona}
+                onClick={() => handleOpenDetail(persona.id)}
+                onChatClick={() => handleOpenChat(persona)}
+              />
             ))}
           </div>
+
+          {activeBatch.source === 'interviews' && (
+            <div className="border-t border-border/40 pt-8 mt-8">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-lg font-semibold tracking-tight">Run Report</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Test how these interview-grounded personas react to your pricing page.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <input
+                    type="url"
+                    className="flex h-12 w-full rounded-xl border border-input bg-transparent px-4 py-2 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="https://your-startup.com/pricing"
+                    value={analysisFlow.pricingUrl}
+                    onChange={(e) => analysisFlow.setPricingUrl(e.target.value)}
+                    disabled={analysisFlow.isPending}
+                  />
+                  <button
+                    type="button"
+                    disabled={!analysisFlow.pricingUrl.trim() || analysisFlow.isPending}
+                    onClick={() => analysisFlow.handleAnalyzePricing(activeBatch.personas)}
+                    className="inline-flex h-12 whitespace-nowrap items-center justify-center rounded-full bg-foreground px-8 text-sm font-semibold text-background shadow transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    {analysisFlow.isPending ? "Simulating..." : "Run Pricing Simulation"}
+                  </button>
+                </div>
+                {analysisFlow.error && (
+                  <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{analysisFlow.error}</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
+      )}
+
+      <PersonaDetailModal
+        persona={selectedPersona}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        onChatClick={handleOpenChat}
+      />
+
+      {selectedPersona && (
+        <PersonaChat
+          persona={selectedPersona}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+        />
       )}
     </div>
   )
