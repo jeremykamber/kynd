@@ -71,7 +71,7 @@ export function PersonaDetailSheet({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="fixed right-0 top-0 h-dvh w-full sm:w-[500px] md:w-[600px] lg:w-[680px] max-w-full translate-x-0 translate-y-0 rounded-none border-l border-border bg-background p-0 m-0 flex flex-col"
+        className="sm:max-w-[600px] md:max-w-[680px] max-h-[85vh] overflow-hidden flex flex-col p-0"
       >
         <DialogTitle className="sr-only">
           {persona.name} — Profile &amp; Chat
