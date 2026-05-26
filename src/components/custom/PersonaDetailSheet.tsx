@@ -9,11 +9,10 @@ import {
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Progress } from "@/components/ui/progress"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PersonaAvatar } from "./PersonaAvatar"
 import { PersonaChatInline } from "@/ui/dashboard/components/chat/PersonaChatInline"
-import { FileDown, MessageSquare, User, Search } from "lucide-react"
+import { MessageSquare, User, Search, XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface PersonaDetailSheetProps {
@@ -71,8 +70,8 @@ export function PersonaDetailSheet({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        showCloseButton={true}
-        className="fixed right-0 top-0 h-dvh w-full sm:w-[500px] md:w-[600px] lg:w-[680px] max-w-full translate-x-0 translate-y-0 rounded-none border-l border-border bg-background p-0 m-0"
+        showCloseButton={false}
+        className="fixed right-0 top-0 h-dvh w-full sm:w-[500px] md:w-[600px] lg:w-[680px] max-w-full translate-x-0 translate-y-0 rounded-none border-l border-border bg-background p-0 m-0 flex flex-col"
       >
         <DialogTitle className="sr-only">
           {persona.name} — Profile &amp; Chat
@@ -112,15 +111,19 @@ export function PersonaDetailSheet({
               Chat
             </button>
             <div className="w-px h-5 bg-border/40 mx-1" />
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-              <FileDown className="w-3.5 h-3.5" />
-            </Button>
+            <button
+              onClick={onClose}
+              className="inline-flex items-center justify-center h-7 w-7 p-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+              aria-label="Close"
+            >
+              <XIcon className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
         {/* Profile Tab */}
         {activeTab === "profile" && (
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-5 flex flex-col gap-5">
 
               {/* AI Insight */}
@@ -244,7 +247,9 @@ export function PersonaDetailSheet({
 
         {/* Chat Tab */}
         {activeTab === "chat" && (
-          <PersonaChatInline persona={persona} />
+          <div className="flex-1 min-h-0 flex flex-col">
+            <PersonaChatInline persona={persona} />
+          </div>
         )}
       </DialogContent>
     </Dialog>
