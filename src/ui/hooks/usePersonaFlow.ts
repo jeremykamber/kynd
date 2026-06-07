@@ -1,4 +1,4 @@
-import { useState, useTransition, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasAction } from '@/actions/generatePersonas'
 import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
@@ -13,7 +13,6 @@ export interface PersonaProgress {
   totalCount?: number
   completedSubSteps?: number
   totalSubSteps?: number
-  streamingTexts?: Record<string, string>
   personas?: Persona[]
   error?: string
 }
@@ -22,10 +21,19 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
   const [customerProfile, setCustomerProfile] = useState('')
   const [personas, setPersonas] = useState<Persona[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   const [personaProgress, setPersonaProgress] = useState<PersonaProgress | null>(null)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      // Don't abort — server-side IIFE continues independently.
+    }
+  }, [])
 
   const handleCancel = () => {
     if (abortControllerRef.current) {
@@ -44,90 +52,58 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     abortControllerRef.current = controller
     setAbortController(controller)
     setPersonaProgress({ step: 'BRAINSTORMING_PERSONAS' })
+    setIsPending(true)
 
-    startTransition(async () => {
+    ;(async () => {
       try {
         const { streamData } = await generatePersonasAction(customerProfile)
 
-        let lastUpdate = 0;
-        const THROTTLE_MS = 150;
-
-        let lastStep: string | null = null;
-
         for await (const update of readStreamableValue(streamData)) {
-          if (controller.signal.aborted) {
-            setPersonaProgress(null)
-            setAbortController(null)
-            throw new Error('CANCELLED')
-          }
+          if (!update) continue
 
-          if (update) {
-            if (update.step === 'ERROR') {
+          if (update.step === 'ERROR') {
+            if (mountedRef.current) {
               setError(update.error)
               setPersonaProgress(null)
               setAbortController(null)
-              return
             }
+            return
+          }
 
-            if (update.step === 'DONE') {
-              const batch: PersonaBatch = {
-                id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-                label: `"${customerProfile.slice(0, 40)}${customerProfile.length > 40 ? '...' : ''}"`,
-                source: 'description',
-                createdAt: new Date().toISOString(),
-                personas: update.personas!,
-              }
-              usePersonaStore.getState().addBatch(batch)
+          if (update.step === 'DONE') {
+            const batch: PersonaBatch = {
+              id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+              label: `"${customerProfile.slice(0, 40)}${customerProfile.length > 40 ? '...' : ''}"`,
+              source: 'description',
+              createdAt: new Date().toISOString(),
+              personas: update.personas!,
+            }
+            usePersonaStore.getState().addBatch(batch)
+            if (mountedRef.current) {
               setPersonas(update.personas)
               setPersonaProgress(null)
               setAbortController(null)
-              if (onSuccess) onSuccess(update.personas)
-              return
             }
+            if (onSuccess) onSuccess(update.personas)
+            return
+          }
 
-            const now = Date.now();
-            const stepChanged = update.step !== lastStep;
-
-            if (stepChanged || now - lastUpdate > THROTTLE_MS) {
-              setPersonaProgress((prevProgress) => {
-                const newStreams = { ...(prevProgress?.streamingTexts || {}) };
-                if (update.personaName && update.streamingText) {
-                  newStreams[update.personaName] = update.streamingText;
-                }
-                return {
-                  ...update,
-                  streamingTexts: newStreams
-                } as PersonaProgress;
-              });
-              lastUpdate = now;
-              lastStep = update.step;
-            }
+          // Progress update: step, count, etc.
+          if (mountedRef.current) {
+            setPersonaProgress(update as PersonaProgress);
           }
         }
       } catch (err) {
-        if ((err as Error).message === 'CANCELLED') {
+        if (mountedRef.current && !controller.signal.aborted) {
+          setError((err as Error).message)
           setPersonaProgress(null)
           setAbortController(null)
-          return
         }
-        if (!controller.signal.aborted) {
-          setError((err as Error).message)
-        }
-        setPersonaProgress(null)
-        setAbortController(null)
+      } finally {
+        if (mountedRef.current) setIsPending(false)
       }
-    })
+    })()
   }
-
-  useEffect(() => {
-    let aborted = false;
-    return () => {
-      if (abortControllerRef.current && !aborted) {
-        abortControllerRef.current.abort()
-        abortControllerRef.current = null
-      }
-    }
-  }, [])
 
   return {
     customerProfile,

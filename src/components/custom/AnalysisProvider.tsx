@@ -21,7 +21,6 @@ interface AnalysisContextValue {
   handleAnalyzePricing: (personas: Persona[]) => void
   handlePredictGaze: (analysis: PricingAnalysis, persona: Persona) => void
   handleCancel: () => Promise<void>
-  combinedAnalysisStream: string | undefined
 }
 
 const AnalysisContext = createContext<AnalysisContextValue | null>(null)

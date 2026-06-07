@@ -45,6 +45,7 @@ export default function SimulationDetailPage({ params }: { params: Promise<{ id:
   // after the client disconnected (reload/navigate away).
   useEffect(() => {
     if (!isHydrated || !simulation || simulation.status !== 'IN_PROGRESS') return
+    console.log(`[DETAIL_POLL] Starting result poll for ${simulation.id}`)
 
     let active = true
     let attempts = 0
@@ -58,6 +59,7 @@ export default function SimulationDetailPage({ params }: { params: Promise<{ id:
           if (!active) return
 
           if (result.found) {
+            console.log(`[DETAIL_POLL] ${simulation.id}: RESULT FOUND on attempt ${attempts}`)
             if (result.error) {
               useSimulationStore.getState().markError(simulation.id, result.error)
             } else if (result.analyses && result.analyses.length > 0) {
@@ -70,6 +72,7 @@ export default function SimulationDetailPage({ params }: { params: Promise<{ id:
         }
         await new Promise((r) => setTimeout(r, 1000))
       }
+      console.log(`[DETAIL_POLL] ${simulation.id}: Exhausted ${MAX_ATTEMPTS} attempts without finding result`)
     }
 
     poll()
@@ -82,6 +85,7 @@ export default function SimulationDetailPage({ params }: { params: Promise<{ id:
   // of completion. This complements the result polling above.
   useEffect(() => {
     if (!isHydrated || !simulation || simulation.status !== 'IN_PROGRESS') return
+    console.log(`[DETAIL_POLL] Starting progress poll for ${simulation.id}`)
 
     const interval = setInterval(async () => {
       try {
@@ -259,18 +263,7 @@ function InProgressView({
             </div>
           )}
 
-          {simulation.streamingTexts && Object.keys(simulation.streamingTexts).length > 0 && (
-            <div className="w-full bg-secondary/30 rounded-lg p-4 max-h-[200px] overflow-y-auto custom-scrollbar border border-border/40 text-left">
-              {Object.entries(simulation.streamingTexts).map(([name, text]) => (
-                <div key={name} className="mb-4 last:mb-0">
-                  <p className="text-xs font-semibold text-primary mb-1">{name} is thinking:</p>
-                  <p className="text-xs text-foreground/80 font-mono whitespace-pre-wrap">{text.slice(-200)}...</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!simulation.screenshot && !simulation.streamingTexts && (
+          {!simulation.screenshot && (
             <div className="w-full max-w-sm">
               <div className="w-full h-1 bg-muted rounded-sm overflow-hidden">
                 <div className="h-full bg-primary rounded-sm w-1/3 animate-[loading-bar_2s_ease-in-out_infinite]" />
