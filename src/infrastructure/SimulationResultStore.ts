@@ -14,12 +14,24 @@ interface StoredSimulation {
  * the results so they can be fetched on reconnection.
  *
  * Results are kept for 30 minutes after completion, then cleaned up.
+ *
+ * NOTE: Maps are stored on globalThis to survive Next.js HMR (dev mode).
+ * Without this, module re-evaluation during hot reload wipes the in-memory
+ * data while the running IIFE writes to the old instance.
  */
+const GLOBAL_KEY = '__kynd_simulation_results';
+const GLOBAL_CLEANUP_KEY = '__kynd_simulation_cleanups';
+
+function getGlobalMap<K, V>(key: string): Map<K, V> {
+  return ((globalThis as any)[key] ?? ((globalThis as any)[key] = new Map()));
+}
+
 class SimulationResultStore {
-  private results = new Map<string, StoredSimulation>()
-  private cleanups = new Map<string, ReturnType<typeof setTimeout>>()
+  private get results() { return getGlobalMap<string, StoredSimulation>(GLOBAL_KEY); }
+  private get cleanups() { return getGlobalMap<string, ReturnType<typeof setTimeout>>(GLOBAL_CLEANUP_KEY); }
 
   save(runId: string, analyses: PricingAnalysis[]): void {
+    console.log(`[RESULT_STORE] Saving ${analyses.length} analyses for ${runId}`);
     this.results.set(runId, {
       analyses,
       completedAt: new Date().toISOString(),
@@ -28,6 +40,7 @@ class SimulationResultStore {
   }
 
   saveError(runId: string, error: string): void {
+    console.log(`[RESULT_STORE] Saving error for ${runId}: ${error}`);
     this.results.set(runId, {
       analyses: [],
       completedAt: new Date().toISOString(),
