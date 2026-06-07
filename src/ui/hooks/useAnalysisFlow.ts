@@ -4,8 +4,11 @@ import { PricingAnalysis } from '@/domain/entities/PricingAnalysis'
 import { analyzePricingPageAction } from '@/actions/analyzePricingPage'
 import { predictGazeAction } from '@/actions/predictGaze'
 import { cancelRequestAction } from '@/actions/cancelRequest'
+import { getScreenshotAction } from '@/actions/getScreenshot'
 import { readStreamableValue } from '@ai-sdk/rsc'
 import { PricingAnalysisProgressStep } from '@/application/usecases/ParsePricingPageUseCase'
+import { useSimulationStore } from '@/ui/stores/simulationStore'
+import { generateSimulationName } from '@/domain/entities/Simulation'
 
 export interface AnalysisProgress {
   step: PricingAnalysisProgressStep | 'DONE' | 'ERROR' | 'CANCELLED'
@@ -30,8 +33,20 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      // Don't abort the stream controller on unmount — the server needs to
+      // finish processing and send the DONE event so markComplete is called.
+      // The Zustand store continues to receive updates even after navigation.
+    }
+  }, [])
 
   const handleCancel = async () => {
+    console.log(`[TRACE] [useAnalysisFlow] handleCancel called. requestId=${currentRequestId}`)
     if (currentRequestId) {
       await cancelRequestAction(currentRequestId);
     }
@@ -45,8 +60,20 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
   }
 
   const handleAnalyzePricing = (personas: Persona[]) => {
-    if (!pricingUrl.trim() && !pricingImageBase64) return
-    if (!personas) return
+    if (!pricingUrl.trim() && !pricingImageBase64) {
+      console.log(`[TRACE] [useAnalysisFlow] handleAnalyzePricing: no URL or image, skipping`)
+      return
+    }
+    if (!personas) {
+      console.log(`[TRACE] [useAnalysisFlow] handleAnalyzePricing: no personas, skipping`)
+      return
+    }
+
+    console.log(`[TRACE] [useAnalysisFlow] ========================================`)
+    console.log(`[TRACE] [useAnalysisFlow] STARTING PRICING ANALYSIS FLOW`)
+    console.log(`[TRACE] [useAnalysisFlow] ========================================`)
+    console.log(`[TRACE] [useAnalysisFlow] url=${pricingUrl}, imageBase64=${pricingImageBase64 ? 'present (' + pricingImageBase64.length + ' chars)' : 'none'}`)
+    console.log(`[TRACE] [useAnalysisFlow] personas=${personas.length}: [${personas.map(p => p.name).join(', ')}]`)
 
     setError(null)
     const controller = new AbortController()
@@ -54,54 +81,131 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     setAbortController(controller)
     setAnalysisProgress({ step: 'STARTING' })
 
+    const simulationId = `sim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    console.log(`[TRACE] [useAnalysisFlow] Creating simulation: id=${simulationId}, url=${pricingUrl}`)
+
+    useSimulationStore.getState().addSimulation({
+      id: simulationId,
+      name: generateSimulationName(pricingUrl),
+      url: pricingUrl,
+      status: 'IN_PROGRESS',
+      personaCount: personas.length,
+      personaNames: personas.map((p) => p.name),
+      createdAt: new Date().toISOString(),
+      currentStep: 'STARTING',
+      completedAnalyses: 0,
+      totalAnalyses: personas.length,
+    })
+
     startTransition(async () => {
+      // Declare screenshot polling vars outside try block so catch can access them
+      let screenshotPollInterval: ReturnType<typeof setInterval> | null = null;
+      const clearScreenshotPoll = () => {
+        if (screenshotPollInterval) {
+          clearInterval(screenshotPollInterval);
+          screenshotPollInterval = null;
+        }
+      };
+
       try {
         const urlToUse = pricingImageBase64 ? "Manual Upload" : pricingUrl;
-        const { streamData, requestId } = await analyzePricingPageAction(urlToUse, personas, undefined, pricingImageBase64 || undefined)
+        console.log(`[TRACE] [useAnalysisFlow] Calling analyzePricingPageAction with url="${urlToUse}", ${personas.length} personas...`)
+        const actionStartTime = Date.now();
+        const { streamData, requestId } = await analyzePricingPageAction(urlToUse, personas, simulationId, pricingImageBase64 || undefined)
+        const actionCallDuration = Date.now() - actionStartTime;
         setCurrentRequestId(requestId)
+        console.log(`[TRACE] [useAnalysisFlow] analyzePricingPageAction returned in ${actionCallDuration}ms. requestId=${requestId}`)
+
+        // Start polling for screenshots via server-side store (bypasses RSC stream size limits)
+        if (requestId) {
+          screenshotPollInterval = setInterval(async () => {
+              try {
+                const result = await getScreenshotAction(requestId);
+              if (result.found && result.base64) {
+                useSimulationStore.getState().updateSimulation(simulationId, {
+                  screenshot: result.base64,
+                });
+              }
+            } catch (e) {
+              // Silently fail — screenshot is non-critical
+            }
+          }, 2000);
+        }
 
         let lastUpdate = 0;
-        const THROTTLE_MS = 150;
+        let lastStoreUpdate = 0;
+        const THROTTLE_MS = 350;
         const accumulatedTexts: Record<string, string> = {};
+        let updateCount = 0;
 
         for await (const update of readStreamableValue(streamData)) {
+          updateCount++;
           if (controller.signal.aborted) {
-            setAnalysisProgress(null)
-            setAbortController(null)
-            setCurrentRequestId(null)
-            return
+            // Component unmounted or user cancelled. The server either finishes
+            // (DONE) or was explicitly cancelled (CANCELLED through the stream).
+            // Detach React state updates but keep processing the stream for
+            // Zustand store updates so markComplete can still be called.
+            console.log(`[TRACE] [useAnalysisFlow] Controller aborted. requestId=${requestId}, updatesProcessed=${updateCount}`)
+            // Don't return — keep reading stream for CANCELLED/DONE events
           }
 
           if (update) {
             if (update.step === 'CANCELLED') {
-              setAnalysisProgress(null)
-              setAbortController(null)
-              setCurrentRequestId(null)
-              setError('Analysis was cancelled')
+              console.log(`[TRACE] [useAnalysisFlow] Received CANCELLED step. requestId=${requestId}, updatesProcessed=${updateCount}`)
+              clearScreenshotPoll()
+              useSimulationStore.getState().markCancelled(simulationId)
+              if (mountedRef.current) {
+                setAnalysisProgress(null)
+                setAbortController(null)
+                setCurrentRequestId(null)
+                setError('Analysis was cancelled')
+              }
               return
             }
 
             if (update.step === 'ERROR') {
-              setError(update.error)
-              setAnalysisProgress(null)
-              setAbortController(null)
-              setCurrentRequestId(null)
+              console.log(`[TRACE] [useAnalysisFlow] Received ERROR step. requestId=${requestId}, error=${update.error}, updatesProcessed=${updateCount}`)
+              clearScreenshotPoll()
+              useSimulationStore.getState().markError(simulationId, update.error ?? 'Analysis failed')
+              if (mountedRef.current) {
+                setError(update.error)
+                setAnalysisProgress(null)
+                setAbortController(null)
+                setCurrentRequestId(null)
+              }
               return
             }
 
             if (update.step === 'DONE') {
-              setAnalyses(update.analyses)
-              setAnalysisProgress(null)
-              setAbortController(null)
-              setCurrentRequestId(null)
+              console.log(`[TRACE] [useAnalysisFlow] ========================================`)
+              console.log(`[TRACE] [useAnalysisFlow] RECEIVED DONE STEP`)
+              console.log(`[TRACE] [useAnalysisFlow] ========================================`)
+              console.log(`[TRACE] [useAnalysisFlow] analyses=${update.analyses?.length}, requestId=${requestId}, updatesProcessed=${updateCount}`)
+
+              if (update.analyses) {
+                update.analyses.forEach((a: PricingAnalysis, i: number) => {
+                  console.log(`[TRACE] [useAnalysisFlow] Analysis[${i}]: id=${a.id}, gutReaction="${a.gutReaction?.slice(0, 100)}", scores={clarity:${a.scores?.clarity}, value:${a.scores?.valuePerception}, trust:${a.scores?.trust}, buy:${a.scores?.buyIntent}}, risks=${a.risks?.length}, recs=${a.recommendations?.length}`)
+                })
+              }
+
+              clearScreenshotPoll()
+              useSimulationStore.getState().markComplete(simulationId, update.analyses ?? [])
+              if (mountedRef.current) {
+                setAnalyses(update.analyses)
+                setAnalysisProgress(null)
+                setAbortController(null)
+                setCurrentRequestId(null)
+              }
               if (onSuccess) onSuccess(update.analyses)
               return
             }
 
-            // Accumulate tokens with safety limit for browser stability
+            if (update.step) {
+              console.log(`[TRACE] [useAnalysisFlow] Step [${updateCount}]: ${update.step} (completedCount=${update.completedCount ?? '?'}, totalCount=${update.totalCount ?? '?'}, personaName=${update.personaName ?? 'none'}, hasToken=${!!update.analysisToken})`);
+            }
+
             if (update.personaName && update.analysisToken) {
               const currentLength = (accumulatedTexts[update.personaName] || "").length;
-              // Safety check to prevent excessively large strings (tripled to 150k)
               if (currentLength < 150000) {
                 accumulatedTexts[update.personaName] = (accumulatedTexts[update.personaName] || "") + update.analysisToken;
               } else if (currentLength === 150000) {
@@ -110,25 +214,62 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
             }
 
             const now = Date.now();
-            if (now - lastUpdate > THROTTLE_MS) {
-              setAnalysisProgress((prev) => {
-                return {
-                  ...update,
-                  screenshot: update.screenshot || prev?.screenshot,
-                  streamingTexts: { ...accumulatedTexts }
-                } as AnalysisProgress;
+
+            if (update.completedCount !== undefined) {
+              console.log(`[TRACE] [useAnalysisFlow] Progress: step=${update.step}, completedCount=${update.completedCount}/${update.totalCount}, persona=${update.personaName}`);
+            }
+
+            // Low-frequency state changes (step, count, screenshot) update the store
+            // immediately so the UI reflects progress. These happen a few times per run
+            // (step transitions, persona completions) and don't flood the reconciler.
+            const hasNontextUpdate = update.step || update.completedCount !== undefined || update.screenshot;
+            if (hasNontextUpdate) {
+              if (update.screenshot) {
+                console.log(`[TRACE] [useAnalysisFlow] Screenshot received: step=${update.step}, screenshotLength=${update.screenshot.length}`);
+              }
+              useSimulationStore.getState().updateSimulation(simulationId, {
+                currentStep: update.step as any,
+                completedAnalyses: update.completedCount,
+                ...(update.screenshot ? { screenshot: update.screenshot } : {}),
               });
-              lastUpdate = now;
+            }
+
+            // High-frequency streaming text is throttled to prevent reconciler flood.
+            // Token-level events arrive 100+/sec per persona; we batch them at ~3/sec.
+            if (now - lastStoreUpdate > THROTTLE_MS) {
+              useSimulationStore.getState().updateSimulation(simulationId, {
+                currentStep: update.step as any,
+                completedAnalyses: update.completedCount,
+                ...(update.screenshot ? { screenshot: update.screenshot } : {}),
+                streamingTexts: { ...accumulatedTexts },
+              });
+
+              if (mountedRef.current) {
+                setAnalysisProgress((prev) => {
+                  return {
+                    ...update,
+                    screenshot: update.screenshot || prev?.screenshot,
+                    streamingTexts: { ...accumulatedTexts }
+                  } as AnalysisProgress;
+                });
+              }
+              lastStoreUpdate = now;
             }
           }
         }
+        clearScreenshotPoll()
+        console.log(`[TRACE] [useAnalysisFlow] Stream iteration ended. requestId=${requestId}, totalUpdates=${updateCount}`)
       } catch (err) {
-        if (!controller.signal.aborted) {
-          setError((err as Error).message)
+        clearScreenshotPoll()
+        console.log(`[TRACE] [useAnalysisFlow] CAUGHT ERROR:`, (err as Error).message)
+        if (mountedRef.current) {
+          if (!controller.signal.aborted) {
+            setError((err as Error).message)
+          }
+          setAnalysisProgress(null)
+          setAbortController(null)
+          setCurrentRequestId(null)
         }
-        setAnalysisProgress(null)
-        setAbortController(null)
-        setCurrentRequestId(null)
       }
     })
   }
@@ -162,14 +303,8 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
       .join('\n\n---\n\n');
   }, [analysisProgress?.streamingTexts]);
 
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-        abortControllerRef.current = null
-      }
-    }
-  }, [])
+  // The stream continues processing after navigation so the server can
+  // send the DONE event and call markComplete on the Zustand store.
 
   return {
     pricingUrl,
