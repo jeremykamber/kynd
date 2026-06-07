@@ -1,12 +1,10 @@
-# Netlify configuration for DeepBound
-
 [build]
   command = "npm run build"
 
-# Next.js serverless functions need longer timeout for LLM-heavy pipelines
 [functions]
-  timeout = 300
-  
-  # Next.js server handler — handles API routes, server actions, SSR
   [functions."___netlify-server-handler"]
     timeout = 300
+
+# Background function for long-running LLM pipelines (15 min timeout)
+[functions."process-pipeline"]
+  background = true
