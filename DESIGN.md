@@ -6,13 +6,13 @@ colors:
   foreground: oklch(0.95 0 0)
   card: oklch(0.14 0.01 265)
   card-foreground: oklch(0.95 0 0)
-  primary: oklch(0.55 0.18 270)
+  primary: oklch(0.62 0.2 230)
   primary-foreground: oklch(0.98 0 0)
   secondary: oklch(0.16 0.01 265)
   secondary-foreground: oklch(0.95 0 0)
   muted: oklch(0.18 0.01 265)
   muted-foreground: oklch(0.52 0.01 265)
-  accent: oklch(0.55 0.18 270)
+  accent: oklch(0.62 0.2 230)
   accent-foreground: oklch(0.98 0 0)
   destructive: oklch(0.58 0.2 28)
   border: oklch(0.2 0.01 265)
@@ -21,7 +21,7 @@ colors:
   sidebar: oklch(0.1 0.01 265)
   sidebar-foreground: oklch(0.9 0 0)
   sidebar-border: oklch(0.16 0.01 265)
-  chat-user-bubble: oklch(0.55 0.18 270 / 0.12)
+  chat-user-bubble: oklch(0.62 0.2 230 / 0.12)
   chat-assistant-bubble: oklch(0.16 0.01 265)
 typography:
   display:
@@ -118,21 +118,21 @@ This system explicitly rejects the Generic AI SaaS aesthetic — no gradient her
 
 **Key Characteristics:**
 - Dark mode primary, light mode secondary — the instrument lives in dim rooms at late hours
-- One accent color (indigo-violet) used on ≤10% of any screen; its rarity is the point
+- One accent color (cerulean blue) used on ≤10% of any screen; its rarity is the point
 - Flat surfaces with crisp, thin borders — no shadows at rest
 - Snappy, mechanical motion — 150ms transitions, expo easing, zero bounce
 - Typographic hierarchy driven by weight and scale contrast, not color
 
 ## 2. Colors
 
-A restrained palette built around cool charcoal neutrals and a single indigo-violet accent. The strategy is deliberate scarcity: the accent exists to direct attention, not to decorate.
+A restrained palette built around cool charcoal neutrals and a single cerulean blue accent. The strategy is deliberate scarcity: the accent exists to direct attention, not to decorate.
 
 ### Primary (Dark Mode — Primary Expression)
 
 - **Instrument Charcoal** (`oklch(0.12 0.01 265)`): Background. Deep cool charcoal with a faint blue tilt — never pure black.
 - **Panel Surface** (`oklch(0.14 0.01 265)`): Card and elevated surface backgrounds. One step above background, distinguishable by lightness, not shadow.
 - **Raised Surface** (`oklch(0.16 0.01 265)`): Secondary surfaces, sidebar, hovered cards.
-- **Signal Indigo** (`oklch(0.55 0.18 270)`): Primary accent. A muted indigo-violet used sparingly for interactive elements, active states, and data highlights. Never decorative.
+- **Cerulean Blue** (`oklch(0.62 0.2 230)`): Primary accent. A warm cerulean blue used sparingly for interactive elements, active states, and data highlights. Never decorative.
 - **Instrument White** (`oklch(0.95 0 0)`): Primary text, headings, high-importance labels.
 - **Instrument Grey** (`oklch(0.52 0.01 265)`): Secondary text, metadata, placeholders.
 - **Panel Edge** (`oklch(0.2 0.01 265)`): Borders and dividers. Thin, crisp, present but not dominant.
@@ -142,19 +142,19 @@ A restrained palette built around cool charcoal neutrals and a single indigo-vio
 - **Instrument White** → `oklch(0.97 0.005 265)`: Background in light mode. Cool off-white.
 - **Panel Surface** → `oklch(0.94 0.005 265)`: Card backgrounds.
 - **Instrument Charcoal** → `oklch(0.14 0.01 265)`: Text in light mode.
-- **Signal Indigo** → `oklch(0.5 0.18 270)`: Primary accent, slightly deeper to maintain contrast on light backgrounds.
+- **Cerulean Blue** → `oklch(0.57 0.2 230)`: Primary accent, slightly deeper to maintain contrast on light backgrounds.
 - **Panel Edge** → `oklch(0.85 0.01 265)`: Borders in light mode.
 
 ### Semantic Colors
 
 - **Alert Red** (`oklch(0.58 0.2 28)`): Destructive actions, errors, critical signals.
-- **Signal Indigo (low opacity)** (`oklch(0.55 0.18 270 / 0.12)`): User chat bubbles, selection highlights, active filter backgrounds. The accent color applied as a tint rather than a solid.
+- **Cerulean Blue (low opacity)** (`oklch(0.62 0.2 230 / 0.12)`): User chat bubbles, selection highlights, active filter backgrounds. The accent color applied as a tint rather than a solid.
 
 ### Named Rules
 
-**The Rarity Rule.** The accent (Signal Indigo) occupies no more than 10% of any given screen. Its scarcity is what gives it power. If a screen feels colorful, the rule is broken.
+**The Rarity Rule.** The accent (Cerulean Blue) occupies no more than 10% of any given screen. Its scarcity is what gives it power. If a screen feels colorful, the rule is broken.
 
-**The No-Black Rule.** Never use `#000` or `rgb(0,0,0)`. Every dark surface has chromatic temperature. Charcoal carries a faint blue tilt because indigo is the brand hue, not because "dark mode = desaturated black."
+**The No-Black Rule.** Never use `#000` or `rgb(0,0,0)`. Every dark surface has chromatic temperature. Charcoal carries a faint blue tilt because the brand hue lives in the cool blue-violet range, not because "dark mode = desaturated black."
 
 **The Flat-Edge Rule.** Borders are thin (`1px`) and present. They separate surfaces so shadows don't have to. If a border is doing its job, a shadow isn't needed.
 
@@ -191,17 +191,21 @@ Flat by default. This system does not use box-shadows to convey surface hierarch
 
 ### Named Rules
 
-**The No-Shadow Rule.** No `box-shadow` at rest. If a surface needs to separate from another, use a lightness step + a thin border. Shadows are prohibited as a layout tool. The only exception is interactive hover states on primary action elements, which may use a very subtle indigo-ambient glow (`0 0 0 2px oklch(0.55 0.18 270 / 0.2)`) as a focus indicator.
+**The No-Shadow Rule.** No `box-shadow` at rest. If a surface needs to separate from another, use a lightness step + a thin border. Shadows are prohibited as a layout tool. The only exception is interactive hover states on primary action elements, which may use a very subtle blue ambient glow (`0 0 0 2px oklch(0.62 0.2 230 / 0.2)`) as a focus indicator.
 
 ## 5. Components
 
 ### Buttons
 
+**Button Hierarchy (Primary → Secondary → Ghost):** Every button in the UI must clearly belong to one of three tiers. The visual difference between tiers must be unmistakable — two buttons in the same action group must not look like they belong to different families. Mixing styles within a tier creates visual noise.
+
 - **Shape:** Crisp 6px radius (`rounded.md`). No pill shapes — those belong on consumer surfaces.
-- **Primary:** Signal Indigo fill, Instrument White text. Hover: same fill at `oklch(0.5 0.18 270)`. Transition: background 150ms `cubic-bezier(0.16, 1, 0.3, 1)`. No scale, no lift.
-- **Secondary:** Transparent fill, Panel Edge border at `1px`, Instrument White text. Hover: Panel Surface (`oklch(0.16 0.01 265)`) background. No shadow.
-- **Ghost:** Transparent fill, no border, Muted Foreground text. Hover: Instrument Charcoal text.
+- **Primary** (one per viewport max — chat buttons are the exception): Cerulean Blue (`bg-primary`) fill, Instrument White text. Distinguished by a subtle `ring-1 ring-primary/20` for depth. Hover: `bg-primary/90` (slightly darker fill, no shift). Transition: all 150ms `cubic-bezier(0.16, 1, 0.3, 1)`. No scale, no lift. Primary buttons are rare — reserved for the single most important action on screen, plus "Chat with" buttons which are intentionally elevated to primary to signal interactivity.
+- **Secondary** (preferred default for paired actions): `bg-card` fill with `1px border border-border/60`, Foreground text. Hover: `bg-muted/30`. This integrates with the card surface it sits on — it feels planted, not floating. Transition: colors 150ms. Used for non-primary actions in action bars, card footers, and dialog rows. Pairs of buttons use Primary + Secondary, never Primary + Primary.
+- **Ghost:** Transparent fill, no border, Muted Foreground text. Hover: Foreground text. Used for icon-only buttons, inline toolbar actions, and sidebar items.
 - **Padding:** `12px 24px` (standard), `8px 16px` (compact/icon), `10px 20px` (within data-heavy layouts).
+
+**Notes on the Ring:** The `ring-1 ring-primary/20` on primary buttons exists purely to add a hair of definition to the blue fill — it prevents the button from looking like a floating color blob on dark surfaces. It is not a glow, not a shadow, not interactive feedback. The ring is part of the button's static shape, not an interaction cue.
 
 ### Cards
 
@@ -214,7 +218,7 @@ Flat by default. This system does not use box-shadows to convey surface hierarch
 ### Inputs / Fields
 
 - **Style:** Transparent background, Panel Edge `1px` full border, 6px radius.
-- **Focus:** Panel Edge is replaced with Signal Indigo `1px` border + very subtle ambient glow (`0 0 0 2px oklch(0.55 0.18 270 / 0.15)`). No ring offset.
+- **Focus:** Panel Edge is replaced with Cerulean Blue `1px` border + very subtle ambient glow (`0 0 0 2px oklch(0.62 0.2 230 / 0.15)`). No ring offset.
 - **Padding:** `10px 14px` vertical/horizontal.
 - **Placeholder:** Muted Foreground at `oklch(0.40 0.01 265)`.
 - **Error:** Alert Red border. Error text in Alert Red at Label size.
@@ -223,14 +227,24 @@ Flat by default. This system does not use box-shadows to convey surface hierarch
 ### Navigation / Sidebar
 
 - **Background:** Sidebar Surface (`oklch(0.1 0.01 265)`) — one step below main background for visual containment.
-- **Items:** Ghost-style (no background at rest). Hover: Panel Surface background at `oklch(0.14 0.01 265)`. Active: Panel Surface + Signal Indigo left marker (or text color shift to foreground, no marker).
+- **Items:** Ghost-style (no background at rest). Hover: Panel Surface background at `oklch(0.14 0.01 265)`. Active: Panel Surface + Cerulean Blue left marker (or text color shift to foreground, no marker).
 - **Typography:** Body size (`0.9375rem`), Muted Foreground at rest, Foreground on active.
 - **Width:** `240px` expanded, `56px` collapsed (icon-only).
+
+### Selection States / Toggle Groups
+
+Selection states (segmented controls, option toggles, count selectors, filter chips) use tonal hierarchy, not color, to indicate the active item. The accent color is reserved for primary actions — using it for selected-in-a-group state would violate the Rarity Rule.
+
+- **Selected:** Raised Surface background (`muted` / `oklch(0.18 0.01 265)`), Foreground text (`oklch(0.95 0 0)`), Panel Edge border (`oklch(0.2 0.01 265)`). The background step up from the surrounding surface is enough to signal "this one is active" without introducing a second blue element.
+- **Unselected:** Transparent background, Muted Foreground text (`oklch(0.52 0.01 265)`), Panel Edge border (`oklch(0.2 0.01 265)`). Hover elevates text to Foreground and border to a lighter step.
+- **Implementation:** `bg-muted text-foreground border-border` for selected, `bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-border/80` for unselected.
+
+This applies to all segmented toggle groups, option rows, and count selectors across the app. The principle: selected state is communicated by a surface lightness step, never by the accent color alone.
 
 ### Chips / Badges / Tags
 
 - **Style:** 4px radius, Panel Surface background at `oklch(0.18 0.01 265)`, Label typography (Geist Mono, uppercase, 11px).
-- **Color Variants:** Signal Indigo text for active/selected states. Muted Foreground for neutral. Alert Red text for warning/error.
+- **Color Variants:** Cerulean Blue text for active/selected states. Muted Foreground for neutral. Alert Red text for warning/error.
 - **Padding:** `4px 10px`.
 
 ## 6. Do's and Don'ts
@@ -238,7 +252,7 @@ Flat by default. This system does not use box-shadows to convey surface hierarch
 ### Do:
 
 - **Do** let surfaces separate by lightness alone — one OKLCH step between background, card, and raised surface is enough.
-- **Do** use Signal Indigo sparingly: one element per viewport at most. If your eye lands on two indigo elements, remove one.
+- **Do** use Cerulean Blue sparingly: one element per viewport at most. If your eye lands on two blue elements, remove one.
 - **Do** render all numeric data in Geist Mono with `font-variant-numeric: tabular-nums`.
 - **Do** use borders (thin, `1px`, Panel Edge) to define surface boundaries.
 - **Do** keep transitions at 150ms with `cubic-bezier(0.16, 1, 0.3, 1)` — snappy, no bounce, no drift.

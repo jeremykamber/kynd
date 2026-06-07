@@ -47,72 +47,68 @@
 
 :root {
   /* Light mode — secondary expression */
-  --background: oklch(0.97 0.005 265);
-  --foreground: oklch(0.12 0.01 265);
-  --card: oklch(0.94 0.005 265);
+  --background: oklch(0.975 0.003 265);
+  --foreground: oklch(0.11 0.01 265);
+  --card: oklch(0.91 0.005 265);
   --card-foreground: oklch(0.14 0.01 265);
   --popover: oklch(0.98 0 0);
   --popover-foreground: oklch(0.14 0.01 265);
-  --primary: oklch(0.5 0.18 270);
+  --primary: oklch(0.57 0.2 230);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.9 0.005 265);
+  --secondary: oklch(0.87 0.005 265);
   --secondary-foreground: oklch(0.14 0.01 265);
-  --muted: oklch(0.92 0.005 265);
-  --muted-foreground: oklch(0.55 0.01 265);
-  --accent: oklch(0.5 0.18 270);
-  --accent-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.89 0.005 265);
+  --muted-foreground: oklch(0.50 0.01 265);
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
   --destructive: oklch(0.58 0.2 28);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.85 0.01 265);
-  --input: oklch(0.85 0.01 265);
+  --border: oklch(0.80 0.01 265);
+  --input: oklch(0.80 0.01 265);
   --ring: oklch(0.75 0 0);
-
-  --sidebar: oklch(0.94 0.005 265);
+  --sidebar: oklch(0.91 0.005 265);
   --sidebar-foreground: oklch(0.14 0.01 265);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.5 0.18 270);
-  --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(0.85 0.01 265);
+  --sidebar-accent: var(--primary);
+  --sidebar-accent-foreground: var(--primary-foreground);
+  --sidebar-border: oklch(0.80 0.01 265);
   --sidebar-ring: oklch(0.75 0 0);
-
-  --chat-user-bubble: oklch(0.5 0.18 270 / 0.12);
-  --chat-assistant-bubble: oklch(0.92 0.005 265);
+  --chat-user-bubble: color-mix(in oklch, var(--primary) 12%, transparent);
+  --chat-assistant-bubble: oklch(0.87 0.005 265);
 }
 
 .dark {
   /* Dark mode — primary expression */
-  --background: oklch(0.12 0.01 265);
+  --background: oklch(0.145 0.008 265);
   --foreground: oklch(0.95 0 0);
-  --card: oklch(0.14 0.01 265);
+  --card: oklch(0.18 0.008 265);
   --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.14 0.01 265);
+  --popover: oklch(0.18 0.008 265);
   --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.55 0.18 270);
+  --primary: oklch(0.62 0.2 230);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.16 0.01 265);
+  --secondary: oklch(0.20 0.008 265);
   --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.18 0.01 265);
-  --muted-foreground: oklch(0.52 0.01 265);
-  --accent: oklch(0.55 0.18 270);
-  --accent-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.22 0.008 265);
+  --muted-foreground: oklch(0.55 0.01 265);
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
   --destructive: oklch(0.58 0.2 28);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.2 0.01 265);
-  --input: oklch(0.2 0.01 265);
+  --border: oklch(0.25 0.008 265);
+  --input: oklch(0.25 0.008 265);
   --ring: oklch(0.25 0 0);
-
-  --sidebar: oklch(0.1 0.01 265);
+  --sidebar: oklch(0.145 0.008 265);
   --sidebar-foreground: oklch(0.85 0 0);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.55 0.18 270);
-  --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(0.16 0.01 265);
+  --sidebar-accent: var(--primary);
+  --sidebar-accent-foreground: var(--primary-foreground);
+  --sidebar-border: oklch(0.18 0.008 265);
   --sidebar-ring: oklch(0.25 0 0);
-
-  --chat-user-bubble: oklch(0.55 0.18 270 / 0.12);
-  --chat-assistant-bubble: oklch(0.16 0.01 265);
+  --chat-user-bubble: color-mix(in oklch, var(--primary) 12%, transparent);
+  --chat-assistant-bubble: oklch(0.20 0.008 265);
 }
 
 @layer base {
@@ -152,6 +148,36 @@
   display: none;
 }
 
+[data-sonner-toaster][data-sonner-theme='dark'] {
+  --normal-bg: var(--card);
+  --normal-bg-hover: var(--secondary);
+  --normal-border: var(--border);
+  --normal-border-hover: var(--muted);
+  --normal-text: var(--foreground);
+
+  --success-bg: color-mix(in oklch, var(--primary) 15%, transparent);
+  --success-border: color-mix(in oklch, var(--primary) 30%, var(--border));
+  --success-text: var(--foreground);
+
+  --error-bg: color-mix(in oklch, var(--destructive) 15%, transparent);
+  --error-border: color-mix(in oklch, var(--destructive) 30%, var(--border));
+  --error-text: var(--foreground);
+
+  --info-bg: color-mix(in oklch, var(--primary) 10%, transparent);
+  --info-border: var(--border);
+  --info-text: var(--foreground);
+
+  --warning-bg: color-mix(in oklch, var(--primary) 10%, transparent);
+  --warning-border: var(--border);
+  --warning-text: var(--foreground);
+}
+
+[data-sonner-toaster][data-sonner-theme='dark'] [data-sonner-toast] [data-close-button] {
+  background: var(--normal-bg);
+  border-color: var(--normal-border);
+  color: var(--muted-foreground);
+}
+
 /* Functional animations for loading/typing states */
 @keyframes fade-in-out {
   0%, 100% { opacity: 0.2; }
@@ -162,4 +188,10 @@
   0% { transform: translateX(-100%); }
   50% { transform: translateX(200%); }
   100% { transform: translateX(400%); }
+}
+
+/* Simulation toast — one-shot ring flash on mount */
+@keyframes sim-ring-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
 }
