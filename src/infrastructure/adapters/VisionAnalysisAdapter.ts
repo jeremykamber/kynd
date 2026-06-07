@@ -6,6 +6,7 @@ import { IdRagStore } from "./IdRagStore";
 import { IdRagService } from "./IdRagService";
 import { streamObject } from "ai";
 import { PricingLocation } from "@/domain/ports/LlmServicePort";
+import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
 export class VisionAnalysisAdapter {
   private promptCompiler: PersonaPromptCompiler;
@@ -19,42 +20,61 @@ export class VisionAnalysisAdapter {
     this.ragService = new IdRagService(this.ragStore);
   }
 
-  /** Ensure persona backstory is ingested into ID-RAG store. */
-  private ensureIngested(persona: Persona): void {
+  private ensureIngested(persona: Persona, runId?: string): void {
     if (!this.ingestedPersonas.has(persona.id) && persona.backstory) {
       this.ragStore.ingestPersona(persona);
       this.ingestedPersonas.add(persona.id);
-      console.log("[VisionAnalysisAdapter] Ingested", persona.name, "backstory into ID-RAG store");
+      const log = runId ? AnalysisLogger.forRun(runId) : null;
+      log?.info("VisionAnalysisAdapter", `Ingested ${persona.name} backstory into ID-RAG store`, {
+        personaId: persona.id,
+        backstoryLength: persona.backstory.length,
+      });
     }
   }
 
-  /**
-   * Consolidated Pricing Analysis using Hybrid Grounding (Screenshot + HTML + ID-RAG).
-   * Uses the same compartmentalized PersonaPromptCompiler (Wang et al. 2024b)
-   * as the chat system — the 4 compartments prevent attention dilution between
-   * persona identity and the structured analysis task. ID-RAG (Tan et al. 2025)
-   * injects relevant backstory chunks for factual grounding.
-   */
   async analyzePricingPageStream(
     persona: Persona,
     screenshotBase64: string,
     pageHtml?: string,
-    options: { tokenLimit?: number } = {}
+    options: { tokenLimit?: number; runId?: string } = {}
   ) {
+    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
     const tokenLimit = options.tokenLimit ?? 2000;
-    this.ensureIngested(persona);
+    const methodStart = Date.now();
+
+    log?.info("VisionAnalysisAdapter", `analyzePricingPageStream START for "${persona.name}"`, {
+      tokenLimit,
+      hasHtml: !!pageHtml,
+      htmlLength: pageHtml?.length || 0,
+      screenshotLength: screenshotBase64.length,
+    });
+
+    this.ensureIngested(persona, options.runId);
 
     // Retrieve relevant memories based on the page context
+    const ragStart = Date.now();
     const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
     const ragContext = this.ragService.retrieveContext(persona, query, 3);
-    if (ragContext.chunkCount > 0) {
-      console.log(`[VisionAnalysisAdapter] Retrieved ${ragContext.chunkCount} ID-RAG chunks for ${persona.name}`);
-    }
+    const ragDuration = Date.now() - ragStart;
+    log?.info("VisionAnalysisAdapter", `ID-RAG retrieval for "${persona.name}"`, {
+      query: query.slice(0, 100),
+      chunkCount: ragContext.chunkCount,
+      contextStringLength: ragContext.contextString.length,
+      durationMs: ragDuration,
+    });
 
+    const compileStart = Date.now();
     const compartments = this.promptCompiler.compileSystemPrompt(persona);
     const personaAnchor = this.promptCompiler.generateAnchor(persona);
-    console.log(`[VisionAnalysisAdapter] Compartmentalized analysis prompt for ${persona.name}:\n${compartments}`);
-    console.log(`[VisionAnalysisAdapter] Persona anchor: ${personaAnchor}`);
+    const compileDuration = Date.now() - compileStart;
+    log?.info("VisionAnalysisAdapter", `Prompt compilation for "${persona.name}"`, {
+      compartmentsLength: compartments.length,
+      anchor: personaAnchor,
+      durationMs: compileDuration,
+    });
+    log?.debug("VisionAnalysisAdapter", `Compartmentalized prompt for "${persona.name}"`, {
+      prompt: compartments.slice(0, 1000) + `...(truncated, total ${compartments.length} chars)`,
+    });
 
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
@@ -66,6 +86,15 @@ export class VisionAnalysisAdapter {
         2. A verified factual summary of the page's HTML (including product info, tier data, and fine print).
         
         ${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}\n` : ""}
+        
+        <<PERSONALITY BIAS APPLICATION>>
+        Your personality profile drives how you evaluate. Apply it aggressively:
+        - Your Neuroticism determines how many risks you flag and how severe.
+        - Your Conscientiousness determines how much fine print you read.
+        - Your Openness determines whether new features excite or concern you.
+        - Your Extraversion determines whether you seek team validation.
+        - Your Agreeableness determines whether you give benefit of doubt.
+        These are WHO YOU ARE. Your scores must reflect your personality.
         
         <<OPENNESS PRIMING>>
         ${personaAnchor} You're open to this. You're approaching this as someone who COULD genuinely use a tool like this. You're not looking for reasons to reject it — you're evaluating honestly, looking for what works and what doesn't. A skeptical but fair assessment.
@@ -83,9 +112,15 @@ export class VisionAnalysisAdapter {
         - RISK CAP: Limit the 'risks' array to a maximum of 3 highly specific items.
         - RECOMMENDATIONS: Provide 2-3 specific, actionable recommendations. What should the company change or test?
         - AI SUGGESTION: Provide ONE persona-specific actionable insight. This is THE ONE THING this company should change based on YOUR unique perspective. Reference something specific you saw on the page. Do NOT use generic advice like "add social proof" — be specific to what you experienced. This MUST be unique per persona.
-        - NO REPETITION: Do NOT repeat information across different fields. Keep 'gutReaction' short and punchy.
-        
-        SCORING: INTENT FUNNEL + RATIONALES
+         - NO REPETITION: Do NOT repeat information across different fields. Keep 'gutReaction' short and punchy.
+         
+         STRUCTURED THOUGHTS FORMAT:
+         Inside your 'thoughts' field, structure your analysis using these markers:
+         [The Good] — What works well. Specific positive observations.
+         [The Bad] — What doesn't work. Specific criticisms.
+         [The Dealbreaker] — The single biggest reason you would NOT buy.
+         
+         SCORING: INTENT FUNNEL + RATIONALES
         For each score, you MUST provide both a number (1-10) AND a 1-2 sentence reason explaining WHY.
         
         The three intent scores form a funnel: Exploration → Analysis → Buy.
@@ -119,9 +154,17 @@ export class VisionAnalysisAdapter {
 
         SPEAK IN FIRST PERSON (within the JSON fields only). Be blunt, honest, and natural. Be your persona.`;
 
-    const prompt = `Evaluate this pricing page. Return ONLY the JSON object. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n\"\"\"\n${pageHtml}\n\"\"\"` : ""}`;
+    const prompt = `Evaluate this pricing page. Return ONLY the JSON object. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
 
-    return streamObject({
+    log?.info("VisionAnalysisAdapter", `Calling streamObject for "${persona.name}"...`, {
+      model: this.llmService.visionModel,
+      systemPromptLength: system.length,
+      promptLength: prompt.length,
+      maxTokens: tokenLimit,
+    });
+
+    const streamObjectStart = Date.now();
+    const streamObjResult = streamObject({
       model: this.llmService.provider(this.llmService.visionModel),
       schema: PricingAnalysisSchema,
       schemaName: "PricingAnalysis",
@@ -139,19 +182,37 @@ export class VisionAnalysisAdapter {
           ],
         },
       ],
-      temperature: 0.4, // Balanced for persona voice vs JSON structure
+      temperature: 0.4,
       maxTokens: tokenLimit,
     } as any);
+    const streamObjectDuration = Date.now() - streamObjectStart;
+    const totalDuration = Date.now() - methodStart;
+    log?.info("VisionAnalysisAdapter", `streamObject() call returned for "${persona.name}"`, {
+      streamObjectCallDurationMs: streamObjectDuration,
+      totalAdapterDurationMs: totalDuration,
+    });
+
+    streamObjResult.object
+      .then((fullObject: any) => {
+        console.log(
+          `[TRACE] [AnalysisComplete] persona=${persona.name}, scores=${JSON.stringify({ clarity: fullObject.scores?.clarity, trust: fullObject.scores?.trust, buyIntent: fullObject.scores?.buyIntent })}, risks=${fullObject.risks?.length ?? 0}`
+        );
+      })
+      .catch(() => {});
+    return streamObjResult;
   }
 
-  /**
-   * Scouting call to detect if pricing is visible in the viewport.
-   */
-  async isPricingVisible(screenshotBase64: string): Promise<boolean> {
+  async isPricingVisible(screenshotBase64: string, runId?: string): Promise<boolean> {
+    const log = runId ? AnalysisLogger.forRun(runId) : null;
+    log?.trace("VisionAnalysisAdapter", "isPricingVisible called", {
+      screenshotLength: screenshotBase64.length,
+    });
+
     const prompt = `Can you see the pricing (tiers, dollar amounts, or plan names) in roughly the center of this screen?
             Return ONLY the word "TRUE" if it is clearly visible, or "FALSE" if it is not. No other text.`;
 
-    return this.llmService.withRetry(async () => {
+    const callStart = Date.now();
+    const result = await this.llmService.withRetry(async () => {
       const resp = await LlmServiceImpl.limiter(() =>
         this.llmService.client.chat.completions.create({
           model: this.llmService.scoutVisionModel,
@@ -178,27 +239,39 @@ export class VisionAnalysisAdapter {
         resp?.choices?.[0]?.message?.content?.toUpperCase().trim() || "FALSE";
       return content.includes("TRUE");
     });
+    const duration = Date.now() - callStart;
+
+    log?.info("VisionAnalysisAdapter", `isPricingVisible result`, {
+      result,
+      model: this.llmService.scoutVisionModel,
+      durationMs: duration,
+    });
+
+    return result;
   }
 
-  /**
-   * Checks if pricing elements are visible in the provided HTML/text.
-   */
-  async isPricingVisibleInHtml(html: string): Promise<PricingLocation> {
+  async isPricingVisibleInHtml(html: string, runId?: string): Promise<PricingLocation> {
+    const log = runId ? AnalysisLogger.forRun(runId) : null;
+    log?.trace("VisionAnalysisAdapter", "isPricingVisibleInHtml called", {
+      htmlLength: html.length,
+    });
+
     const prompt = `Analyze if the following text contains pricing information (plans, prices, etc.).
         
         TEXT:
-        \"\"\"\n${html}\n\"\"\"
+        """\n${html}\n"""
         
         Return a JSON object with the following structure:
         {
           "found": boolean,
-          "selector": string | null, // A likely ID or unique class for the pricing section if identifiable (e.g., "#pricing", ".plans").
-          "anchorText": string | null, // Unique text near the pricing top (e.g. "Choose your plan", "Monthly Billing").
-          "reasoning": string // Brief explanation.
+          "selector": string | null,
+          "anchorText": string | null,
+          "reasoning": string
         }
         
         Return ONLY valid JSON.`;
 
+    const callStart = Date.now();
     const content = await this.llmService.createChatCompletion(
       [{ role: "user", content: prompt }],
       {
@@ -211,6 +284,14 @@ export class VisionAnalysisAdapter {
 
     try {
       const result = JSON.parse(content);
+      const duration = Date.now() - callStart;
+      log?.info("VisionAnalysisAdapter", `isPricingVisibleInHtml result`, {
+        found: result.found,
+        selector: result.selector || null,
+        anchorText: result.anchorText || null,
+        reasoning: result.reasoning,
+        durationMs: duration,
+      });
       return {
         found: !!result.found,
         selector: result.selector || undefined,
@@ -218,31 +299,53 @@ export class VisionAnalysisAdapter {
         reasoning: result.reasoning
       };
     } catch (e) {
+      log?.warn("VisionAnalysisAdapter", "isPricingVisibleInHtml failed to parse LLM response", {
+        error: String(e),
+        contentPreview: content.slice(0, 200),
+      });
       return { found: false, reasoning: "Failed to parse LLM response" };
     }
   }
-  /**
-   * Non-streaming Pricing Analysis (AUDIT mode): await the full LLM response, parse/validate result.
-   * On any error, returns a safe PricingAnalysis-like fallback.
-   * Used for pricing audit only (never streams partials).
-   */
+
   async analyzePricingPageCompletion(
     persona: Persona,
     screenshotBase64: string,
     pageHtml?: string,
-    options: { tokenLimit?: number } = {}
+    options: { tokenLimit?: number; runId?: string } = {}
   ) {
+    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
     const tokenLimit = options.tokenLimit ?? 2000;
-    this.ensureIngested(persona);
+    const methodStart = Date.now();
+
+    log?.info("VisionAnalysisAdapter", `analyzePricingPageCompletion (AUDIT) START for "${persona.name}"`, {
+      tokenLimit,
+      hasHtml: !!pageHtml,
+      htmlLength: pageHtml?.length || 0,
+      screenshotLength: screenshotBase64.length,
+    });
+
+    this.ensureIngested(persona, options.runId);
 
     const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
+    const ragStart = Date.now();
     const ragContext = this.ragService.retrieveContext(persona, query, 3);
-    if (ragContext.chunkCount > 0) {
-      console.log(`[VisionAnalysisAdapter] [AUDIT] Retrieved ${ragContext.chunkCount} ID-RAG chunks for ${persona.name}`);
-    }
+    const ragDuration = Date.now() - ragStart;
+    log?.info("VisionAnalysisAdapter", `[AUDIT] ID-RAG retrieval for "${persona.name}"`, {
+      chunkCount: ragContext.chunkCount,
+      contextStringLength: ragContext.contextString.length,
+      durationMs: ragDuration,
+    });
 
+    const compileStart = Date.now();
     const compartments = this.promptCompiler.compileSystemPrompt(persona);
     const personaAnchor = this.promptCompiler.generateAnchor(persona);
+    const compileDuration = Date.now() - compileStart;
+    log?.info("VisionAnalysisAdapter", `[AUDIT] Prompt compilation for "${persona.name}"`, {
+      compartmentsLength: compartments.length,
+      anchor: personaAnchor,
+      durationMs: compileDuration,
+    });
+
     const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
         ${compartments}
@@ -253,6 +356,15 @@ export class VisionAnalysisAdapter {
         2. A verified factual summary of the page's HTML (including product info, tier data, and fine print).
         
         ${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}\n` : ""}
+        
+        <<PERSONALITY BIAS APPLICATION>>
+        Your personality profile drives how you evaluate. Apply it aggressively:
+        - Your Neuroticism determines how many risks you flag and how severe.
+        - Your Conscientiousness determines how much fine print you read.
+        - Your Openness determines whether new features excite or concern you.
+        - Your Extraversion determines whether you seek team validation.
+        - Your Agreeableness determines whether you give benefit of doubt.
+        These are WHO YOU ARE. Your scores must reflect your personality.
         
         <<OPENNESS PRIMING>>
         ${personaAnchor} You're open to this. You're approaching this as someone who COULD use a tool like this. A skeptical but fair assessment.
@@ -269,9 +381,15 @@ export class VisionAnalysisAdapter {
         - RECOMMENDATIONS: Provide 2-3 specific, actionable recommendations.
         - AI SUGGESTION: Provide ONE persona-specific actionable insight. Reference something specific on the page. No boilerplate.
         - For every score, provide both the number AND a 1-2 sentence reason.
-        - NO REPETITION: Do NOT repeat information across different fields.
-        
-        INTENT FUNNEL: explorationIntent >= analysisIntent >= buyIntent.
+         - NO REPETITION: Do NOT repeat information across different fields.
+         
+         STRUCTURED THOUGHTS FORMAT:
+         Inside your 'thoughts' field, structure your analysis using these markers:
+         [The Good] — What works well. Specific positive observations.
+         [The Bad] — What doesn't work. Specific criticisms.
+         [The Dealbreaker] — The single biggest reason you would NOT buy.
+         
+         INTENT FUNNEL: explorationIntent >= analysisIntent >= buyIntent.
         - explorationIntent: Would you explore this further?
         - analysisIntent: Would you deep-dive or trial it?
         - buyIntent: Would you actually purchase?
@@ -286,6 +404,14 @@ export class VisionAnalysisAdapter {
     const prompt = `Evaluate this pricing page. Return ONLY the JSON object. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
     let lastOutput = "";
     try {
+      log?.info("VisionAnalysisAdapter", `[AUDIT] Sending completion request for "${persona.name}"...`, {
+        model: this.llmService.visionModel,
+        systemPromptLength: system.length,
+        promptLength: prompt.length,
+        maxTokens: tokenLimit,
+      });
+
+      const completionStart = Date.now();
       const completion = await this.llmService.createChatCompletion(
         [
           {
@@ -308,28 +434,58 @@ export class VisionAnalysisAdapter {
           purpose: "Pricing Audit",
         },
       );
+      const completionDuration = Date.now() - completionStart;
+      log?.info("VisionAnalysisAdapter", `[AUDIT] Completion response received for "${persona.name}"`, {
+        durationMs: completionDuration,
+        responseLength: typeof completion === 'string' ? completion.length : JSON.stringify(completion).length,
+      });
+
       lastOutput =
         typeof completion === "string"
           ? completion
           : JSON.stringify(completion);
-      // Try to JSON.parse; fall back otherwise
+
       let analysisObj = null;
       try {
         analysisObj =
           typeof completion === "object" ? completion : JSON.parse(lastOutput);
       } catch (parseErr) {
-        analysisObj = null; // fallback below
+        log?.warn("VisionAnalysisAdapter", `[AUDIT] Failed to parse completion JSON for "${persona.name}"`, {
+          error: String(parseErr),
+          lastOutputPreview: lastOutput.slice(0, 500),
+        });
+        analysisObj = null;
       }
-      // Validate
+
       if (analysisObj && PricingAnalysisSchema.safeParse(analysisObj).success) {
+        const totalDuration = Date.now() - methodStart;
+        log?.info("VisionAnalysisAdapter", `[AUDIT] Analysis VALID and parsed for "${persona.name}"`, {
+          totalDurationMs: totalDuration,
+          scores: analysisObj.scores ? {
+            clarity: analysisObj.scores.clarity,
+            valuePerception: analysisObj.scores.valuePerception,
+            trust: analysisObj.scores.trust,
+            explorationIntent: analysisObj.scores.explorationIntent,
+            analysisIntent: analysisObj.scores.analysisIntent,
+            buyIntent: analysisObj.scores.buyIntent,
+          } : null,
+        });
+        console.log(`[TRACE] [AnalysisComplete] persona=${persona.name}, scores=${JSON.stringify(analysisObj.scores)}, risks=${analysisObj.risks?.length ?? 0}`);
         return analysisObj;
       } else {
+        log?.warn("VisionAnalysisAdapter", `[AUDIT] Analysis validation FAILED for "${persona.name}"`, {
+          hasAnalysisObj: !!analysisObj,
+          parseSuccess: analysisObj ? PricingAnalysisSchema.safeParse(analysisObj).success : false,
+        });
         throw new Error("INVALID_OR_UNPARSABLE_ANALYSIS");
       }
     } catch (e) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[audit] LLM/Audit completion error:", e, { lastOutput });
-      }
+      const totalDuration = Date.now() - methodStart;
+      log?.error("VisionAnalysisAdapter", `[AUDIT] Error for "${persona.name}"`, {
+        error: String(e),
+        totalDurationMs: totalDuration,
+        lastOutputPreview: lastOutput.slice(0, 300),
+      });
       return {
         gutReaction:
           "Overall, this audit could not be completed due to a system issue.",

@@ -1,9 +1,18 @@
 import { LlmServiceImpl } from "./LlmServiceImpl";
+import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
 export class HtmlSummarizer {
   constructor(private llmService: LlmServiceImpl) { }
 
-  async summarizeHtml(html: string): Promise<string> {
+  async summarizeHtml(html: string, runId?: string): Promise<string> {
+    const log = runId ? AnalysisLogger.forRun(runId) : null;
+    const startTime = Date.now();
+
+    log?.info("HtmlSummarizer", "summarizeHtml START", {
+      inputHtmlLength: html.length,
+      inputPreview: html.slice(0, 300),
+    });
+
     const prompt = `You are an expert web data extractor. You are provided with the cleaned HTML of a page (likely a pricing page).
 Your task is to summarize this HTML into a highly objective, compact markdown format.
 Focus ONLY on the objective facts that would be useful for a customer evaluate the product. Do NOT include marketing fluff or subjective opinions.
@@ -22,7 +31,12 @@ ${html}
 
 Return ONLY the markdown summary. DO NOT include any conversational preamble.`;
 
-    console.log(`[HtmlSummarizer] Summarizing HTML (${html.length} chars)...`);
+    log?.info("HtmlSummarizer", "Sending HTML to LLM for compaction...", {
+      promptLength: prompt.length,
+      model: this.llmService.extractionModel,
+    });
+
+    const llmStart = Date.now();
     const content = await this.llmService.createChatCompletion(
       [{ role: "user", content: prompt }],
       {
@@ -31,8 +45,15 @@ Return ONLY the markdown summary. DO NOT include any conversational preamble.`;
         purpose: "HTML Compacting",
       }
     );
+    const llmDuration = Date.now() - llmStart;
 
-    console.log(`[HtmlSummarizer] Compacted Summary:\n---\n${content}\n---`);
+    log?.info("HtmlSummarizer", "summarizeHtml COMPLETE", {
+      outputLength: content.length,
+      outputPreview: content.slice(0, 500),
+      llmDurationMs: llmDuration,
+      totalDurationMs: Date.now() - startTime,
+    });
+
     return content;
   }
 }
