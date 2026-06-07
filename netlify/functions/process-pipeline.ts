@@ -22,6 +22,8 @@ interface PipelineState {
   total?: number
   message?: string
   error?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 // ─── Netlify Blobs helpers ────────────────────────────────────────────────
