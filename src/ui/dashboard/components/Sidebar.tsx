@@ -4,7 +4,7 @@ import { usePersonaStore } from '@/ui/stores/personaStore'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { UserIcon, FileTextIcon, LayersIcon } from 'lucide-react'
+import { UserIcon, FileTextIcon, LayersIcon, PlayIcon } from 'lucide-react'
 
 export function Sidebar() {
   const batches = usePersonaStore((s) => s.batches)
@@ -13,6 +13,7 @@ export function Sidebar() {
   const pathname = usePathname()
 
   const isInterviews = pathname === '/dashboard/interviews'
+  const isSimulations = pathname.startsWith('/dashboard/simulations')
   const isSettings = pathname === '/dashboard/settings'
 
   return (
@@ -27,7 +28,7 @@ export function Sidebar() {
         <Link
           href="/dashboard"
           className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-            !isInterviews && !isSettings
+            !isInterviews && !isSettings && !isSimulations
               ? 'bg-primary/10 text-primary'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
           }`}
@@ -45,6 +46,17 @@ export function Sidebar() {
         >
           <FileTextIcon className="h-4 w-4" />
           Interviews
+        </Link>
+        <Link
+          href="/dashboard/simulations"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+            isSimulations
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+          }`}
+        >
+          <PlayIcon className="h-4 w-4" />
+          Simulations
         </Link>
       </nav>
 
