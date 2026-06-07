@@ -13,70 +13,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
-import { ThinkingBlock } from "@/components/custom/ThinkingBlock"
-
-const TAG_REGEX = /<%(.*?)%>/g
-const REASONING_REGEX = new RegExp("<<REASONING>>([\\s\\S]*?)<</REASONING>>", "g")
-
-function parseMessageContent(content: string): React.ReactNode[] {
-  const parts: React.ReactNode[] = []
-  let lastIndex = 0
-
-  // First, check if the content starts with reasoning
-  const reasoningMatch = content.match(REASONING_REGEX)
-  let textWithoutReasoning = content.replace(REASONING_REGEX, "").trim()
-
-  if (reasoningMatch) {
-    const reasoningText = reasoningMatch[0].replace("<<REASONING>>", "").replace("<</REASONING>>", "").trim()
-    parts.push(
-      <ThinkingBlock key="reasoning" content={reasoningText} className="mb-3" />
-    )
-  }
-
-  if (!textWithoutReasoning) return parts
-
-  // Parse the remaining content for <%...%> deep binding tags
-  const regex = /<%(.*?)%>/g
-  let match = regex.exec(textWithoutReasoning)
-
-  while (match !== null) {
-    if (match.index > lastIndex) {
-      parts.push(textWithoutReasoning.slice(lastIndex, match.index))
-    }
-
-    const inner = match[1]
-    const pipeIndex = inner.indexOf('|')
-    
-    if (pipeIndex !== -1) {
-      const displayText = inner.slice(0, pipeIndex).trim()
-      const excerpt = inner.slice(pipeIndex + 1).trim()
-      parts.push(
-        <Tooltip key={`tooltip-${match.index}`} delayDuration={200}>
-          <TooltipTrigger asChild>
-            <span className="underline underline-offset-2 decoration-dotted cursor-help text-primary/80 hover:text-primary">
-              {displayText}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-[280px] text-xs">
-            <p>{excerpt}</p>
-          </TooltipContent>
-        </Tooltip>
-      )
-    } else {
-      parts.push(match[0])
-    }
-
-    lastIndex = match.index + match[0].length
-    match = regex.exec(textWithoutReasoning)
-  }
-
-  if (lastIndex < textWithoutReasoning.length) {
-    parts.push(textWithoutReasoning.slice(lastIndex))
-  }
-
-  return parts
-}
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { parseMessageContent } from "./parseMessageContent"
 
 interface Message {
   role: 'user' | 'assistant'
@@ -122,6 +60,11 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
 
         for await (const content of readStreamableValue(streamData)) {
           if (content) {
+            // Error step delivered as object via stream.done({ step: "ERROR" })
+            if (typeof content !== 'string') {
+              const errorMsg = (content as any)?.error || 'Chat failed'
+              throw new Error(errorMsg)
+            }
             setMessages((prev) => {
               const last = prev[prev.length - 1]
               if (last && last.role === 'assistant') {

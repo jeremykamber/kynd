@@ -13,7 +13,7 @@ export async function chatWithPersonaAction(
   message: string,
   history: { role: 'user' | 'assistant', content: string }[]
 ) {
-  const stream = createStreamableValue<string>("");
+  const stream = createStreamableValue<any>("");
 
   (async () => {
     try {
@@ -38,7 +38,7 @@ export async function chatWithPersonaAction(
       stream.done(fullText);
     } catch (error) {
       console.error("Error in chatWithPersonaAction:", error);
-      stream.error(error);
+      stream.done({ step: "ERROR", error: (error as Error).message });
     }
   })();
 
