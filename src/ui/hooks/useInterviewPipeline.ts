@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { Persona } from '@/domain/entities/Persona'
-import { startInterviewPipeline, getPipelineStatusAction } from '@/actions/startPipeline'
+import { generatePersonasFromInterviewsAction } from '@/actions/generatePersonasFromInterviews'
 import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
+import { readStreamableValue } from '@ai-sdk/rsc'
 
-export type InterviewProgressStep = 'UPLOADING' | 'EXTRACTING' | 'POOLING' | 'SAMPLING' | 'GENERATING' | 'COMPILING' | 'DONE' | 'ERROR'
+export type InterviewProgressStep = 'UPLOADING' | 'EXTRACTING' | 'POOLING' | 'SAMPLING' | 'GENERATING' | 'INGESTING' | 'DONE' | 'ERROR'
 
 export interface InterviewProgress {
   step: InterviewProgressStep
@@ -20,24 +21,13 @@ export interface InterviewFile {
   content: string
 }
 
-const POLL_INTERVAL_MS = 2000
-
 export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) {
   const [files, setFiles] = useState<InterviewFile[]>([])
   const [personas, setPersonas] = useState<Persona[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isPending, setIsPending] = useState(false)
+  const [isPending, startTransition] = useTransition()
   const [progress, setProgress] = useState<InterviewProgress | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const jobIdRef = useRef<string | null>(null)
-  const cancelledRef = useRef(false)
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current)
-      pollRef.current = null
-    }
-  }, [])
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const addFile = (name: string, content: string) => {
     const id = `file-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
@@ -51,130 +41,86 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
   const clearFiles = () => setFiles([])
 
   const handleCancel = () => {
-    cancelledRef.current = true
-    stopPolling()
-    jobIdRef.current = null
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
     setProgress(null)
     setError('Pipeline cancelled')
-    setIsPending(false)
   }
 
   const handleSubmit = () => {
     if (files.length === 0) return
 
-    cancelledRef.current = false
     setError(null)
     setPersonas(null)
-    setIsPending(true)
+    const controller = new AbortController()
+    abortControllerRef.current = controller
     setProgress({ step: 'UPLOADING' })
 
-    const formData = new FormData()
-    for (const file of files) {
-      const blob = new Blob([file.content], { type: 'text/plain' })
-      formData.append('files', blob, file.name)
-    }
-
-    startInterviewPipeline(formData).then((result) => {
-      if (cancelledRef.current) return
-
-      if ('error' in result) {
-        setError(result.error!)
-        setProgress(null)
-        setIsPending(false)
-        return
-      }
-
-      const jobId = result.jobId
-      jobIdRef.current = jobId
-
-      // Start polling for results
-      pollRef.current = setInterval(async () => {
-        if (cancelledRef.current) {
-          stopPolling()
-          return
+    startTransition(async () => {
+      try {
+        const formData = new FormData()
+        for (const file of files) {
+          const blob = new Blob([file.content], { type: 'text/plain' })
+          formData.append('files', blob, file.name)
         }
 
-        try {
-          const status = await getPipelineStatusAction(jobId)
+        const { streamData } = await generatePersonasFromInterviewsAction(formData)
 
-          if (!status.found) {
-            setProgress({ step: 'UPLOADING', message: 'Starting pipeline...' })
-            return
-          }
-
-          const state = status.state
-
-          if (state.status === 'failed') {
-            stopPolling()
-            jobIdRef.current = null
-            setError(state.error ?? 'Pipeline failed')
+        for await (const update of readStreamableValue(streamData)) {
+          if (controller.signal.aborted) {
             setProgress(null)
-            setIsPending(false)
+            abortControllerRef.current = null
             return
           }
 
-          if (state.status === 'completed') {
-            stopPolling()
-            jobIdRef.current = null
-
-            const outputPersonas: Persona[] = status.output ?? []
-            if (outputPersonas.length === 0) {
-              setError('Pipeline completed but no personas were generated')
+          if (update) {
+            if (update.step === 'ERROR') {
+              setError(update.error)
               setProgress(null)
-              setIsPending(false)
+              abortControllerRef.current = null
               return
             }
 
-            const batch: PersonaBatch = {
-              id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-              label: `${files.length} Interview${files.length !== 1 ? 's' : ''} (${files[0].name}${files.length > 1 ? ` +${files.length - 1}` : ''})`,
-              source: 'interviews',
-              transcriptCount: files.length,
-              createdAt: new Date().toISOString(),
-              personas: outputPersonas,
+            if (update.step === 'DONE') {
+              const batch: PersonaBatch = {
+                id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+                label: `${files.length} Interview${files.length !== 1 ? 's' : ''}${files.length > 0 ? ' (' + files[0].name + (files.length > 1 ? ` +${files.length - 1}` : '') + ')' : ''}`,
+                source: 'interviews',
+                transcriptCount: files.length,
+                createdAt: new Date().toISOString(),
+                personas: update.personas!,
+              }
+              usePersonaStore.getState().addBatch(batch)
+              setPersonas(update.personas)
+              setProgress(null)
+              abortControllerRef.current = null
+              if (onSuccess) onSuccess(update.personas)
+              return
             }
-            usePersonaStore.getState().addBatch(batch)
-            setPersonas(outputPersonas)
-            setProgress(null)
-            setIsPending(false)
-            if (onSuccess) onSuccess(outputPersonas)
-            return
-          }
 
-          // Map background function statuses to UI step
-          const stepMap: Record<string, InterviewProgressStep> = {
-            queued: 'UPLOADING',
-            extracting: 'EXTRACTING',
-            pooling: 'POOLING',
-            sampling: 'SAMPLING',
-            generating: 'GENERATING',
-            compiling: 'COMPILING',
+            setProgress(update as InterviewProgress)
           }
-          setProgress({
-            step: stepMap[state.status] ?? 'EXTRACTING',
-            current: state.progress,
-            total: state.total,
-            message: state.message,
-          })
-        } catch (err) {
-          console.error('[InterviewPipeline] Poll error:', err)
         }
-      }, POLL_INTERVAL_MS)
-    }).catch((err) => {
-      if (!cancelledRef.current) {
-        setError((err as Error).message)
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setError((err as Error).message)
+        }
         setProgress(null)
-        setIsPending(false)
+        abortControllerRef.current = null
       }
     })
   }
 
   useEffect(() => {
     return () => {
-      stopPolling()
-      cancelledRef.current = true
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
     }
-  }, [stopPolling])
+  }, [])
 
   return {
     files, addFile, removeFile, clearFiles,

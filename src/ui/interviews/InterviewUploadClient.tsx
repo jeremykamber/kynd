@@ -284,7 +284,7 @@ export function InterviewUploadClient() {
           : progress?.step === 'POOLING' ? 1
           : progress?.step === 'SAMPLING' ? 2
           : progress?.step === 'GENERATING' ? 3
-          : progress?.step === 'COMPILING' ? 4
+          : progress?.step === 'INGESTING' ? 4
           : 0
         }
         steps={[
@@ -292,7 +292,7 @@ export function InterviewUploadClient() {
           { title: 'Pooling Signals', description: 'Aggregating patterns across all interviews' },
           { title: 'Sampling Personas', description: 'Drawing coherent persona profiles from the distribution' },
           { title: 'Generating Personas', description: 'Building backstories, psychographics, and insights' },
-          { title: 'Finalizing', description: 'Compiling personas into your workspace' },
+          { title: 'Ingesting to Memory', description: 'Indexing personas for retrieval-augmented chat' },
         ]}
       >
         {progress && (
@@ -307,7 +307,7 @@ export function InterviewUploadClient() {
               {progress.step === 'POOLING' && 'Pooling signals across all transcripts...'}
               {progress.step === 'SAMPLING' && 'Sampling coherent persona profiles...'}
               {progress.step === 'GENERATING' && 'Generating detailed personas...'}
-              {progress.step === 'COMPILING' && 'Finalizing personas...'}
+              {progress.step === 'INGESTING' && 'Indexing personas for chat...'}
             </p>
             {progress.message && (
               <p className="text-sm text-foreground/80">
