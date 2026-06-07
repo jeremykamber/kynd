@@ -124,18 +124,14 @@ export async function analyzePricingPageAction(
                 url,
                 personas,
                 (progress) => {
-                    // Check if cancelled before sending update
                     if (!abortSignal.aborted) {
-                        stream.update({ ...progress, requestId: id });
-                        // Store screenshot server-side for client-side polling.
-                        // Large base64 payloads (200K+) are silently dropped by the
-                        // RSC stream protocol, so we bypass it via a side-channel.
+                        // Store progress in the server-side side-channel FIRST so it
+                        // survives even if the RSC stream blocks (e.g., client navigated
+                        // away and stopped consuming the stream). stream.update() may
+                        // block indefinitely when there's no consumer.
                         if (progress.screenshot) {
                             storeScreenshot(id, progress.screenshot);
                         }
-                        // Store progress server-side so the simulation detail page
-                        // can poll for updates even after the RSC stream disconnects
-                        // (e.g., user navigates away from the dashboard).
                         if (progress.step || progress.completedCount !== undefined) {
                             storeProgress(id, {
                                 step: progress.step,
@@ -143,6 +139,10 @@ export async function analyzePricingPageAction(
                                 totalAnalyses: personas.length,
                             });
                         }
+                        // Then attempt the RSC stream update. This may block or fail
+                        // silently if the client disconnected — the side-channel data
+                        // is already persisted above.
+                        try { stream.update({ ...progress, requestId: id }); } catch {}
                         log.trace("analyzePricingPageAction", "Progress update", {
                             step: progress.step,
                             personaName: progress.personaName || null,
@@ -204,7 +204,7 @@ export async function analyzePricingPageAction(
             if (abortSignal.aborted) {
                 log.warn("analyzePricingPageAction", "Request was cancelled (caught in catch block)");
                 simulationResultStore.saveError(id, 'Request was cancelled');
-                stream.done({ step: "CANCELLED", requestId: id });
+                try { stream.done({ step: "CANCELLED", requestId: id }); } catch {}
             } else {
                 const errMsg = (error as Error).message;
                 const errStack = (error as Error).stack;
@@ -216,7 +216,7 @@ export async function analyzePricingPageAction(
                 });
                 simulationResultStore.saveError(id, errMsg);
                 storeProgress(id, { error: errMsg });
-                stream.done({ step: "ERROR", error: errMsg, requestId: id });
+                try { stream.done({ step: "ERROR", error: errMsg, requestId: id }); } catch {}
             }
         } finally {
             const totalDuration = Date.now() - actionStartTime;
