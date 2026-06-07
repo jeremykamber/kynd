@@ -51,6 +51,22 @@ export async function generatePersonasFromInterviewsAction(formData: FormData) {
     }
 
     (async () => {
+        // Tracks when the last real progress update was sent.
+        // The heartbeat uses this to detect silent periods during LLM batches
+        // and send keep-alive pings to prevent the serverless function timeout.
+        let lastProgressTime = Date.now();
+        let currentStep = 'EXTRACTING';
+
+        const heartbeat = setInterval(() => {
+            const idleMs = Date.now() - lastProgressTime;
+            // Only send heartbeat if no real progress for 3+ seconds.
+            // Real progress always includes a step — heartbeat includes `heartbeat: true`
+            // so it's distinguishable if needed.
+            if (idleMs >= 3000) {
+                stream.update({ step: currentStep, heartbeat: true });
+            }
+        }, 4000);
+
         try {
             const llmService = LlmServiceImpl.createFromEnv("openrouter");
             const idRagStore = new IdRagStore();
@@ -62,12 +78,16 @@ export async function generatePersonasFromInterviewsAction(formData: FormData) {
             );
 
             const personas = await useCase.execute(files, (progress) => {
+                lastProgressTime = Date.now();
+                if (progress.step) currentStep = progress.step;
                 stream.update(progress);
             });
 
+            clearInterval(heartbeat);
             const finalPersonas = JSON.parse(JSON.stringify(personas));
             stream.done({ step: "DONE", personas: finalPersonas });
         } catch (error) {
+            clearInterval(heartbeat);
             console.error("Error generating personas from interviews:", error);
             stream.done({ step: "ERROR", error: (error as Error).message });
         }
