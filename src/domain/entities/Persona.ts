@@ -55,6 +55,9 @@ export interface Persona {
   // Narrative container — Moon et al. (2024) Section 2.2
   backstory?: string;
   aiInsight?: string;
+
+  // Variant tracking — set when this persona was generated as a variant of another
+  variantOf?: { id: string; name: string };
 }
 
 export const PersonaSchema = z.object({

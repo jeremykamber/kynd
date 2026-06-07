@@ -221,5 +221,19 @@ export interface LlmServicePort {
      * @param personas - The personas to rationalize.
      */
     rationalizePersonas(personas: Persona[]): Promise<Persona[]>;
+
+    /**
+     * Generates persona variations based on a reference persona and adjusted traits.
+     * The LLM receives the reference persona + adjusted Big Five + variation level,
+     * and produces N new personas with fresh backstories, values, fears, etc.
+     * @param referencePersona - The source persona to base variations on.
+     * @param adjustments - Adjusted Big Five traits + variation level.
+     * @param count - How many variations to generate (1, 3, or 5).
+     */
+    generateVariationPersonas(
+        referencePersona: Persona,
+        adjustments: { bigFive: { conscientiousness: number; neuroticism: number; openness: number; extraversion: number; agreeableness: number }; variationLevel: number },
+        count: number,
+    ): Promise<Persona[]>;
 }
 

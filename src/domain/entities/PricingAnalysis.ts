@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PersonaProfile } from "./PersonaProfile";
 
 export interface GazePoint {
     x: number; // 0-100 percentage
@@ -31,6 +32,8 @@ export interface PricingAnalysis {
     gazePoints?: GazePoint[];
     gutReaction?: string;
     rawAnalysis?: string;
+    personaProfile?: PersonaProfile;
+    personaId?: string;
 }
 
 export const PricingAnalysisSchema = z.object({

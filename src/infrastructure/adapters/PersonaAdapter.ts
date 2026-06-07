@@ -592,6 +592,133 @@ ${personasText}`;
     }
   }
 
+  /**
+   * Generates persona variations based on a reference persona and adjusted Big Five traits.
+   * The LLM receives the reference persona as context, the adjusted Big Five to target,
+   * and a variation level (0-100) that controls creative freedom.
+   * All psychographic fields (values, fears, communicationStyle, decisionStyle, backstory)
+   * are freshly generated to be consistent with the adjusted traits.
+   */
+  async generateVariationPersonas(
+    referencePersona: Persona,
+    adjustments: { bigFive: { conscientiousness: number; neuroticism: number; openness: number; extraversion: number; agreeableness: number }; variationLevel: number },
+    count: number,
+  ): Promise<Persona[]> {
+    console.log("[PersonaAdapter.generateVariationPersonas] Generating", count, "variations for reference:", referencePersona.name);
+    console.log("[PersonaAdapter.generateVariationPersonas] Adjustments:", JSON.stringify(adjustments));
+    const system = `You are a persona generator creating realistic buyer personas for SaaS pricing evaluation.
+Each persona is a variation based on a reference persona with specific Big Five trait adjustments.
+
+Generate a JSON array of ${count} DISTINCT persona variations matching this TypeScript interface (omit the id field — it will be assigned server-side):
+
+interface Persona {
+  name: string;
+  age: number;
+  occupation: string;
+  educationLevel: string;
+  interests: string[];
+  goals: string[];
+  conscientiousness: number;  // 0-100
+  neuroticism: number;       // 0-100
+  openness: number;          // 0-100
+  extraversion: number;       // 0-100
+  agreeableness: number;      // 0-100
+  values: string[];           // 2-4 items
+  fears: string[];            // 2-3 items
+  communicationStyle: string; // e.g. "direct", "analytical", "warm", "cautious"
+  decisionStyle: string;      // e.g. "data-driven", "gut-driven", "consensus-seeking"
+  pricingSensitivity: number; // 0-100, derived from role + Big Five
+  typicalBudget: string;      // e.g. "Up to $20/user/month"
+  domainExpertise: string[];  // 2-4 relevant domains
+  backstory: string;          // 3-5 paragraph narrative in first person
+  aiInsight: string;          // 2-sentence behavioral insight
+}
+
+REFERENCE PERSONA (use as template for context, occupation, domain):
+${JSON.stringify(referencePersona, null, 2)}
+
+TARGET BIG FIVE VALUES (adjusted by user - your generated personas must use EXACTLY these values):
+- Conscientiousness: ${adjustments.bigFive.conscientiousness}
+- Neuroticism: ${adjustments.bigFive.neuroticism}
+- Openness: ${adjustments.bigFive.openness}
+- Extraversion: ${adjustments.bigFive.extraversion}
+- Agreeableness: ${adjustments.bigFive.agreeableness}
+
+VARIATION LEVEL: ${adjustments.variationLevel}/100
+- LOW variation (0-30): Keep occupation, education level, and thematic domain similar to the reference persona. Generate new backstory, values, fears, goals, interests, communication style, and decision style that align with the adjusted Big Five.
+- MEDIUM variation (31-70): Moderate changes to occupation and life context. The reference serves as loose inspiration.
+- HIGH variation (71-100): Full creative freedom. Only the adjusted Big Five values are fixed. Occupation, background, and story can be entirely new while remaining in the same product/market domain.
+
+CRITICAL REQUIREMENTS:
+- The Big Five values you output MUST match the TARGET values above exactly.
+- All other fields (values, fears, goals, interests, backstory, etc.) must be INTERNALLY CONSISTENT with the adjusted Big Five profile.
+- DISTRIBUTION: Each variation should be a distinct persona, not a copy of the reference.
+- CREATIVE BACKSTORIES: Each persona needs a compelling 3-5 paragraph first-person backstory that causally explains how their life experiences shaped their Big Five profile.
+- AI INSIGHT: A sharp 2-sentence insight into their primary motivation and biggest psychological barrier.
+- REALISM: Occupations, budgets, and goals must feel authentic and market-appropriate.
+
+Return ONLY valid JSON array without explanatory text or markdown code blocks.`;
+
+    const user = `Generate ${count} distinct persona variations based on the reference persona "${referencePersona.name}" (${referencePersona.occupation}) with the specified Big Five adjustments and variation level ${adjustments.variationLevel}/100.`;
+
+    console.log("[PersonaAdapter.generateVariationPersonas] Calling LLM with temperature:", 0.7 + (adjustments.variationLevel / 100) * 0.2);
+    const content = await this.llmService.createChatCompletion(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      {
+        model: this.llmService.smallTextModel,
+        temperature: 0.7 + (adjustments.variationLevel / 100) * 0.2, // Scale temp with variation
+        purpose: "Generate Variation Personas",
+      },
+    );
+
+    const cleaned = stripCodeFence(content);
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (!Array.isArray(parsed)) throw new Error("Expected JSON array from LLM");
+      console.log("[PersonaAdapter.generateVariationPersonas] Successfully parsed", parsed.length, "variations from LLM response");
+
+      return parsed.map(
+        (p: Record<string, unknown>, _idx: number) =>
+          ({
+            // id is intentionally omitted — the client assigns its own placeholder IDs
+            name: (p.name as string) ?? `Variation ${_idx + 1}`,
+            age: typeof p.age === "number" ? p.age : Number(p.age) || 30,
+            occupation: (p.occupation as string) ?? "Unknown",
+            educationLevel: (p.educationLevel as string) ?? "Unknown",
+            interests: Array.isArray(p.interests) ? (p.interests as string[]) : [],
+            goals: Array.isArray(p.goals) ? (p.goals as string[]) : [],
+
+            // Big Five - use the target values directly for precision
+            conscientiousness: Number(p.conscientiousness) ?? adjustments.bigFive.conscientiousness,
+            neuroticism: Number(p.neuroticism) ?? adjustments.bigFive.neuroticism,
+            openness: Number(p.openness) ?? adjustments.bigFive.openness,
+            extraversion: Number(p.extraversion) ?? adjustments.bigFive.extraversion,
+            agreeableness: Number(p.agreeableness) ?? adjustments.bigFive.agreeableness,
+
+            values: Array.isArray(p.values) ? (p.values as string[]) : [],
+            fears: Array.isArray(p.fears) ? (p.fears as string[]) : [],
+            communicationStyle: (p.communicationStyle as string) ?? "",
+            decisionStyle: (p.decisionStyle as string) ?? "",
+
+            pricingSensitivity: Number(p.pricingSensitivity) ?? 50,
+            typicalBudget: (p.typicalBudget as string) ?? "",
+
+            domainExpertise: Array.isArray(p.domainExpertise) ? (p.domainExpertise as string[]) : [],
+            backstory: (p.backstory as string) ?? "",
+            aiInsight: (p.aiInsight as string) ?? "",
+          }      ) as Persona,
+      );
+    } catch (err) {
+      console.error("[PersonaAdapter.generateVariationPersonas] Failed to parse LLM response");
+      throw new Error(
+        `Failed to parse variation personas from LLM response: ${err}\nResponse was: ${cleaned}`,
+      );
+    }
+  }
+
   private getAbbreviatedBackstorySystemPrompt(): string {
     return `You are a narrative psychologist building a concise but RICH life story of a buyer persona.
 Build a 3-5 paragraph "Mini-Biography" (approx 800-1200 tokens) that covers:
