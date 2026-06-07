@@ -37,7 +37,6 @@ export class ParsePricingPageUseCase {
     onProgress?: (progress: PricingAnalysisProgress) => void,
     abortSignal?: AbortSignal,
     options: {
-      nonStreamingAuditMode?: boolean;
       imageBase64?: string;
       tokenLimit?: number;
       runId?: string;
@@ -45,7 +44,6 @@ export class ParsePricingPageUseCase {
   ): Promise<PricingAnalysis[]> {
     const DEFAULT_TOKEN_LIMIT = 2000;
     const tokenLimit = options.tokenLimit ?? DEFAULT_TOKEN_LIMIT;
-    const nonStreamingAuditMode = options.nonStreamingAuditMode ?? false;
     const runId = options.runId || 'unknown';
     const log = AnalysisLogger.forRun(runId);
     const overallStartTime = Date.now();
@@ -53,7 +51,6 @@ export class ParsePricingPageUseCase {
     log.info("ParsePricingPageUseCase", "=== USE CASE EXECUTE START ===", {
       url,
       personaCount: personas.length,
-      nonStreamingAuditMode,
       tokenLimit,
       hasImageBase64: !!options.imageBase64,
     });
@@ -301,7 +298,7 @@ export class ParsePricingPageUseCase {
       completedCount: 0
     });
 
-    const analyses: PricingAnalysis[] = await Promise.all(
+    const settledResults = await Promise.allSettled(
       personas.map((persona, index) => limit(async () => {
         const personaStartTime = Date.now();
         const personaIndex = index;
@@ -339,182 +336,39 @@ export class ParsePricingPageUseCase {
         log.info("ParsePricingPageUseCase", `[${persona.name}] Analyzing with compacted HTML (${pageHtml?.length || 0} chars) and viewport screenshot (${capturedScreenshot?.length || 0} base64 chars)`);
 
         let analysisObj: any;
-        let lastThoughts = "";
 
-        if (nonStreamingAuditMode) {
-          // --- AUDIT/Non-Streaming CODE PATH ---
-          try {
-            log.info("ParsePricingPageUseCase", `[${persona.name}] Starting NON-STREAMING (audit) analysis...`);
-            const auditStart = Date.now();
-            analysisObj = await (this.llmService as any).analyzePricingPageCompletion(
-              persona, capturedScreenshot, pageHtml, { tokenLimit, runId }
-            );
-            const auditDuration = Date.now() - auditStart;
-            log.info("ParsePricingPageUseCase", `[${persona.name}] AUDIT analysis completed in ${auditDuration}ms`);
-            log.debug("ParsePricingPageUseCase", `[${persona.name}] AUDIT result`, {
-              hasGutReaction: !!analysisObj?.gutReaction,
-              scoreKeys: analysisObj?.scores ? Object.keys(analysisObj.scores) : null,
-              riskCount: analysisObj?.risks?.length || 0,
-            });
-          } catch (err) {
-            log.error("ParsePricingPageUseCase", `[${persona.name}] Unexpected error in audit mode`, { error: String(err) });
-            analysisObj = {
-              gutReaction: "Overall, this audit could not be completed due to a system issue.",
-              thoughts: "An error occurred during pricing analysis.",
-              scores: {
-                clarity: 1, clarityReason: "System error.",
-                valuePerception: 1, valuePerceptionReason: "System error.",
-                trust: 1, trustReason: "System error.",
-                explorationIntent: 1, explorationIntentReason: "System error.",
-                analysisIntent: 1, analysisIntentReason: "System error.",
-                buyIntent: 1, buyIntentReason: "System error.",
-              },
-              risks: ["[SYSTEM] LLM completion or analysis failed"],
-              recommendations: [],
-              aiSuggestion: "System error — analysis could not be completed.",
-            };
-          }
-
-        } else {
-          // --- STREAMING/PERSONA CODE PATH ---
-          try {
-            log.info("ParsePricingPageUseCase", `[${persona.name}] Starting STREAMING analysis...`);
-            const streamCallStart = Date.now();
-            const result = await (this.llmService as any).analyzePricingPageStream(
-              persona, capturedScreenshot, pageHtml, { tokenLimit, runId }
-            );
-            const streamCallDuration = Date.now() - streamCallStart;
-            log.info("ParsePricingPageUseCase", `[${persona.name}] analyzePricingPageStream returned in ${streamCallDuration}ms`);
-
-            // Set a timeout for the entire persona analysis to prevent indefinite hangs
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => {
-                log.warn("ParsePricingPageUseCase", `[${persona.name}] TIMEOUT fired after 180s`);
-                reject(new Error(`Timeout: Analysis for ${persona.name} took too long`));
-              }, 180000);
-            });
-
-            const streamPromise = (async () => {
-              let chunkCount = 0;
-              let emergencyBreak = false;
-              let lastPartial: any = {};
-
-              log.info("ParsePricingPageUseCase", `[${persona.name}] Starting partialObjectStream iteration...`);
-              const streamIterStart = Date.now();
-
-              for await (const partial of (result as unknown as { partialObjectStream: AsyncIterable<any> }).partialObjectStream) {
-                if (abortSignal?.aborted) throw new Error('Request cancelled during persona analysis');
-
-                chunkCount++;
-                lastPartial = partial;
-
-                // More generous character threshold
-                const charThreshold = tokenLimit * 10;
-
-                // Emergency break: If a single persona generates too much data
-                if (chunkCount > 5000 || lastThoughts.length > charThreshold) {
-                  log.warn("ParsePricingPageUseCase", `[${persona.name}] Emergency break triggered`, {
-                    chunkCount,
-                    thoughtsLength: lastThoughts.length,
-                    threshold: charThreshold,
-                  });
-                  emergencyBreak = true;
-                  break;
-                }
-
-                // Periodic heartbeat log
-                if (chunkCount % 25 === 0) {
-                  log.info("ParsePricingPageUseCase", `[${persona.name}] Stream progress`, {
-                    chunkCount,
-                    fields: Object.keys(partial).join(', '),
-                    elapsed: Date.now() - personaStartTime,
-                  });
-                } else if (chunkCount % 5 === 0) {
-                  log.trace("ParsePricingPageUseCase", `[${persona.name}] Chunk #${chunkCount} received`, {
-                    fields: Object.keys(partial),
-                  });
-                }
-
-                if (partial.thoughts) {
-                  const delta = partial.thoughts.slice(lastThoughts.length);
-                  if (delta) {
-                    onProgress?.({
-                      step: 'THINKING',
-                      personaName: persona.name,
-                      totalCount,
-                      completedCount: finishedCount,
-                      analysisToken: delta
-                    });
-                    lastThoughts = partial.thoughts;
-                  }
-                }
-              }
-
-              const streamIterDuration = Date.now() - streamIterStart;
-              log.info("ParsePricingPageUseCase", `[${persona.name}] Stream iteration completed`, {
-                chunkCount,
-                emergencyBreak,
-                streamIterDurationMs: streamIterDuration,
-              });
-
-              if (emergencyBreak) {
-                log.info("ParsePricingPageUseCase", `[${persona.name}] Returning partial analysis due to emergency break`);
-                log.debug("ParsePricingPageUseCase", `[${persona.name}] Partial result fields`, { fields: Object.keys(lastPartial) });
-                return lastPartial;
-              }
-
-              log.info("ParsePricingPageUseCase", `[${persona.name}] Stream finished. Resolving full object...`);
-              const fullObjectStart = Date.now();
-              const fullObject = await (result as any).object;
-              const fullObjectDuration = Date.now() - fullObjectStart;
-              log.info("ParsePricingPageUseCase", `[${persona.name}] Full object resolved in ${fullObjectDuration}ms`);
-
-              if (fullObject) {
-                log.info("ParsePricingPageUseCase", `[${persona.name}] ANALYSIS RESULT`, {
-                  gutReaction: fullObject.gutReaction?.slice(0, 150),
-                  scores: fullObject.scores ? {
-                    clarity: fullObject.scores.clarity,
-                    valuePerception: fullObject.scores.valuePerception,
-                    trust: fullObject.scores.trust,
-                    explorationIntent: fullObject.scores.explorationIntent,
-                    analysisIntent: fullObject.scores.analysisIntent,
-                    buyIntent: fullObject.scores.buyIntent,
-                  } : null,
-                  risks: fullObject.risks,
-                  recommendationCount: fullObject.recommendations?.length || 0,
-                  thoughtsLength: fullObject.thoughts?.length || 0,
-                });
-              } else {
-                log.warn("ParsePricingPageUseCase", `[${persona.name}] Full object was null/undefined`);
-              }
-              return fullObject;
-            })();
-
-            log.info("ParsePricingPageUseCase", `[${persona.name}] Racing streamPromise vs timeout...`);
-            analysisObj = await Promise.race([streamPromise, timeoutPromise]);
-            log.info("ParsePricingPageUseCase", `[${persona.name}] RACE won`);
-          } catch (e) {
-            const errMsg = (e as Error)?.message || String(e);
-            log.error("ParsePricingPageUseCase", `[${persona.name}] CAUGHT error in streaming analysis`, {
-              error: errMsg,
-              elapsedMs: Date.now() - personaStartTime,
-            });
-            analysisObj = {
-              gutReaction: "Honestly, I'm having a hard time focusing on this right now.",
-              thoughts: "The analysis failed to complete properly.",
-              scores: {
-                clarity: 1, clarityReason: "Analysis error.",
-                valuePerception: 1, valuePerceptionReason: "Analysis error.",
-                trust: 1, trustReason: "Analysis error.",
-                explorationIntent: 1, explorationIntentReason: "Analysis error.",
-                analysisIntent: 1, analysisIntentReason: "Analysis error.",
-                buyIntent: 1, buyIntentReason: "Analysis error.",
-              },
-              risks: ["[SYSTEM] Technical difficulty during analysis"],
-              recommendations: [],
-              aiSuggestion: "Analysis could not be completed — no suggestion available.",
-            };
-          }
+        // --- PERSONA ANALYSIS (non-streaming completion) ---
+        try {
+          log.info("ParsePricingPageUseCase", `[${persona.name}] Starting analysis...`);
+          const completionStart = Date.now();
+          analysisObj = await this.llmService.analyzePricingPageCompletion(
+            persona, capturedScreenshot, pageHtml, { tokenLimit, runId }
+          );
+          const completionDuration = Date.now() - completionStart;
+          log.info("ParsePricingPageUseCase", `[${persona.name}] Analysis completed in ${completionDuration}ms`);
+          log.debug("ParsePricingPageUseCase", `[${persona.name}] Analysis result`, {
+            hasGutReaction: !!analysisObj?.gutReaction,
+            hasThoughts: !!analysisObj?.thoughts,
+            scoreKeys: analysisObj?.scores ? Object.keys(analysisObj.scores) : null,
+            riskCount: analysisObj?.risks?.length || 0,
+          });
+        } catch (err) {
+          log.error("ParsePricingPageUseCase", `[${persona.name}] Error during analysis`, { error: String(err) });
+          analysisObj = {
+            gutReaction: "Honestly, I'm having a hard time focusing on this right now.",
+            thoughts: "The analysis failed to complete properly.",
+            scores: {
+              clarity: 1, clarityReason: "Analysis error.",
+              valuePerception: 1, valuePerceptionReason: "Analysis error.",
+              trust: 1, trustReason: "Analysis error.",
+              explorationIntent: 1, explorationIntentReason: "Analysis error.",
+              analysisIntent: 1, analysisIntentReason: "Analysis error.",
+              buyIntent: 1, buyIntentReason: "Analysis error.",
+            },
+            risks: ["[SYSTEM] Technical difficulty during analysis"],
+            recommendations: [],
+            aiSuggestion: "Analysis could not be completed — no suggestion available.",
+          };
         }
 
         if (abortSignal?.aborted) throw new Error('Request cancelled during persona analysis');
@@ -534,7 +388,7 @@ export class ParsePricingPageUseCase {
         // Add metadata and IDs
         const fullAnalysis: PricingAnalysis = {
           ...analysisObj,
-          rawAnalysis: lastThoughts,
+          rawAnalysis: analysisObj?.thoughts || "",
           id: `${persona.name.replace(/[\s-]+/g, '_')}-${Date.now()}`,
           url,
           screenshotBase64: lastScoutingViewport || capturedScreenshot,
@@ -593,6 +447,23 @@ export class ParsePricingPageUseCase {
         return fullAnalysis;
       }))
     );
+
+    const analyses: PricingAnalysis[] = [];
+    for (let i = 0; i < settledResults.length; i++) {
+      const result = settledResults[i];
+      if (result.status === 'fulfilled') {
+        analyses.push(result.value);
+      } else {
+        log.warn("ParsePricingPageUseCase", `Persona ${personas[i]?.name ?? i} analysis was abandoned`, {
+          error: result.reason?.message ?? String(result.reason),
+        });
+      }
+    }
+
+    if (analyses.length === 0 && personas.length > 0) {
+      log.error("ParsePricingPageUseCase", "All persona analyses failed — no results to return");
+      throw new Error('All persona analyses failed');
+    }
 
     const personaPhaseDuration = Date.now() - personaPhaseStart;
     const totalDuration = Date.now() - overallStartTime;
