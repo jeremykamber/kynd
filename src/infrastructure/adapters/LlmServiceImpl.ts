@@ -340,6 +340,20 @@ export class LlmServiceImpl implements LlmServicePort {
     );
   }
 
+  async analyzePricingPageCompletion(
+    persona: Persona,
+    screenshot: string,
+    html?: string,
+    options?: { tokenLimit?: number; runId?: string }
+  ): Promise<any> {
+    return this.visionAdapter.analyzePricingPageCompletion(
+      persona,
+      screenshot,
+      html,
+      options,
+    );
+  }
+
   async summarizeHtml(html: string, runId?: string): Promise<string> {
     return this.htmlSummarizer.summarizeHtml(html, runId);
   }

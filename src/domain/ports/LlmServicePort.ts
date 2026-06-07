@@ -162,8 +162,19 @@ export interface LlmServicePort {
         persona: Persona,
         screenshotBase64: string,
         pageHtml?: string,
-        options?: { tokenLimit?: number }
+        options?: { tokenLimit?: number; runId?: string }
     ): Promise<any>; // Using any for the streamObject return type for now to avoid complex type issues in port
+
+    /**
+     * Non-streaming completion variant — awaits the full PricingAnalysis result
+     * without yielding per-token partials. Used by the simplified simulation path.
+     */
+    analyzePricingPageCompletion(
+        persona: Persona,
+        screenshotBase64: string,
+        pageHtml?: string,
+        options?: { tokenLimit?: number; runId?: string }
+    ): Promise<any>;
 
     /**
      * Validates if a user's prompt is within the persona's expected domain.

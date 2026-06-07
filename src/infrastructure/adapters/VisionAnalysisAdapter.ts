@@ -401,23 +401,22 @@ export class VisionAnalysisAdapter {
         
         SPEAK IN FIRST PERSON (within the JSON fields only). Be blunt, honest, and natural. Be your persona.`;
 
-    const prompt = `Evaluate this pricing page. Return ONLY the JSON object. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
-    let lastOutput = "";
     try {
-      log?.info("VisionAnalysisAdapter", `[AUDIT] Sending completion request for "${persona.name}"...`, {
+      log?.info("VisionAnalysisAdapter", `[AUDIT] Sending schema-guided completion for "${persona.name}"...`, {
         model: this.llmService.visionModel,
         systemPromptLength: system.length,
-        promptLength: prompt.length,
         maxTokens: tokenLimit,
       });
 
       const completionStart = Date.now();
-      const completion = await this.llmService.createChatCompletion(
-        [
-          {
-            role: "system",
-            content: system,
-          },
+      const prompt = `Evaluate this pricing page. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
+      const streamResult = streamObject({
+        model: this.llmService.provider(this.llmService.visionModel),
+        schema: PricingAnalysisSchema,
+        schemaName: "PricingAnalysis",
+        schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
+        system,
+        messages: [
           {
             role: "user",
             content: [
@@ -426,65 +425,50 @@ export class VisionAnalysisAdapter {
             ],
           },
         ],
-        {
-          temperature: 0.1,
-          model: this.llmService.visionModel,
-          max_tokens: tokenLimit,
-          response_format: { type: "json_object" },
-          purpose: "Pricing Audit",
-        },
-      );
+        temperature: 0.1,
+        maxTokens: tokenLimit,
+      } as any);
+      // Drain the partial stream (keeps the pipeline flowing — without a consumer,
+      // streamObject's internal TransformStream stalls) while racing against a
+      // timeout so a hanging LLM never blocks the queue permanently.
+      const ANALYSIS_TIMEOUT_MS = 180_000;
+      // Drain the stream in the background WITH a catch handler — when the
+      // timeout wins the race, the loser's streamResult.object must be caught
+      // to prevent an unhandled promise rejection (the LLM may still respond).
+      const drainAndResolve = (async () => {
+        for await (const _ of streamResult.partialObjectStream) {
+          // Discard partials — we only need the final validated object.
+        }
+        return streamResult.object;
+      })().catch(() => null);
+      const analysisObj = await Promise.race([
+        drainAndResolve,
+        new Promise<any>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Analysis timed out after ${ANALYSIS_TIMEOUT_MS}ms`)),
+            ANALYSIS_TIMEOUT_MS,
+          ),
+        ),
+      ]);
       const completionDuration = Date.now() - completionStart;
-      log?.info("VisionAnalysisAdapter", `[AUDIT] Completion response received for "${persona.name}"`, {
+      log?.info("VisionAnalysisAdapter", `[AUDIT] Analysis completed for "${persona.name}"`, {
         durationMs: completionDuration,
-        responseLength: typeof completion === 'string' ? completion.length : JSON.stringify(completion).length,
+        scores: analysisObj.scores ? {
+          clarity: analysisObj.scores.clarity,
+          valuePerception: analysisObj.scores.valuePerception,
+          trust: analysisObj.scores.trust,
+          explorationIntent: analysisObj.scores.explorationIntent,
+          analysisIntent: analysisObj.scores.analysisIntent,
+          buyIntent: analysisObj.scores.buyIntent,
+        } : null,
       });
-
-      lastOutput =
-        typeof completion === "string"
-          ? completion
-          : JSON.stringify(completion);
-
-      let analysisObj = null;
-      try {
-        analysisObj =
-          typeof completion === "object" ? completion : JSON.parse(lastOutput);
-      } catch (parseErr) {
-        log?.warn("VisionAnalysisAdapter", `[AUDIT] Failed to parse completion JSON for "${persona.name}"`, {
-          error: String(parseErr),
-          lastOutputPreview: lastOutput.slice(0, 500),
-        });
-        analysisObj = null;
-      }
-
-      if (analysisObj && PricingAnalysisSchema.safeParse(analysisObj).success) {
-        const totalDuration = Date.now() - methodStart;
-        log?.info("VisionAnalysisAdapter", `[AUDIT] Analysis VALID and parsed for "${persona.name}"`, {
-          totalDurationMs: totalDuration,
-          scores: analysisObj.scores ? {
-            clarity: analysisObj.scores.clarity,
-            valuePerception: analysisObj.scores.valuePerception,
-            trust: analysisObj.scores.trust,
-            explorationIntent: analysisObj.scores.explorationIntent,
-            analysisIntent: analysisObj.scores.analysisIntent,
-            buyIntent: analysisObj.scores.buyIntent,
-          } : null,
-        });
-        console.log(`[TRACE] [AnalysisComplete] persona=${persona.name}, scores=${JSON.stringify(analysisObj.scores)}, risks=${analysisObj.risks?.length ?? 0}`);
-        return analysisObj;
-      } else {
-        log?.warn("VisionAnalysisAdapter", `[AUDIT] Analysis validation FAILED for "${persona.name}"`, {
-          hasAnalysisObj: !!analysisObj,
-          parseSuccess: analysisObj ? PricingAnalysisSchema.safeParse(analysisObj).success : false,
-        });
-        throw new Error("INVALID_OR_UNPARSABLE_ANALYSIS");
-      }
+      console.log(`[TRACE] [AnalysisComplete] persona=${persona.name}, scores=${JSON.stringify(analysisObj.scores)}, risks=${analysisObj.risks?.length ?? 0}`);
+      return analysisObj;
     } catch (e) {
       const totalDuration = Date.now() - methodStart;
       log?.error("VisionAnalysisAdapter", `[AUDIT] Error for "${persona.name}"`, {
         error: String(e),
         totalDurationMs: totalDuration,
-        lastOutputPreview: lastOutput.slice(0, 300),
       });
       return {
         gutReaction:
