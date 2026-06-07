@@ -3,86 +3,17 @@
  *
  * Runs up to 15 minutes (Netlify Background Functions on all plans).
  * Triggered via HTTP POST by a server action. Pipeline state is
- * persisted in Netlify Blobs so the client can poll for progress.
+ * persisted in Netlify Blobs via PipelineStore.
  *
  * Request:  { jobId: string; type: "interviews" | "pricing" }
  * Response: 202 (immediate) — function continues in background.
  */
 
+import { pipelineStore, type PipelineState } from '../../src/infrastructure/PipelineStore'
+
 interface PipelineJob {
   jobId: string
   type: 'interviews' | 'pricing'
-}
-
-interface PipelineState {
-  jobId: string
-  type: string
-  status: string
-  progress?: number
-  total?: number
-  message?: string
-  error?: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-// ─── Netlify Blobs helpers ────────────────────────────────────────────────
-const BLOBS_ORIGIN = process.env.NETLIFY_BLOBS_ORIGIN ?? `https://api.netlify.com/api/v1/blobs`
-const SITE_ID = process.env.SITE_ID ?? process.env.NETLIFY_SITE_ID ?? ''
-const DEPLOY_ID = process.env.DEPLOY_ID ?? process.env.NETLIFY_DEPLOY_ID ?? ''
-const TOKEN = process.env.NETLIFY_ACCESS_TOKEN ?? ''
-
-function blobUrl(storeName: string, key: string): string {
-  return `${BLOBS_ORIGIN}/${SITE_ID}/${storeName}/${key}`
-}
-
-async function blobWrite(storeName: string, key: string, data: unknown): Promise<void> {
-  const url = blobUrl(storeName, key)
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${TOKEN}`,
-      'Content-Type': 'application/json',
-      'X-NF-Edge-Cache': 'false',
-    },
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) {
-    console.error(`[Pipeline] Blob write failed for ${key} (${storeName}): ${res.status}`)
-  }
-}
-
-async function blobRead<T>(storeName: string, key: string): Promise<T | null> {
-  const url = blobUrl(storeName, key)
-  const res = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${TOKEN}`,
-      'X-NF-Edge-Cache': 'false',
-    },
-  })
-  if (res.status === 404) return null
-  if (!res.ok) return null
-  return res.json() as Promise<T>
-}
-
-// ─── State helpers ────────────────────────────────────────────────────────
-
-async function saveState(state: PipelineState): Promise<void> {
-  await blobWrite('pipeline-states', state.jobId, state)
-}
-
-async function updateState(jobId: string, partial: Partial<PipelineState>): Promise<void> {
-  const existing = await blobRead<PipelineState>('pipeline-states', jobId)
-  if (!existing) return
-  await saveState({ ...existing, ...partial })
-}
-
-async function loadInput<T>(jobId: string): Promise<T | null> {
-  return blobRead<T>('pipeline-inputs', jobId)
-}
-
-async function saveOutput(jobId: string, data: unknown): Promise<void> {
-  await blobWrite('pipeline-outputs', jobId, data)
 }
 
 // ─── OpenRouter LLM helper ────────────────────────────────────────────────
@@ -128,16 +59,16 @@ async function callLlm(
 // ─── Pipeline: Interview Transcripts → Personas ──────────────────────────
 
 async function processInterviews(jobId: string): Promise<void> {
-  await updateState(jobId, { status: 'extracting', message: 'Starting interview pipeline...' })
+  await pipelineStore.updateState(jobId, { status: 'extracting', message: 'Starting interview pipeline...' })
 
-  const input = await loadInput<{ files: { filename: string; content: string }[] }>(jobId)
+  const input = await pipelineStore.getInput<{ files: { filename: string; content: string }[] }>(jobId)
   if (!input || !input.files || input.files.length < 2) {
-    await updateState(jobId, { status: 'failed', error: 'Need at least 2 interview transcripts' })
+    await pipelineStore.updateState(jobId, { status: 'failed', error: 'Need at least 2 interview transcripts' })
     return
   }
 
   // Phase 1: Extract signals from each transcript
-  await updateState(jobId, {
+  await pipelineStore.updateState(jobId, {
     status: 'extracting',
     message: `Extracting signals from ${input.files.length} transcripts...`,
     total: input.files.length,
@@ -148,7 +79,7 @@ async function processInterviews(jobId: string): Promise<void> {
 
   for (let i = 0; i < input.files.length; i++) {
     const file = input.files[i]
-    await updateState(jobId, {
+    await pipelineStore.updateState(jobId, {
       status: 'extracting',
       message: `Analyzing: ${file.filename}`,
       total: input.files.length,
@@ -184,7 +115,7 @@ Focus on extracting verbatim quotes and specific details.`,
   }
 
   if (extractionResults.length < 2) {
-    await updateState(jobId, {
+    await pipelineStore.updateState(jobId, {
       status: 'failed',
       error: `Only ${extractionResults.length} interview(s) extracted. Need at least 2.`,
     })
@@ -192,7 +123,7 @@ Focus on extracting verbatim quotes and specific details.`,
   }
 
   // Phase 2: Pool signals (synthesize into combined description)
-  await updateState(jobId, { status: 'pooling', message: 'Synthesizing signal patterns...' })
+  await pipelineStore.updateState(jobId, { status: 'pooling', message: 'Synthesizing signal patterns...' })
   const allPainPoints = extractionResults.flatMap(r => r.signals.painPoints ?? [])
   const allGoals = extractionResults.flatMap(r => r.signals.goals ?? [])
   const allValues = extractionResults.flatMap(r => r.signals.values ?? [])
@@ -233,13 +164,13 @@ Focus on extracting verbatim quotes and specific details.`,
   ].join('\n')
 
   // Phase 3: Generate personas
-  await updateState(jobId, { status: 'generating', message: 'Generating personas...' })
+  await pipelineStore.updateState(jobId, { status: 'generating', message: 'Generating personas...' })
 
   const count = Math.max(extractionResults.length * 2, 8)
   const personaCount = Math.min(count, 10)
 
   // Step 1: Generate initial personas
-  await updateState(jobId, { status: 'generating', message: 'Creating persona profiles...' })
+  await pipelineStore.updateState(jobId, { status: 'generating', message: 'Creating persona profiles...' })
   const personaJson = await callLlm(
     [
       {
@@ -279,7 +210,7 @@ Return a JSON array of persona objects. Each persona must have:
   const personas = JSON.parse(personaJson)
   const personaArray = Array.isArray(personas) ? personas : personas.personas ?? [personas]
 
-  await updateState(jobId, {
+  await pipelineStore.updateState(jobId, {
     status: 'generating',
     message: `Generated ${personaArray.length} personas`,
     progress: personaArray.length,
@@ -287,9 +218,9 @@ Return a JSON array of persona objects. Each persona must have:
   })
 
   // Phase 4: Save results
-  await updateState(jobId, { status: 'compiling', message: 'Finalizing results...' })
-  await saveOutput(jobId, personaArray)
-  await updateState(jobId, { status: 'completed', message: `Generated ${personaArray.length} personas` })
+  await pipelineStore.updateState(jobId, { status: 'compiling', message: 'Finalizing results...' })
+  await pipelineStore.saveOutput(jobId, personaArray)
+  await pipelineStore.updateState(jobId, { status: 'completed', message: `Generated ${personaArray.length} personas` })
 
   console.log(`[Pipeline] Interview pipeline complete for ${jobId}: ${personaArray.length} personas`)
 }
@@ -297,9 +228,8 @@ Return a JSON array of persona objects. Each persona must have:
 // ─── Pipeline: Pricing Page Analysis ──────────────────────────────────────
 
 async function processPricing(jobId: string): Promise<void> {
-  await updateState(jobId, { status: 'analyzing', message: 'Starting pricing analysis...' })
-  // TODO: Implement pricing pipeline
-  await updateState(jobId, { status: 'failed', error: 'Pricing pipeline not yet implemented in background function' })
+  await pipelineStore.updateState(jobId, { status: 'analyzing', message: 'Starting pricing analysis...' })
+  await pipelineStore.updateState(jobId, { status: 'failed', error: 'Pricing pipeline not yet implemented in background function' })
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────
@@ -309,24 +239,25 @@ export default async (req: Request): Promise<Response> => {
     const job: PipelineJob = await req.json()
     console.log(`[Pipeline] Starting job ${job.jobId} (${job.type})`)
 
-    await saveState({
+    const now = new Date().toISOString()
+    await pipelineStore.saveState({
       jobId: job.jobId,
       type: job.type,
       status: 'queued',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })
+      createdAt: now,
+      updatedAt: now,
+    } as PipelineState)
 
     // Fire-and-forget: start processing, return 202 immediately
     if (job.type === 'interviews') {
       processInterviews(job.jobId).catch(async (err) => {
         console.error(`[Pipeline] Job ${job.jobId} failed:`, err)
-        await updateState(job.jobId, { status: 'failed', error: (err as Error).message })
+        await pipelineStore.updateState(job.jobId, { status: 'failed', error: (err as Error).message })
       })
     } else if (job.type === 'pricing') {
       processPricing(job.jobId).catch(async (err) => {
         console.error(`[Pipeline] Job ${job.jobId} failed:`, err)
-        await updateState(job.jobId, { status: 'failed', error: (err as Error).message })
+        await pipelineStore.updateState(job.jobId, { status: 'failed', error: (err as Error).message })
       })
     }
 
