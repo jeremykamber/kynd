@@ -12,26 +12,56 @@ import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
 import { PersonaAvatar } from "./PersonaAvatar"
 import { PersonaChatInline } from "@/ui/dashboard/components/chat/PersonaChatInline"
-import { MessageSquare, User, Search, XIcon } from "lucide-react"
+import { MessageSquare, User, Search, XIcon, CopyIcon, ShuffleIcon, SparklesIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Slider } from "@/components/ui/slider"
+import { VariationFormData } from "./SimilarPersonaDialog"
+import { mapToDiscrete } from "./variationMapping"
 
 interface PersonaDetailSheetProps {
   persona: Persona | null
   isOpen: boolean
   onClose: () => void
-  defaultTab?: "profile" | "chat"
+  defaultTab?: "profile" | "chat" | "variant"
+  onCreateVariant?: () => void
+  onGenerateVariation?: (referencePersona: Persona, formData: VariationFormData) => void
 }
 
-type Tab = "profile" | "chat"
+type Tab = "profile" | "chat" | "variant"
 
 export function PersonaDetailSheet({
   persona,
   isOpen,
   onClose,
   defaultTab = "profile",
+  onCreateVariant,
+  onGenerateVariation,
 }: PersonaDetailSheetProps) {
   const [activeTab, setActiveTab] = React.useState<Tab>(defaultTab)
   const [searchTerm, setSearchTerm] = React.useState("")
+  const [bigFive, setBigFive] = React.useState({
+    conscientiousness: 50,
+    neuroticism: 50,
+    openness: 50,
+    extraversion: 50,
+    agreeableness: 50,
+  })
+  const [variationLevel, setVariationLevel] = React.useState(2)
+  const [selectedCount, setSelectedCount] = React.useState<1 | 3 | 5>(3)
+
+  React.useEffect(() => {
+    if (persona) {
+      setBigFive({
+        conscientiousness: mapToDiscrete(persona.conscientiousness),
+        neuroticism: mapToDiscrete(persona.neuroticism),
+        openness: mapToDiscrete(persona.openness),
+        extraversion: mapToDiscrete(persona.extraversion),
+        agreeableness: mapToDiscrete(persona.agreeableness),
+      })
+      setVariationLevel(mapToDiscrete(40))
+      setSelectedCount(3)
+    }
+  }, [persona])
 
   React.useEffect(() => {
     if (isOpen) {
@@ -67,11 +97,56 @@ export function PersonaDetailSheet({
     </div>
   )
 
+  const updateBigFive = (key: keyof typeof bigFive, value: number) => {
+    setBigFive((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleGenerateVariation = () => {
+    if (!onGenerateVariation || !persona) return
+    console.log("[PersonaDetailSheet] Generating variation - bigFive:", bigFive, "variationLevel:", variationLevel, "count:", selectedCount)
+    const mappedFormData: VariationFormData = {
+      bigFive: {
+        conscientiousness: bigFive.conscientiousness * 20,
+        neuroticism: bigFive.neuroticism * 20,
+        openness: bigFive.openness * 20,
+        extraversion: bigFive.extraversion * 20,
+        agreeableness: bigFive.agreeableness * 20,
+      },
+      variationLevel: variationLevel * 20,
+      count: selectedCount,
+    }
+    console.log("[PersonaDetailSheet] Mapped formData:", mappedFormData)
+    onGenerateVariation(persona, mappedFormData)
+  }
+
+  const getRandomDiscrete = () => Math.floor(Math.random() * 5) + 1
+
+  const handleRandomizeVariation = () => {
+    console.log("[PersonaDetailSheet] Randomizing slider values")
+    setBigFive({
+      conscientiousness: getRandomDiscrete(),
+      neuroticism: getRandomDiscrete(),
+      openness: getRandomDiscrete(),
+      extraversion: getRandomDiscrete(),
+      agreeableness: getRandomDiscrete(),
+    })
+    setVariationLevel(getRandomDiscrete())
+  }
+
+  const BIG_FIVE_CONFIG = [
+    { key: "conscientiousness" as const, label: "Conscientiousness", left: "Chaotic", right: "Meticulous" },
+    { key: "neuroticism" as const, label: "Neuroticism", left: "Stable", right: "Anxious" },
+    { key: "openness" as const, label: "Openness", left: "Traditional", right: "Curious" },
+    { key: "extraversion" as const, label: "Extraversion", left: "Introvert", right: "Extrovert" },
+    { key: "agreeableness" as const, label: "Agreeableness", left: "Competitive", right: "Compassionate" },
+  ]
+  const COUNT_OPTIONS = [1, 3, 5] as const
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-[600px] md:max-w-[680px] max-h-[85vh] overflow-hidden flex flex-col p-0"
+        className="sm:max-w-[600px] md:max-w-[680px] h-[85dvh] overflow-y-auto flex flex-col p-0"
       >
         <DialogTitle className="sr-only">
           {persona.name} — Profile &amp; Chat
@@ -110,6 +185,20 @@ export function PersonaDetailSheet({
               <MessageSquare className="w-3.5 h-3.5" />
               Chat
             </button>
+            {onCreateVariant && (
+              <button
+                onClick={() => setActiveTab("variant")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                  activeTab === "variant"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <CopyIcon className="w-3.5 h-3.5" />
+                Variant
+              </button>
+            )}
             <div className="w-px h-5 bg-border/40 mx-1" />
             <button
               onClick={onClose}
@@ -140,7 +229,7 @@ export function PersonaDetailSheet({
               )}
 
               {/* Quick Info */}
-              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span>{persona.age} years old</span>
                 <span className="w-1 h-1 rounded-full bg-border" />
                 <span>{persona.educationLevel}</span>
@@ -197,8 +286,7 @@ export function PersonaDetailSheet({
 
               {/* Big Five */}
               <div className="flex flex-col gap-4">
-                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">THE ENGINE</h4>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Big Five (OCEAN) — Joshi et al. (2025)</p>
+                <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">BIG FIVE TRAITS</h4>
                 <div className="space-y-4">
                   {renderScalar("Conscientiousness", persona.conscientiousness, "Chaotic", "Meticulous")}
                   {renderScalar("Neuroticism", persona.neuroticism, "Stable", "Anxious")}
@@ -250,6 +338,104 @@ export function PersonaDetailSheet({
           <div className="flex-1 min-h-0 flex flex-col">
             <PersonaChatInline persona={persona} />
           </div>
+        )}
+
+        {/* Variant Tab */}
+        {activeTab === "variant" && (
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="p-5 flex flex-col gap-6">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                      Big Five Personality Traits
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={handleRandomizeVariation}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-card text-foreground border border-border/60 transition-colors hover:bg-muted/30"
+                      aria-label="Randomize traits"
+                    >
+                      <ShuffleIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/60">
+                    Adjust the personality profile
+                  </span>
+                </div>
+                <div className="space-y-4">
+                  {BIG_FIVE_CONFIG.map(({ key, label, left, right }) => (
+                    <Slider
+                      key={key}
+                      label={label}
+                      value={bigFive[key]}
+                      min={1}
+                      max={5}
+                      step={1}
+                      showTickMarks
+                      leftLabel={left}
+                      rightLabel={right}
+                      onChange={(v) => updateBigFive(key, v)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-px w-full bg-border/40" />
+
+              <Slider
+                label="Creative Freedom"
+                value={variationLevel}
+                min={1}
+                max={5}
+                step={1}
+                showTickMarks
+                leftLabel="Close to original"
+                rightLabel="Wildly different"
+                onChange={setVariationLevel}
+              />
+
+              <div className="h-px w-full bg-border/40" />
+
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                    How Many?
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground/60">
+                    Number of variations to generate
+                  </span>
+                </div>
+                <div className="flex gap-3">
+                  {COUNT_OPTIONS.map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => setSelectedCount(count)}
+                      className={cn(
+                        "flex-1 h-10 rounded-md text-sm font-medium transition-all border",
+                        selectedCount === count
+                          ? "bg-muted text-foreground border-border"
+                          : "bg-transparent text-muted-foreground border-border hover:border-border/80 hover:text-foreground",
+                      )}
+                    >
+                      {count}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGenerateVariation}
+                disabled={!onGenerateVariation}
+                className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring gap-2 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <SparklesIcon className="w-4 h-4" />
+                Generate {selectedCount} Variation{selectedCount > 1 ? "s" : ""}
+              </button>
+            </div>
+          </ScrollArea>
         )}
       </DialogContent>
     </Dialog>
