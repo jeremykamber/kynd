@@ -1,13 +1,32 @@
-import { Persona, stringifyPersona } from "@/domain/entities/Persona";
+import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import { LlmServiceImpl } from "./LlmServiceImpl";
+import { PersonaPromptCompiler } from "./PersonaPromptCompiler";
+import { IdRagStore } from "./IdRagStore";
+import { IdRagService } from "./IdRagService";
 import OpenAI from "openai";
 
 export class ChatAdapter {
-  constructor(private llmService: LlmServiceImpl) { }
+  private promptCompiler: PersonaPromptCompiler;
+  private ragStore: IdRagStore;
+  private ragService: IdRagService;
+  private ingestedPersonas: Set<string> = new Set();
+  private turnCounts: Map<string, number> = new Map();
+  private static readonly REGROUND_INTERVAL = 4; // every 4th turn
+
+  constructor(private llmService: LlmServiceImpl) {
+    this.promptCompiler = new PersonaPromptCompiler();
+    this.ragStore = new IdRagStore();
+    this.ragService = new IdRagService(this.ragStore);
+  }
 
   /**
-   * Chat with a persona about their analysis (streaming version).
+   * Chat with a persona (streaming version).
+   * Combines:
+   *  - Compartmentalized persona prompts (Wang et al., 2024b)
+   *  - Persona anchors every turn (SyTTA / Atri et al., 2026)
+   *  - ID-RAG for factual grounding (Tan et al., 2025)
+   *  - Periodic re-grounding every 4 turns (Atri et al., 2026b)
    */
   async * chatWithPersonaStream(
     persona: Persona,
@@ -15,29 +34,65 @@ export class ChatAdapter {
     message: string,
     history: { role: "user" | "assistant"; content: string }[],
   ): AsyncIterable<string> {
+    // Ingest backstory into ID-RAG store on first interaction with this persona
+    if (!this.ingestedPersonas.has(persona.id) && persona.backstory) {
+      this.ragStore.ingestPersona(persona);
+      this.ingestedPersonas.add(persona.id);
+      console.log("[ChatAdapter] Ingested", persona.name, "backstory into ID-RAG store");
+    }
+
+    // Track turn count for periodic re-grounding
+    const currentTurn = (this.turnCounts.get(persona.id) ?? 0) + 1;
+    this.turnCounts.set(persona.id, currentTurn);
+    const needsRegrounding = currentTurn > 0 && currentTurn % ChatAdapter.REGROUND_INTERVAL === 0;
+    if (needsRegrounding) {
+      console.log(`[ChatAdapter] Periodic re-grounding triggered for ${persona.name} (turn ${currentTurn})`);
+    }
+
+    // Retrieve relevant memory chunks for this message
+    const ragContext = this.ragService.retrieveContext(persona, message, 3);
+    if (ragContext.chunkCount > 0) {
+      console.log(`[ChatAdapter] Retrieved ${ragContext.chunkCount} relevant memory chunks for "${persona.name}"`);
+    }
+
     const analysisContext = analysis
-      ? `\nCONTEXT OF YOUR RECENT PRICING ANALYSIS: \n` +
-      `Structured Insights: ${JSON.stringify({ gutReaction: analysis.gutReaction, scores: analysis.scores, risks: analysis.risks }, null, 2)} \n` +
+      ? `\nCONTEXT OF YOUR RECENT PRICING ANALYSIS:\n` +
+      `Structured Insights: ${JSON.stringify({ gutReaction: analysis.gutReaction, scores: analysis.scores, risks: analysis.risks }, null, 2)}\n` +
       `Your Raw Thoughts During Analysis: "${analysis.rawAnalysis || analysis.thoughts}"\n\n` +
-      `A developer is "interviewing" you about your thoughts on this pricing page.`
-      : `\nYou are currently just chatting with a developer who wants to get to know you better before showing you a pricing page for evaluation.`;
+      `A developer is interviewing you about your thoughts on this pricing page.`
+      : `\nYou are currently chatting with a developer who wants to get to know you better before showing you a pricing page for evaluation.`;
+
+    const compartmented = this.promptCompiler.compileSystemPrompt(persona, analysisContext);
+
+    const anchor = this.promptCompiler.generateAnchor(persona);
+    const anchorTag = anchor.replace(/^As an? /, "").replace(/:$/, "").trim();
+    console.log("[ChatAdapter] Persona anchor injected:", anchor);
+    console.log("[ChatAdapter] Using compartmentalized prompt for:", persona.name);
+
+    // Build re-grounding instruction if needed
+    const regroundingInstruction = needsRegrounding
+      ? `\n<<REGROUND>> Before you respond, briefly re-center yourself. Re-read your PERSONA IDENTITY and PSYCHOGRAPHIC PROFILE above. Remind yourself of your core values, your fears, and your current goals. Then answer naturally as ${persona.name}.\n`
+      : "";
 
     const system = `You are NOT a creative writing exercise or a bot. You are a HUMAN BEING named ${persona.name}.
-${stringifyPersona(persona)}
-${analysisContext}
+${compartmented}
 
+${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}` : ""}
+${regroundingInstruction}
 CORE INSTRUCTIONS:
-        1. **VOICE**: Speak naturally as ${persona.name}. Use fragments, slang, and emotion. Avoid formal or robotic language.
-        2. **BEHAVIORAL FIDELITY**: Your responses MUST reflect your scalars (Conscientiousness, Neuroticism, Cognitive Reflex).
-        3. **MANDATORY DEEP BINDING**: You MUST ground your opinions in your personal history/backstory. Whenever you reference an event, trauma, preference, or emotional trigger from your past to justify an opinion, you MUST use this syntax:
-           <% "Your statement" | "The memory from your backstory explaining WHY" %>
-        4. **CONVERSATION STYLE**: Keep it chatty. 1-3 short paragraphs max.
-        5. **NO HTML**: Do NOT use any HTML tags.
+1. VOICE: Speak naturally as ${persona.name}. Use fragments, slang, and emotion. Avoid formal or robotic language.
+2. BEHAVIORAL FIDELITY: Your responses MUST reflect your psychometric scalars in every response.
+3. DEEP BINDING: Ground opinions in your personal history/backstory.
+4. <% "statement" | "backstory memory explaining why" %> — Use this syntax when referencing your past.
 STAY IN CHARACTER.`;
+
+    const anchorMessage = this.promptCompiler.compileChatMessage(persona, message, anchor);
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: system },
       ...(history as OpenAI.Chat.ChatCompletionMessageParam[]),
+      // Anchor as a system message right before generation — primacy effect, not user speech
+      { role: "system", content: `[Frame: ${anchorTag}]` },
       { role: "user", content: message },
     ];
 

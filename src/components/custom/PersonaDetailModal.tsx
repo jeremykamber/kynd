@@ -51,7 +51,7 @@ export function PersonaDetailModal({
     <div className="flex flex-col gap-2">
       <div className="flex justify-between items-end">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-        <span className="text-sm font-bold">{value}</span>
+        <span className="text-sm font-bold font-mono">{value}</span>
       </div>
       <Progress value={value} className="h-1.5" />
       <div className="flex justify-between text-[10px] text-muted-foreground/60 font-medium">
@@ -68,7 +68,7 @@ export function PersonaDetailModal({
       y: 0,
       transition: {
         duration: 0.3,
-        ease: [0.16, 1, 0.3, 1] as any,
+        ease: [0.16, 1, 0.3, 1] as const,
         staggerChildren: 0.05
       }
     }
@@ -80,14 +80,14 @@ export function PersonaDetailModal({
       opacity: 1,
       transition: {
         duration: 0.3,
-        ease: [0.16, 1, 0.3, 1] as any
+        ease: [0.16, 1, 0.3, 1] as const
       }
     }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[95vw] md:w-[90vw] lg:max-w-7xl xl:max-w-[1400px] p-0 border-none bg-background/70 backdrop-blur-xl shadow-2xl ring-1 ring-white/10 max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] md:w-[90vw] lg:max-w-7xl xl:max-w-[1400px] p-0 bg-background border border-border max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
         <motion.div
           className="flex flex-col min-h-full"
           initial="hidden"
@@ -95,9 +95,9 @@ export function PersonaDetailModal({
           variants={containerVariants}
         >
           {/* Header Section */}
-          <div className="p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 items-start justify-between border-b border-border/40 bg-background/50">
+          <div className="p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 items-start justify-between border-b border-border/40 bg-background">
             <div className="flex gap-4 md:gap-6 items-center">
-              <PersonaAvatar name={persona.name} size="xl" className="w-16 h-16 md:w-24 md:h-24 shadow-lg border-2 border-background shrink-0" />
+              <PersonaAvatar name={persona.name} size="xl" className="w-16 h-16 md:w-24 md:h-24 border-2 border-background shrink-0" />
               <div className="flex flex-col gap-1 min-w-0">
                 <DialogTitle className="text-2xl md:text-4xl font-bold tracking-tight truncate">{persona.name}</DialogTitle>
                 <div className="flex flex-wrap items-center gap-x-2 md:gap-x-3 gap-y-1 text-xs md:text-sm text-muted-foreground font-medium">
@@ -111,13 +111,13 @@ export function PersonaDetailModal({
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 justify-end">
-              <Button variant="outline" size="sm" className="h-8 md:h-10 gap-2 rounded-full border-border/60 text-xs md:text-sm px-3 md:px-4" onClick={() => console.log("Export PDF for", persona.name)}>
+              <Button variant="outline" size="sm" className="h-8 md:h-10 gap-2 rounded-md border-border/60 text-xs md:text-sm px-3 md:px-4">
                 <FileDown className="w-3.5 h-3.5 md:w-4 h-4" />
                 <span className="hidden sm:inline">Export PDF</span>
                 <span className="sm:hidden">PDF</span>
               </Button>
               {onChatClick && (
-                <Button size="sm" className="h-8 md:h-10 gap-2 rounded-full shadow-md text-xs md:text-sm px-3 md:px-4" onClick={() => onChatClick(persona)}>
+                <Button size="sm" className="h-8 md:h-10 gap-2 rounded-md text-xs md:text-sm px-3 md:px-4" onClick={() => onChatClick(persona)}>
                   <MessageSquare className="w-3.5 h-3.5 md:w-4 h-4" />
                   Chat
                 </Button>
@@ -132,13 +132,10 @@ export function PersonaDetailModal({
               {persona.aiInsight && (
                 <motion.div
                   variants={itemVariants}
-                  className="lg:col-span-2 p-5 md:p-8 rounded-2xl bg-indigo-500/10 border border-white/10 relative overflow-hidden group shadow-inner transition-colors duration-150 hover:border-white/20"
+                  className="lg:col-span-2 p-5 md:p-8 rounded-lg bg-primary/10 border border-border relative overflow-hidden group transition-colors duration-150 hover:border-border"
                 >
-                  <div className="absolute top-0 right-0 p-3 opacity-20 pointer-events-none">
-                    <div className="w-24 h-24 rounded-full bg-primary/20 blur-3xl" />
-                  </div>
                   <h4 className="text-[10px] md:text-xs font-bold text-primary uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                     AI INSIGHT
                   </h4>
                   <p className="text-base md:text-xl font-medium leading-relaxed italic text-foreground/90">
@@ -152,7 +149,7 @@ export function PersonaDetailModal({
                 {/* Backstory Vault */}
                 <motion.div
                   variants={itemVariants}
-                  className="flex flex-col h-[400px] p-5 md:p-6 rounded-2xl bg-card border border-white/10 shadow-sm overflow-hidden transition-colors duration-150 hover:border-white/20"
+                  className="flex flex-col h-[400px] p-5 md:p-6 rounded-lg bg-card border border-border overflow-hidden transition-colors duration-150 hover:border-border"
                 >
                   <div className="flex items-center justify-between mb-6">
                     <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">THE BACKSTORY VAULT</h4>
@@ -162,7 +159,7 @@ export function PersonaDetailModal({
                         placeholder="Search backstory..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-8 w-32 md:w-36 text-[10px] md:text-xs pl-8 rounded-full bg-muted/30 border-none transition-all focus:ring-1 focus:ring-primary/20"
+                        className="h-8 w-32 md:w-36 text-[10px] md:text-xs pl-8 rounded-md bg-muted/30 border-none transition-all focus:ring-1 focus:ring-primary/20"
                       />
                     </div>
                   </div>
@@ -190,7 +187,7 @@ export function PersonaDetailModal({
                 {/* Goals */}
                 <motion.div
                   variants={itemVariants}
-                  className="p-5 md:p-6 rounded-2xl bg-card border border-white/10 shadow-sm flex flex-col gap-6 transition-colors duration-150 hover:border-white/20"
+                  className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-6 transition-colors duration-150 hover:border-border"
                 >
                   <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">GOALS</h4>
                   <ul className="space-y-3">
@@ -209,22 +206,15 @@ export function PersonaDetailModal({
                 {/* Engine */}
                 <motion.div
                   variants={itemVariants}
-                  className="p-5 md:p-6 rounded-2xl bg-card border border-white/10 shadow-sm flex flex-col gap-8 h-full transition-colors duration-150 hover:border-white/20"
+                  className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-8 h-full transition-colors duration-150 hover:border-border"
                 >
                   <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest">THE ENGINE</h4>
 
-                  <div className="space-y-6">
-                    {renderScalar("TECH FLUENCY", persona.technicalFluency, "Luddite", "Hacker")}
-                    {renderScalar("NEUROTICISM", persona.neuroticism, "Stable", "Anxious")}
-                    {renderScalar("COG REFLEX", persona.cognitiveReflex, "Intuitive", "Analytical")}
-                  </div>
-
-                  <div className="h-px bg-border/40" />
-
-                  <div className="flex flex-col gap-5">
-                    <h4 className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-2">Big Five Profile</h4>
+                  <div className="space-y-5">
+                    <h4 className="text-[9px] md:text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-2">Big Five (OCEAN) — Joshi et al. (2025)</h4>
                     <div className="space-y-5">
                       {renderScalar("Conscientiousness", persona.conscientiousness, "Chaotic", "Meticulous")}
+                      {renderScalar("Neuroticism", persona.neuroticism, "Stable", "Anxious")}
                       {renderScalar("Openness", persona.openness, "Traditional", "Curious")}
                       {renderScalar("Extraversion", persona.extraversion, "Introvert", "Extrovert")}
                       {renderScalar("Agreeableness", persona.agreeableness, "Competitive", "Compassionate")}
@@ -232,17 +222,48 @@ export function PersonaDetailModal({
                   </div>
                 </motion.div>
 
-                {/* Aesthetic DNA */}
+                {/* Psychographic Specification — Wang et al. (2024b) */}
                 <motion.div
                   variants={itemVariants}
-                  className="p-5 md:p-6 rounded-2xl bg-card border border-white/10 shadow-sm transition-colors duration-150 hover:border-white/20"
+                  className="p-5 md:p-6 rounded-lg bg-card border border-border transition-colors duration-150 hover:border-border"
                 >
-                  <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">AESTHETIC DNA</h4>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] md:text-xs text-muted-foreground">Style</span>
-                      <span className="text-xs md:text-sm font-semibold">{persona.designStyle}</span>
-                    </div>
+                  <h4 className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">PSYCHOGRAPHIC SPECIFICATION</h4>
+                  <div className="flex flex-col gap-5">
+                    {persona.values && persona.values.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Values</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {persona.values.map((v, i) => (
+                            <span key={i} className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-sm">{v}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {persona.fears && persona.fears.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Fears</span>
+                        <ul className="space-y-1.5">
+                          {persona.fears.map((f, i) => (
+                            <li key={i} className="text-xs md:text-sm flex gap-2 leading-relaxed text-foreground/80">
+                              <span className="text-destructive shrink-0">•</span>
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {persona.communicationStyle && (
+                      <div className="flex items-center justify-between py-2 border-t border-border/20">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Communication</span>
+                        <span className="text-xs md:text-sm font-medium capitalize">{persona.communicationStyle}</span>
+                      </div>
+                    )}
+                    {persona.decisionStyle && (
+                      <div className="flex items-center justify-between py-2 border-t border-border/20">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Decision Style</span>
+                        <span className="text-xs md:text-sm font-medium capitalize">{persona.decisionStyle}</span>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               </div>

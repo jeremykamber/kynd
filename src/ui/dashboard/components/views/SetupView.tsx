@@ -5,14 +5,19 @@ import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import { MinimalCard } from '@/components/custom/MinimalCard'
 import { MOCK_PERSONAS } from '@/domain/entities/MockPersonas'
 import { MOCK_ANALYSES } from '@/domain/entities/MockAnalyses'
+import { Persona } from '@/domain/entities/Persona'
+import Link from 'next/link'
+import { ExternalLinkIcon } from 'lucide-react'
 
 interface SetupViewProps {
   personaFlow: ReturnType<typeof usePersonaFlow>
   analysisFlow: ReturnType<typeof useAnalysisFlow>
   hasPersonas: boolean
+  currentSimulationId?: string | null
+  onStartSimulation?: (personas: Persona[]) => void
 }
 
-export function SetupView({ personaFlow, analysisFlow, hasPersonas }: SetupViewProps) {
+export function SetupView({ personaFlow, analysisFlow, hasPersonas, currentSimulationId, onStartSimulation }: SetupViewProps) {
   const loadMockPersonas = () => {
     personaFlow.setPersonas(MOCK_PERSONAS)
   }
@@ -63,7 +68,7 @@ export function SetupView({ personaFlow, analysisFlow, hasPersonas }: SetupViewP
                 <p className="text-sm text-muted-foreground">Describe your ideal customer, their pain points, and demographics.</p>
               </div>
               <textarea 
-                className="w-full min-h-[160px] resize-y rounded-xl border border-input bg-transparent px-4 py-3 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                className="w-full min-h-[160px] resize-y rounded-md border border-input bg-transparent px-4 py-3 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                 placeholder="e.g. B2B SaaS Founders dealing with high churn rates, usually aged 30-45..."
                 value={personaFlow.customerProfile}
                 onChange={(e) => personaFlow.setCustomerProfile(e.target.value)}
@@ -74,7 +79,7 @@ export function SetupView({ personaFlow, analysisFlow, hasPersonas }: SetupViewP
                   type="button"
                   disabled={!personaFlow.customerProfile.trim() || personaFlow.isPending || hasPersonas}
                   onClick={personaFlow.handleGeneratePersonas}
-                  className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-8 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                 >
                   {personaFlow.isPending ? "Generating..." : hasPersonas ? "Personas Generated" : "Generate Personas"}
                 </button>
@@ -100,7 +105,7 @@ export function SetupView({ personaFlow, analysisFlow, hasPersonas }: SetupViewP
               <div className="flex flex-col sm:flex-row gap-4">
                 <input 
                   type="url"
-                  className="flex h-12 w-full rounded-xl border border-input bg-transparent px-4 py-2 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-12 w-full rounded-md border border-input bg-transparent px-4 py-2 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                   placeholder="https://your-startup.com/pricing"
                   value={analysisFlow.pricingUrl}
                   onChange={(e) => analysisFlow.setPricingUrl(e.target.value)}
@@ -109,12 +114,25 @@ export function SetupView({ personaFlow, analysisFlow, hasPersonas }: SetupViewP
                 <button
                   type="button"
                   disabled={(!analysisFlow.pricingUrl.trim() && !analysisFlow.pricingImageBase64) || analysisFlow.isPending || !hasPersonas}
-                  onClick={() => analysisFlow.handleAnalyzePricing(personaFlow.personas!)}
-                  className="inline-flex h-12 whitespace-nowrap items-center justify-center rounded-full bg-foreground px-8 text-sm font-semibold text-background shadow transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  onClick={() => onStartSimulation?.(personaFlow.personas!)}
+                  className="inline-flex h-12 whitespace-nowrap items-center justify-center rounded-md bg-foreground px-8 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                 >
                   {analysisFlow.isPending ? "Simulating..." : "Run Simulation"}
                 </button>
               </div>
+              {currentSimulationId && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-primary/5 border border-primary/10 rounded-md p-3">
+                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                  <span>Simulation started</span>
+                  <Link
+                    href={`/dashboard/simulations/${currentSimulationId}`}
+                    className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    View progress
+                    <ExternalLinkIcon className="h-3 w-3" />
+                  </Link>
+                </div>
+              )}
               {analysisFlow.error && (
                 <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{analysisFlow.error}</p>
               )}

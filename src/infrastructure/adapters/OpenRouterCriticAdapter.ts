@@ -4,11 +4,8 @@ import { Persona, stringifyPersona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import { CriticEvaluation } from "@/domain/entities/CriticEvaluation";
 import { stripCodeFence } from "./llmUtils";
+import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
-/**
- * Adapter for the Critic Service using OpenRouter (OpenAI-compatible)
- * Implements the "UX Director" prompt strategy for validation.
- */
 export class OpenRouterCriticAdapter implements ICriticServicePort {
   private client: OpenAI;
   private model: string;
@@ -18,12 +15,9 @@ export class OpenRouterCriticAdapter implements ICriticServicePort {
     this.model = model;
   }
 
-  /**
-   * Factory method to create an instance from environment variables.
-   */
   static createFromEnv(): OpenRouterCriticAdapter {
     const baseURL = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
-    const model = process.env.OPENROUTER_CRITIC_MODEL || process.env.OPENROUTER_MODEL || "google/gemini-pro-1.5";
+    const model = process.env.OPENROUTER_CRITIC_MODEL || process.env.OPENROUTER_MODEL || "deepseek/deepseek-v4-flash";
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
@@ -39,7 +33,20 @@ export class OpenRouterCriticAdapter implements ICriticServicePort {
     return new OpenRouterCriticAdapter(client, model);
   }
 
-  async evaluateConsistency(persona: Persona, analysis: PricingAnalysis): Promise<CriticEvaluation> {
+  async evaluateConsistency(
+    persona: Persona,
+    analysis: PricingAnalysis,
+    runId?: string,
+  ): Promise<CriticEvaluation> {
+    const log = runId ? AnalysisLogger.forRun(runId) : null;
+    const startTime = Date.now();
+
+    log?.info("OpenRouterCriticAdapter", `evaluateConsistency START for "${persona.name}"`, {
+      analysisId: analysis.id,
+      model: this.model,
+      personaId: persona.id,
+    });
+
     const personaDetails = stringifyPersona(persona);
     const personaBackstory = persona.backstory || "No backstory provided.";
 
@@ -79,6 +86,13 @@ Return ONLY a JSON object matching this structure:
 Critique with high standards. If the analysis is generic and doesn't leverage the specific depth of the backstory, lower the coherence score.
 `;
 
+    log?.info("OpenRouterCriticAdapter", `Sending critique request for "${persona.name}"...`, {
+      promptLength: prompt.length,
+      backstoryLength: personaBackstory.length,
+      thoughtsLength: analysis.thoughts?.length || 0,
+    });
+
+    const apiStart = Date.now();
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages: [
@@ -86,18 +100,24 @@ Critique with high standards. If the analysis is generic and doesn't leverage th
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.3, // Lower temperature for more consistent critique
+      temperature: 0.3,
+    });
+    const apiDuration = Date.now() - apiStart;
+    log?.info("OpenRouterCriticAdapter", `API response received for "${persona.name}"`, {
+      durationMs: apiDuration,
     });
 
     const content = response.choices[0].message.content;
     if (!content) {
+      log?.error("OpenRouterCriticAdapter", `No response from Critic LLM for "${persona.name}"`);
       throw new Error("No response from Critic LLM");
     }
 
     try {
       const parsed = JSON.parse(stripCodeFence(content));
+      const totalDuration = Date.now() - startTime;
 
-      return {
+      const result: CriticEvaluation = {
         id: `critique-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         analysisId: analysis.id,
         personaId: persona.id,
@@ -106,7 +126,20 @@ Critique with high standards. If the analysis is generic and doesn't leverage th
         critique: parsed.critique || "No critique provided.",
         suggestedFix: parsed.suggestedFix,
       };
+
+      log?.info("OpenRouterCriticAdapter", `Evaluation complete for "${persona.name}"`, {
+        coherenceScore: result.coherenceScore,
+        isHallucinating: result.isHallucinating,
+        totalDurationMs: totalDuration,
+        critiquePreview: result.critique.slice(0, 200),
+      });
+
+      return result;
     } catch (error) {
+      log?.error("OpenRouterCriticAdapter", `Failed to parse critique for "${persona.name}"`, {
+        error: error instanceof Error ? error.message : String(error),
+        rawResponse: content.slice(0, 500),
+      });
       throw new Error(`Failed to parse Critic evaluation: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

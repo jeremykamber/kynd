@@ -13,53 +13,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
-
-const TAG_REGEX = /<%(.*?)%>/g
-
-function parseMessageContent(content: string): React.ReactNode[] {
-  const parts: React.ReactNode[] = []
-  let lastIndex = 0
-  const regex = /<%(.*?)%>/g
-  let match = regex.exec(content)
-
-  while (match !== null) {
-    if (match.index > lastIndex) {
-      parts.push(content.slice(lastIndex, match.index))
-    }
-
-    const inner = match[1]
-    const pipeIndex = inner.indexOf('|')
-    
-    if (pipeIndex !== -1) {
-      const displayText = inner.slice(0, pipeIndex).trim()
-      const excerpt = inner.slice(pipeIndex + 1).trim()
-      parts.push(
-        <Tooltip key={`tooltip-${match.index}`} delayDuration={200}>
-          <TooltipTrigger asChild>
-            <span className="underline underline-offset-2 decoration-dotted cursor-help text-primary/80 hover:text-primary">
-              {displayText}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-[280px] text-xs">
-            <p>{excerpt}</p>
-          </TooltipContent>
-        </Tooltip>
-      )
-    } else {
-      parts.push(match[0])
-    }
-
-    lastIndex = match.index + match[0].length
-    match = regex.exec(content)
-  }
-
-  if (lastIndex < content.length) {
-    parts.push(content.slice(lastIndex))
-  }
-
-  return parts
-}
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { parseMessageContent } from "./parseMessageContent"
 
 interface Message {
   role: 'user' | 'assistant'
@@ -105,6 +60,11 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
 
         for await (const content of readStreamableValue(streamData)) {
           if (content) {
+            // Error step delivered as object via stream.done({ step: "ERROR" })
+            if (typeof content !== 'string') {
+              const errorMsg = (content as any)?.error || 'Chat failed'
+              throw new Error(errorMsg)
+            }
             setMessages((prev) => {
               const last = prev[prev.length - 1]
               if (last && last.role === 'assistant') {
@@ -186,9 +146,9 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
                  style={{ backgroundColor: 'var(--chat-assistant-bubble)' }}
                  className="px-5 py-4 rounded-2xl rounded-tl-sm text-foreground border border-border/40 flex items-center gap-1.5"
                >
-                 <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                 <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
-                 <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                 <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-[fade-in-out_1.4s_ease-in-out_infinite]" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-[fade-in-out_1.4s_ease-in-out_infinite]" style={{ animationDelay: '467ms' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-[fade-in-out_1.4s_ease-in-out_infinite]" style={{ animationDelay: '933ms' }} />
                </div>
             </div>
           )}
@@ -205,7 +165,7 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
           >
             <input
               type="text"
-              className="w-full h-12 pl-4 pr-12 rounded-full border border-input bg-background shadow-sm text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all placeholder:text-muted-foreground/70"
+              className="w-full h-12 pl-4 pr-12 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all placeholder:text-muted-foreground/70"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={`Message ${persona.name}...`}
@@ -214,7 +174,7 @@ export function PersonaChat({ persona, isOpen, onClose }: PersonaChatProps) {
             <button 
               type="submit" 
               disabled={isPending || !input || !input.trim()}
-              className="absolute right-1.5 h-9 w-9 flex items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none"
+              className="absolute right-1.5 h-9 w-9 flex items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none"
             >
               {isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
