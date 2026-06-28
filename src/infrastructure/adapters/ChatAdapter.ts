@@ -1,13 +1,12 @@
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import { LlmServiceImpl } from "./LlmServiceImpl";
-import { PersonaPromptCompiler } from "./PersonaPromptCompiler";
+import { ChatPromptCompiler } from "./ChatPromptCompiler";
 import { IdRagStore } from "./IdRagStore";
 import { IdRagService } from "./IdRagService";
-import OpenAI from "openai";
 
 export class ChatAdapter {
-  private promptCompiler: PersonaPromptCompiler;
+  private chatPromptCompiler: ChatPromptCompiler;
   private ragStore: IdRagStore;
   private ragService: IdRagService;
   private ingestedPersonas: Set<string> = new Set();
@@ -15,7 +14,7 @@ export class ChatAdapter {
   private static readonly REGROUND_INTERVAL = 4; // every 4th turn
 
   constructor(private llmService: LlmServiceImpl) {
-    this.promptCompiler = new PersonaPromptCompiler();
+    this.chatPromptCompiler = new ChatPromptCompiler();
     this.ragStore = new IdRagStore();
     this.ragService = new IdRagService(this.ragStore);
   }
@@ -55,46 +54,14 @@ export class ChatAdapter {
       console.log(`[ChatAdapter] Retrieved ${ragContext.chunkCount} relevant memory chunks for "${persona.name}"`);
     }
 
-    const analysisContext = analysis
-      ? `\nCONTEXT OF YOUR RECENT PRICING ANALYSIS:\n` +
-      `Structured Insights: ${JSON.stringify({ gutReaction: analysis.gutReaction, scores: analysis.scores, risks: analysis.risks }, null, 2)}\n` +
-      `Your Raw Thoughts During Analysis: "${analysis.rawAnalysis || analysis.thoughts}"\n\n` +
-      `A developer is interviewing you about your thoughts on this pricing page.`
-      : `\nYou are currently chatting with a developer who wants to get to know you better before showing you a pricing page for evaluation.`;
-
-    const compartmented = this.promptCompiler.compileSystemPrompt(persona, analysisContext);
-
-    const anchor = this.promptCompiler.generateAnchor(persona);
-    const anchorTag = anchor.replace(/^As an? /, "").replace(/:$/, "").trim();
-    console.log("[ChatAdapter] Persona anchor injected:", anchor);
-    console.log("[ChatAdapter] Using compartmentalized prompt for:", persona.name);
-
-    // Build re-grounding instruction if needed
-    const regroundingInstruction = needsRegrounding
-      ? `\n<<REGROUND>> Before you respond, briefly re-center yourself. Re-read your PERSONA IDENTITY and PSYCHOGRAPHIC PROFILE above. Remind yourself of your core values, your fears, and your current goals. Then answer naturally as ${persona.name}.\n`
-      : "";
-
-    const system = `You are NOT a creative writing exercise or a bot. You are a HUMAN BEING named ${persona.name}.
-${compartmented}
-
-${ragContext.contextString ? `<<RETRIEVED MEMORY>>\n${ragContext.contextString}` : ""}
-${regroundingInstruction}
-CORE INSTRUCTIONS:
-1. VOICE: Speak naturally as ${persona.name}. Use fragments, slang, and emotion. Avoid formal or robotic language.
-2. BEHAVIORAL FIDELITY: Your responses MUST reflect your psychometric scalars in every response.
-3. DEEP BINDING: Ground opinions in your personal history/backstory.
-4. <% "statement" | "backstory memory explaining why" %> — Use this syntax when referencing your past.
-STAY IN CHARACTER.`;
-
-    const anchorMessage = this.promptCompiler.compileChatMessage(persona, message, anchor);
-
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: system },
-      ...(history as OpenAI.Chat.ChatCompletionMessageParam[]),
-      // Anchor as a system message right before generation — primacy effect, not user speech
-      { role: "system", content: `[Frame: ${anchorTag}]` },
-      { role: "user", content: message },
-    ];
+    const messages = this.chatPromptCompiler.compileChatMessages({
+      persona,
+      analysis,
+      message,
+      history,
+      ragContext,
+      needsRegrounding,
+    });
 
     for await (const chunk of this.llmService.createChatCompletionStream(messages, {
       temperature: 0.7,
