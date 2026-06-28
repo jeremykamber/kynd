@@ -5,28 +5,49 @@ import { LlmMemoryAdapter } from "@/infrastructure/adapters/LlmMemoryAdapter";
 import { TestingSession } from "@/domain/entities/TestingSession";
 import { InteractionStep } from "@/domain/entities/InteractionStep";
 
+const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
+const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+
+async function runLocally(
+  session: TestingSession,
+  step: InteractionStep
+): Promise<{ success: true; session: TestingSession } | { success: false; error: string }> {
+  const memoryAdapter = LlmMemoryAdapter.createFromEnv();
+  const useCase = new RecordStepUseCase(memoryAdapter);
+  const updatedSession = await useCase.execute(session, step);
+  return { success: true, session: updatedSession };
+}
+
+async function runRemote(
+  session: TestingSession,
+  step: InteractionStep
+): Promise<{ success: true; session: TestingSession } | { success: false; error: string }> {
+  const res = await fetch(`${VPS_BACKEND_URL}/api/vps/record-step`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
+    },
+    body: JSON.stringify({ session, step }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    return { success: false, error: err.error || `HTTP ${res.status}` };
+  }
+  return res.json();
+}
+
 /**
  * Server action to record a new interaction step in a testing session.
- * Following the Server Action Pattern to encapsulate business logic in Use Cases.
+ * Uses local execution in development, VPS remote in production.
  */
 export async function recordStepAction(
   session: TestingSession,
   step: InteractionStep
 ): Promise<{ success: true; session: TestingSession } | { success: false; error: string }> {
   try {
-    // 1. Initialize Infrastructure Adapter
-    const memoryAdapter = LlmMemoryAdapter.createFromEnv();
-
-    // 2. Initialize Use Case with injected adapter
-    const useCase = new RecordStepUseCase(memoryAdapter);
-
-    // 3. Execute logic
-    const updatedSession = await useCase.execute(session, step);
-
-    return {
-      success: true,
-      session: updatedSession,
-    };
+    if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(session, step);
+    return runRemote(session, step);
   } catch (error) {
     console.error("Error in recordStepAction:", error);
     return {

@@ -13,6 +13,11 @@ import { simulationResultStore } from "@/infrastructure/SimulationResultStore";
 import { storeScreenshot } from "./getScreenshot";
 import { storeProgress, storeCompleted } from "./getProgress";
 
+// ── Guard: run locally or delegate to VPS? ──────────────────
+const SHOULD_RUN_LOCALLY = process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
+const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL || "http://localhost:8080";
+const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN || "";
+
 const AUDIT_RATE_LIMIT_MAX = parseInt(process.env.AUDIT_RATE_LIMIT_MAX || '5');
 const AUDIT_RATE_LIMIT_WINDOW_MS = parseInt(process.env.AUDIT_RATE_LIMIT_WINDOW_MS || '60000');
 
@@ -28,6 +33,18 @@ const PERSONA_TOKEN_LIMIT = Number.isFinite(rawPersonaTokenLimit) && rawPersonaT
     : 2000;
 
 export async function analyzePricingPageAction(
+    url: string,
+    personas: Persona[],
+    requestId?: string,
+    imageBase64?: string,
+) {
+    if (SHOULD_RUN_LOCALLY) {
+        return runLocally(url, personas, requestId, imageBase64);
+    }
+    return runRemote(url, personas, requestId, imageBase64);
+}
+
+async function runLocally(
     url: string,
     personas: Persona[],
     requestId?: string,
@@ -228,4 +245,32 @@ export async function analyzePricingPageAction(
     })();
 
     return { streamData: stream.value, requestId: id };
+}
+
+async function runRemote(
+    url: string,
+    personas: Persona[],
+    requestId?: string,
+    imageBase64?: string,
+) {
+    const id = requestId || `pricing-${Date.now()}`;
+    const res = await fetch(`${VPS_BACKEND_URL}/api/vps/analyze-pricing`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${VPS_AUTH_TOKEN}`,
+        },
+        body: JSON.stringify({
+            url,
+            personas,
+            runId: id,
+            ...(imageBase64 ? { imageBase64 } : {}),
+        }),
+    });
+    if (!res.ok) {
+        const errBody = await res.text().catch(() => res.statusText);
+        throw new Error(`VPS analysis failed (${res.status}): ${errBody}`);
+    }
+    const data = await res.json();
+    return { runId: data.runId };
 }

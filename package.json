@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "cp node_modules/playwright-core/browsers.json .next/standalone/node_modules/playwright-core/browsers.json",
     "start": "next start",
     "lint": "eslint",
     "benchmark": "tsx scripts/benchmark.ts",

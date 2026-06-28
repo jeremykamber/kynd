@@ -6,28 +6,49 @@ import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import { CriticEvaluation } from "@/domain/entities/CriticEvaluation";
 
+const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
+const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+
+async function runLocally(
+  persona: Persona,
+  analysis: PricingAnalysis
+): Promise<{ success: true; evaluation: CriticEvaluation } | { success: false; error: string }> {
+  const criticService = OpenRouterCriticAdapter.createFromEnv();
+  const useCase = new ValidateAnalysisUseCase(criticService);
+  const evaluation = await useCase.execute(persona, analysis);
+  return { success: true, evaluation };
+}
+
+async function runRemote(
+  persona: Persona,
+  analysis: PricingAnalysis
+): Promise<{ success: true; evaluation: CriticEvaluation } | { success: false; error: string }> {
+  const res = await fetch(`${VPS_BACKEND_URL}/api/vps/validate-analysis`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
+    },
+    body: JSON.stringify({ persona, analysis }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    return { success: false, error: err.error || `HTTP ${res.status}` };
+  }
+  return res.json();
+}
+
 /**
  * Server action to validate a PricingAnalysis against a Persona's backstory.
- * Following the Server Action Pattern for clean separation of concerns.
+ * Uses local execution in development, VPS remote in production.
  */
 export async function validateAnalysisAction(
   persona: Persona,
   analysis: PricingAnalysis
 ): Promise<{ success: true; evaluation: CriticEvaluation } | { success: false; error: string }> {
   try {
-    // 1. Initialize Infrastructure Adapter
-    const criticService = OpenRouterCriticAdapter.createFromEnv();
-
-    // 2. Initialize Use Case
-    const useCase = new ValidateAnalysisUseCase(criticService);
-
-    // 3. Execute and Return Result
-    const evaluation = await useCase.execute(persona, analysis);
-
-    return {
-      success: true,
-      evaluation,
-    };
+    if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(persona, analysis);
+    return runRemote(persona, analysis);
   } catch (error) {
     console.error("Error in validateAnalysisAction:", error);
     return {

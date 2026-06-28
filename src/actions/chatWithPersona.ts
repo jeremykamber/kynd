@@ -7,7 +7,10 @@ import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 
 import { createStreamableValue } from "@ai-sdk/rsc";
 
-export async function chatWithPersonaAction(
+const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
+const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+
+async function runLocally(
   persona: Persona,
   analysis: PricingAnalysis | null,
   message: string,
@@ -19,13 +22,6 @@ export async function chatWithPersonaAction(
     try {
       const llmService = LlmServiceImpl.createFromEnv("openrouter");
       const useCase = new ChatWithPersonaUseCase(llmService);
-
-      // Guardrail check
-      // const validation = await llmService.validatePromptDomain(persona, message);
-      // if (!validation.isValid) {
-      //   stream.done(`GUARDRAIL_VIOLATION: ${validation.reason}`);
-      //   return;
-      // }
 
       const responseStream = useCase.executeStream(persona, analysis, message, history);
 
@@ -43,4 +39,60 @@ export async function chatWithPersonaAction(
   })();
 
   return { streamData: stream.value };
+}
+
+async function runRemote(
+  persona: Persona,
+  analysis: PricingAnalysis | null,
+  message: string,
+  history: { role: 'user' | 'assistant', content: string }[]
+) {
+  const stream = createStreamableValue<any>("");
+
+  (async () => {
+    try {
+      const res = await fetch(`${VPS_BACKEND_URL}/api/vps/chat-with-persona`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
+        },
+        body: JSON.stringify({ persona, analysis, message, history }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        stream.done({ step: "ERROR", error: err.error || `HTTP ${res.status}` });
+        return;
+      }
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullText += decoder.decode(value, { stream: true });
+        stream.update(fullText);
+      }
+
+      stream.done(fullText);
+    } catch (error) {
+      console.error("Error in remote chatWithPersona:", error);
+      stream.done({ step: "ERROR", error: (error as Error).message });
+    }
+  })();
+
+  return { streamData: stream.value };
+}
+
+export async function chatWithPersonaAction(
+  persona: Persona,
+  analysis: PricingAnalysis | null,
+  message: string,
+  history: { role: 'user' | 'assistant', content: string }[]
+) {
+  if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(persona, analysis, message, history);
+  return runRemote(persona, analysis, message, history);
 }

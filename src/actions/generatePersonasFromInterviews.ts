@@ -18,7 +18,10 @@ const pipelineRateLimiter = new RateLimiterMemory({
     duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
 });
 
-export async function generatePersonasFromInterviewsAction(formData: FormData) {
+const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
+const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+
+async function runLocally(formData: FormData) {
     console.log("generatePersonasFromInterviewsAction called...");
     const stream = createStreamableValue<any>({ step: "UPLOADING" });
 
@@ -74,4 +77,40 @@ export async function generatePersonasFromInterviewsAction(formData: FormData) {
     })();
 
     return { streamData: stream.value };
+}
+
+async function runRemote(formData: FormData) {
+    const stream = createStreamableValue<any>({ step: "UPLOADING" });
+
+    (async () => {
+        try {
+            const res = await fetch(`${VPS_BACKEND_URL}/api/vps/generate-personas-from-interviews`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
+                    // No Content-Type — let fetch set multipart boundary automatically
+                },
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+                stream.done({ step: "ERROR", error: err.error || `HTTP ${res.status}` });
+                return;
+            }
+
+            const data = await res.json();
+            stream.done({ step: "DONE", personas: data.personas || data });
+        } catch (error) {
+            console.error("Error in remote generatePersonasFromInterviews:", error);
+            stream.done({ step: "ERROR", error: (error as Error).message });
+        }
+    })();
+
+    return { streamData: stream.value };
+}
+
+export async function generatePersonasFromInterviewsAction(formData: FormData) {
+    if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(formData);
+    return runRemote(formData);
 }

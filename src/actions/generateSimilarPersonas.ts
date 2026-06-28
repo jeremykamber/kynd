@@ -12,6 +12,83 @@ export interface SimilarPersonaProgress {
   error?: string;
 }
 
+const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
+const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+
+async function runLocally(
+  referencePersona: Persona,
+  adjustments: {
+    bigFive: {
+      conscientiousness: number;
+      neuroticism: number;
+      openness: number;
+      extraversion: number;
+      agreeableness: number;
+    };
+    variationLevel: number;
+  },
+  count: number,
+) {
+  const stream = createStreamableValue<SimilarPersonaProgress>({ step: "GENERATING" });
+
+  (async () => {
+    try {
+      const llmService = LlmServiceImpl.createFromEnv("openrouter");
+      const personas = await llmService.generateVariationPersonas(referencePersona, adjustments, count);
+      stream.done({ step: "DONE", personas: JSON.parse(JSON.stringify(personas)) });
+    } catch (error) {
+      console.error("[generateSimilarPersonasAction] Failed:", error);
+      stream.done({ step: "ERROR", error: (error as Error).message });
+    }
+  })();
+
+  return { streamData: stream.value };
+}
+
+async function runRemote(
+  referencePersona: Persona,
+  adjustments: {
+    bigFive: {
+      conscientiousness: number;
+      neuroticism: number;
+      openness: number;
+      extraversion: number;
+      agreeableness: number;
+    };
+    variationLevel: number;
+  },
+  count: number,
+) {
+  const stream = createStreamableValue<SimilarPersonaProgress>({ step: "GENERATING" });
+
+  (async () => {
+    try {
+      const res = await fetch(`${VPS_BACKEND_URL}/api/vps/generate-similar-personas`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
+        },
+        body: JSON.stringify({ referencePersona, adjustments, count }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        stream.done({ step: "ERROR", error: err.error || `HTTP ${res.status}` });
+        return;
+      }
+
+      const data = await res.json();
+      stream.done({ step: "DONE", personas: data.personas || data });
+    } catch (error) {
+      console.error("[generateSimilarPersonasAction] Remote failed:", error);
+      stream.done({ step: "ERROR", error: (error as Error).message });
+    }
+  })();
+
+  return { streamData: stream.value };
+}
+
 export async function generateSimilarPersonasAction(
   referencePersona: Persona,
   adjustments: {
@@ -26,33 +103,6 @@ export async function generateSimilarPersonasAction(
   },
   count: number,
 ) {
-  console.log("generateSimilarPersonasAction called...");
-  const stream = createStreamableValue<SimilarPersonaProgress>({
-    step: "GENERATING",
-  });
-  console.log("[generateSimilarPersonasAction] StreamableValue created, starting generation for count:", count, "reference:", referencePersona.name);
-
-  (async () => {
-    try {
-      const llmService = LlmServiceImpl.createFromEnv("openrouter");
-
-      const personas = await llmService.generateVariationPersonas(
-        referencePersona,
-        adjustments,
-        count,
-      );
-
-      const finalPersonas = JSON.parse(JSON.stringify(personas));
-      console.log("[generateSimilarPersonasAction] Successfully generated", personas.length, "variations");
-      stream.done({ step: "DONE", personas: finalPersonas });
-    } catch (error) {
-      console.error("[generateSimilarPersonasAction] Failed:", error);
-      stream.done({
-        step: "ERROR",
-        error: (error as Error).message,
-      });
-    }
-  })();
-
-  return { streamData: stream.value };
+  if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(referencePersona, adjustments, count);
+  return runRemote(referencePersona, adjustments, count);
 }

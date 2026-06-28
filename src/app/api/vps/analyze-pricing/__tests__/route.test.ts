@@ -93,7 +93,7 @@ describe("POST /api/vps/analyze-pricing", () => {
     mockParsePricingPageExecute.mockResolvedValue([mockAnalysis]);
   });
 
-  it("returns requestId on valid input", async () => {
+  it("returns runId on valid input", async () => {
     const { POST } = await import("../route");
     const req = new NextRequest("http://localhost:3000/api/vps/analyze-pricing", {
       method: "POST",
@@ -106,11 +106,11 @@ describe("POST /api/vps/analyze-pricing", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toHaveProperty("requestId");
-    expect(typeof body.requestId).toBe("string");
+    expect(body).toHaveProperty("runId");
+    expect(typeof body.runId).toBe("string");
   });
 
-  it("accepts optional requestId and imageBase64", async () => {
+  it("accepts optional runId and imageBase64", async () => {
     const { POST } = await import("../route");
     const req = new NextRequest("http://localhost:3000/api/vps/analyze-pricing", {
       method: "POST",
@@ -118,14 +118,14 @@ describe("POST /api/vps/analyze-pricing", () => {
       body: JSON.stringify({
         url: "https://example.com/pricing",
         personas: [mockPersona],
-        requestId: "custom-123",
+        runId: "custom-123",
         imageBase64: "iVBORw0KG...",
       }),
     });
     const res = await POST(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toHaveProperty("requestId");
+    expect(body).toHaveProperty("runId");
   });
 
   it("returns 429 when rate limited", async () => {
@@ -143,7 +143,7 @@ describe("POST /api/vps/analyze-pricing", () => {
     expect(res.status).toBe(429);
     const body = await res.json();
     expect(body).toHaveProperty("error");
-    expect(body).toHaveProperty("requestId");
+    expect(body).toHaveProperty("runId");
   });
 
   it("returns 400 when ran with empty persona array", async () => {
@@ -161,7 +161,7 @@ describe("POST /api/vps/analyze-pricing", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body).toHaveProperty("error");
-    expect(body).toHaveProperty("requestId");
+    expect(body).toHaveProperty("runId");
   });
 
   it("returns 400 when ran with empty url", async () => {
@@ -179,6 +179,6 @@ describe("POST /api/vps/analyze-pricing", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body).toHaveProperty("error");
-    expect(body).toHaveProperty("requestId");
+    expect(body).toHaveProperty("runId");
   });
 });
