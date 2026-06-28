@@ -1,7 +1,7 @@
 // ─── POST /api/vps/analyze-pricing ──────────────────────────────────────────
 // Fires off a pricing page analysis in the background, writes progress &
 // results to the side-channel stores (shared in-memory maps on globalThis),
-// and returns the requestId immediately. The client polls
+// and returns the runId immediately. The client polls
 //   GET /api/vps/analyze-progress?runId=xxx
 //   GET /api/vps/analyze-screenshot?runId=xxx
 //   GET /api/vps/analyze-result?runId=xxx
@@ -46,16 +46,16 @@ const PERSONA_TOKEN_LIMIT =
         : 2000;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST handler — fire-and-forget, return requestId
+// POST handler — fire-and-forget, return runId
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-    const { url, personas, requestId: reqId, imageBase64 } = await req.json();
+    const { url, personas, runId: reqId, imageBase64 } = await req.json();
     const id = reqId || `pricing-${Date.now()}`;
     if (personas.length == 0) {
         return NextResponse.json({
             error: "Cannot run pricing page analysis with no selected personas. Please provide a non-zero number of personas to run the analysis with.",
-            requestId: id
+            runId: id
         },
             {
                 status: 400
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     if (url.length == 0) {
         return NextResponse.json({
             error: "Cannot run pricing page analysis with blank url. Please provide a valid URL.",
-            requestId: id
+            runId: id
         },
             {
                 status: 400
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
             {
                 error: `Rate limit exceeded. Try again in ${Math.round(rejRes.msBeforeNext / 1000)} seconds.`,
-                requestId: id,
+                runId: id,
             },
             { status: 429 },
         );
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         console.error(`[analyze-pricing] Background analysis failed for ${id}:`, err);
     });
 
-    return NextResponse.json({ requestId: id });
+    return NextResponse.json({ runId: id });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
