@@ -1,5 +1,6 @@
 import { Persona } from "../entities/Persona";
 import { PricingAnalysis } from "../entities/PricingAnalysis";
+import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 
 export type AgentAction =
     | { type: "CLICK"; selector: string; reasoning: string }
@@ -19,13 +20,13 @@ export interface LlmServicePort {
      * @param personaDescription - A textual description of the persona(s) to generate.
      * @returns A promise that resolves to an array of Persona objects.
      */
-    generateInitialPersonas(personaDescription: string): Promise<Persona[]>;
+    generateInitialPersonas(personaDescription: string, count?: number): Promise<Persona[]>;
 
     /**
      * Generates personas based on a description (streaming version).
      * Yields raw tokens of the JSON array.
      */
-    generateInitialPersonasStream(personaDescription: string): AsyncIterable<Partial<Persona>[]>;
+    generateInitialPersonasStream(personaDescription: string, count?: number): AsyncIterable<Partial<Persona>[]>;
 
     /**
      * Generates a deep narrative backstory for a persona.
@@ -161,8 +162,19 @@ export interface LlmServicePort {
         persona: Persona,
         screenshotBase64: string,
         pageHtml?: string,
-        options?: { tokenLimit?: number }
+        options?: { tokenLimit?: number; runId?: string }
     ): Promise<any>; // Using any for the streamObject return type for now to avoid complex type issues in port
+
+    /**
+     * Non-streaming completion variant — awaits the full PricingAnalysis result
+     * without yielding per-token partials. Used by the simplified simulation path.
+     */
+    analyzePricingPageCompletion(
+        persona: Persona,
+        screenshotBase64: string,
+        pageHtml?: string,
+        options?: { tokenLimit?: number; runId?: string }
+    ): Promise<any>;
 
     /**
      * Validates if a user's prompt is within the persona's expected domain.
@@ -190,5 +202,49 @@ export interface LlmServicePort {
     generatePersonaInsightsBatch(personas: Persona[]): Promise<string[]>;
 
     summarizeHtml(html: string): Promise<string>;
+
+    /**
+     * Extracts structured signals from an interview transcript.
+     * @param transcript - The raw interview transcript text.
+     * @param interviewId - Unique identifier for the interview.
+     */
+    extractInterviewSignals(transcript: string, interviewId: string): Promise<ExtractedInterviewSignals>;
+
+    /**
+     * Generic chat completion for ad-hoc LLM calls (e.g., coherence validation).
+     * @param messages - The chat messages.
+     * @param options - Optional parameters (temperature, response_format, etc.).
+     */
+    createChatCompletion(
+        messages: { role: string; content: string }[],
+        options?: {
+            temperature?: number;
+            response_format?: { type: "json_object" | "text" };
+            max_tokens?: number | null;
+            purpose?: string;
+        },
+    ): Promise<string>;
+
+    /**
+     * Rationalizes personas using psychological scaffolds (PB&J).
+     * Replaces enhancePersonasWithPbj — generates causal rationales
+     * connecting Big Five profiles to values, fears, and decision styles.
+     * @param personas - The personas to rationalize.
+     */
+    rationalizePersonas(personas: Persona[]): Promise<Persona[]>;
+
+    /**
+     * Generates persona variations based on a reference persona and adjusted traits.
+     * The LLM receives the reference persona + adjusted Big Five + variation level,
+     * and produces N new personas with fresh backstories, values, fears, etc.
+     * @param referencePersona - The source persona to base variations on.
+     * @param adjustments - Adjusted Big Five traits + variation level.
+     * @param count - How many variations to generate (1, 3, or 5).
+     */
+    generateVariationPersonas(
+        referencePersona: Persona,
+        adjustments: { bigFive: { conscientiousness: number; neuroticism: number; openness: number; extraversion: number; agreeableness: number }; variationLevel: number },
+        count: number,
+    ): Promise<Persona[]>;
 }
 

@@ -1,156 +1,423 @@
-"use client"
+'use client'
 
+import { useState, useRef, useCallback } from 'react'
+import { toast } from 'sonner'
+import { usePersonaStore } from '@/ui/stores/personaStore'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
 import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import { SetupView } from './views/SetupView'
-import { AudienceView } from './views/AudienceView'
-import { ResultsView } from './views/ResultsView'
+import { MinimalCard } from '@/components/custom/MinimalCard'
+import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
+import { PersonaSkeletonCard } from '@/components/custom/PersonaSkeletonCard'
+import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
+import type { VariationFormData } from '@/components/custom/SimilarPersonaDialog'
+import { LayersIcon, SparklesIcon } from 'lucide-react'
+import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
+import { Persona } from '@/domain/entities/Persona'
+import { readStreamableValue } from '@ai-sdk/rsc'
+import { generateSimilarPersonasAction } from '@/actions/generateSimilarPersonas'
 
 export function DashboardClient() {
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
+  const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false)
+  const [sheetDefaultTab, setSheetDefaultTab] = useState<"profile" | "chat" | "variant">("profile")
+  const [pendingPersonaIds, setPendingPersonaIds] = useState<Set<string>>(new Set())
+  const batches = usePersonaStore((s) => s.batches)
+  const activeBatchId = usePersonaStore((s) => s.activeBatchId)
+  const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
+  const insertPersonasAfter = usePersonaStore((s) => s.insertPersonasAfter)
+  const updatePersona = usePersonaStore((s) => s.updatePersona)
+  const removePersona = usePersonaStore((s) => s.removePersona)
   const personaFlow = usePersonaFlow()
   const analysisFlow = useAnalysisFlow()
+  const toastIdRef = useRef<string | number | null>(null)
 
-  // State mapping
-  const hasPersonas = personaFlow.personas && personaFlow.personas.length > 0
-  const hasAnalyses = analysisFlow.analyses && analysisFlow.analyses.length > 0
+  const activeBatch = activeBatchId
+    ? batches.find((b) => b.id === activeBatchId)
+    : null
+
+  const getPersona = (id: string) => activeBatch?.personas.find(p => p.id === id) ?? null
+  const selectedPersona = selectedPersonaId ? getPersona(selectedPersonaId) : null
+
+  const handleOpenDetail = (id: string) => {
+    setSelectedPersonaId(id)
+    setSheetDefaultTab("profile")
+    setIsDetailSheetOpen(true)
+  }
+
+  const handleOpenChat = (persona: Persona) => {
+    setSelectedPersonaId(persona.id)
+    setSheetDefaultTab("chat")
+    setIsDetailSheetOpen(true)
+  }
+
+  const handleOpenVariant = (persona: Persona) => {
+    setSelectedPersonaId(persona.id)
+    setSheetDefaultTab("variant")
+    setIsDetailSheetOpen(true)
+  }
+
+  const handleDeletePersona = (personaId: string) => {
+    if (activeBatchId) {
+      removePersona(activeBatchId, personaId)
+    }
+  }
+
+  const handleCloseSheet = () => {
+    setIsDetailSheetOpen(false)
+    setSelectedPersonaId(null)
+  }
+
+  const handleGenerateVariation = useCallback(
+    async (referencePersona: Persona, formData: VariationFormData) => {
+      const batchId = usePersonaStore.getState().activeBatchId
+      if (!batchId) return
+
+      // 1. Create placeholder personas with shimmer
+      const placeholderIds: string[] = []
+      const placeholders: Persona[] = []
+
+      for (let i = 0; i < formData.count; i++) {
+        const placeholderId = `placeholder-${Date.now()}-${i}`
+        placeholderIds.push(placeholderId)
+        placeholders.push({
+          id: placeholderId,
+          name: 'Generating...',
+          age: 0,
+          occupation: '',
+          educationLevel: '',
+          interests: [],
+          goals: [],
+          conscientiousness: 50,
+          neuroticism: 50,
+          openness: 50,
+          extraversion: 50,
+          agreeableness: 50,
+          values: [],
+          fears: [],
+          communicationStyle: '',
+          decisionStyle: '',
+          pricingSensitivity: 50,
+          typicalBudget: '',
+          variantOf: { id: referencePersona.id, name: referencePersona.name },
+        })
+      }
+
+      // 2. Insert placeholders right after the reference persona
+      insertPersonasAfter(batchId, referencePersona.id, placeholders)
+      console.log("[DashboardClient] Variation flow started - reference:", referencePersona.name, "count:", formData.count, "placeholders:", placeholderIds.length);
+      setPendingPersonaIds((prev) => {
+        const next = new Set(prev)
+        placeholderIds.forEach((id) => next.add(id))
+        return next
+      })
+
+      // 3. Show a toast for the generation
+      const count = formData.count
+      toastIdRef.current = toast.loading(
+        `Generating ${count} variation${count > 1 ? 's' : ''} of ${referencePersona.name}`,
+        {
+          description: 'Creating personas with adjusted traits...',
+          icon: <SparklesIcon className="h-4 w-4 text-primary animate-pulse" />,
+        },
+      )
+
+      // 4. Call server action and stream results
+      try {
+        console.log("[DashboardClient] Calling generateSimilarPersonasAction with bigFive:", formData.bigFive, "variationLevel:", formData.variationLevel);
+        const { streamData } = await generateSimilarPersonasAction(
+          referencePersona,
+          { bigFive: formData.bigFive, variationLevel: formData.variationLevel },
+          formData.count,
+        )
+
+        let completedCount = 0
+
+        for await (const update of readStreamableValue(streamData)) {
+          if (!update) continue
+
+          if (update.step === 'DONE' && update.personas) {
+            console.log("[DashboardClient] Stream completed - received", update.personas.length, "personas from server");
+            // Replace each placeholder with the real persona data
+            update.personas.forEach((realPersona, idx) => {
+              const placeholderId = placeholderIds[idx]
+              if (placeholderId) {
+                const { id: _unusedId, ...personaData } = realPersona
+                updatePersona(batchId, placeholderId, {
+                  ...personaData,
+                  variantOf: { id: referencePersona.id, name: referencePersona.name },
+                })
+                completedCount++
+              }
+            })
+
+            // Clean up any extra placeholders (if LLM returned fewer than requested)
+            for (let i = update.personas.length; i < placeholderIds.length; i++) {
+              const unusedId = placeholderIds[i]
+              if (unusedId) {
+                setPendingPersonaIds((prev) => {
+                  const next = new Set(prev)
+                  next.delete(unusedId)
+                  return next
+                })
+              }
+            }
+
+            // Update toast to success
+            if (toastIdRef.current) {
+              toast.success(
+                `${completedCount} variation${completedCount > 1 ? 's' : ''} of ${referencePersona.name} generated`,
+                {
+                  id: toastIdRef.current,
+                  description: 'New persona cards added to the batch',
+                  icon: <SparklesIcon className="h-4 w-4 text-primary" />,
+                },
+              )
+              toastIdRef.current = null
+            }
+
+            // Mark all as done (remove from pending)
+            setPendingPersonaIds((prev) => {
+              const next = new Set(prev)
+              placeholderIds.forEach((id) => next.delete(id))
+              return next
+            })
+            return
+          }
+
+          if (update.step === 'ERROR') {
+            console.log("[DashboardClient] Stream returned error:", update.error);
+            if (toastIdRef.current) {
+              toast.error('Failed to generate variations', {
+                id: toastIdRef.current,
+                description: update.error ?? 'Unknown error',
+              })
+              toastIdRef.current = null
+            }
+            setPendingPersonaIds((prev) => {
+              const next = new Set(prev)
+              placeholderIds.forEach((id) => next.delete(id))
+              return next
+            })
+            return
+          }
+        }
+      } catch (err) {
+        console.error("[DashboardClient] Variation generation threw exception:", err);
+        if (toastIdRef.current) {
+          toast.error('Failed to generate variations', {
+            id: toastIdRef.current,
+            description: (err as Error).message,
+          })
+          toastIdRef.current = null
+        }
+        setPendingPersonaIds((prev) => {
+          const next = new Set(prev)
+          placeholderIds.forEach((id) => next.delete(id))
+          return next
+        })
+      }
+    },
+    [insertPersonasAfter, updatePersona],
+  )
+
+  const showSetupView = batches.length === 0
 
   return (
-    <div className="flex flex-col gap-12 w-full animate-in fade-in duration-500">
-      
-      {/* 1. Setup View: Inputs for Customer Profile & Pricing URL */}
-      {(!hasPersonas || !hasAnalyses) && (
-        <SetupView 
-          personaFlow={personaFlow} 
-          analysisFlow={analysisFlow} 
-          hasPersonas={!!hasPersonas} 
-        />
-      )}
+    <>
+      {/* Main content — setup view or batch view */}
+      {showSetupView ? (
+        <div className="animate-in fade-in duration-500">
+          <SetupView
+            personaFlow={personaFlow}
+            analysisFlow={analysisFlow}
+            hasPersonas={false}
+          />
+        </div>
+      ) : (
+        <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Personas</h1>
+        <Link
+          href="/dashboard/interviews"
+          className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          + New from Interviews
+        </Link>
+      </div>
 
-      {/* 2. Audience View: Show generated Personas */}
-      {hasPersonas && !hasAnalyses && (
-        <AudienceView 
-          personas={personaFlow.personas!} 
-          analysisFlow={analysisFlow}
-        />
-      )}
-
-      {/* 3. Results View: Show Pricing Analyses & Chat */}
-      {hasPersonas && hasAnalyses && (
-        <ResultsView 
-          personas={personaFlow.personas!} 
-          analyses={analysisFlow.analyses!}
-          onReset={() => {
-            personaFlow.setPersonas(null)
-            analysisFlow.setAnalyses(null)
-            personaFlow.setCustomerProfile('')
-            analysisFlow.setPricingUrl('')
-            analysisFlow.setPricingImageBase64(null)
-            personaFlow.setError(null)
-            analysisFlow.setError(null)
-            personaFlow.handleCancel()
-            analysisFlow.handleCancel()
-          }}
-        />
-      )}
-
-      {/* Persona Generation Streaming Dialog */}
-      <FlowDialog
-        open={!!personaFlow.personaProgress}
-        onOpenChange={(open) => {
-          if (!open && personaFlow.personaProgress) {
-            personaFlow.handleCancel()
-          }
-        }}
-        title="Synthesizing Audience"
-        description="Kynd is generating realistic personas based on your target profile."
-        currentStep={
-          personaFlow.personaProgress?.step === 'BRAINSTORMING_PERSONAS' ? 0 :
-          personaFlow.personaProgress?.step === 'GENERATING_BACKSTORIES' ? 1 : 0
-        }
-        steps={[
-          { title: "Analyzing Market", description: "Mapping demographics and psychographics" },
-          { title: "Generating Personas", description: "Creating detailed backstories and traits" },
-          { title: "Finalizing", description: "Preparing avatars and profiles" }
-        ]}
-      >
-        {personaFlow.personaProgress && (
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <p className="text-sm font-medium text-muted-foreground animate-pulse">
-              {personaFlow.personaProgress.step === 'BRAINSTORMING_PERSONAS' && "Identifying key demographic segments..."}
-              {personaFlow.personaProgress.step === 'GENERATING_BACKSTORIES' && (
-                `Fleshing out backstories (${personaFlow.personaProgress.completedCount || 0}/${personaFlow.personaProgress.totalCount || 3})`
-              )}
-            </p>
-            {personaFlow.personaProgress.personaName && (
-              <p className="text-sm text-foreground/80">Currently generating: <span className="font-semibold">{personaFlow.personaProgress.personaName}</span></p>
-            )}
+      {!activeBatch ? (
+        <div className="flex flex-col gap-4">
+          {batches.map((batch) => (
+            <button
+              key={batch.id}
+              onClick={() => setActiveBatch(batch.id)}
+              className="flex items-center gap-4 rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <LayersIcon className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                <span className="font-semibold truncate">{batch.label}</span>
+                <span className="text-sm text-muted-foreground">
+                  {batch.personas.length} personas ·{' '}
+                  {batch.source === 'interviews'
+                    ? `${batch.transcriptCount} transcripts`
+                    : 'from description'}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground shrink-0">
+                {new Date(batch.createdAt).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between border-b border-border/40 pb-4">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xl font-bold tracking-tight">
+                {activeBatch.label}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {activeBatch.personas.length} personas ·{' '}
+                {activeBatch.source === 'interviews'
+                  ? `${activeBatch.transcriptCount} interview transcripts`
+                  : 'Generated from description'}
+                · {new Date(activeBatch.createdAt).toLocaleString()}
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveBatch(null)}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
+            >
+              All Batches
+            </button>
           </div>
-        )}
-      </FlowDialog>
-
-      {/* Analysis Generation Streaming Dialog */}
-      <FlowDialog
-        open={!!analysisFlow.analysisProgress}
-        onOpenChange={(open) => {
-          if (!open && analysisFlow.analysisProgress) {
-            analysisFlow.handleCancel()
-          }
-        }}
-        title="Running Simulations"
-        description="Personas are actively reviewing your product and pricing strategy."
-        currentStep={
-          analysisFlow.analysisProgress?.step === 'STARTING' || analysisFlow.analysisProgress?.step === 'OPENING_PAGE' ? 0 :
-          analysisFlow.analysisProgress?.step === 'FINDING_PRICING' ? 1 : 
-          analysisFlow.analysisProgress?.step === 'THINKING' ? 2 : 0
-        }
-        steps={[
-          { title: "Initialization", description: "Loading target experience" },
-          { title: "Visual Capture", description: "Scanning pricing structure" },
-          { title: "Cognitive Analysis", description: "Simulating persona thoughts and reactions" }
-        ]}
-      >
-        {analysisFlow.analysisProgress && (
-          <div className="flex flex-col items-center justify-center space-y-4 w-full">
-            <p className="text-sm font-medium text-muted-foreground animate-pulse">
-              {analysisFlow.analysisProgress.step === 'OPENING_PAGE' && "Loading pricing page..."}
-              {analysisFlow.analysisProgress.step === 'FINDING_PRICING' && "Capturing visual layout..."}
-              {analysisFlow.analysisProgress.step === 'THINKING' && (
-                `Gathering feedback (${analysisFlow.analysisProgress.completedCount || 0}/${analysisFlow.analysisProgress.totalCount || 3})`
-              )}
-            </p>
-
-            {/* AI Vision Stream (Screenshot Preview) */}
-            {analysisFlow.analysisProgress.screenshot && (
-              <div className="relative w-full max-w-lg aspect-video rounded-xl overflow-hidden border border-border shadow-sm bg-muted/30">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={`data:image/jpeg;base64,${analysisFlow.analysisProgress.screenshot}`} 
-                  alt="AI Agent View" 
-                  className="w-full h-full object-cover object-top opacity-80"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end justify-center pb-2 pointer-events-none">
-                   <span className="text-[10px] font-mono text-muted-foreground px-2 py-1 rounded-full bg-background/80 backdrop-blur-sm border border-border/50">
-                     LIVE AGENT VISION
-                   </span>
+          {activeBatch.source === 'interviews' && (
+            <div className="border-t border-border/40 pt-8 mt-8">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-lg font-semibold tracking-tight">Run Report</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Test how these interview-grounded personas react to your pricing page.
+                  </p>
                 </div>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <input
+                    type="url"
+                    className="flex h-12 w-full rounded-md border border-input bg-transparent px-4 py-2 text-base transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="https://your-startup.com/pricing"
+                    value={analysisFlow.pricingUrl}
+                    onChange={(e) => analysisFlow.setPricingUrl(e.target.value)}
+                    disabled={analysisFlow.isPending}
+                  />
+                  <button
+                    type="button"
+                    disabled={!analysisFlow.pricingUrl.trim() || analysisFlow.isPending}
+                    onClick={() => analysisFlow.handleAnalyzePricing(activeBatch.personas)}
+                    className="inline-flex h-12 whitespace-nowrap items-center justify-center rounded-md bg-foreground px-8 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    {analysisFlow.isPending ? 'Simulating...' : 'Run Pricing Simulation'}
+                  </button>
+                </div>
+                {analysisFlow.error && (
+                  <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{analysisFlow.error}</p>
+                )}
               </div>
-            )}
-            
-            {/* Show streaming thoughts if available */}
-            {analysisFlow.analysisProgress.streamingTexts && Object.keys(analysisFlow.analysisProgress.streamingTexts).length > 0 && (
-              <div className="w-full max-w-lg bg-secondary/30 rounded-lg p-4 max-h-[200px] overflow-y-auto custom-scrollbar border border-border/40 text-left">
-                 {Object.entries(analysisFlow.analysisProgress.streamingTexts).map(([name, text]) => (
-                    <div key={name} className="mb-4 last:mb-0">
-                      <p className="text-xs font-semibold text-primary mb-1">{name} is thinking:</p>
-                      <p className="text-xs text-foreground/80 font-mono whitespace-pre-wrap">{text.slice(-200)}...</p>
-                    </div>
-                 ))}
-              </div>
-            )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {activeBatch.personas.map((persona, idx) => {
+              // Use combined key to prevent collisions from duplicate persona IDs
+              const key = `${persona.id}::${idx}`
+              return pendingPersonaIds.has(persona.id) ? (
+                <PersonaSkeletonCard key={key} />
+              ) : (
+                <PersonaProfilePanel
+                  key={key}
+                  persona={persona}
+                  onClick={() => handleOpenDetail(persona.id)}
+                  onChatClick={() => handleOpenChat(persona)}
+                  onCreateVariant={() => handleOpenVariant(persona)}
+                  onDelete={handleDeletePersona}
+                />
+              )
+            })}
           </div>
-        )}
-      </FlowDialog>
+        </div>
+      )}
+
     </div>
+      )}
+
+      {/* Persona Generation Streaming Dialog (only in setup view) */}
+      {showSetupView && (
+        <FlowDialog
+          open={!!personaFlow.personaProgress}
+          onOpenChange={(open) => {
+            if (!open && personaFlow.personaProgress) {
+              personaFlow.handleCancel()
+            }
+          }}
+          transparentOverlay
+          title="Synthesizing Audience"
+          description="Kynd is generating realistic personas based on your target profile."
+          currentStep={
+            personaFlow.personaProgress?.step === 'BRAINSTORMING_PERSONAS'
+              ? 0
+              : personaFlow.personaProgress?.step === 'GENERATING_BACKSTORIES'
+                ? 1
+                : personaFlow.personaProgress?.step === 'ENHANCING_WITH_PBJ'
+                  ? 2
+                  : 3
+          }
+          steps={[
+            { title: 'Analyzing Market', description: 'Mapping demographics and psychographics' },
+            { title: 'Generating Personas', description: 'Creating detailed backstories and traits' },
+            { title: 'Rationalizing Behavior', description: 'Anchoring psychographics to personality (PB&J)' },
+            { title: 'Finalizing', description: 'Preparing avatars, insights, and profiles' },
+          ]}
+        >
+          {personaFlow.personaProgress && (
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <p className="text-sm font-medium text-muted-foreground animate-pulse">
+                {personaFlow.personaProgress.step === 'BRAINSTORMING_PERSONAS' &&
+                  'Identifying key demographic segments...'}
+                {personaFlow.personaProgress.step === 'GENERATING_BACKSTORIES' &&
+                  `Fleshing out backstories (${personaFlow.personaProgress.completedCount || 0}/${personaFlow.personaProgress.totalCount || 3})`}
+                {personaFlow.personaProgress.step === 'ENHANCING_WITH_PBJ' &&
+                  'Building psychological rationales...'}
+              </p>
+              {personaFlow.personaProgress.personaName && (
+                <p className="text-sm text-foreground/80">
+                  Currently generating:{' '}
+                  <span className="font-semibold">
+                    {personaFlow.personaProgress.personaName}
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
+        </FlowDialog>
+      )}
+
+
+      <PersonaDetailSheet
+        persona={selectedPersona}
+        isOpen={isDetailSheetOpen}
+        onClose={handleCloseSheet}
+        defaultTab={sheetDefaultTab}
+        onCreateVariant={selectedPersona ? () => handleOpenVariant(selectedPersona) : undefined}
+        onGenerateVariation={handleGenerateVariation}
+      />
+    </>
   )
 }

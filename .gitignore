@@ -12,3 +12,24 @@ out
 bun.lockb
 coverage
 deep_binding_of_llm_virtual_personas.*
+
+# OS
+.DS_Store
+
+# analysis logs
+logs/
+
+# Local Netlify folder
+.netlify
+
+# Sisyphus test artifacts
+.sisyphus/
+
+# Impeccable design artifacts
+.impeccable/
+
+# Temp files
+TEMP_*
+
+# Design docs / plans / ledgers
+thoughts/

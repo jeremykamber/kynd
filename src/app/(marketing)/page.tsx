@@ -8,9 +8,6 @@ export default function MarketingPage() {
     <div className="flex flex-col items-center w-full">
       {/* Hero Section */}
       <section className="w-full relative overflow-hidden py-32 md:py-48 flex flex-col items-center justify-center text-center px-4 md:px-8">
-        {/* Subtle background glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/5 blur-[120px] rounded-full pointer-events-none -z-10" />
-
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-8">
           <StatusBadge variant="secondary" className="px-4 py-1.5 text-sm mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
             Introducing Kynd
@@ -27,13 +24,13 @@ export default function MarketingPage() {
           <div className="flex flex-col sm:flex-row gap-4 mt-8 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300">
             <Link
               href="/dashboard"
-              className="inline-flex h-14 items-center justify-center rounded-full bg-primary px-10 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 hover:scale-105 hover:shadow-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex h-14 items-center justify-center rounded-md bg-primary px-10 text-base font-semibold text-primary-foreground transition-all hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Start Generating
             </Link>
             <Link
               href="#features"
-              className="inline-flex h-14 items-center justify-center rounded-full border border-border/60 bg-transparent px-10 text-base font-semibold text-foreground transition-all hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex h-14 items-center justify-center rounded-md border border-border/60 bg-transparent px-10 text-base font-semibold text-foreground transition-all hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               See How It Works
             </Link>
@@ -64,11 +61,9 @@ export default function MarketingPage() {
             </div>
 
             <div className="flex-1 w-full relative">
-              <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent blur-3xl -z-10 rounded-full" />
-
               <div className="grid gap-6 relative">
                 {/* Floating Mock Components */}
-                <MinimalCard className="relative md:translate-x-8 md:rotate-2 shadow-2xl z-20" hoverable>
+                <MinimalCard className="relative md:translate-x-8 md:rotate-2 z-20" hoverable>
                   <div className="flex items-start gap-4">
                     <PersonaAvatar name="Sarah Jenkins" size="lg" className="border-primary/20" />
                     <div className="flex flex-col gap-1">
@@ -84,7 +79,7 @@ export default function MarketingPage() {
                   </div>
                 </MinimalCard>
 
-                <MinimalCard className="relative md:-translate-x-8 md:-rotate-1 shadow-xl z-10 opacity-90" hoverable>
+                <MinimalCard className="relative md:-translate-x-8 md:-rotate-1 z-10 opacity-90" hoverable>
                   <div className="flex items-start gap-4">
                     <PersonaAvatar name="Marcus Chen" size="lg" />
                     <div className="flex flex-col gap-1">
@@ -114,7 +109,7 @@ export default function MarketingPage() {
           </p>
           <Link
             href="/dashboard"
-            className="mt-4 inline-flex h-14 items-center justify-center rounded-full bg-foreground px-10 text-base font-semibold text-background shadow transition-all hover:bg-foreground/90 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-4 inline-flex h-14 items-center justify-center rounded-md bg-foreground px-10 text-base font-semibold text-background transition-all hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Go to Dashboard &rarr;
           </Link>

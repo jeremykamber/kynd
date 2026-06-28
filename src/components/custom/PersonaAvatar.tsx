@@ -34,7 +34,7 @@ export function PersonaAvatar({
   return (
     <div
       className={cn(
-        "relative flex shrink-0 overflow-hidden rounded-full border border-border/50 bg-secondary/50",
+        "relative flex shrink-0 overflow-hidden rounded-full border border-border bg-secondary",
         sizeClasses[size],
         className
       )}

@@ -33,7 +33,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
         <button
           type="button"
           onClick={onReset}
-          className="inline-flex h-10 items-center justify-center rounded-full border border-border/60 bg-transparent px-6 text-sm font-medium text-foreground transition-all hover:bg-secondary/40 focus-visible:outline-none"
+          className="inline-flex h-10 items-center justify-center rounded-md border border-border/60 bg-transparent px-6 text-sm font-medium text-foreground transition-all hover:bg-secondary/40 focus-visible:outline-none"
         >
           Start New Analysis
         </button>
@@ -41,12 +41,14 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
 
       <div className="grid grid-cols-1 gap-8">
         {analyses.map(analysis => {
-          // Find the persona for this analysis
-          // Note: In MVP, analysis doesn't explicitly map to persona ID well in the array without passing it, 
-          // but assuming they line up by index or we find it by matching. 
-          // For now, let's just pair them up by index since they are processed in order.
           const index = analyses.indexOf(analysis);
-          const persona = personas[index];
+          // Match by personaProfile?.name or personaId first; fall back to index
+          const persona =
+            personas.find(p =>
+              analysis.personaProfile?.name === p.name ||
+              analysis.personaId === p.id
+            ) ??
+            personas[index];
 
           if (!persona) return null;
 
@@ -61,23 +63,44 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                     <div>
                       <h3 className="font-semibold text-lg">{persona.name}</h3>
                       <p className="text-sm text-muted-foreground">{persona.occupation}</p>
+                      {analysis.personaProfile && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {Object.entries(analysis.personaProfile.bigFive)
+                            .sort(([, a], [, b]) => Math.abs(b - 50) - Math.abs(a - 50))
+                            .slice(0, 2)
+                            .map(([trait, value]) => (
+                              <span key={trait} className="text-xs px-2 py-0.5 rounded-full bg-muted">
+                                {value >= 60 ? "High" : value <= 40 ? "Low" : "Moderate"}{" "}
+                                {trait.charAt(0).toUpperCase() + trait.slice(1)}: {value}%
+                              </span>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-4 mt-2">
                     <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Scoring</h4>
                     <div className="grid grid-cols-2 gap-4">
-                      <ScoreMetric label="Clarity" value={analysis.scores.clarity} />
-                      <ScoreMetric label="Value" value={analysis.scores.valuePerception} />
-                      <ScoreMetric label="Trust" value={analysis.scores.trust} />
-                      <ScoreMetric label="Buy Intent" value={analysis.scores.likelihoodToBuy} />
+                      <ScoreMetric label="Clarity" value={analysis.scores.clarity} reason={analysis.scores.clarityReason} />
+                      <ScoreMetric label="Value" value={analysis.scores.valuePerception} reason={analysis.scores.valuePerceptionReason} />
+                      <ScoreMetric label="Trust" value={analysis.scores.trust} reason={analysis.scores.trustReason} />
+                    </div>
+
+                    <div className="h-px bg-border/20 my-2" />
+
+                    <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Intent Funnel</h4>
+                    <div className="flex flex-col gap-3">
+                      <FunnelStage label="Exploration" value={analysis.scores.explorationIntent} reason={analysis.scores.explorationIntentReason} color="bg-blue-500" />
+                      <FunnelStage label="Analysis" value={analysis.scores.analysisIntent} reason={analysis.scores.analysisIntentReason} color="bg-indigo-500" />
+                      <FunnelStage label="Buy Intent" value={analysis.scores.buyIntent} reason={analysis.scores.buyIntentReason} color="bg-emerald-500" />
                     </div>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setSelectedPersonaId(persona.id)}
-                    className="mt-auto w-full inline-flex h-12 items-center justify-center rounded-xl bg-secondary/50 px-4 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary focus-visible:outline-none"
+                    className="mt-auto w-full inline-flex h-12 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 ring-1 ring-primary/20 focus-visible:outline-none"
                   >
                     Chat with {persona.name.split(' ')[0]}
                   </button>
@@ -90,11 +113,11 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                     <div className="flex items-center gap-3">
                       <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Gut Reaction</h4>
                       <div
-                        className={`w-2 h-2 rounded-full ${getSentimentVariant(analysis.scores.likelihoodToBuy)}`}
+                        className={`w-2 h-2 rounded-full ${getSentimentVariant(analysis.scores.buyIntent)}`}
                         title="Tone Sentiment"
                       />
                     </div>
-                    <div className={`p-4 rounded-xl border text-foreground/90 font-medium italic shadow-inner ${getSentimentBoxVariant(analysis.scores.likelihoodToBuy)}`}>
+                    <div className={`p-4 rounded-lg border text-foreground/90 font-medium italic ${getSentimentBoxVariant(analysis.scores.buyIntent)}`}>
                       &quot;{analysis.gutReaction}&quot;
                     </div>
                   </div>
@@ -122,12 +145,12 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
 
                   {/* Actionable Badge */}
                   <div className="mt-4 pt-6 border-t border-border/20 flex flex-col sm:flex-row sm:items-center gap-3">
-                    <span className="bg-indigo-500/10 text-primary border border-primary/20 text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full flex items-center gap-2 w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
-                      AI Suggestion
+                    <span className="bg-primary/10 text-primary border border-primary/20 text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm flex items-center gap-2 w-fit">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                      Suggestion
                     </span>
                     <span className="text-sm text-foreground/80 font-medium">
-                      {getAISuggestion(analysis.scores)}
+                      {analysis.aiSuggestion || "No AI suggestion available."}
                     </span>
                   </div>
                 </div>
@@ -148,7 +171,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
   )
 }
 
-function ScoreMetric({ label, value }: { label: string, value: number }) {
+function ScoreMetric({ label, value, reason }: { label: string, value: number, reason?: string }) {
   const getColorClass = (val: number) => {
     if (val >= 8) return "text-emerald-500"
     if (val >= 5) return "text-amber-500"
@@ -156,9 +179,34 @@ function ScoreMetric({ label, value }: { label: string, value: number }) {
   }
 
   return (
-    <div className="flex flex-col gap-1 bg-white/[0.02] backdrop-blur-md p-3 rounded-lg">
+    <div className="flex flex-col gap-1 bg-muted/20 p-3 rounded-lg">
       <span className="text-xs text-muted-foreground font-medium">{label}</span>
       <span className={`text-xl font-bold font-variant-numeric tabular-nums ${getColorClass(value)}`}>{value}/10</span>
+      {reason && (
+        <span className="text-[10px] text-muted-foreground/70 leading-tight mt-1">{reason}</span>
+      )}
+    </div>
+  )
+}
+
+function FunnelStage({ label, value, reason, color }: { label: string, value: number, reason?: string, color: string }) {
+  const getWidthPercent = (val: number) => Math.max(val * 10, 5)
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-medium text-foreground/80">{label}</span>
+        <span className={`font-bold ${value >= 6 ? 'text-emerald-500' : value >= 4 ? 'text-amber-500' : 'text-destructive'}`}>{value}/10</span>
+      </div>
+      <div className="h-4 w-full bg-muted/30 rounded-sm overflow-hidden relative">
+        <div
+          className={`h-full ${value >= 6 ? color : value >= 4 ? 'bg-amber-500' : 'bg-destructive'} rounded-sm transition-all duration-500`}
+          style={{ width: `${getWidthPercent(value)}%` }}
+        />
+      </div>
+      {reason && (
+        <span className="text-[10px] text-muted-foreground/70 leading-tight">{reason}</span>
+      )}
     </div>
   )
 }
@@ -170,25 +218,7 @@ function getSentimentBoxVariant(score: number) {
 }
 
 function getSentimentVariant(score: number) {
-  if (score >= 8) return "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-  if (score >= 5) return "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
-  return "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
-}
-
-function getAISuggestion(scores: { clarity: number, valuePerception: number, trust: number, likelihoodToBuy: number }) {
-  const arr = [
-    { key: "clarity", val: scores.clarity },
-    { key: "valuePerception", val: scores.valuePerception },
-    { key: "trust", val: scores.trust },
-    { key: "likelihoodToBuy", val: scores.likelihoodToBuy }
-  ].sort((a, b) => a.val - b.val);
-
-  const lowest = arr[0].key;
-  switch (lowest) {
-    case "clarity": return "Highlight key differences between tiers more explicitly.";
-    case "valuePerception": return "Emphasize ROI, core outcomes, and included value.";
-    case "trust": return "Add customer testimonials, social proof, and security badges.";
-    case "likelihoodToBuy": return "Consider adding a generous trial or money-back guarantee.";
-    default: return "Optimize the conversion funnel for better engagement.";
-  }
+  if (score >= 8) return "bg-emerald-500"
+  if (score >= 5) return "bg-amber-500"
+  return "bg-destructive"
 }

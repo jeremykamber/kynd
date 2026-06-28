@@ -9,11 +9,15 @@ export class PersonaAdapter {
 
   /**
    * Generates a set of initial buyer personas based on a customer profile description.
+   * Uses research-backed psychographic framework:
+   * - Big Five (OCEAN): Joshi et al. (2025) — psychometric grounding
+   * - Values, fears, communication style, decision style: Wang et al. (2024b) — psychographic specification
    */
-  async generateInitialPersonas(personaDescription: string): Promise<Persona[]> {
+  async generateInitialPersonas(personaDescription: string, count?: number): Promise<Persona[]> {
+    const personaCount = count ?? 3;
     const system = `You are a persona generator creating realistic buyer personas for SaaS pricing evaluation.
 
-Generate a JSON array of 3 DISTINCT personas matching this TypeScript interface:
+Generate a JSON array of ${personaCount} DISTINCT personas matching this TypeScript interface:
 
 interface Persona {
   id: string;
@@ -23,35 +27,44 @@ interface Persona {
   educationLevel: string;
   interests: string[];
   goals: string[];
-  personalityTraits: string[];
-  // Big Five Personality Traits (0-100)
-  conscientiousness: number; 
+
+  // Big Five Personality Traits (0-100) — Joshi et al. (2025) psychometric grounding
+  conscientiousness: number;
   neuroticism: number;
   openness: number;
   extraversion: number;
   agreeableness: number;
-  // Cognitive Engine (0-100: 0=System 1/Intuitive, 100=System 2/Analytical)
-  cognitiveReflex: number;
-  // Skill & Resource Layer (0-100)
-  technicalFluency: number;
-  economicSensitivity: number;
-  // Aesthetic & Environment
-  designStyle: string;       // e.g. Minimalist, Industrial, Mid-Century Modern
-  livingEnvironment: string; // Describe their messy/organized home or office
+
+  // Psychographic Specification — Wang et al. (2024b)
+  values: string[];               // Core values driving decisions (2-4 items)
+  fears: string[];                // Anxieties and risk concerns (2-3 items)
+  communicationStyle: string;     // How they speak (e.g. "direct", "analytical", "warm", "cautious")
+  decisionStyle: string;          // Decision process (e.g. "data-driven", "gut-driven", "consensus-seeking")
+
+  // Pricing calibration — MUST be generated based on persona's role, industry, and experience
+  pricingSensitivity: number;     // 0-100: Derived from Big Five + their role. A bootstrapped founder will be higher than a well-funded VP.
+  typicalBudget: string;          // What they're used to paying based on their role and experience (e.g. "Up to $20/user/month")
+
+  // Domain knowledge
+  domainExpertise: string[];      // Domains they know well (e.g. ["cloud infrastructure", "B2B SaaS", "product management"])
 }
 
 CRITICAL REQUIREMENTS:
-- SCIENTIFIC ROOT CAUSES: Assign high-fidelity scalars (0-100) for the Big Five and Cognitive Reflex. These are the "genes" of the persona.
+- BIG FIVE ROOT CAUSES: Assign high-fidelity Big Five scalars (0-100). These are the "genes" of the persona.
+- PRICING CALIBRATION: Derive pricingSensitivity and typicalBudget from the persona's Big Five, role, and the target market description. A well-funded VP of Engineering at a Series B will have very different expectations than a bootstrapped indie developer. This calibration MUST be consistent with their other psychographics.
+- DOMAIN EXPERTISE: Generate 2-4 relevant domains based on the persona's role and the target market.
 - CONSCIENTIOUSNESS: High=Meticulous/reads everything; Low=Chaotic/skips details.
 - NEUROTICISM: High=Risk-averse/anxious about contract traps; Low=Bold/adventuresome.
-- COGNITIVE REFLEX: 0=System 1 (Emotional/Gut); 100=System 2 (Calculative/Unit Economics).
-- DISTRIBUTION: Ensure the 3 personas represent a spectrum across these variables.
-- REALISM: Ages, occupations, and goals must match the description.
-- AESTHETIC DNA: Define their design taste.
+- OPENNESS: High=Early adopter/curious about new tools; Low=Traditional/sticks with what works.
+- EXTRAVERSION: High=Collaborative/seeks peer input; Low=Independent/self-directed.
+- AGREEABLENESS: High=Trusting/takes recommendations; Low=Skeptical/challenges claims.
+- VALUES + FEARS: These drive motivation. Must align with Big Five and pricing calibration.
+- DISTRIBUTION: Ensure the ${personaCount} personas represent a spectrum across Big Five, pricing sensitivity, and decision styles.
+- REALISM: Occupations, budgets, and goals must match the description.
 
 Return ONLY valid JSON without explanatory text or markdown code blocks.`;
 
-    const user = `Create 3 diverse personas for: "${personaDescription}". Ensure different financial profiles and tech fluency.`;
+    const user = `Create ${personaCount} diverse personas for: "${personaDescription}". Ensure a spectrum of decision-making styles and value systems.`;
 
     const content = await this.llmService.createChatCompletion(
       [
@@ -66,10 +79,23 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
     );
 
     const cleaned = stripCodeFence(content);
+    console.log("[PersonaAdapter] Raw LLM persona generation response (first 2000 chars):", cleaned.slice(0, 2000));
     try {
       const parsed = JSON.parse(cleaned);
       if (!Array.isArray(parsed))
         throw new Error("Expected JSON array from LLM");
+      console.log("[PersonaAdapter] Successfully parsed", parsed.length, "personas from LLM");
+      parsed.forEach((p: any, i: number) => {
+        console.log(`[PersonaAdapter] Persona ${i + 1}:`, JSON.stringify({
+          name: p.name,
+          occupation: p.occupation,
+          bigFive: { C: p.conscientiousness, N: p.neuroticism, O: p.openness, E: p.extraversion, A: p.agreeableness },
+          values: p.values,
+          fears: p.fears,
+          commStyle: p.communicationStyle,
+          decisionStyle: p.decisionStyle,
+        }));
+      });
 
       // Deterministically pick neutral, curated names from GENDERLESS_NAMES so the LLM
       // does not invent potentially biased names on the fly. We seed the shuffle
@@ -107,20 +133,11 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
       return parsed.map(
         (p: Record<string, unknown>, idx: number) =>
           ({
-            id:
-              (p.id as string) ??
-              (p.uuid as string) ??
-              `persona-${idx}`,
-            // Use the curated list of genderless, culture-neutral names (chosenNames) so
-            // the LLM does not invent ad-hoc names. Assign deterministically from the pool.
+            id: (p.id as string) ?? `persona-${idx}`,
             name: chosenNames[idx % chosenNames.length] ?? "Persona",
-            age:
-              typeof p.age === "number"
-                ? p.age
-                : Number(p.age) || 30,
+            age: typeof p.age === "number" ? p.age : Number(p.age) || 30,
             occupation: (p.occupation as string) ?? "Unknown",
-            educationLevel:
-              (p.educationLevel as string) ?? (p.education as string) ?? "Unknown",
+            educationLevel: (p.educationLevel as string) ?? (p.education as string) ?? "Unknown",
             interests: Array.isArray(p.interests)
               ? (p.interests as string[])
               : p.interests
@@ -131,21 +148,39 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
               : p.goals
                 ? [p.goals as string]
                 : [],
-            personalityTraits: Array.isArray(p.personalityTraits)
-              ? (p.personalityTraits as string[])
-              : p.traits && Array.isArray(p.traits)
-                ? (p.traits as string[])
-                : [],
+
+            // Big Five — Joshi et al. (2025)
             conscientiousness: Number(p.conscientiousness) || 50,
             neuroticism: Number(p.neuroticism) || 50,
             openness: Number(p.openness) || 50,
             extraversion: Number(p.extraversion) || 50,
             agreeableness: Number(p.agreeableness) || 50,
-            cognitiveReflex: Number(p.cognitiveReflex) || 50,
-            technicalFluency: Number(p.technicalFluency) || 50,
-            economicSensitivity: Number(p.economicSensitivity) || 50,
-            designStyle: (p.designStyle as string) ?? "Minimalist",
-            livingEnvironment: (p.livingEnvironment as string) ?? "Unknown",
+
+            // Psychographic Specification — Wang et al. (2024b)
+            values: Array.isArray(p.values)
+              ? (p.values as string[])
+              : p.values
+                ? [p.values as string]
+                : [],
+            fears: Array.isArray(p.fears)
+              ? (p.fears as string[])
+              : p.fears
+                ? [p.fears as string]
+                : [],
+            communicationStyle: (p.communicationStyle as string) ?? (p.communication_style as string) ?? "",
+            decisionStyle: (p.decisionStyle as string) ?? (p.decision_style as string) ?? "",
+
+            // Pricing calibration — LLM-generated, context-dependent
+            pricingSensitivity: Number(p.pricingSensitivity) ?? 50,
+            typicalBudget: (p.typicalBudget as string) ?? (p.budget as string) ?? "",
+
+            // Domain knowledge
+            domainExpertise: Array.isArray(p.domainExpertise)
+              ? (p.domainExpertise as string[])
+              : p.domainExpertise
+                ? [p.domainExpertise as string]
+                : [],
+
             backstory: (p.backstory as string) ?? (p.story as string) ?? undefined,
           }) as Persona,
       );
@@ -159,9 +194,10 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
   /**
    * Streaming version of generateInitialPersonas using Vercel AI SDK's streamObject.
    */
-  async * generateInitialPersonasStream(personaDescription: string): AsyncIterable<Partial<Persona>[]> {
+  async * generateInitialPersonasStream(personaDescription: string, count?: number): AsyncIterable<Partial<Persona>[]> {
+    const personaCount = count ?? 3;
     const system = `You are a persona generator creating realistic buyer personas for SaaS pricing evaluation.
-Generate a JSON array of 3 DISTINCT personas matching this TypeScript interface:
+Generate a JSON array of ${personaCount} DISTINCT personas matching this TypeScript interface:
 interface Persona {
   id: string;
   name: string;
@@ -170,31 +206,24 @@ interface Persona {
   educationLevel: string;
   interests: string[];
   goals: string[];
-  personalityTraits: string[];
-  // Big Five Personality Traits (0-100)
-  conscientiousness: number; 
+  // Big Five (0-100)
+  conscientiousness: number;
   neuroticism: number;
   openness: number;
   extraversion: number;
   agreeableness: number;
-  // Cognitive Engine (0-100: 0=System 1/Intuitive, 100=System 2/Analytical)
-  cognitiveReflex: number;
-  // Skill & Resource Layer (0-100)
-  technicalFluency: number;
-  economicSensitivity: number;
-  // Aesthetic & Environment
-  designStyle: string;       // e.g. Minimalist, Industrial, Mid-Century Modern
-  livingEnvironment: string; // Describe their messy/organized home or office
+  // Psychographic Specification
+  values: string[];           // Core values driving decisions
+  fears: string[];            // Anxieties and risk concerns
+  communicationStyle: string; // direct, analytical, cautious, etc.
+  decisionStyle: string;      // data-driven, gut-driven, consensus-seeking, etc.
 }
 CRITICAL REQUIREMENTS:
-- SCIENTIFIC ROOT CAUSES: Assign high-fidelity scalars (0-100) for the Big Five and Cognitive Reflex. These are the "genes" of the persona.
-- CONSCIENTIOUSNESS: High=Meticulous/reads everything; Low=Chaotic/skips details.
-- NEUROTICISM: High=Risk-averse/anxious about contract traps; Low=Bold/adventuresome.
-- COGNITIVE REFLEX: 0=System 1 (Emotional/Gut); 100=System 2 (Calculative/Unit Economics).
-- DISTRIBUTION: Ensure the 3 personas represent a spectrum across these variables.
-- REALISM: Ages, occupations, and goals must match the description.
-- AESTHETIC DNA: Define their design taste.
-Return ONLY valid JSON without explanatory text or markdown code blocks.`;
+- BIG FIVE ROOT CAUSES: Assign high-fidelity Big Five scalars (0-100). These are the "genes" of the persona.
+- VALUES + FEARS: These drive motivation and must align with their Big Five profile.
+- COMMUNICATION + DECISION STYLE: Must be consistent with their Big Five and occupation.
+- DISTRIBUTION: Ensure the ${personaCount} personas represent a spectrum across Big Five, values, and decision styles.
+Return ONLY valid JSON.`;
 
     const { partialOutputStream } = streamText({
       model: this.llmService.provider(this.llmService.smallTextModel),
@@ -202,7 +231,7 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
         element: PersonaSchema,
       }),
       system,
-      prompt: `Create 3 diverse personas for: "${personaDescription}". Ensure different financial profiles and tech fluency.`,
+      prompt: `Create ${personaCount} diverse personas for: "${personaDescription}". Ensure a spectrum of decision-making styles and value systems.`,
     });
 
     if (!partialOutputStream) {
@@ -560,6 +589,133 @@ ${personasText}`;
         fallback.push(await this.generatePersonaInsight(persona));
       }
       return fallback;
+    }
+  }
+
+  /**
+   * Generates persona variations based on a reference persona and adjusted Big Five traits.
+   * The LLM receives the reference persona as context, the adjusted Big Five to target,
+   * and a variation level (0-100) that controls creative freedom.
+   * All psychographic fields (values, fears, communicationStyle, decisionStyle, backstory)
+   * are freshly generated to be consistent with the adjusted traits.
+   */
+  async generateVariationPersonas(
+    referencePersona: Persona,
+    adjustments: { bigFive: { conscientiousness: number; neuroticism: number; openness: number; extraversion: number; agreeableness: number }; variationLevel: number },
+    count: number,
+  ): Promise<Persona[]> {
+    console.log("[PersonaAdapter.generateVariationPersonas] Generating", count, "variations for reference:", referencePersona.name);
+    console.log("[PersonaAdapter.generateVariationPersonas] Adjustments:", JSON.stringify(adjustments));
+    const system = `You are a persona generator creating realistic buyer personas for SaaS pricing evaluation.
+Each persona is a variation based on a reference persona with specific Big Five trait adjustments.
+
+Generate a JSON array of ${count} DISTINCT persona variations matching this TypeScript interface (omit the id field — it will be assigned server-side):
+
+interface Persona {
+  name: string;
+  age: number;
+  occupation: string;
+  educationLevel: string;
+  interests: string[];
+  goals: string[];
+  conscientiousness: number;  // 0-100
+  neuroticism: number;       // 0-100
+  openness: number;          // 0-100
+  extraversion: number;       // 0-100
+  agreeableness: number;      // 0-100
+  values: string[];           // 2-4 items
+  fears: string[];            // 2-3 items
+  communicationStyle: string; // e.g. "direct", "analytical", "warm", "cautious"
+  decisionStyle: string;      // e.g. "data-driven", "gut-driven", "consensus-seeking"
+  pricingSensitivity: number; // 0-100, derived from role + Big Five
+  typicalBudget: string;      // e.g. "Up to $20/user/month"
+  domainExpertise: string[];  // 2-4 relevant domains
+  backstory: string;          // 3-5 paragraph narrative in first person
+  aiInsight: string;          // 2-sentence behavioral insight
+}
+
+REFERENCE PERSONA (use as template for context, occupation, domain):
+${JSON.stringify(referencePersona, null, 2)}
+
+TARGET BIG FIVE VALUES (adjusted by user - your generated personas must use EXACTLY these values):
+- Conscientiousness: ${adjustments.bigFive.conscientiousness}
+- Neuroticism: ${adjustments.bigFive.neuroticism}
+- Openness: ${adjustments.bigFive.openness}
+- Extraversion: ${adjustments.bigFive.extraversion}
+- Agreeableness: ${adjustments.bigFive.agreeableness}
+
+VARIATION LEVEL: ${adjustments.variationLevel}/100
+- LOW variation (0-30): Keep occupation, education level, and thematic domain similar to the reference persona. Generate new backstory, values, fears, goals, interests, communication style, and decision style that align with the adjusted Big Five.
+- MEDIUM variation (31-70): Moderate changes to occupation and life context. The reference serves as loose inspiration.
+- HIGH variation (71-100): Full creative freedom. Only the adjusted Big Five values are fixed. Occupation, background, and story can be entirely new while remaining in the same product/market domain.
+
+CRITICAL REQUIREMENTS:
+- The Big Five values you output MUST match the TARGET values above exactly.
+- All other fields (values, fears, goals, interests, backstory, etc.) must be INTERNALLY CONSISTENT with the adjusted Big Five profile.
+- DISTRIBUTION: Each variation should be a distinct persona, not a copy of the reference.
+- CREATIVE BACKSTORIES: Each persona needs a compelling 3-5 paragraph first-person backstory that causally explains how their life experiences shaped their Big Five profile.
+- AI INSIGHT: A sharp 2-sentence insight into their primary motivation and biggest psychological barrier.
+- REALISM: Occupations, budgets, and goals must feel authentic and market-appropriate.
+
+Return ONLY valid JSON array without explanatory text or markdown code blocks.`;
+
+    const user = `Generate ${count} distinct persona variations based on the reference persona "${referencePersona.name}" (${referencePersona.occupation}) with the specified Big Five adjustments and variation level ${adjustments.variationLevel}/100.`;
+
+    console.log("[PersonaAdapter.generateVariationPersonas] Calling LLM with temperature:", 0.7 + (adjustments.variationLevel / 100) * 0.2);
+    const content = await this.llmService.createChatCompletion(
+      [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      {
+        model: this.llmService.smallTextModel,
+        temperature: 0.7 + (adjustments.variationLevel / 100) * 0.2, // Scale temp with variation
+        purpose: "Generate Variation Personas",
+      },
+    );
+
+    const cleaned = stripCodeFence(content);
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (!Array.isArray(parsed)) throw new Error("Expected JSON array from LLM");
+      console.log("[PersonaAdapter.generateVariationPersonas] Successfully parsed", parsed.length, "variations from LLM response");
+
+      return parsed.map(
+        (p: Record<string, unknown>, _idx: number) =>
+          ({
+            // id is intentionally omitted — the client assigns its own placeholder IDs
+            name: (p.name as string) ?? `Variation ${_idx + 1}`,
+            age: typeof p.age === "number" ? p.age : Number(p.age) || 30,
+            occupation: (p.occupation as string) ?? "Unknown",
+            educationLevel: (p.educationLevel as string) ?? "Unknown",
+            interests: Array.isArray(p.interests) ? (p.interests as string[]) : [],
+            goals: Array.isArray(p.goals) ? (p.goals as string[]) : [],
+
+            // Big Five - use the target values directly for precision
+            conscientiousness: Number(p.conscientiousness) ?? adjustments.bigFive.conscientiousness,
+            neuroticism: Number(p.neuroticism) ?? adjustments.bigFive.neuroticism,
+            openness: Number(p.openness) ?? adjustments.bigFive.openness,
+            extraversion: Number(p.extraversion) ?? adjustments.bigFive.extraversion,
+            agreeableness: Number(p.agreeableness) ?? adjustments.bigFive.agreeableness,
+
+            values: Array.isArray(p.values) ? (p.values as string[]) : [],
+            fears: Array.isArray(p.fears) ? (p.fears as string[]) : [],
+            communicationStyle: (p.communicationStyle as string) ?? "",
+            decisionStyle: (p.decisionStyle as string) ?? "",
+
+            pricingSensitivity: Number(p.pricingSensitivity) ?? 50,
+            typicalBudget: (p.typicalBudget as string) ?? "",
+
+            domainExpertise: Array.isArray(p.domainExpertise) ? (p.domainExpertise as string[]) : [],
+            backstory: (p.backstory as string) ?? "",
+            aiInsight: (p.aiInsight as string) ?? "",
+          }      ) as Persona,
+      );
+    } catch (err) {
+      console.error("[PersonaAdapter.generateVariationPersonas] Failed to parse LLM response");
+      throw new Error(
+        `Failed to parse variation personas from LLM response: ${err}\nResponse was: ${cleaned}`,
+      );
     }
   }
 

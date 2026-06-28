@@ -1,11 +1,15 @@
-import { useState, useTransition, useMemo, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { PricingAnalysis } from '@/domain/entities/PricingAnalysis'
 import { analyzePricingPageAction } from '@/actions/analyzePricingPage'
 import { predictGazeAction } from '@/actions/predictGaze'
 import { cancelRequestAction } from '@/actions/cancelRequest'
+import { getSimulationResultAction } from '@/actions/getSimulationResult'
+import { getScreenshotAction } from '@/actions/getScreenshot'
 import { readStreamableValue } from '@ai-sdk/rsc'
 import { PricingAnalysisProgressStep } from '@/application/usecases/ParsePricingPageUseCase'
+import { useSimulationStore } from '@/ui/stores/simulationStore'
+import { generateSimulationName } from '@/domain/entities/Simulation'
 
 export interface AnalysisProgress {
   step: PricingAnalysisProgressStep | 'DONE' | 'ERROR' | 'CANCELLED'
@@ -13,8 +17,6 @@ export interface AnalysisProgress {
   personaName?: string
   completedCount?: number
   totalCount?: number
-  analysisToken?: string
-  streamingTexts?: Record<string, string>
   error?: string
   analyses?: PricingAnalysis[]
 }
@@ -24,14 +26,26 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
   const [pricingImageBase64, setPricingImageBase64] = useState<string | null>(null)
   const [analyses, setAnalyses] = useState<PricingAnalysis[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null)
   const [predictingGazeId, setPredictingGazeId] = useState<string | null>(null)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      // Don't abort the stream controller on unmount — the server needs to
+      // finish processing and send the DONE event so markComplete is called.
+      // The Zustand store continues to receive updates even after navigation.
+    }
+  }, [])
 
   const handleCancel = async () => {
+    console.log(`[TRACE] [useAnalysisFlow] handleCancel called. requestId=${currentRequestId}`)
     if (currentRequestId) {
       await cancelRequestAction(currentRequestId);
     }
@@ -45,8 +59,20 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
   }
 
   const handleAnalyzePricing = (personas: Persona[]) => {
-    if (!pricingUrl.trim() && !pricingImageBase64) return
-    if (!personas) return
+    if (!pricingUrl.trim() && !pricingImageBase64) {
+      console.log(`[TRACE] [useAnalysisFlow] handleAnalyzePricing: no URL or image, skipping`)
+      return
+    }
+    if (!personas) {
+      console.log(`[TRACE] [useAnalysisFlow] handleAnalyzePricing: no personas, skipping`)
+      return
+    }
+
+    console.log(`[TRACE] [useAnalysisFlow] ========================================`)
+    console.log(`[TRACE] [useAnalysisFlow] STARTING PRICING ANALYSIS FLOW`)
+    console.log(`[TRACE] [useAnalysisFlow] ========================================`)
+    console.log(`[TRACE] [useAnalysisFlow] url=${pricingUrl}, imageBase64=${pricingImageBase64 ? 'present (' + pricingImageBase64.length + ' chars)' : 'none'}`)
+    console.log(`[TRACE] [useAnalysisFlow] personas=${personas.length}: [${personas.map(p => p.name).join(', ')}]`)
 
     setError(null)
     const controller = new AbortController()
@@ -54,90 +80,175 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     setAbortController(controller)
     setAnalysisProgress({ step: 'STARTING' })
 
-    startTransition(async () => {
+    const simulationId = `sim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    console.log(`[TRACE] [useAnalysisFlow] Creating simulation: id=${simulationId}, url=${pricingUrl}`)
+
+    useSimulationStore.getState().addSimulation({
+      id: simulationId,
+      name: generateSimulationName(pricingUrl),
+      url: pricingUrl,
+      status: 'IN_PROGRESS',
+      personaCount: personas.length,
+      personaNames: personas.map((p) => p.name),
+      createdAt: new Date().toISOString(),
+      currentStep: 'STARTING',
+      completedAnalyses: 0,
+      totalAnalyses: personas.length,
+    })
+
+    setIsPending(true)
+    ;(async () => {
+      // Declare screenshot polling vars outside try block so catch can access them
+      let screenshotPollInterval: ReturnType<typeof setInterval> | null = null;
+      const clearScreenshotPoll = () => {
+        if (screenshotPollInterval) {
+          clearInterval(screenshotPollInterval);
+          screenshotPollInterval = null;
+        }
+      };
+
       try {
         const urlToUse = pricingImageBase64 ? "Manual Upload" : pricingUrl;
-        const { streamData, requestId } = await analyzePricingPageAction(urlToUse, personas, undefined, pricingImageBase64 || undefined)
+        console.log(`[TRACE] [useAnalysisFlow] Calling analyzePricingPageAction with url="${urlToUse}", ${personas.length} personas...`)
+        const actionStartTime = Date.now();
+        const { streamData, requestId } = await analyzePricingPageAction(urlToUse, personas, simulationId, pricingImageBase64 || undefined)
+        const actionCallDuration = Date.now() - actionStartTime;
         setCurrentRequestId(requestId)
+        console.log(`[TRACE] [useAnalysisFlow] analyzePricingPageAction returned in ${actionCallDuration}ms. requestId=${requestId}`)
 
-        let lastUpdate = 0;
-        const THROTTLE_MS = 150;
-        const accumulatedTexts: Record<string, string> = {};
+        // Start polling for screenshots via server-side store (bypasses RSC stream size limits)
+        if (requestId) {
+          screenshotPollInterval = setInterval(async () => {
+              try {
+                const result = await getScreenshotAction(requestId);
+              if (result.found && result.base64) {
+                useSimulationStore.getState().updateSimulation(simulationId, {
+                  screenshot: result.base64,
+                });
+              }
+            } catch (e) {
+              // Silently fail — screenshot is non-critical
+            }
+          }, 2000);
+        }
 
         for await (const update of readStreamableValue(streamData)) {
           if (controller.signal.aborted) {
-            setAnalysisProgress(null)
-            setAbortController(null)
-            setCurrentRequestId(null)
+            console.log(`[TRACE] [useAnalysisFlow] Controller aborted, stopping stream processing. requestId=${requestId}`)
+            clearScreenshotPoll()
             return
           }
 
-          if (update) {
-            if (update.step === 'CANCELLED') {
+          if (!update) continue
+
+          if (update.step === 'CANCELLED') {
+            console.log(`[TRACE] [useAnalysisFlow] Received CANCELLED step. requestId=${requestId}`)
+            clearScreenshotPoll()
+            useSimulationStore.getState().markCancelled(simulationId)
+            if (mountedRef.current) {
               setAnalysisProgress(null)
               setAbortController(null)
               setCurrentRequestId(null)
               setError('Analysis was cancelled')
-              return
             }
+            return
+          }
 
-            if (update.step === 'ERROR') {
+          if (update.step === 'ERROR') {
+            console.log(`[TRACE] [useAnalysisFlow] Received ERROR step. requestId=${requestId}, error=${update.error}`)
+            clearScreenshotPoll()
+            useSimulationStore.getState().markError(simulationId, update.error ?? 'Analysis failed')
+            if (mountedRef.current) {
               setError(update.error)
               setAnalysisProgress(null)
               setAbortController(null)
               setCurrentRequestId(null)
-              return
             }
+            return
+          }
 
-            if (update.step === 'DONE') {
+          if (update.step === 'DONE') {
+            console.log(`[TRACE] [useAnalysisFlow] RECEIVED DONE STEP — ${update.analyses?.length} analyses, requestId=${requestId}`)
+            if (update.analyses) {
+              update.analyses.forEach((a: PricingAnalysis, i: number) => {
+                console.log(`[TRACE] [useAnalysisFlow] Analysis[${i}]: id=${a.id}, gutReaction="${a.gutReaction?.slice(0, 100)}", scores={clarity:${a.scores?.clarity}, value:${a.scores?.valuePerception}, trust:${a.scores?.trust}, buy:${a.scores?.buyIntent}}, risks=${a.risks?.length}, recs=${a.recommendations?.length}`)
+              })
+            }
+            clearScreenshotPoll()
+            useSimulationStore.getState().markComplete(simulationId, update.analyses ?? [])
+            if (mountedRef.current) {
               setAnalyses(update.analyses)
               setAnalysisProgress(null)
               setAbortController(null)
               setCurrentRequestId(null)
-              if (onSuccess) onSuccess(update.analyses)
-              return
             }
+            if (onSuccess) onSuccess(update.analyses)
+            return
+          }
 
-            // Accumulate tokens with safety limit for browser stability
-            if (update.personaName && update.analysisToken) {
-              const currentLength = (accumulatedTexts[update.personaName] || "").length;
-              // Safety check to prevent excessively large strings (tripled to 150k)
-              if (currentLength < 150000) {
-                accumulatedTexts[update.personaName] = (accumulatedTexts[update.personaName] || "") + update.analysisToken;
-              } else if (currentLength === 150000) {
-                accumulatedTexts[update.personaName] += "\n\n[...Token limit reached for preview...]";
-              }
-            }
+          // Progress update: step, completedCount, screenshot
+          if (update.completedCount !== undefined) {
+            console.log(`[TRACE] [useAnalysisFlow] Progress: step=${update.step}, completedCount=${update.completedCount}/${update.totalCount}, persona=${update.personaName}`);
+          }
 
-            const now = Date.now();
-            if (now - lastUpdate > THROTTLE_MS) {
-              setAnalysisProgress((prev) => {
-                return {
-                  ...update,
-                  screenshot: update.screenshot || prev?.screenshot,
-                  streamingTexts: { ...accumulatedTexts }
-                } as AnalysisProgress;
-              });
-              lastUpdate = now;
-            }
+          useSimulationStore.getState().updateSimulation(simulationId, {
+            currentStep: update.step as any,
+            completedAnalyses: update.completedCount,
+            ...(update.screenshot ? { screenshot: update.screenshot } : {}),
+          });
+
+          if (mountedRef.current) {
+            setAnalysisProgress(update as AnalysisProgress);
           }
         }
-      } catch (err) {
-        if (!controller.signal.aborted) {
-          setError((err as Error).message)
+        clearScreenshotPoll()
+        console.log(`[TRACE] [useAnalysisFlow] Stream ended without terminal step. Falling back to polling. requestId=${requestId}`)
+        // Stream disconnected (HMR/dev-mode glitch, navigation, etc). Fall back to
+        // polling the server-side result store, same as the simulation detail page.
+        for (let attempt = 0; attempt < 300; attempt++) {
+          if (!mountedRef.current || controller.signal.aborted) break
+          await new Promise((r) => setTimeout(r, 1000))
+          try {
+            const result = await getSimulationResultAction(simulationId)
+            if (!result.found) continue
+            clearScreenshotPoll()
+            if (result.error) {
+              useSimulationStore.getState().markError(simulationId, result.error)
+            } else if (result.analyses && result.analyses.length > 0) {
+              useSimulationStore.getState().markComplete(simulationId, result.analyses)
+            }
+            if (mountedRef.current) {
+              setAnalyses(result.analyses ?? null)
+              setAnalysisProgress(null)
+              setAbortController(null)
+              setCurrentRequestId(null)
+            }
+            if (result.analyses && onSuccess) onSuccess(result.analyses)
+            return
+          } catch { /* retry */ }
         }
-        setAnalysisProgress(null)
-        setAbortController(null)
-        setCurrentRequestId(null)
+      } catch (err) {
+        clearScreenshotPoll()
+        console.log(`[TRACE] [useAnalysisFlow] CAUGHT ERROR:`, (err as Error).message)
+        if (mountedRef.current) {
+          if (!controller.signal.aborted) {
+            setError((err as Error).message)
+          }
+          setAnalysisProgress(null)
+          setAbortController(null)
+          setCurrentRequestId(null)
+        }
+      } finally {
+        setIsPending(false)
       }
-    })
+    })()
   }
 
   const handlePredictGaze = (analysis: PricingAnalysis, persona: Persona) => {
     if (predictingGazeId) return
 
     setPredictingGazeId(analysis.id)
-    startTransition(async () => {
+    ;(async () => {
       try {
         const result = await predictGazeAction(persona, analysis.screenshotBase64)
         if (result.success && result.data) {
@@ -152,24 +263,8 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
       } finally {
         setPredictingGazeId(null)
       }
-    })
+    })()
   }
-
-  const combinedAnalysisStream = useMemo(() => {
-    if (!analysisProgress?.streamingTexts) return undefined;
-    return Object.entries(analysisProgress.streamingTexts)
-      .map(([name, text]) => `### Thinking: ${name}\n${text}`)
-      .join('\n\n---\n\n');
-  }, [analysisProgress?.streamingTexts]);
-
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-        abortControllerRef.current = null
-      }
-    }
-  }, [])
 
   return {
     pricingUrl,
@@ -186,6 +281,5 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     handleAnalyzePricing,
     handlePredictGaze,
     handleCancel,
-    combinedAnalysisStream
   }
 }

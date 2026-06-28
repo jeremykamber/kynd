@@ -5,14 +5,14 @@ import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
 import { PersonaAdapter } from "./PersonaAdapter";
 import { VisionAnalysisAdapter } from "./VisionAnalysisAdapter";
 import { ChatAdapter } from "./ChatAdapter";
-import { ExtractionAdapter } from "./ExtractionAdapter";
+import { HtmlSummarizer } from "./HtmlSummarizer";
+import { InterviewSignalExtractor } from "./InterviewSignalExtractor";
+import { PsychographicRationalizer } from "./PsychographicRationalizer";
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
+import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
+import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
-/**
- * Lean core implementation of the LlmServicePort that handles LLM plumbing.
- * Domain-specific logic is moved to specialized adapters.
- */
 export class LlmServiceImpl implements LlmServicePort {
   public client: OpenAI;
   public provider: OpenAIProvider;
@@ -22,21 +22,20 @@ export class LlmServiceImpl implements LlmServicePort {
   public scoutVisionModel: string;
   public extractionModel: string;
   private static requestCount = 0;
-  public static readonly limiter = pLimit(20); // Increased for better parallelization
+  public static readonly limiter = pLimit(20);
 
   private personaAdapter: PersonaAdapter;
   private visionAdapter: VisionAnalysisAdapter;
   private chatAdapter: ChatAdapter;
-  private extractionAdapter: ExtractionAdapter;
+  private htmlSummarizer: HtmlSummarizer;
+  private interviewSignalExtractor: InterviewSignalExtractor;
 
-  // OpenRouter Defaults
-  private static readonly OR_TEXT_MODEL = "qwen/qwen3.5-9b";
-  private static readonly OR_SMALL_TEXT_MODEL = "qwen/qwen3.5-flash-02-23";
+  private static readonly OR_TEXT_MODEL = "deepseek/deepseek-v4-flash";
+  private static readonly OR_SMALL_TEXT_MODEL = "deepseek/deepseek-v4-flash";
   private static readonly OR_VISION_MODEL = "qwen/qwen3-vl-30b-a3b-instruct";
   private static readonly OR_SCOUT_MODEL = "qwen/qwen3-vl-30b-a3b-instruct";
-  private static readonly OR_EXTRACTION_MODEL = "qwen/qwen3.5-flash-02-23";
+  private static readonly OR_EXTRACTION_MODEL = "deepseek/deepseek-v4-flash";
 
-  // Ollama Defaults
   private static readonly OLLAMA_DEFAULT_MODEL = "gemma3:1b-it-qat";
 
   constructor(
@@ -61,7 +60,8 @@ export class LlmServiceImpl implements LlmServicePort {
     this.personaAdapter = new PersonaAdapter(this);
     this.visionAdapter = new VisionAnalysisAdapter(this);
     this.chatAdapter = new ChatAdapter(this);
-    this.extractionAdapter = new ExtractionAdapter(this);
+    this.htmlSummarizer = new HtmlSummarizer(this);
+    this.interviewSignalExtractor = new InterviewSignalExtractor(this);
   }
 
   private sleep(ms: number): Promise<void> {
@@ -81,7 +81,7 @@ export class LlmServiceImpl implements LlmServicePort {
         if (!isRetryable || i === maxRetries - 1) throw error;
         const waitTime = Math.pow(2, i) * 2000 + Math.random() * 1000;
         console.warn(
-          `[LlmService] Retry ${i + 1}/${maxRetries} after ${Math.round(waitTime)}ms`,
+          `[LlmService] Retry ${i + 1}/${maxRetries} after ${Math.round(waitTime)}ms (status=${status})`,
         );
         await this.sleep(waitTime);
       }
@@ -157,14 +157,32 @@ export class LlmServiceImpl implements LlmServicePort {
       response_format?: { type: "json_object" | "text" };
       model?: string;
       purpose?: string;
+      runId?: string;
     },
   ): Promise<string> {
     return this.withRetry(async () => {
       const reqId = ++LlmServiceImpl.requestCount;
       const purpose = options.purpose || "General";
       const model = options.model || this.textModel;
+      const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+
+      // Log the request with input size estimate
+      const messagesTotalChars = messages
+        ? JSON.stringify(messages).length
+        : 0;
+      log?.info(
+        "LlmServiceImpl",
+        `[Req #${reqId}] [${purpose}] Sending request to ${model}...`,
+        {
+          messagesLength: messagesTotalChars,
+          temperature: options.temperature ?? 0.7,
+          maxTokens: options.max_tokens ?? null,
+          responseFormat: options.response_format?.type ?? "text",
+        },
+      );
+
       console.log(
-        `[LlmService] [Req #${reqId}] [${purpose}] Sending request to ${model}...`,
+        `[LlmService] [Req #${reqId}] [${purpose}] Sending request to ${model}... (${messagesTotalChars} chars)`,
       );
       const startTime = Date.now();
 
@@ -184,10 +202,34 @@ export class LlmServiceImpl implements LlmServicePort {
         this.client.chat.completions.create(requestParams),
       );
 
+      const responseContent = resp?.choices?.[0]?.message?.content || "";
+      const durationMs = Date.now() - startTime;
+
       console.log(
-        `[LlmService] [Req #${reqId}] [${purpose}] Completed in ${Date.now() - startTime}ms.`,
+        `[LlmService] [Req #${reqId}] [${purpose}] Completed in ${durationMs}ms. Response: ${responseContent.length} chars.`,
       );
-      return resp?.choices?.[0]?.message?.content || "";
+
+      log?.info("LlmServiceImpl", `[Req #${reqId}] [${purpose}] Completed`, {
+        durationMs,
+        responseLength: responseContent.length,
+        responsePreview: responseContent.slice(0, 300),
+      });
+
+      // Capture and log reasoning tokens if present (DeepSeek V4 Flash)
+      const reasoning =
+        (resp?.choices?.[0]?.message as any)?.reasoning ||
+        (resp?.choices?.[0]?.message as any)?.reasoning_content;
+      if (reasoning) {
+        console.log(
+          `[LlmService] [Req #${reqId}] [${purpose}] Reasoning (${reasoning.length} chars): ${reasoning.slice(0, 300)}...`,
+        );
+        log?.info("LlmServiceImpl", `[Req #${reqId}] Reasoning`, {
+          length: reasoning.length,
+          preview: reasoning.slice(0, 500),
+        });
+      }
+
+      return responseContent;
     });
   }
 
@@ -199,15 +241,24 @@ export class LlmServiceImpl implements LlmServicePort {
       response_format?: { type: "json_object" | "text" };
       model?: string;
       purpose?: string;
+      runId?: string;
     },
   ): AsyncIterable<string> {
+    let reqId = 0;
     const stream = await this.withRetry(async () => {
-      const reqId = ++LlmServiceImpl.requestCount;
+      reqId = ++LlmServiceImpl.requestCount;
       const purpose = options.purpose || "General";
       const model = options.model || this.textModel;
+      const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+
       console.log(
         `[LlmService] [Req #${reqId}] [${purpose}] Starting stream to ${model}...`,
       );
+      log?.info("LlmServiceImpl", `[Req #${reqId}] [${purpose}] Starting stream`, {
+        model,
+        messagesLength: JSON.stringify(messages).length,
+        temperature: options.temperature ?? 0.7,
+      });
 
       const requestParams: any = {
         model,
@@ -225,24 +276,99 @@ export class LlmServiceImpl implements LlmServicePort {
       return await this.client.chat.completions.create(requestParams);
     });
 
-    // Cast to streaming type since we set stream: true
     const chunkStream = stream as unknown as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
+    let debugLogged = false;
+    let reasoningAccum = "";
+    let contentStarted = false;
+    let chunkCount = 0;
     for await (const chunk of chunkStream) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) yield content;
+      chunkCount++;
+      const delta = chunk.choices[0]?.delta as any;
+      if (!debugLogged && delta && chunk.choices[0]?.finish_reason === null) {
+        console.log(`[LlmService] [Req #${reqId}] FIRST RAW CHUNK:`, JSON.stringify(chunk).slice(0, 500));
+        debugLogged = true;
+      }
+
+      const reasoning =
+        delta?.reasoning_content ||
+        delta?.reasoning ||
+        (delta?.reasoning_details?.[0]?.text) ||
+        (Array.isArray(delta?.reasoning_details) ? delta.reasoning_details.map((r: any) => r.text || "").join("") : null);
+      if (reasoning) {
+        reasoningAccum += reasoning;
+      }
+      const content = delta?.content;
+      if (content) {
+        if (reasoningAccum && !contentStarted) {
+          yield `<<REASONING>>${reasoningAccum}<</REASONING>>`;
+          reasoningAccum = "";
+          contentStarted = true;
+        }
+        yield content;
+      }
     }
+    if (reasoningAccum) {
+      yield `<<REASONING>>${reasoningAccum}<</REASONING>>`;
+    }
+
+    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+    log?.info("LlmServiceImpl", `[Req #${reqId}] Stream completed`, {
+      totalChunks: chunkCount,
+      reasoningLength: reasoningAccum.length,
+    });
+  }
+
+  async isPricingVisible(screenshot: string, runId?: string): Promise<boolean> {
+    return this.visionAdapter.isPricingVisible(screenshot, runId);
+  }
+
+  async isPricingVisibleInHtml(html: string, runId?: string): Promise<PricingLocation> {
+    return this.visionAdapter.isPricingVisibleInHtml(html, runId);
+  }
+
+  async analyzePricingPageStream(
+    persona: Persona,
+    screenshot: string,
+    html?: string,
+    options?: { tokenLimit?: number; runId?: string }
+  ): Promise<any> {
+    return this.visionAdapter.analyzePricingPageStream(
+      persona,
+      screenshot,
+      html,
+      options,
+    );
+  }
+
+  async analyzePricingPageCompletion(
+    persona: Persona,
+    screenshot: string,
+    html?: string,
+    options?: { tokenLimit?: number; runId?: string }
+  ): Promise<any> {
+    return this.visionAdapter.analyzePricingPageCompletion(
+      persona,
+      screenshot,
+      html,
+      options,
+    );
+  }
+
+  async summarizeHtml(html: string, runId?: string): Promise<string> {
+    return this.htmlSummarizer.summarizeHtml(html, runId);
   }
 
   // --- Domain Gateways (Delegating to Adapters) ---
 
-  async generateInitialPersonas(description: string) {
-    return this.personaAdapter.generateInitialPersonas(description);
+  async generateInitialPersonas(description: string, count?: number) {
+    return this.personaAdapter.generateInitialPersonas(description, count);
   }
 
   async *generateInitialPersonasStream(
     description: string,
+    count?: number,
   ): AsyncIterable<Partial<Persona>[]> {
-    yield* this.personaAdapter.generateInitialPersonasStream(description);
+    yield* this.personaAdapter.generateInitialPersonasStream(description, count);
   }
 
   async generatePersonaBackstory(
@@ -282,26 +408,30 @@ export class LlmServiceImpl implements LlmServicePort {
     return this.personaAdapter.generatePersonaInsightsBatch(personas);
   }
 
-  async isPricingVisible(screenshot: string): Promise<boolean> {
-    return this.visionAdapter.isPricingVisible(screenshot);
+  async generateVariationPersonas(
+    referencePersona: Persona,
+    adjustments: { bigFive: { conscientiousness: number; neuroticism: number; openness: number; extraversion: number; agreeableness: number }; variationLevel: number },
+    count: number,
+  ): Promise<Persona[]> {
+    return this.personaAdapter.generateVariationPersonas(referencePersona, adjustments, count);
   }
 
-  async isPricingVisibleInHtml(html: string): Promise<PricingLocation> {
-    return this.visionAdapter.isPricingVisibleInHtml(html);
-  }
-
-  async analyzePricingPageStream(
-    persona: Persona,
-    screenshot: string,
-    html?: string,
-    options?: { tokenLimit?: number }
-  ): Promise<any> {
-    return this.visionAdapter.analyzePricingPageStream(
-      persona,
-      screenshot,
-      html,
-      options,
+  async rationalizePersonas(personas: Persona[]): Promise<Persona[]> {
+    const enhancer = new PsychographicRationalizer(this);
+    const enhanced = await Promise.allSettled(
+      personas.map(async (persona) => {
+        const pbjText = await enhancer.rationalizeBackstory(persona);
+        if (pbjText) {
+          persona.backstory = (persona.backstory ?? "") + pbjText;
+        }
+        return persona;
+      }),
     );
+    return enhanced.map((r) => (r.status === "fulfilled" ? r.value : r.reason as any));
+  }
+
+  async extractInterviewSignals(transcript: string, interviewId: string): Promise<ExtractedInterviewSignals> {
+    return this.interviewSignalExtractor.extract(transcript, interviewId);
   }
 
   async *chatWithPersonaStream(
@@ -325,26 +455,19 @@ export class LlmServiceImpl implements LlmServicePort {
     return this.chatAdapter.validatePromptDomain(persona, prompt);
   }
 
-  async summarizeHtml(html: string): Promise<string> {
-    return this.extractionAdapter.summarizeHtml(html);
-  }
-
   // --- Legacy / Compatibility ---
 
   async analyzeStaticPage(
     persona: Persona,
     screenshot: string,
   ): Promise<PricingAnalysis> {
-    throw new Error(
-      "analyzeStaticPage is deprecated. Use analyzePricingPageStream instead.",
-    );
+    throw new Error("analyzeStaticPage is deprecated. Use analyzePricingPageStream instead.");
   }
 
   async *analyzeStaticPageStream(
     persona: Persona,
     screenshots: string[],
   ): AsyncIterable<string> {
-    // Fallback for logic that still expects a raw string stream
     const result = await this.analyzePricingPageStream(persona, screenshots[0]);
     for await (const partial of result.partialObjectStream) {
       if (partial.thoughts) yield partial.thoughts;
@@ -355,9 +478,7 @@ export class LlmServiceImpl implements LlmServicePort {
     persona: Persona,
     rawThoughts: string,
   ): Promise<Partial<PricingAnalysis>> {
-    throw new Error(
-      "extractInsights is deprecated. Use analyzePricingPageStream for consolidated results.",
-    );
+    throw new Error("extractInsights is deprecated. Use analyzePricingPageStream for consolidated results.");
   }
 
   async chatWithPersona(

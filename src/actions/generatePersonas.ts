@@ -41,14 +41,14 @@ export async function generatePersonasAction(personaDescription: string, _abortS
             const useCase = new GeneratePersonasUseCase(llmService);
 
             const personas = await useCase.execute(personaDescription, (progress) => {
-                stream.update(progress);
+                try { stream.update(progress); } catch {}
             });
 
             const finalPersonas = JSON.parse(JSON.stringify(personas));
             stream.done({ step: "DONE", personas: finalPersonas });
         } catch (error) {
             console.error("Error generating personas:", error);
-            stream.done({ step: "ERROR", error: (error as Error).message });
+            try { stream.done({ step: "ERROR", error: (error as Error).message }); } catch {}
         }
     })();
 
