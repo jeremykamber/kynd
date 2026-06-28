@@ -19,6 +19,10 @@ export interface ProgressState {
   hasCompleted?: boolean;
 }
 
+const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
+const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+const RUN_LOCALLY = process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
+
 // Store on globalThis to survive Next.js HMR (dev mode), which resets module-level
 // variables when files change. The running IIFE writes to the original Map, and
 // polling reads from it — if they become different objects, progress is lost.
@@ -41,11 +45,18 @@ export async function getProgressAction(runId: string): Promise<{
   found: boolean;
   progress?: ProgressState;
 }> {
-  const p = progressMap.get(runId);
-  if (!p) {
-    console.log(`[PROGRESS_POLL] ${runId}: NOT FOUND (map size=${progressMap.size})`);
-    return { found: false };
+  if (RUN_LOCALLY) {
+    const p = progressMap.get(runId);
+    if (!p) {
+      console.log(`[PROGRESS_POLL] ${runId}: NOT FOUND (map size=${progressMap.size})`);
+      return { found: false };
+    }
+    console.log(`[PROGRESS_POLL] ${runId}: FOUND step=${p.step ?? '?'}, completed=${p.completedAnalyses ?? '?'}/${p.totalAnalyses ?? '?'}, hasCompleted=${!!p.hasCompleted}, error=${p.error ?? 'none'}`);
+    return { found: true, progress: p };
   }
-  console.log(`[PROGRESS_POLL] ${runId}: FOUND step=${p.step ?? '?'}, completed=${p.completedAnalyses ?? '?'}/${p.totalAnalyses ?? '?'}, hasCompleted=${!!p.hasCompleted}, error=${p.error ?? 'none'}`);
-  return { found: true, progress: p };
+
+  const res = await fetch(`${VPS_BACKEND_URL}/api/vps/analyze-progress?runId=${runId}`, {
+    headers: { Authorization: `Bearer ${VPS_AUTH_TOKEN}` },
+  });
+  return res.json();
 }

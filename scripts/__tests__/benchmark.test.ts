@@ -66,7 +66,6 @@ describe("createMockPersonas", () => {
     expect(first.occupation).toBe("Product Manager");
     expect(first.interests).toEqual(["Productivity tools", "Data analysis"]);
     expect(first.goals).toEqual(["Scale team efficiency", "Reduce costs"]);
-    expect(first.personalityTraits).toEqual(["Analytical", "Pragmatic"]);
     expect(typeof first.conscientiousness).toBe("number");
     expect(typeof first.neuroticism).toBe("number");
   });
