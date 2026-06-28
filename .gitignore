@@ -21,3 +21,15 @@ logs/
 
 # Local Netlify folder
 .netlify
+
+# Sisyphus test artifacts
+.sisyphus/
+
+# Impeccable design artifacts
+.impeccable/
+
+# Temp files
+TEMP_*
+
+# Design docs / plans / ledgers
+thoughts/

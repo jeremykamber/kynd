@@ -10,13 +10,7 @@ class MockLlmService {
       { name: 'Y', age: 30 },
       { name: 'Z', age: 35 },
     ];
-    return {
-      choices: [
-        {
-          message: { content: JSON.stringify(personas) },
-        },
-      ],
-    };
+    return JSON.stringify(personas);
   }
 }
 

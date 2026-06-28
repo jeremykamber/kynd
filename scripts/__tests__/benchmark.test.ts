@@ -25,7 +25,7 @@ describe("parseArgs", () => {
     const result = parseArgs();
     expect(result.personasOnly).toBe(false);
     expect(result.useMockPersonas).toBe(false);
-    expect(result.url).toBe("https://pricing.example.com");
+    expect(result.url).toBe("https://linear.app/pricing");
   });
 
   it("parses --personas-only flag", () => {

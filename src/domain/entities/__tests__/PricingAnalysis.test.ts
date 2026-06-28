@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { validatePricingAnalysis } from '../PricingAnalysis'
+import { PricingAnalysis, validatePricingAnalysis } from '../PricingAnalysis'
 
 describe('PricingAnalysis entity', () => {
-  const mockAnalysis = {
+  const mockAnalysis:PricingAnalysis = {
     id: '1',
     url: 'https://example.com/pricing',
     screenshotBase64: 'base64data',
@@ -22,6 +22,7 @@ describe('PricingAnalysis entity', () => {
       buyIntentReason: "Likely to buy after evaluation.",
     },
     risks: ['Risk 1'],
+    aiSuggestion: "Needs more features/reasons to justify buying",
     recommendations: [],
   }
 

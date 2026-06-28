@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 export default defineConfig({
   plugins: [react()],
-  test: { environment: 'jsdom', setupFiles: ['./vitest.setup.ts'] },
+  test: { environment: 'jsdom', pool: 'forks', setupFiles: ['./vitest.setup.ts'] },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

@@ -47,7 +47,7 @@ describe('ParsePricingPageUseCase', () => {
       isPricingVisibleInHtml: vi.fn(),
       summarizeHtml: vi.fn(),
       isPricingVisible: vi.fn(),
-      analyzePricingPageStream: vi.fn(),
+      analyzePricingPageCompletion: vi.fn(),
     } as any;
 
     useCase = new ParsePricingPageUseCase(mockBrowserService, mockLlmService);
@@ -67,24 +67,20 @@ describe('ParsePricingPageUseCase', () => {
     mockBrowserService.captureViewport.mockResolvedValue('base64-viewport');
     mockLlmService.summarizeHtml.mockResolvedValue('summarized-html');
 
-    // Mocking analyzePricingPageStream to return a mock result
-    mockLlmService.analyzePricingPageStream.mockResolvedValue({
-      partialObjectStream: (async function* () {
-        yield { thoughts: 'Analysis thoughts' };
-      })(),
-      object: Promise.resolve({
-        gutReaction: 'Positive',
-        thoughts: 'Good pricing',
-        scores: {
-          clarity: 5, clarityReason: "Test reason.",
-          valuePerception: 5, valuePerceptionReason: "Test reason.",
-          trust: 5, trustReason: "Test reason.",
-          explorationIntent: 5, explorationIntentReason: "Test reason.",
-          analysisIntent: 5, analysisIntentReason: "Test reason.",
-          buyIntent: 5, buyIntentReason: "Test reason.",
-        },
-        risks: []
-      })
+    mockLlmService.analyzePricingPageCompletion.mockResolvedValue({
+      gutReaction: 'Positive',
+      thoughts: 'Good pricing',
+      scores: {
+        clarity: 5, clarityReason: "Test reason.",
+        valuePerception: 5, valuePerceptionReason: "Test reason.",
+        trust: 5, trustReason: "Test reason.",
+        explorationIntent: 5, explorationIntentReason: "Test reason.",
+        analysisIntent: 5, analysisIntentReason: "Test reason.",
+        buyIntent: 5, buyIntentReason: "Test reason.",
+      },
+      risks: [],
+      recommendations: [],
+      aiSuggestion: 'Test suggestion.',
     });
 
     const results = await useCase.execute(url, [mockPersona]);
@@ -113,30 +109,27 @@ describe('ParsePricingPageUseCase', () => {
     mockLlmService.summarizeHtml.mockResolvedValue('summarized-html');
     mockLlmService.isPricingVisible.mockResolvedValue(true);
 
-    mockLlmService.analyzePricingPageStream.mockResolvedValue({
-      partialObjectStream: (async function* () {
-        yield { thoughts: 'Analysis thoughts' };
-      })(),
-      object: Promise.resolve({
-        gutReaction: 'Positive',
-        thoughts: 'Good pricing',
-        scores: {
-          clarity: 5, clarityReason: "Test reason.",
-          valuePerception: 5, valuePerceptionReason: "Test reason.",
-          trust: 5, trustReason: "Test reason.",
-          explorationIntent: 5, explorationIntentReason: "Test reason.",
-          analysisIntent: 5, analysisIntentReason: "Test reason.",
-          buyIntent: 5, buyIntentReason: "Test reason.",
-        },
-        risks: []
-      })
+    mockLlmService.analyzePricingPageCompletion.mockResolvedValue({
+      gutReaction: 'Positive',
+      thoughts: 'Good pricing',
+      scores: {
+        clarity: 5, clarityReason: "Test reason.",
+        valuePerception: 5, valuePerceptionReason: "Test reason.",
+        trust: 5, trustReason: "Test reason.",
+        explorationIntent: 5, explorationIntentReason: "Test reason.",
+        analysisIntent: 5, analysisIntentReason: "Test reason.",
+        buyIntent: 5, buyIntentReason: "Test reason.",
+      },
+      risks: [],
+      recommendations: [],
+      aiSuggestion: 'Test suggestion.',
     });
 
     await useCase.execute(url, [mockPersona]);
 
     expect(mockLlmService.isPricingVisibleInHtml).toHaveBeenCalled();
     // Should call isPricingVisible (vision scout) because of low confidence (generic class)
-    expect(mockLlmService.isPricingVisible).toHaveBeenCalledWith('base64-viewport');
+    expect(mockLlmService.isPricingVisible).toHaveBeenCalledWith('base64-viewport', 'unknown');
   });
 
   it('should parallelize HTML scouting and summarization', async () => {
@@ -161,9 +154,17 @@ describe('ParsePricingPageUseCase', () => {
     mockBrowserService.captureViewport.mockResolvedValue('shot');
     mockLlmService.isPricingVisible.mockResolvedValue(true);
 
-    mockLlmService.analyzePricingPageStream.mockResolvedValue({
-      partialObjectStream: (async function* () { yield {}; })(),
-      object: Promise.resolve({ scores: {} })
+    mockLlmService.analyzePricingPageCompletion.mockResolvedValue({
+      gutReaction: 'OK',
+      thoughts: 'Done',
+      scores: {
+        clarity: 5, clarityReason: 'R', valuePerception: 5, valuePerceptionReason: 'R',
+        trust: 5, trustReason: 'R', explorationIntent: 5, explorationIntentReason: 'R',
+        analysisIntent: 5, analysisIntentReason: 'R', buyIntent: 5, buyIntentReason: 'R',
+      },
+      risks: [],
+      recommendations: [],
+      aiSuggestion: 'Suggestion.',
     });
 
     const start = Date.now();
@@ -185,14 +186,22 @@ describe('ParsePricingPageUseCase', () => {
     mockBrowserService.captureViewport.mockResolvedValue('shot');
     mockLlmService.summarizeHtml.mockResolvedValue('summary');
 
-    mockLlmService.analyzePricingPageStream.mockResolvedValue({
-      partialObjectStream: (async function* () { yield {}; })(),
-      object: Promise.resolve({ scores: {} })
+    mockLlmService.analyzePricingPageCompletion.mockResolvedValue({
+      gutReaction: 'OK',
+      thoughts: 'Done',
+      scores: {
+        clarity: 5, clarityReason: 'R', valuePerception: 5, valuePerceptionReason: 'R',
+        trust: 5, trustReason: 'R', explorationIntent: 5, explorationIntentReason: 'R',
+        analysisIntent: 5, analysisIntentReason: 'R', buyIntent: 5, buyIntentReason: 'R',
+      },
+      risks: [],
+      recommendations: [],
+      aiSuggestion: 'Suggestion.',
     });
 
     await useCase.execute(url, [mockPersona], undefined, undefined, { tokenLimit: customLimit });
 
-    expect(mockLlmService.analyzePricingPageStream).toHaveBeenCalledWith(
+    expect(mockLlmService.analyzePricingPageCompletion).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
       'summary',
@@ -214,18 +223,13 @@ describe('ParsePricingPageUseCase', () => {
     mockBrowserService.captureViewport.mockResolvedValue('base64-shot');
     mockLlmService.isPricingVisible.mockResolvedValue(false);
 
-    mockLlmService.analyzePricingPageStream.mockResolvedValue({
-      partialObjectStream: (async function* () {
-        yield { thoughts: 'Analysis' };
-      })(),
-      object: Promise.resolve({
-        gutReaction: 'Fine',
-        thoughts: 'Analysis complete',
-        scores: { clarity: 5, clarityReason: 'R', valuePerception: 5, valuePerceptionReason: 'R', trust: 5, trustReason: 'R', explorationIntent: 5, explorationIntentReason: 'R', analysisIntent: 5, analysisIntentReason: 'R', buyIntent: 5, buyIntentReason: 'R' },
-        risks: [],
-        recommendations: [],
-        aiSuggestion: '',
-      })
+    mockLlmService.analyzePricingPageCompletion.mockResolvedValue({
+      gutReaction: 'Fine',
+      thoughts: 'Analysis complete',
+      scores: { clarity: 5, clarityReason: 'R', valuePerception: 5, valuePerceptionReason: 'R', trust: 5, trustReason: 'R', explorationIntent: 5, explorationIntentReason: 'R', analysisIntent: 5, analysisIntentReason: 'R', buyIntent: 5, buyIntentReason: 'R' },
+      risks: [],
+      recommendations: [],
+      aiSuggestion: 'Suggestion.',
     });
 
     const capturedProgress: any[] = [];
@@ -269,16 +273,13 @@ describe('ParsePricingPageUseCase', () => {
     mockBrowserService.captureViewport.mockResolvedValue('base64-shot');
     mockLlmService.isPricingVisible.mockResolvedValue(false);
 
-    mockLlmService.analyzePricingPageStream.mockResolvedValue({
-      partialObjectStream: (async function* () { yield {}; })(),
-      object: Promise.resolve({
-        gutReaction: 'OK',
-        thoughts: 'Done',
-        scores: { clarity: 5, clarityReason: 'R', valuePerception: 5, valuePerceptionReason: 'R', trust: 5, trustReason: 'R', explorationIntent: 5, explorationIntentReason: 'R', analysisIntent: 5, analysisIntentReason: 'R', buyIntent: 5, buyIntentReason: 'R' },
-        risks: [],
-        recommendations: [],
-        aiSuggestion: '',
-      })
+    mockLlmService.analyzePricingPageCompletion.mockResolvedValue({
+      gutReaction: 'OK',
+      thoughts: 'Done',
+      scores: { clarity: 5, clarityReason: 'R', valuePerception: 5, valuePerceptionReason: 'R', trust: 5, trustReason: 'R', explorationIntent: 5, explorationIntentReason: 'R', analysisIntent: 5, analysisIntentReason: 'R', buyIntent: 5, buyIntentReason: 'R' },
+      risks: [],
+      recommendations: [],
+      aiSuggestion: 'Suggestion.',
     });
 
     const capturedProgress: any[] = [];
