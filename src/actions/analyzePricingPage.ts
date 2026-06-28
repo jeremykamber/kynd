@@ -272,5 +272,5 @@ async function runRemote(
         throw new Error(`VPS analysis failed (${res.status}): ${errBody}`);
     }
     const data = await res.json();
-    return { runId: data.runId };
+    return { streamData: undefined as unknown as ReturnType<typeof createStreamableValue>['value'], requestId: data.runId };
 }
