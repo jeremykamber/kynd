@@ -5,8 +5,7 @@ import { LlmMemoryAdapter } from "@/infrastructure/adapters/LlmMemoryAdapter";
 import { TestingSession } from "@/domain/entities/TestingSession";
 import { InteractionStep } from "@/domain/entities/InteractionStep";
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 async function runLocally(
   session: TestingSession,
@@ -46,7 +45,7 @@ export async function recordStepAction(
   step: InteractionStep
 ): Promise<{ success: true; session: TestingSession } | { success: false; error: string }> {
   try {
-    if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(session, step);
+    if (shouldRunLocally()) return runLocally(session, step);
     return runRemote(session, step);
   } catch (error) {
     console.error("Error in recordStepAction:", error);

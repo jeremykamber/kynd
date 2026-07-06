@@ -2,12 +2,10 @@
 
 import { cancellationManager } from "@/infrastructure/RequestCancellationManager";
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
-const RUN_LOCALLY = process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 export async function cancelRequestAction(requestId: string): Promise<{ success: boolean; message: string }> {
-  if (RUN_LOCALLY) {
+  if (shouldRunLocally()) {
     const cancelled = cancellationManager.cancelRequest(requestId);
     return cancelled
       ? { success: true, message: `Request ${requestId} has been cancelled.` }
@@ -26,7 +24,7 @@ export async function cancelRequestAction(requestId: string): Promise<{ success:
 }
 
 export async function getActiveRequestsAction(): Promise<{ requestIds: string[] }> {
-  if (RUN_LOCALLY) {
+  if (shouldRunLocally()) {
     return { requestIds: cancellationManager.getActiveRequestIds() };
   }
 

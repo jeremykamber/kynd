@@ -19,9 +19,7 @@ export interface ProgressState {
   hasCompleted?: boolean;
 }
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
-const RUN_LOCALLY = process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 // Store on globalThis to survive Next.js HMR (dev mode), which resets module-level
 // variables when files change. The running IIFE writes to the original Map, and
@@ -45,7 +43,7 @@ export async function getProgressAction(runId: string): Promise<{
   found: boolean;
   progress?: ProgressState;
 }> {
-  if (RUN_LOCALLY) {
+  if (shouldRunLocally()) {
     const p = progressMap.get(runId);
     if (!p) {
       console.log(`[PROGRESS_POLL] ${runId}: NOT FOUND (map size=${progressMap.size})`);

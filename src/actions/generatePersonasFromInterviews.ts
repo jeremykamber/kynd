@@ -18,8 +18,7 @@ const pipelineRateLimiter = new RateLimiterMemory({
     duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
 });
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 async function runLocally(formData: FormData) {
     console.log("generatePersonasFromInterviewsAction called...");
@@ -111,6 +110,6 @@ async function runRemote(formData: FormData) {
 }
 
 export async function generatePersonasFromInterviewsAction(formData: FormData) {
-    if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(formData);
+    if (shouldRunLocally()) return runLocally(formData);
     return runRemote(formData);
 }

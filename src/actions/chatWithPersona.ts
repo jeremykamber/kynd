@@ -7,8 +7,7 @@ import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 
 import { createStreamableValue } from "@ai-sdk/rsc";
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 async function runLocally(
   persona: Persona,
@@ -93,6 +92,6 @@ export async function chatWithPersonaAction(
   message: string,
   history: { role: 'user' | 'assistant', content: string }[]
 ) {
-  if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(persona, analysis, message, history);
+  if (shouldRunLocally()) return runLocally(persona, analysis, message, history);
   return runRemote(persona, analysis, message, history);
 }

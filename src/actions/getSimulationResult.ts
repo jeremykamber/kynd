@@ -2,9 +2,7 @@
 
 import { simulationResultStore } from "@/infrastructure/SimulationResultStore";
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
-const RUN_LOCALLY = process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 export async function getSimulationResultAction(runId: string): Promise<{
   found: boolean;
@@ -12,7 +10,7 @@ export async function getSimulationResultAction(runId: string): Promise<{
   error?: string;
   completedAt?: string;
 }> {
-  if (RUN_LOCALLY) {
+  if (shouldRunLocally()) {
     const result = simulationResultStore.get(runId);
     if (!result) {
       console.log(`[RESULT_POLL] ${runId}: NOT FOUND`);

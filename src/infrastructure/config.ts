@@ -1,0 +1,14 @@
+/**
+ * Shared configuration for execution environment.
+ * Controls whether server actions run locally or delegate to the VPS.
+ */
+
+export function shouldRunLocally(): boolean {
+    // TEMP: Always false to test remote/VPS connection from local dev.
+    // Revert to env-based check when local dev workflow is needed again:
+    //   return process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
+    return false;
+}
+
+export const VPS_BACKEND_URL: string = process.env.VPS_BACKEND_URL || "http://localhost:8080";
+export const VPS_AUTH_TOKEN: string = process.env.VPS_AUTH_TOKEN || "";

@@ -6,8 +6,7 @@ import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import { CriticEvaluation } from "@/domain/entities/CriticEvaluation";
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 async function runLocally(
   persona: Persona,
@@ -47,7 +46,7 @@ export async function validateAnalysisAction(
   analysis: PricingAnalysis
 ): Promise<{ success: true; evaluation: CriticEvaluation } | { success: false; error: string }> {
   try {
-    if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(persona, analysis);
+    if (shouldRunLocally()) return runLocally(persona, analysis);
     return runRemote(persona, analysis);
   } catch (error) {
     console.error("Error in validateAnalysisAction:", error);

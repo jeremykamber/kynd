@@ -16,8 +16,7 @@ const personasRateLimiter = new RateLimiterMemory({
   duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
 });
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 async function runLocally(personaDescription: string) {
     console.log("generatePersonasAction called...");
@@ -90,6 +89,6 @@ async function runRemote(personaDescription: string) {
 }
 
 export async function generatePersonasAction(personaDescription: string) {
-    if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(personaDescription);
+    if (shouldRunLocally()) return runLocally(personaDescription);
     return runRemote(personaDescription);
 }
