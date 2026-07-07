@@ -1,8 +1,6 @@
 "use server";
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
-const RUN_LOCALLY = process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 // In-memory store for latest screenshots per runId
 // Screenshots are large base64 strings (200K+) that can't be reliably
@@ -14,7 +12,7 @@ const screenshotStore: Map<string, string> =
   (globalThis as any)[SCREENSHOT_KEY] ?? ((globalThis as any)[SCREENSHOT_KEY] = new Map());
 
 export async function storeScreenshot(runId: string, base64: string): Promise<void> {
-  if (RUN_LOCALLY) {
+  if (shouldRunLocally()) {
     screenshotStore.set(runId, base64);
   }
 }
@@ -23,7 +21,7 @@ export async function getScreenshotAction(runId: string): Promise<{
   found: boolean;
   base64?: string;
 }> {
-  if (RUN_LOCALLY) {
+  if (shouldRunLocally()) {
     const screenshot = screenshotStore.get(runId);
     if (!screenshot) return { found: false };
     return { found: true, base64: screenshot };

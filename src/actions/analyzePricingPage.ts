@@ -12,11 +12,7 @@ import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 import { simulationResultStore } from "@/infrastructure/SimulationResultStore";
 import { storeScreenshot } from "./getScreenshot";
 import { storeProgress, storeCompleted } from "./getProgress";
-
-// ── Guard: run locally or delegate to VPS? ──────────────────
-const SHOULD_RUN_LOCALLY = process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL || "http://localhost:8080";
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN || "";
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 const AUDIT_RATE_LIMIT_MAX = parseInt(process.env.AUDIT_RATE_LIMIT_MAX || '5');
 const AUDIT_RATE_LIMIT_WINDOW_MS = parseInt(process.env.AUDIT_RATE_LIMIT_WINDOW_MS || '60000');
@@ -38,7 +34,7 @@ export async function analyzePricingPageAction(
     requestId?: string,
     imageBase64?: string,
 ) {
-    if (SHOULD_RUN_LOCALLY) {
+    if (shouldRunLocally()) {
         return runLocally(url, personas, requestId, imageBase64);
     }
     return runRemote(url, personas, requestId, imageBase64);

@@ -4,8 +4,7 @@ import { PredictGazeUseCase } from "@/application/usecases/PredictGazeUseCase";
 import { GazePredictionAdapter } from "@/infrastructure/adapters/GazePredictionAdapter";
 import { Persona } from "@/domain/entities/Persona";
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 async function runLocally(persona: Persona, screenshotBase64: string) {
   const adapter = new GazePredictionAdapter();
@@ -32,7 +31,7 @@ async function runRemote(persona: Persona, screenshotBase64: string) {
 
 export async function predictGazeAction(persona: Persona, screenshotBase64: string) {
   try {
-    if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(persona, screenshotBase64);
+    if (shouldRunLocally()) return runLocally(persona, screenshotBase64);
     return runRemote(persona, screenshotBase64);
   } catch (error) {
     console.error("Action error in predictGazeAction:", error);

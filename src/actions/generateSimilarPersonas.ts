@@ -12,8 +12,7 @@ export interface SimilarPersonaProgress {
   error?: string;
 }
 
-const VPS_BACKEND_URL = process.env.VPS_BACKEND_URL;
-const VPS_AUTH_TOKEN = process.env.VPS_AUTH_TOKEN;
+import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
 
 async function runLocally(
   referencePersona: Persona,
@@ -103,6 +102,6 @@ export async function generateSimilarPersonasAction(
   },
   count: number,
 ) {
-  if (process.env.NODE_ENV === "development" || process.env.IS_VPS === "true") return runLocally(referencePersona, adjustments, count);
+  if (shouldRunLocally()) return runLocally(referencePersona, adjustments, count);
   return runRemote(referencePersona, adjustments, count);
 }
