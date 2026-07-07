@@ -259,10 +259,12 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
         console.log(`[BrowserAdapter] Closing browser session...`);
         if (this.page) await this.page.close().catch(() => { });
         if (this.context) await this.context.close().catch(() => { });
-        if (this.browser) await this.browser.close().catch(() => { });
+        // NOTE: Do NOT close this.browser here — in the remote/WS-connect pattern,
+        // closing the connected Browser object kills the server-side browser process
+        // (especially with --single-process flag). The Playwright browser server
+        // manages its own browser lifecycle; we only clean up our page + context.
         this.page = null;
         this.context = null;
-        this.browser = null;
         console.log(`[BrowserAdapter] Browser session closed.`);
     }
 
