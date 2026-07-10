@@ -80,6 +80,11 @@
 
 ---
 
+### Observability & Debugging (P3)
+- [ ] **Client-Side Log Sink**: Lightweight `ClientLogger` that mirrors `console.log` calls to a `POST /api/vps/client-logs` endpoint, appending client-side trace events (cancel, polling, stream arrival) into the per-run `AnalysisLogger` JSONL file
+- [ ] **Log Viewer Page**: Admin UI at `/admin/logs/{runId}` to read and search per-run structured logs without SSH access
+- [ ] **Log Level Configuration**: `LOG_LEVEL` env var to suppress TRACE/DEBUG in production while keeping the instrumentation in place for when it's needed
+
 ## Priority Key
 
 | Label | Meaning |
