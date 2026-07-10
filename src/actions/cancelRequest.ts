@@ -2,7 +2,7 @@
 
 import { cancellationManager } from "@/infrastructure/RequestCancellationManager";
 
-import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
+import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
 export async function cancelRequestAction(requestId: string): Promise<{ success: boolean; message: string }> {
   if (shouldRunLocally()) {
@@ -16,7 +16,7 @@ export async function cancelRequestAction(requestId: string): Promise<{ success:
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
+      Authorization: `Bearer ${getVpsAuthToken()}`,
     },
     body: JSON.stringify({ requestId }),
   });
@@ -29,7 +29,7 @@ export async function getActiveRequestsAction(): Promise<{ requestIds: string[] 
   }
 
   const res = await fetch(`${VPS_BACKEND_URL}/api/vps/requests`, {
-    headers: { Authorization: `Bearer ${VPS_AUTH_TOKEN}` },
+    headers: { Authorization: `Bearer ${getVpsAuthToken()}` },
   });
   return res.json();
 }

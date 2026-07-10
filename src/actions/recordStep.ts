@@ -5,7 +5,7 @@ import { LlmMemoryAdapter } from "@/infrastructure/adapters/LlmMemoryAdapter";
 import { TestingSession } from "@/domain/entities/TestingSession";
 import { InteractionStep } from "@/domain/entities/InteractionStep";
 
-import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
+import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
 async function runLocally(
   session: TestingSession,
@@ -25,7 +25,7 @@ async function runRemote(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
+      Authorization: `Bearer ${getVpsAuthToken()}`,
     },
     body: JSON.stringify({ session, step }),
   });

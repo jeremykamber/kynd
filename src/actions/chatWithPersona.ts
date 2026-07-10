@@ -7,7 +7,7 @@ import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 
 import { createStreamableValue } from "@ai-sdk/rsc";
 
-import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
+import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
 async function runLocally(
   persona: Persona,
@@ -54,7 +54,7 @@ async function runRemote(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
+          Authorization: `Bearer ${getVpsAuthToken()}`,
         },
         body: JSON.stringify({ persona, analysis, message, history }),
       });

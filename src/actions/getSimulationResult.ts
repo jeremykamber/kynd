@@ -2,7 +2,7 @@
 
 import { simulationResultStore } from "@/infrastructure/SimulationResultStore";
 
-import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
+import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
 export async function getSimulationResultAction(runId: string): Promise<{
   found: boolean;
@@ -26,7 +26,7 @@ export async function getSimulationResultAction(runId: string): Promise<{
   }
 
   const res = await fetch(`${VPS_BACKEND_URL}/api/vps/analyze-result?runId=${runId}`, {
-    headers: { Authorization: `Bearer ${VPS_AUTH_TOKEN}` },
+    headers: { Authorization: `Bearer ${getVpsAuthToken()}` },
   });
   return res.json();
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
+import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
 // In-memory store for latest screenshots per runId
 // Screenshots are large base64 strings (200K+) that can't be reliably
@@ -28,7 +28,7 @@ export async function getScreenshotAction(runId: string): Promise<{
   }
 
   const res = await fetch(`${VPS_BACKEND_URL}/api/vps/analyze-screenshot?runId=${runId}`, {
-    headers: { Authorization: `Bearer ${VPS_AUTH_TOKEN}` },
+    headers: { Authorization: `Bearer ${getVpsAuthToken()}` },
   });
   return res.json();
 }

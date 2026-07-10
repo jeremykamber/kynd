@@ -19,7 +19,7 @@ export interface ProgressState {
   hasCompleted?: boolean;
 }
 
-import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
+import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
 // Store on globalThis to survive Next.js HMR (dev mode), which resets module-level
 // variables when files change. The running IIFE writes to the original Map, and
@@ -54,7 +54,7 @@ export async function getProgressAction(runId: string): Promise<{
   }
 
   const res = await fetch(`${VPS_BACKEND_URL}/api/vps/analyze-progress?runId=${runId}`, {
-    headers: { Authorization: `Bearer ${VPS_AUTH_TOKEN}` },
+    headers: { Authorization: `Bearer ${getVpsAuthToken()}` },
   });
   return res.json();
 }

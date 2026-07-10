@@ -11,4 +11,6 @@ export function shouldRunLocally(): boolean {
 }
 
 export const VPS_BACKEND_URL: string = process.env.VPS_BACKEND_URL || "http://localhost:8080";
-export const VPS_AUTH_TOKEN: string = process.env.VPS_AUTH_TOKEN || "";
+export function getVpsAuthToken(): string {
+    return process.env.VPS_AUTH_TOKEN || "";
+}

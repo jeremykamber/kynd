@@ -12,7 +12,7 @@ export interface SimilarPersonaProgress {
   error?: string;
 }
 
-import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
+import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
 async function runLocally(
   referencePersona: Persona,
@@ -66,7 +66,7 @@ async function runRemote(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
+          Authorization: `Bearer ${getVpsAuthToken()}`,
         },
         body: JSON.stringify({ referencePersona, adjustments, count }),
       });

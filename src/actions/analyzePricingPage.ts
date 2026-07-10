@@ -12,7 +12,7 @@ import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 import { simulationResultStore } from "@/infrastructure/SimulationResultStore";
 import { storeScreenshot } from "./getScreenshot";
 import { storeProgress, storeCompleted } from "./getProgress";
-import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
+import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
 const AUDIT_RATE_LIMIT_MAX = parseInt(process.env.AUDIT_RATE_LIMIT_MAX || '5');
 const AUDIT_RATE_LIMIT_WINDOW_MS = parseInt(process.env.AUDIT_RATE_LIMIT_WINDOW_MS || '60000');
@@ -254,7 +254,7 @@ async function runRemote(
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${VPS_AUTH_TOKEN}`,
+            'Authorization': `Bearer ${getVpsAuthToken()}`,
         },
         body: JSON.stringify({
             url,
