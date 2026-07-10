@@ -1,8 +1,9 @@
 // ─── POST /api/vps/generate-personas-from-interviews ────────────────────────
-// Accepts interview transcript files (multipart/form-data), extracts key
-// behavioral traits, and generates a set of AI personas based on the real
-// interview content. Returns the full array of Persona objects as JSON once
-// processing is complete.
+// Accepts interview transcript files (multipart/form-data), kicks off background
+// persona generation, and returns a runId immediately. The client polls
+//   GET /api/vps/analyze-progress?runId=pi-<timestamp>
+//   GET /api/vps/persona-result?runId=pi-<timestamp>
+// to track progress and retrieve the final personas (or error).
 // Rate-limited per client IP.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,8 @@ import { GeneratePersonasFromInterviewsUseCase } from "@/application/usecases/Ge
 import { GeneratePersonasUseCase } from "@/application/usecases/GeneratePersonasUseCase";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { IdRagStore } from "@/infrastructure/adapters/IdRagStore";
+import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
+import { storeProgress, storeCompleted } from "@/actions/getProgress";
 
 // ── Rate Limiter ────────────────────────────────────────────────────────────
 
@@ -70,8 +73,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Execute ─────────────────────────────────────────────────────────────
+  // ── Generate runId and kick off background processing ───────────────────
+  const runId = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  runPipeline(runId, files).catch((err) => {
+    console.error(`[generate-personas-from-interviews] Background pipeline failed for ${runId}:`, err);
+  });
+
+  return NextResponse.json({ runId });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background pipeline runner
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function runPipeline(
+  runId: string,
+  files: { filename: string; content: string }[],
+) {
   try {
+    storeProgress(runId, { step: "PARSING_FILES" });
+
     const llmService = LlmServiceImpl.createFromEnv("openrouter");
     const idRagStore = new IdRagStore();
     const generatePersonasUseCase = new GeneratePersonasUseCase(llmService);
@@ -81,15 +103,23 @@ export async function POST(req: NextRequest) {
       generatePersonasUseCase,
     );
 
-    const personas = await useCase.execute(files);
-    const serialized = JSON.parse(JSON.stringify(personas));
+    const personas = await useCase.execute(files, (progress) => {
+      // Map interview pipeline progress to generic progress store
+      storeProgress(runId, {
+        step: progress.step,
+        completedAnalyses: progress.current ?? progress.total ?? undefined,
+        totalAnalyses: progress.total ?? undefined,
+      });
+    });
 
-    return NextResponse.json({ step: "DONE", personas: serialized });
+    const serialized = JSON.parse(JSON.stringify(personas));
+    personaGenerationStore.save(runId, serialized);
+    storeCompleted(runId);
+    console.log(`[generate-personas-from-interviews] Completed ${runId} with ${personas.length} personas`);
   } catch (error) {
-    console.error("Error generating personas from interviews:", error);
-    return NextResponse.json(
-      { step: "ERROR", error: (error as Error).message },
-      { status: 500 },
-    );
+    console.error("[generate-personas-from-interviews] Failed:", error);
+    const errMsg = (error as Error).message;
+    personaGenerationStore.saveError(runId, errMsg);
+    storeProgress(runId, { error: errMsg });
   }
 }

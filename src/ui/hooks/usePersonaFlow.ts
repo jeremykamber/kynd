@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasAction } from '@/actions/generatePersonas'
+import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
 import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
 import { readStreamableValue } from '@ai-sdk/rsc'
 
@@ -23,7 +24,6 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const [personaProgress, setPersonaProgress] = useState<PersonaProgress | null>(null)
-  const [abortController, setAbortController] = useState<AbortController | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const mountedRef = useRef(true)
 
@@ -31,79 +31,148 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      // Don't abort — server-side IIFE continues independently.
     }
   }, [])
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
-      setAbortController(null)
+      abortControllerRef.current = null
     }
     setPersonaProgress(null)
     setError('Persona generation cancelled')
-  }
+    setIsPending(false)
+  }, [])
 
-  const handleGeneratePersonas = () => {
-    if (!customerProfile.trim()) return
+  // ── Polling helper — runs in a useEffect triggered by runId ────────────
+  const [runId, setRunId] = useState<string | null>(null)
 
-    setError(null)
-    const controller = new AbortController()
-    abortControllerRef.current = controller
-    setAbortController(controller)
-    setPersonaProgress({ step: 'BRAINSTORMING_PERSONAS' })
-    setIsPending(true)
+  useEffect(() => {
+    if (!runId) return
+
+    const controller = abortControllerRef.current
+    let cancelled = false
 
     ;(async () => {
-      try {
-        const { streamData } = await generatePersonasAction(customerProfile)
+      for (let attempt = 0; attempt < 300; attempt++) {
+        if (controller?.signal.aborted || !mountedRef.current || cancelled) break
+        await new Promise((r) => setTimeout(r, 2000))
 
-        for await (const update of readStreamableValue(streamData)) {
-          if (!update) continue
+        try {
+          const pollResult = await getPersonaGenerationResultAction(runId)
+          if (!pollResult.found) continue
 
-          if (update.step === 'ERROR') {
+          cancelled = true
+
+          if (pollResult.error) {
             if (mountedRef.current) {
-              setError(update.error)
+              setError(pollResult.error)
               setPersonaProgress(null)
-              setAbortController(null)
+              abortControllerRef.current = null
             }
             return
           }
 
-          if (update.step === 'DONE') {
+          if (pollResult.personas && pollResult.personas.length > 0) {
             const batch: PersonaBatch = {
               id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
               label: `"${customerProfile.slice(0, 40)}${customerProfile.length > 40 ? '...' : ''}"`,
               source: 'description',
               createdAt: new Date().toISOString(),
-              personas: update.personas!,
+              personas: pollResult.personas,
             }
             usePersonaStore.getState().addBatch(batch)
             if (mountedRef.current) {
-              setPersonas(update.personas)
+              setPersonas(pollResult.personas)
               setPersonaProgress(null)
-              setAbortController(null)
+              abortControllerRef.current = null
             }
-            if (onSuccess) onSuccess(update.personas)
+            if (onSuccess) onSuccess(pollResult.personas)
             return
           }
+        } catch { /* retry */ }
+      }
 
-          // Progress update: step, count, etc.
-          if (mountedRef.current) {
-            setPersonaProgress(update as PersonaProgress);
+      // Exhausted 300 attempts (10 min)
+      if (mountedRef.current) {
+        setError('Persona generation timed out. Please try again.')
+        setPersonaProgress(null)
+        abortControllerRef.current = null
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [runId, customerProfile, onSuccess])
+
+  // ── Generate handler ───────────────────────────────────────────────────
+  const handleGeneratePersonas = useCallback(() => {
+    if (!customerProfile.trim()) return
+
+    setError(null)
+    setRunId(null)
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    setPersonaProgress({ step: 'BRAINSTORMING_PERSONAS' })
+    setIsPending(true)
+
+    ;(async () => {
+      try {
+        const result: any = await generatePersonasAction(customerProfile)
+        const streamData = result.streamData
+        const id = result.runId as string | undefined
+        setIsPending(false) // core action returned — release loading state
+
+        if (streamData) {
+          // ── Local dev: read streaming updates ───────────────────────────
+          for await (const update of readStreamableValue<any>(streamData)) {
+            if (!update) continue
+
+            if (update.step === 'ERROR') {
+              if (mountedRef.current) {
+                setError(update.error)
+                setPersonaProgress(null)
+                abortControllerRef.current = null
+              }
+              return
+            }
+
+            if (update.step === 'DONE') {
+              const batch: PersonaBatch = {
+                id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+                label: `"${customerProfile.slice(0, 40)}${customerProfile.length > 40 ? '...' : ''}"`,
+                source: 'description',
+                createdAt: new Date().toISOString(),
+                personas: update.personas!,
+              }
+              usePersonaStore.getState().addBatch(batch)
+              if (mountedRef.current) {
+                setPersonas(update.personas)
+                setPersonaProgress(null)
+                abortControllerRef.current = null
+              }
+              if (onSuccess) onSuccess(update.personas)
+              return
+            }
+
+            // Progress update: step, count, etc.
+            if (mountedRef.current) {
+              setPersonaProgress(update as PersonaProgress)
+            }
           }
+        } else if (id) {
+          // ── Remote/VPS: polling handled by useEffect above ─────────
+          setRunId(id)
         }
       } catch (err) {
+        setIsPending(false)
         if (mountedRef.current && !controller.signal.aborted) {
           setError((err as Error).message)
           setPersonaProgress(null)
-          setAbortController(null)
+          abortControllerRef.current = null
         }
-      } finally {
-        if (mountedRef.current) setIsPending(false)
       }
     })()
-  }
+  }, [customerProfile, onSuccess])
 
   return {
     customerProfile,

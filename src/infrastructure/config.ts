@@ -4,10 +4,7 @@
  */
 
 export function shouldRunLocally(): boolean {
-    // TEMP: Always false to test remote/VPS connection from local dev.
-    // Revert to env-based check when local dev workflow is needed again:
-    //   return process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
-    return false;
+    return process.env.NODE_ENV === "development" || process.env.IS_VPS === "true";
 }
 
 export const VPS_BACKEND_URL: string = process.env.VPS_BACKEND_URL || "http://localhost:8080";

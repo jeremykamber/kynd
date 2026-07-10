@@ -23,6 +23,62 @@ The VPS runs a Next.js standalone build that only serves `/api/vps/*` routes. A 
 1. Checks `IS_VPS=true` — if not set, returns 404 (prevents Netlify from exposing these routes)
 2. Checks `Authorization` header against `VPS_AUTH_TOKEN` — if mismatch, returns 401
 
+## ⚠️ Architectural Principle: Fire-and-Forget for Long-Running Routes
+
+**Long-running VPS routes (multiple sequential LLM calls, 60-120s total) MUST use the fire-and-forget + polling pattern.** This is the core reason for the Netlify/VPS split — Netlify serverless functions have a 10-15s timeout and cannot block on synchronous LLM calls.
+
+### The Pattern
+
+```
+Client UI → Server Action (returns immediately with runId)
+  ↓
+Client UI polls:
+  ├── GET /api/vps/analyze-progress?runId=...   (step updates)
+  └── GET /api/vps/persona-result?runId=...      (final result)
+```
+
+**POST** route:
+- Validates input and rate-limits
+- Kicks off a background IIFE (the long-running work)
+- Returns `{ runId }` immediately
+
+**Background IIFE:**
+- Writes progress updates via `storeProgress(runId, { step })` to the in-memory progress map
+- On completion, writes final result to a result store (e.g., `PersonaGenerationStore`, `SimulationResultStore`)
+- Calls `storeCompleted(runId)` to signal completion
+
+**Client-side (server action `runRemote`):**
+- POSTs to VPS → gets `{ runId }`
+- Returns `{ streamData: undefined, runId }` to the UI (no streaming on remote path)
+- UI polls progress/result endpoints every 2 seconds
+
+### Routes Using This Pattern
+
+| Route | POST | Progress GET | Result GET |
+|-------|------|-------------|------------|
+| `analyze-pricing` | ✅ Fire-and-forget | `analyze-progress` | `analyze-result` |
+| `generate-personas-from-interviews` | ✅ Fire-and-forget | `analyze-progress` (runId prefix: `pi-`) | `persona-result` |
+| `generate-personas` | ✅ Fire-and-forget | `analyze-progress` (runId prefix: `pt-`) | `persona-result` |
+
+### Routes That Don't Need It
+
+Routes that make a single fast LLM call or do quick synchronous work can stay synchronous:
+
+- `chat-with-persona` — streaming (SSE)
+- `debate` — streaming (SSE)
+- `predict-gaze` — single fast LLM call
+- `validate-analysis` — single LLM call
+- `record-step` — synchronous DB save
+- `generate-similar-personas` — single LLM call (~10-30s, tolerable)
+
+### Adding a New Long-Running Route
+
+1. Create a result store (extend `PersonaGenerationStore` or create a new one)
+2. POST handler: validate → kick off background IIFE → return `{ runId }`
+3. Background IIFE: write progress via `storeProgress`, write result via result store
+4. Server action `runRemote`: POST → return `{ streamData: undefined, runId }`
+5. Client hook: poll `getPersonaGenerationResultAction(runId)` for results
+
 ## Required Environment Variables
 
 ### Netlify (`deepbound.bringforthstudio.com`)

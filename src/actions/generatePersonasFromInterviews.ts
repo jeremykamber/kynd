@@ -18,7 +18,8 @@ const pipelineRateLimiter = new RateLimiterMemory({
     duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
 });
 
-import { shouldRunLocally, VPS_BACKEND_URL, VPS_AUTH_TOKEN } from "@/infrastructure/config";
+import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
+import { clear } from "console";
 
 async function runLocally(formData: FormData) {
     console.log("generatePersonasFromInterviewsAction called...");
@@ -79,34 +80,23 @@ async function runLocally(formData: FormData) {
 }
 
 async function runRemote(formData: FormData) {
-    const stream = createStreamableValue<any>({ step: "UPLOADING" });
+    console.log(`Token: ${getVpsAuthToken()}`);
+    const res = await fetch(`${VPS_BACKEND_URL}/api/vps/generate-personas-from-interviews`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${getVpsAuthToken()}`,
+            // No Content-Type — let fetch set multipart boundary automatically
+        },
+        body: formData,
+    });
 
-    (async () => {
-        try {
-            const res = await fetch(`${VPS_BACKEND_URL}/api/vps/generate-personas-from-interviews`, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${VPS_AUTH_TOKEN}`,
-                    // No Content-Type — let fetch set multipart boundary automatically
-                },
-                body: formData,
-            });
+    if (!res.ok) {
+        const errBody = await res.text().catch(() => res.statusText);
+        throw new Error(`VPS persona generation failed (${res.status}): ${errBody}`);
+    }
 
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-                stream.done({ step: "ERROR", error: err.error || `HTTP ${res.status}` });
-                return;
-            }
-
-            const data = await res.json();
-            stream.done({ step: "DONE", personas: data.personas || data });
-        } catch (error) {
-            console.error("Error in remote generatePersonasFromInterviews:", error);
-            stream.done({ step: "ERROR", error: (error as Error).message });
-        }
-    })();
-
-    return { streamData: stream.value };
+    const data = await res.json();
+    return { streamData: undefined as unknown as ReturnType<typeof createStreamableValue>['value'], runId: data.runId as string };
 }
 
 export async function generatePersonasFromInterviewsAction(formData: FormData) {

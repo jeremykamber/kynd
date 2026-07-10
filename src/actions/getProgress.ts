@@ -1,6 +1,7 @@
 "use server";
 
-// Server-side progress store for pricing analysis simulations.
+// ─────────────────────────────────────────────────────────────────────────────
+// Server-side progress store for long-running VPS analyses.
 // The RSC stream (readStreamableValue) uses an in-memory promise chain that
 // dies when the user navigates away from the dashboard. Without a persistent
 // store, the simulation stays IN_PROGRESS forever because the DONE event is
@@ -11,22 +12,10 @@
 // after navigation. Combined with the SimulationResultStore (which captures
 // the final analyses), this ensures progress visibility survives navigation.
 
-export interface ProgressState {
-  step?: string;
-  completedAnalyses?: number;
-  totalAnalyses?: number;
-  error?: string;
-  hasCompleted?: boolean;
-}
-
 import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
+import { progressMap, type ProgressState } from "@/infrastructure/progressStore";
 
-// Store on globalThis to survive Next.js HMR (dev mode), which resets module-level
-// variables when files change. The running IIFE writes to the original Map, and
-// polling reads from it — if they become different objects, progress is lost.
-const KEY = '__kynd_progress_map';
-const progressMap: Map<string, ProgressState> =
-  (globalThis as any)[KEY] ?? ((globalThis as any)[KEY] = new Map());
+export type { ProgressState };
 
 export async function storeProgress(runId: string, state: ProgressState): Promise<void> {
   const existing = progressMap.get(runId) || {};

@@ -1,12 +1,11 @@
-// ─── GET /api/vps/analyze-progress ──────────────────────────────────────────
-// Poll the progress state of a running person a generation or analysis.
-// The background runner writes progress updates to the in-memory progress map;
-// this endpoint reads from that map directly. VPS-only — never call server
-// actions here (they self-reference in VPS mode).
+// ─── GET /api/vps/persona-result ─────────────────────────────────────────────
+// Poll the final results (or error) of a completed persona generation.
+// The background runner writes results to PersonaGenerationStore;
+// this endpoint reads from that store.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { progressMap } from "@/infrastructure/progressStore";
+import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
 
 export async function GET(req: NextRequest) {
   const runId = req.nextUrl.searchParams.get("runId");
@@ -18,12 +17,15 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const progress = progressMap.get(runId);
-  if (!progress) {
+  const result = personaGenerationStore.get(runId);
+  if (!result) {
     return NextResponse.json({ found: false });
   }
+
   return NextResponse.json({
     found: true,
-    progress,
+    personas: result.personas,
+    error: result.error,
+    completedAt: result.completedAt,
   });
 }

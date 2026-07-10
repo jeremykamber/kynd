@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
-import { mockPersona } from "../../__tests__/test-utils";
 
 const mockRateLimiterConsume = vi.hoisted(() =>
   vi.fn(() => Promise.resolve()),
@@ -28,8 +27,8 @@ vi.mock("@/application/usecases/GeneratePersonasUseCase", () => ({
 describe("POST /api/vps/generate-personas", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("returns generated personas on valid input", async () => {
-    mockGeneratePersonasExecute.mockResolvedValue([mockPersona]);
+  it("returns runId immediately for valid input (fire-and-forget)", async () => {
+    mockGeneratePersonasExecute.mockResolvedValue([]);
 
     const { POST } = await import("../route");
     const req = new NextRequest(
@@ -43,9 +42,25 @@ describe("POST /api/vps/generate-personas", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.step).toBe("DONE");
-    expect(body.personas).toHaveLength(1);
-    expect(body.personas[0].name).toBe("Test Persona");
+    expect(body).toHaveProperty("runId");
+    expect(typeof body.runId).toBe("string");
+    expect(body.runId.length).toBeGreaterThan(0);
+  });
+
+  it("returns 400 when personaDescription is missing", async () => {
+    const { POST } = await import("../route");
+    const req = new NextRequest(
+      "http://localhost:3000/api/vps/generate-personas",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toHaveProperty("error");
   });
 
   it("returns 429 when rate limited", async () => {
@@ -66,7 +81,7 @@ describe("POST /api/vps/generate-personas", () => {
     expect(body).toHaveProperty("error");
   });
 
-  it("returns 500 when use case throws", async () => {
+  it("returns runId even when use case throws (error captured in background)", async () => {
     mockGeneratePersonasExecute.mockRejectedValueOnce(
       new Error("Unexpected crash"),
     );
@@ -81,9 +96,10 @@ describe("POST /api/vps/generate-personas", () => {
       },
     );
     const res = await POST(req);
-    expect(res.status).toBe(500);
+    // POST always returns 200 with runId — errors are captured asynchronously
+    // in the background IIFE and stored in PersonaGenerationStore for polling
+    expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.step).toBe("ERROR");
-    expect(body.error).toBe("Unexpected crash");
+    expect(body).toHaveProperty("runId");
   });
 });

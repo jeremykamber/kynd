@@ -1,7 +1,9 @@
 // ─── POST /api/vps/generate-personas ────────────────────────────────────────
-// Generates a set of AI personas from a free-text description (e.g. "target
-// audience for a SaaS budgeting tool"). Returns the full array of Persona
-// objects as JSON once generation is complete.
+// Accepts a free-text persona description, kicks off background persona
+// generation, and returns a runId immediately. The client polls
+//   GET /api/vps/analyze-progress?runId=pt-<timestamp>
+//   GET /api/vps/persona-result?runId=pt-<timestamp>
+// to track progress and retrieve the final personas (or error).
 // Rate-limited per client IP.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -9,6 +11,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 import { GeneratePersonasUseCase } from "@/application/usecases/GeneratePersonasUseCase";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
+import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
+import { storeProgress, storeCompleted } from "@/actions/getProgress";
 
 // ── Rate Limiter ────────────────────────────────────────────────────────────
 
@@ -28,6 +32,14 @@ const personasRateLimiter = new RateLimiterMemory({
 export async function POST(req: NextRequest) {
   const { personaDescription } = await req.json();
 
+  // ── Validate input ──────────────────────────────────────────────────────
+  if (!personaDescription || typeof personaDescription !== "string" || personaDescription.trim().length === 0) {
+    return NextResponse.json(
+      { error: "Missing required field: personaDescription must be a non-empty string." },
+      { status: 400 },
+    );
+  }
+
   // ── Rate limit ──────────────────────────────────────────────────────────
   const clientIP =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -45,20 +57,43 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Execute ─────────────────────────────────────────────────────────────
+  // ── Generate runId and kick off background generation ───────────────────
+  const runId = `pt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  runGeneration(runId, personaDescription).catch((err) => {
+    console.error(`[generate-personas] Background generation failed for ${runId}:`, err);
+  });
+
+  return NextResponse.json({ runId });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background generation runner
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function runGeneration(runId: string, personaDescription: string) {
   try {
+    storeProgress(runId, { step: "BRAINSTORMING_PERSONAS" });
+
     const llmService = LlmServiceImpl.createFromEnv("openrouter");
     const useCase = new GeneratePersonasUseCase(llmService);
 
-    const personas = await useCase.execute(personaDescription);
-    const serialized = JSON.parse(JSON.stringify(personas));
+    const personas = await useCase.execute(personaDescription, (progress) => {
+      storeProgress(runId, {
+        step: progress.step,
+        completedAnalyses: progress.completedCount ?? progress.completedSubSteps ?? undefined,
+        totalAnalyses: progress.totalCount ?? progress.totalSubSteps ?? undefined,
+      });
+    });
 
-    return NextResponse.json({ step: "DONE", personas: serialized });
+    const serialized = JSON.parse(JSON.stringify(personas));
+    personaGenerationStore.save(runId, serialized);
+    storeCompleted(runId);
+    console.log(`[generate-personas] Completed ${runId} with ${personas.length} personas`);
   } catch (error) {
-    console.error("Error generating personas:", error);
-    return NextResponse.json(
-      { step: "ERROR", error: (error as Error).message },
-      { status: 500 },
-    );
+    console.error("[generate-personas] Failed:", error);
+    const errMsg = (error as Error).message;
+    personaGenerationStore.saveError(runId, errMsg);
+    storeProgress(runId, { error: errMsg });
   }
 }
