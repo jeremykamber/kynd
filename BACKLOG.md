@@ -46,6 +46,11 @@
 - [x] **Simulations Pages** — List + detail views with progress polling (June 2026)
 - [x] **Interview Upload Page** — File drag-drop with pipeline integration (May 2026)
 - [x] **Comprehensive Test Suite** — 44 new tests (unit + integration + E2E) for persona inference system + pricing analysis (May-June 2026)
+- [x] **VPS Dual-Mode Architecture** — Server actions route to local use cases or remote VPS API routes based on env; shared config for `shouldRunLocally()` / `getVpsBackendUrl()` / `getVpsAuthToken()` (June 2026)
+- [x] **VPS Production Hardening** — Fixes: infinite polling loop, infinite recursion in result/screenshot routes, readStreamableValue guard for remote path, auth token read at request time, requestId→runId rename, don't close remote browser connection on cleanup, logging additions for pipeline debugging (June 2026)
+- [x] **VPS Deployment Docs** — `VPS_DEPLOYMENT.md` with auth flow, env vars, PM2 management, VPS-only file documentation (June 2026)
+- [x] **E2E Test Guide & Loading Skeletons** — `docs/E2E_TESTING.md` guide and loading states for dashboard routes (June 2026)
+- [x] **Logging Cleanup & Docs** — Reverted over-aggressive [TRACE] log deletion in `useAnalysisFlow.ts`; fixed `nonStreamingAuditMode` doc error in `PRICING_ANALYSIS_FLOW.md`; removed dead `getVpsBackendUrl()` from config (June 2026)
 
 ---
 
