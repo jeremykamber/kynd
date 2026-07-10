@@ -130,76 +130,82 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
           }, 2000);
         }
 
-        for await (const update of readStreamableValue(streamData)) {
-          if (controller.signal.aborted) {
-            console.log(`[TRACE] [useAnalysisFlow] Controller aborted, stopping stream processing. requestId=${requestId}`)
-            clearScreenshotPoll()
-            return
-          }
+        if (streamData) {
+          // ── Local dev: read streaming updates ─────────────────────────────
+          for await (const update of readStreamableValue(streamData)) {
+            if (controller.signal.aborted) {
+              console.log(`[TRACE] [useAnalysisFlow] Controller aborted, stopping stream processing. requestId=${requestId}`)
+              clearScreenshotPoll()
+              return
+            }
 
-          if (!update) continue
+            if (!update) continue
 
-          if (update.step === 'CANCELLED') {
-            console.log(`[TRACE] [useAnalysisFlow] Received CANCELLED step. requestId=${requestId}`)
-            clearScreenshotPoll()
-            useSimulationStore.getState().markCancelled(simulationId)
+            if (update.step === 'CANCELLED') {
+              console.log(`[TRACE] [useAnalysisFlow] Received CANCELLED step. requestId=${requestId}`)
+              clearScreenshotPoll()
+              useSimulationStore.getState().markCancelled(simulationId)
+              if (mountedRef.current) {
+                setAnalysisProgress(null)
+                setCurrentRequestId(null)
+                setError('Analysis was cancelled')
+              }
+              return
+            }
+
+            if (update.step === 'ERROR') {
+              console.log(`[TRACE] [useAnalysisFlow] Received ERROR step. requestId=${requestId}, error=${update.error}`)
+              clearScreenshotPoll()
+              useSimulationStore.getState().markError(simulationId, update.error ?? 'Analysis failed')
+              if (mountedRef.current) {
+                setError(update.error)
+                setAnalysisProgress(null)
+                setCurrentRequestId(null)
+              }
+              return
+            }
+
+            if (update.step === 'DONE') {
+              console.log(`[TRACE] [useAnalysisFlow] RECEIVED DONE STEP — ${update.analyses?.length} analyses, requestId=${requestId}`)
+              if (update.analyses) {
+                update.analyses.forEach((a: PricingAnalysis, i: number) => {
+                  console.log(`[TRACE] [useAnalysisFlow] Analysis[${i}]: id=${a.id}, gutReaction="${a.gutReaction?.slice(0, 100)}", scores={clarity:${a.scores?.clarity}, value:${a.scores?.valuePerception}, trust:${a.scores?.trust}, buy:${a.scores?.buyIntent}}, risks=${a.risks?.length}, recs=${a.recommendations?.length}`)
+                })
+              }
+              clearScreenshotPoll()
+              useSimulationStore.getState().markComplete(simulationId, update.analyses ?? [])
+              if (mountedRef.current) {
+                setAnalyses(update.analyses)
+                setAnalysisProgress(null)
+                setCurrentRequestId(null)
+              }
+              if (onSuccess) onSuccess(update.analyses)
+              return
+            }
+
+            // Progress update: step, completedCount, screenshot
+            if (update.completedCount !== undefined) {
+              console.log(`[TRACE] [useAnalysisFlow] Progress: step=${update.step}, completedCount=${update.completedCount}/${update.totalCount}, persona=${update.personaName}`);
+            }
+
+            useSimulationStore.getState().updateSimulation(simulationId, {
+              currentStep: update.step as any,
+              completedAnalyses: update.completedCount,
+              ...(update.screenshot ? { screenshot: update.screenshot } : {}),
+            });
+
             if (mountedRef.current) {
-              setAnalysisProgress(null)
-              setCurrentRequestId(null)
-              setError('Analysis was cancelled')
+              setAnalysisProgress(update as AnalysisProgress);
             }
-            return
           }
-
-          if (update.step === 'ERROR') {
-            console.log(`[TRACE] [useAnalysisFlow] Received ERROR step. requestId=${requestId}, error=${update.error}`)
-            clearScreenshotPoll()
-            useSimulationStore.getState().markError(simulationId, update.error ?? 'Analysis failed')
-            if (mountedRef.current) {
-              setError(update.error)
-              setAnalysisProgress(null)
-              setCurrentRequestId(null)
-            }
-            return
-          }
-
-          if (update.step === 'DONE') {
-            console.log(`[TRACE] [useAnalysisFlow] RECEIVED DONE STEP — ${update.analyses?.length} analyses, requestId=${requestId}`)
-            if (update.analyses) {
-              update.analyses.forEach((a: PricingAnalysis, i: number) => {
-                console.log(`[TRACE] [useAnalysisFlow] Analysis[${i}]: id=${a.id}, gutReaction="${a.gutReaction?.slice(0, 100)}", scores={clarity:${a.scores?.clarity}, value:${a.scores?.valuePerception}, trust:${a.scores?.trust}, buy:${a.scores?.buyIntent}}, risks=${a.risks?.length}, recs=${a.recommendations?.length}`)
-              })
-            }
-            clearScreenshotPoll()
-            useSimulationStore.getState().markComplete(simulationId, update.analyses ?? [])
-            if (mountedRef.current) {
-              setAnalyses(update.analyses)
-              setAnalysisProgress(null)
-              setCurrentRequestId(null)
-            }
-            if (onSuccess) onSuccess(update.analyses)
-            return
-          }
-
-          // Progress update: step, completedCount, screenshot
-          if (update.completedCount !== undefined) {
-            console.log(`[TRACE] [useAnalysisFlow] Progress: step=${update.step}, completedCount=${update.completedCount}/${update.totalCount}, persona=${update.personaName}`);
-          }
-
-          useSimulationStore.getState().updateSimulation(simulationId, {
-            currentStep: update.step as any,
-            completedAnalyses: update.completedCount,
-            ...(update.screenshot ? { screenshot: update.screenshot } : {}),
-          });
-
-          if (mountedRef.current) {
-            setAnalysisProgress(update as AnalysisProgress);
-          }
+          clearScreenshotPoll()
+          console.log(`[TRACE] [useAnalysisFlow] Stream ended without terminal step. Falling back to polling. requestId=${requestId}`)
+          // Stream disconnected (HMR/dev-mode glitch, navigation, etc). Fall back to
+          // polling the server-side result store, same as the simulation detail page.
         }
-        clearScreenshotPoll()
-        console.log(`[TRACE] [useAnalysisFlow] Stream ended without terminal step. Falling back to polling. requestId=${requestId}`)
-        // Stream disconnected (HMR/dev-mode glitch, navigation, etc). Fall back to
-        // polling the server-side result store, same as the simulation detail page.
+
+        // ── Remote/VPS or stream-disconnected: poll result store ────────────
+        console.log(`[TRACE] [useAnalysisFlow] Polling result store. simulationId=${simulationId}, requestId=${requestId}`)
         for (let attempt = 0; attempt < 300; attempt++) {
           if (!mountedRef.current || controller.signal.aborted) break
           await new Promise((r) => setTimeout(r, 1000))
