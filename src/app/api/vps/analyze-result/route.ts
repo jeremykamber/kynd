@@ -22,8 +22,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ found: false });
   }
 
-  console.log(`[analyze-result] FOUND result for ${runId}: analyses=${result.analyses.length}, error=${result.error ?? 'none'}`);
-
   return NextResponse.json({
     found: true,
     analyses: result.analyses,

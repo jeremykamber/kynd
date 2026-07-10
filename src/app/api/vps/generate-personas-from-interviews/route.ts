@@ -75,13 +75,11 @@ export async function POST(req: NextRequest) {
 
     // ── Generate runId and kick off background processing ───────────────────
     const runId = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    console.log(`[DEBUG] About to start runPipeline for ${runId}`);
 
     runPipeline(runId, files).catch((err) => {
         console.error(`[generate-personas-from-interviews] Background pipeline failed for ${runId}:`, err);
     });
 
-    console.log(`[DEBUG] Returning { runId: ${runId} } immediately`);
     return NextResponse.json({ runId });
 }
 

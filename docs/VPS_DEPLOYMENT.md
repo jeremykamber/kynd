@@ -157,6 +157,21 @@ A standalone Node.js script that exposes a Playwright Chromium instance via WebS
 - **Endpoint:** `ws://localhost:8081/playwright-ws`
 - **Heartbeat:** 30-second interval via WebSocket ping
 
+## VPS-Only Files (Not in Git Repo)
+
+The following files exist **only on the VPS** and are not tracked in the repository:
+
+- **`ecosystem.config.js`** — PM2 process configuration (ports, env vars for both services)
+- **`playwright-server.js`** — Standalone Playwright browser server exposing a WebSocket endpoint
+
+These are deployment artifacts that must be created/managed directly on the VPS. After pulling new code, rebuild and restart via:
+```bash
+cd /home/jeremykamber/dev/kynd
+git pull origin main
+npm run build
+npx pm2 restart ecosystem.config.js
+```
+
 ## Auth Flow (Why "Unauthorized" Happens)
 
 1. Netlify server action calls `runRemote()` → fetch to `VPS_BACKEND_URL/api/vps/...`

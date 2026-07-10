@@ -122,12 +122,13 @@ User clicks "Run Simulation"
 Options:
 ```typescript
 {
-  nonStreamingAuditMode?: boolean;  // true = completion (audit), false = streaming (analysis)
   imageBase64?: string;             // skip browser, use uploaded image
   tokenLimit?: number;              // max tokens per persona (default: 2000)
   runId?: string;                   // for AnalysisLogger
 }
 ```
+
+> **Note:** Analysis always runs in completion mode (single LLM call per persona). The "streaming" in the client UX refers to **progress updates** via `createStreamableValue` (local) or polling (VPS), not token-by-token LLM streaming.
 
 ### Phase 1: Scouting (lines 57-276)
 

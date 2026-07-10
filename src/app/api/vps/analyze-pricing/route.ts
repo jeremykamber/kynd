@@ -92,12 +92,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Kick off background analysis ────────────────────────────────────────
-    console.log(`[DEBUG] About to start runAnalysis for ${id}`);
     runAnalysis(id, url, personas, imageBase64).catch((err) => {
         console.error(`[analyze-pricing] Background analysis failed for ${id}:`, err);
     });
 
-    console.log(`[DEBUG] Returning { runId: ${id} } immediately`);
     return NextResponse.json({ runId: id });
 }
 
