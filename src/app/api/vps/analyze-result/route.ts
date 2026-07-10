@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSimulationResultAction } from "@/actions/getSimulationResult";
+import { simulationResultStore } from "@/infrastructure/SimulationResultStore";
 
 export async function GET(req: NextRequest) {
   const runId = req.nextUrl.searchParams.get("runId");
@@ -17,6 +17,17 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const result = await getSimulationResultAction(runId);
-  return NextResponse.json(result);
+  const result = simulationResultStore.get(runId);
+  if (!result) {
+    return NextResponse.json({ found: false });
+  }
+
+  console.log(`[analyze-result] FOUND result for ${runId}: analyses=${result.analyses.length}, error=${result.error ?? 'none'}`);
+
+  return NextResponse.json({
+    found: true,
+    analyses: result.analyses,
+    error: result.error,
+    completedAt: result.completedAt,
+  });
 }

@@ -29,7 +29,7 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
   const [isPending, setIsPending] = useState(false)
   const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null)
   const [predictingGazeId, setPredictingGazeId] = useState<string | null>(null)
-  const [abortController, setAbortController] = useState<AbortController | null>(null)
+
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const mountedRef = useRef(true)
@@ -51,7 +51,6 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
-      setAbortController(null)
     }
     setCurrentRequestId(null)
     setAnalysisProgress(null)
@@ -77,7 +76,6 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     setError(null)
     const controller = new AbortController()
     abortControllerRef.current = controller
-    setAbortController(controller)
     setAnalysisProgress({ step: 'STARTING' })
 
     const simulationId = `sim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
@@ -147,7 +145,6 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
             useSimulationStore.getState().markCancelled(simulationId)
             if (mountedRef.current) {
               setAnalysisProgress(null)
-              setAbortController(null)
               setCurrentRequestId(null)
               setError('Analysis was cancelled')
             }
@@ -161,7 +158,6 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
             if (mountedRef.current) {
               setError(update.error)
               setAnalysisProgress(null)
-              setAbortController(null)
               setCurrentRequestId(null)
             }
             return
@@ -179,7 +175,6 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
             if (mountedRef.current) {
               setAnalyses(update.analyses)
               setAnalysisProgress(null)
-              setAbortController(null)
               setCurrentRequestId(null)
             }
             if (onSuccess) onSuccess(update.analyses)
@@ -220,12 +215,20 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
             if (mountedRef.current) {
               setAnalyses(result.analyses ?? null)
               setAnalysisProgress(null)
-              setAbortController(null)
               setCurrentRequestId(null)
             }
             if (result.analyses && onSuccess) onSuccess(result.analyses)
             return
           } catch { /* retry */ }
+        }
+
+        // Exhausted 300 polling attempts (~5 min) without a result
+        clearScreenshotPoll()
+        if (mountedRef.current && !controller.signal.aborted) {
+          setError('Simulation analysis timed out. Please try again.')
+          useSimulationStore.getState().markError(simulationId, 'Timed out after 300 polling attempts')
+          setAnalysisProgress(null)
+          setCurrentRequestId(null)
         }
       } catch (err) {
         clearScreenshotPoll()
@@ -235,7 +238,6 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
             setError((err as Error).message)
           }
           setAnalysisProgress(null)
-          setAbortController(null)
           setCurrentRequestId(null)
         }
       } finally {

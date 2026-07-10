@@ -60,10 +60,12 @@ export async function POST(req: NextRequest) {
   // ── Generate runId and kick off background generation ───────────────────
   const runId = `pt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
+  console.log(`[DEBUG] About to start runGeneration for ${runId}`);
   runGeneration(runId, personaDescription).catch((err) => {
     console.error(`[generate-personas] Background generation failed for ${runId}:`, err);
   });
 
+  console.log(`[DEBUG] Returning { runId: ${runId} } immediately`);
   return NextResponse.json({ runId });
 }
 

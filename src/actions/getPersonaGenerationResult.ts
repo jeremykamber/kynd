@@ -31,5 +31,9 @@ export async function getPersonaGenerationResultAction(runId: string): Promise<P
   const res = await fetch(`${VPS_BACKEND_URL}/api/vps/persona-result?runId=${runId}`, {
     headers: { Authorization: `Bearer ${getVpsAuthToken()}` },
   });
+  if (!res.ok) {
+    console.error(`[PERSONA_RESULT_POLL] VPS returned ${res.status} for ${runId}`);
+    return { found: false };
+  }
   return res.json();
 }

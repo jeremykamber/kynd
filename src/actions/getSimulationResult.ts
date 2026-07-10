@@ -28,5 +28,9 @@ export async function getSimulationResultAction(runId: string): Promise<{
   const res = await fetch(`${VPS_BACKEND_URL}/api/vps/analyze-result?runId=${runId}`, {
     headers: { Authorization: `Bearer ${getVpsAuthToken()}` },
   });
+  if (!res.ok) {
+    console.error(`[RESULT_POLL] VPS returned ${res.status} for ${runId}`);
+    return { found: false };
+  }
   return res.json();
 }

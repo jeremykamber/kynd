@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { getScreenshotAction } from "@/actions/getScreenshot";
+import { screenshotStore } from "@/infrastructure/screenshotStore";
 
 export async function GET(req: NextRequest) {
   const runId = req.nextUrl.searchParams.get("runId");
@@ -17,6 +17,10 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const result = await getScreenshotAction(runId);
-  return NextResponse.json(result);
+  const screenshot = screenshotStore.get(runId);
+  if (!screenshot) {
+    return NextResponse.json({ found: false });
+  }
+
+  return NextResponse.json({ found: true, base64: screenshot });
 }

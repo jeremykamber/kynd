@@ -55,5 +55,9 @@ export async function getProgressAction(runId: string): Promise<{
   const res = await fetch(`${VPS_BACKEND_URL}/api/vps/analyze-progress?runId=${runId}`, {
     headers: { Authorization: `Bearer ${getVpsAuthToken()}` },
   });
+  if (!res.ok) {
+    console.error(`[PROGRESS_POLL] VPS returned ${res.status} for ${runId}`);
+    return { found: false };
+  }
   return res.json();
 }
