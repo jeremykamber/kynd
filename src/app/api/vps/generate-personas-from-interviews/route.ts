@@ -20,67 +20,69 @@ import { storeProgress, storeCompleted } from "@/actions/getProgress";
 
 const AUDIT_RATE_LIMIT_MAX = parseInt(process.env.AUDIT_RATE_LIMIT_MAX || "5");
 const AUDIT_RATE_LIMIT_WINDOW_MS = parseInt(
-  process.env.AUDIT_RATE_LIMIT_WINDOW_MS || "60000",
+    process.env.AUDIT_RATE_LIMIT_WINDOW_MS || "60000",
 );
 
 const pipelineRateLimiter = new RateLimiterMemory({
-  keyPrefix: "pipeline",
-  points: AUDIT_RATE_LIMIT_MAX,
-  duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
+    keyPrefix: "pipeline",
+    points: AUDIT_RATE_LIMIT_MAX,
+    duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  // ── Rate limit ──────────────────────────────────────────────────────────
-  const clientIP =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown";
+    // ── Rate limit ──────────────────────────────────────────────────────────
+    const clientIP =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("x-real-ip") ||
+        "unknown";
 
-  try {
-    await pipelineRateLimiter.consume(clientIP);
-  } catch (rejRes: any) {
-    return NextResponse.json(
-      {
-        error: `Rate limit exceeded. Try again in ${Math.round(rejRes.msBeforeNext / 1000)} seconds.`,
-      },
-      { status: 429 },
-    );
-  }
-
-  // ── Parse multipart form data ───────────────────────────────────────────
-  const formData = await req.formData();
-  const files: { filename: string; content: string }[] = [];
-
-  for (const [key, value] of formData.entries()) {
-    if (
-      value instanceof File &&
-      (key === "files" || key.startsWith("file_"))
-    ) {
-      const content = await value.text();
-      files.push({ filename: value.name, content });
+    try {
+        await pipelineRateLimiter.consume(clientIP);
+    } catch (rejRes: any) {
+        return NextResponse.json(
+            {
+                error: `Rate limit exceeded. Try again in ${Math.round(rejRes.msBeforeNext / 1000)} seconds.`,
+            },
+            { status: 429 },
+        );
     }
-  }
 
-  if (files.length === 0) {
-    return NextResponse.json(
-      {
-        error:
-          "No transcript files provided. Please upload at least one interview transcript.",
-      },
-      { status: 400 },
-    );
-  }
+    // ── Parse multipart form data ───────────────────────────────────────────
+    const formData = await req.formData();
+    const files: { filename: string; content: string }[] = [];
 
-  // ── Generate runId and kick off background processing ───────────────────
-  const runId = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    for (const [key, value] of formData.entries()) {
+        if (
+            value instanceof File &&
+            (key === "files" || key.startsWith("file_"))
+        ) {
+            const content = await value.text();
+            files.push({ filename: value.name, content });
+        }
+    }
 
-  runPipeline(runId, files).catch((err) => {
-    console.error(`[generate-personas-from-interviews] Background pipeline failed for ${runId}:`, err);
-  });
+    if (files.length === 0) {
+        return NextResponse.json(
+            {
+                error:
+                    "No transcript files provided. Please upload at least one interview transcript.",
+            },
+            { status: 400 },
+        );
+    }
 
-  return NextResponse.json({ runId });
+    // ── Generate runId and kick off background processing ───────────────────
+    const runId = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    console.log(`[DEBUG] About to start runPipeline for ${runId}`);
+
+    runPipeline(runId, files).catch((err) => {
+        console.error(`[generate-personas-from-interviews] Background pipeline failed for ${runId}:`, err);
+    });
+
+    console.log(`[DEBUG] Returning { runId: ${runId} } immediately`);
+    return NextResponse.json({ runId });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,38 +90,38 @@ export async function POST(req: NextRequest) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function runPipeline(
-  runId: string,
-  files: { filename: string; content: string }[],
+    runId: string,
+    files: { filename: string; content: string }[],
 ) {
-  try {
-    storeProgress(runId, { step: "PARSING_FILES" });
+    try {
+        storeProgress(runId, { step: "PARSING_FILES" });
 
-    const llmService = LlmServiceImpl.createFromEnv("openrouter");
-    const idRagStore = new IdRagStore();
-    const generatePersonasUseCase = new GeneratePersonasUseCase(llmService);
-    const useCase = new GeneratePersonasFromInterviewsUseCase(
-      llmService,
-      idRagStore,
-      generatePersonasUseCase,
-    );
+        const llmService = LlmServiceImpl.createFromEnv("openrouter");
+        const idRagStore = new IdRagStore();
+        const generatePersonasUseCase = new GeneratePersonasUseCase(llmService);
+        const useCase = new GeneratePersonasFromInterviewsUseCase(
+            llmService,
+            idRagStore,
+            generatePersonasUseCase,
+        );
 
-    const personas = await useCase.execute(files, (progress) => {
-      // Map interview pipeline progress to generic progress store
-      storeProgress(runId, {
-        step: progress.step,
-        completedAnalyses: progress.current ?? progress.total ?? undefined,
-        totalAnalyses: progress.total ?? undefined,
-      });
-    });
+        const personas = await useCase.execute(files, (progress) => {
+            // Map interview pipeline progress to generic progress store
+            storeProgress(runId, {
+                step: progress.step,
+                completedAnalyses: progress.current ?? progress.total ?? undefined,
+                totalAnalyses: progress.total ?? undefined,
+            });
+        });
 
-    const serialized = JSON.parse(JSON.stringify(personas));
-    personaGenerationStore.save(runId, serialized);
-    storeCompleted(runId);
-    console.log(`[generate-personas-from-interviews] Completed ${runId} with ${personas.length} personas`);
-  } catch (error) {
-    console.error("[generate-personas-from-interviews] Failed:", error);
-    const errMsg = (error as Error).message;
-    personaGenerationStore.saveError(runId, errMsg);
-    storeProgress(runId, { error: errMsg });
-  }
+        const serialized = JSON.parse(JSON.stringify(personas));
+        personaGenerationStore.save(runId, serialized);
+        storeCompleted(runId);
+        console.log(`[generate-personas-from-interviews] Completed ${runId} with ${personas.length} personas`);
+    } catch (error) {
+        console.error("[generate-personas-from-interviews] Failed:", error);
+        const errMsg = (error as Error).message;
+        personaGenerationStore.saveError(runId, errMsg);
+        storeProgress(runId, { error: errMsg });
+    }
 }

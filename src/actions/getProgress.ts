@@ -11,11 +11,21 @@
 // pipeline write here, and the simulation detail page polls for updates
 // after navigation. Combined with the SimulationResultStore (which captures
 // the final analyses), this ensures progress visibility survives navigation.
+//
+// IMPORTANT: Do not import types from other modules. "use server" files are
+// transformed by the bundler and type imports can break at runtime.
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
-import { progressMap, type ProgressState } from "@/infrastructure/progressStore";
+import { progressMap } from "@/infrastructure/progressStore";
 
-export type { ProgressState };
+export interface ProgressState {
+  step?: string;
+  completedAnalyses?: number;
+  totalAnalyses?: number;
+  error?: string;
+  hasCompleted?: boolean;
+}
 
 export async function storeProgress(runId: string, state: ProgressState): Promise<void> {
   const existing = progressMap.get(runId) || {};

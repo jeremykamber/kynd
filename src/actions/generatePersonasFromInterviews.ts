@@ -18,7 +18,7 @@ const pipelineRateLimiter = new RateLimiterMemory({
     duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
 });
 
-import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
+import { shouldRunLocally, getVpsAuthToken, getVpsBackendUrl } from "@/infrastructure/config";
 import { clear } from "console";
 
 async function runLocally(formData: FormData) {
@@ -81,7 +81,8 @@ async function runLocally(formData: FormData) {
 
 async function runRemote(formData: FormData) {
     console.log(`Token: ${getVpsAuthToken()}`);
-    const res = await fetch(`${VPS_BACKEND_URL}/api/vps/generate-personas-from-interviews`, {
+    console.log(`Backend url: ${getVpsBackendUrl()}`);
+    const res = await fetch(`${getVpsBackendUrl()}/api/vps/generate-personas-from-interviews`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${getVpsAuthToken()}`,
@@ -89,6 +90,10 @@ async function runRemote(formData: FormData) {
         },
         body: formData,
     });
+    console.log("Response below:");
+    console.log("===");
+    console.log(res);
+    console.log("===");
 
     if (!res.ok) {
         const errBody = await res.text().catch(() => res.statusText);
