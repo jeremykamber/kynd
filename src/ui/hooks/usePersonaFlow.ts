@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasAction } from '@/actions/generatePersonas'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
+import { getProgressAction } from '@/actions/getProgress'
 import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
 import { readStreamableValue } from '@ai-sdk/rsc'
 
@@ -52,6 +53,24 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
     const controller = abortControllerRef.current
     let cancelled = false
+    let progressInterval: ReturnType<typeof setInterval> | null = null
+
+    // Progress polling (fires immediately, then every 2s)
+    const pollProgress = async () => {
+      if (controller?.signal.aborted || !mountedRef.current || cancelled) return
+      try {
+        const p = await getProgressAction(runId)
+        if (p.found && p.progress && mountedRef.current) {
+          setPersonaProgress({
+            step: (p.progress.step as PersonaProgressStep) || 'BRAINSTORMING_PERSONAS',
+            completedCount: p.progress.completedAnalyses,
+            totalCount: p.progress.totalAnalyses,
+          })
+        }
+      } catch { /* non-critical */ }
+    }
+    pollProgress()
+    progressInterval = setInterval(pollProgress, 2000)
 
     ;(async () => {
       for (let attempt = 0; attempt < 300; attempt++) {
@@ -63,6 +82,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
           if (!pollResult.found) continue
 
           cancelled = true
+          if (progressInterval) clearInterval(progressInterval)
 
           if (pollResult.error) {
             if (mountedRef.current) {
@@ -94,6 +114,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
       }
 
       // Exhausted 300 attempts (10 min)
+      if (progressInterval) clearInterval(progressInterval)
       if (mountedRef.current) {
         setError('Persona generation timed out. Please try again.')
         setPersonaProgress(null)
@@ -101,7 +122,10 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
       }
     })()
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      if (progressInterval) clearInterval(progressInterval)
+    }
   }, [runId, customerProfile, onSuccess])
 
   // ── Generate handler ───────────────────────────────────────────────────
