@@ -2,8 +2,9 @@
 
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
 import { UserIcon, FileTextIcon, LayersIcon, PlayIcon } from 'lucide-react'
 
 export function Sidebar() {
@@ -11,10 +12,19 @@ export function Sidebar() {
   const activeBatchId = usePersonaStore((s) => s.activeBatchId)
   const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
   const pathname = usePathname()
+  const router = useRouter()
 
   const isInterviews = pathname === '/dashboard/interviews'
   const isSimulations = pathname.startsWith('/dashboard/simulations')
   const isSettings = pathname === '/dashboard/settings'
+  const isPersonas = !isInterviews && !isSettings && !isSimulations
+
+  const handlePersonasClick = () => {
+    if (pathname === '/dashboard') {
+      setActiveBatch(null)
+    }
+    router.push('/dashboard')
+  }
 
   return (
     <aside className="w-60 shrink-0 border-r border-border/40 bg-sidebar flex flex-col h-full">
@@ -25,17 +35,18 @@ export function Sidebar() {
 
       {/* Nav links */}
       <nav className="flex flex-col p-3 gap-1">
-        <Link
-          href="/dashboard"
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-            !isInterviews && !isSettings && !isSimulations
-              ? 'bg-primary/10 text-primary'
+        <Button
+          variant="ghost"
+          onClick={handlePersonasClick}
+          className={`justify-start gap-3 px-3 py-2.5 h-auto text-sm font-medium ${
+            isPersonas
+              ? 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
           }`}
         >
           <UserIcon className="h-4 w-4" />
           Personas
-        </Link>
+        </Button>
         <Link
           href="/dashboard/interviews"
           className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
@@ -73,7 +84,10 @@ export function Sidebar() {
               {batches.map((batch) => (
                 <button
                   key={batch.id}
-                  onClick={() => setActiveBatch(batch.id)}
+                  onClick={() => {
+                    setActiveBatch(batch.id)
+                    if (pathname !== '/dashboard') router.push('/dashboard')
+                  }}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md text-xs transition-colors text-left w-full ${
                     activeBatchId === batch.id
                       ? 'bg-primary/10 text-primary'
