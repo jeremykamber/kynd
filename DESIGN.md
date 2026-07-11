@@ -12,8 +12,8 @@ colors:
   secondary-foreground: oklch(0.95 0 0)
   muted: oklch(0.18 0.01 265)
   muted-foreground: oklch(0.52 0.01 265)
-  accent: oklch(0.62 0.2 230)
-  accent-foreground: oklch(0.98 0 0)
+  accent: oklch(0.18 0.01 265)
+  accent-foreground: oklch(0.95 0 0)
   destructive: oklch(0.58 0.2 28)
   border: oklch(0.2 0.01 265)
   input: oklch(0.2 0.01 265)
@@ -223,6 +223,15 @@ Flat by default. This system does not use box-shadows to convey surface hierarch
 - **Placeholder:** Muted Foreground at `oklch(0.40 0.01 265)`.
 - **Error:** Alert Red border. Error text in Alert Red at Label size.
 - **Disabled:** Full opacity at 0.4. No special background change.
+
+### Dropdown Menus
+
+- **Background:** Panel Surface with a subtle border (`1px border-border`), `6px` radius, shadow only on open (`shadow-md`).
+- **Item Hover:** Raised Surface background (`accent` / `oklch(0.22 0.008 265)` in dark mode). **Never Cerulean Blue** — the accent color is reserved for primary actions and data highlights, not hover feedback.
+- **Item Focus (keyboard):** Same as hover — tonal surface shift, not color.
+- **Item Text:** Foreground at rest, Muted Foreground for disabled/secondary text.
+- **Icons:** Muted Foreground, no color shift on hover.
+- **Separator:** Thin `1px` line using Panel Edge, inset with padding.
 
 ### Navigation / Sidebar
 
