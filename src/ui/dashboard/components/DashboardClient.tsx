@@ -1,28 +1,36 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
-import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
+
 import { SetupView } from './views/SetupView'
 import { MinimalCard } from '@/components/custom/MinimalCard'
 import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
 import { PersonaSkeletonCard } from '@/components/custom/PersonaSkeletonCard'
 import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
 import type { VariationFormData } from '@/components/custom/SimilarPersonaDialog'
-import { LayersIcon, SparklesIcon } from 'lucide-react'
+import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon } from 'lucide-react'
 import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Persona } from '@/domain/entities/Persona'
 import { readStreamableValue } from '@ai-sdk/rsc'
 import { generateSimilarPersonasAction } from '@/actions/generateSimilarPersonas'
+import { useSimulationStore } from '@/ui/stores/simulationStore'
 
 export function DashboardClient() {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false)
   const [sheetDefaultTab, setSheetDefaultTab] = useState<"profile" | "chat" | "variant">("profile")
   const [pendingPersonaIds, setPendingPersonaIds] = useState<Set<string>>(new Set())
+  const [showSetup, setShowSetup] = useState(false)
   const batches = usePersonaStore((s) => s.batches)
   const activeBatchId = usePersonaStore((s) => s.activeBatchId)
   const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
@@ -30,12 +38,24 @@ export function DashboardClient() {
   const updatePersona = usePersonaStore((s) => s.updatePersona)
   const removePersona = usePersonaStore((s) => s.removePersona)
   const personaFlow = usePersonaFlow()
-  const analysisFlow = useAnalysisFlow()
+
+  // Auto-exit setup view when generation completes
+  useEffect(() => {
+    if (personaFlow.personas && showSetup) {
+      setShowSetup(false)
+    }
+  }, [personaFlow.personas])
+
   const toastIdRef = useRef<string | number | null>(null)
 
   const activeBatch = activeBatchId
     ? batches.find((b) => b.id === activeBatchId)
     : null
+
+  const simulations = useSimulationStore((s) => s.simulations)
+  const batchSimulationCount = activeBatchId
+    ? simulations.filter((s) => s.batchId === activeBatchId).length
+    : 0
 
   const getPersona = (id: string) => activeBatch?.personas.find(p => p.id === id) ?? null
   const selectedPersona = selectedPersonaId ? getPersona(selectedPersonaId) : null
@@ -222,29 +242,40 @@ export function DashboardClient() {
     [insertPersonasAfter, updatePersona],
   )
 
-  const showSetupView = batches.length === 0
+  const showSetupView = batches.length === 0 || showSetup
 
   return (
     <>
       {/* Main content — setup view or batch view */}
       {showSetupView ? (
         <div className="animate-in fade-in duration-500">
-          <SetupView
-            personaFlow={personaFlow}
-            analysisFlow={analysisFlow}
-            hasPersonas={false}
-          />
+          <SetupView personaFlow={personaFlow} onBack={batches.length > 0 ? () => setShowSetup(false) : undefined} />
         </div>
       ) : (
         <div className="flex flex-col gap-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Personas</h1>
-        <Link
-          href="/dashboard/interviews"
-          className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          + New from Interviews
-        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+              <PlusIcon className="h-3.5 w-3.5" />
+              New Batch
+              <ChevronDownIcon className="h-3 w-3 opacity-60" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => { setActiveBatch(null); setShowSetup(true) }}>
+              <PenIcon className="h-4 w-4 mr-2" />
+              From ICP description
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/interviews">
+                <FileTextIcon className="h-4 w-4 mr-2" />
+                From interviews
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {!activeBatch ? (
@@ -282,9 +313,20 @@ export function DashboardClient() {
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between border-b border-border/40 pb-4">
             <div className="flex flex-col gap-1">
-              <h2 className="text-xl font-bold tracking-tight">
-                {activeBatch.label}
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold tracking-tight">
+                  {activeBatch.label}
+                </h2>
+                {batchSimulationCount > 0 && (
+                  <Link
+                    href="/dashboard/simulations"
+                    className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                  >
+                    <PlayIcon className="h-3 w-3" />
+                    {batchSimulationCount} simulation{batchSimulationCount !== 1 ? 's' : ''}
+                  </Link>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">
                 {activeBatch.personas.length} personas ·{' '}
                 {activeBatch.source === 'interviews'
@@ -300,40 +342,6 @@ export function DashboardClient() {
               All Batches
             </button>
           </div>
-          {activeBatch.source === 'interviews' && (
-            <div className="border-t border-border/40 pt-8 mt-8">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-lg font-semibold tracking-tight">Run Report</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Test how these interview-grounded personas react to your pricing page.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <input
-                    type="url"
-                    className="flex h-12 w-full rounded-md border border-input bg-transparent px-4 py-2 text-base transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="https://your-startup.com/pricing"
-                    value={analysisFlow.pricingUrl}
-                    onChange={(e) => analysisFlow.setPricingUrl(e.target.value)}
-                    disabled={analysisFlow.isPending}
-                  />
-                  <button
-                    type="button"
-                    disabled={!analysisFlow.pricingUrl.trim() || analysisFlow.isPending}
-                    onClick={() => analysisFlow.handleAnalyzePricing(activeBatch.personas)}
-                    className="inline-flex h-12 whitespace-nowrap items-center justify-center rounded-md bg-foreground px-8 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                  >
-                    {analysisFlow.isPending ? 'Simulating...' : 'Run Pricing Simulation'}
-                  </button>
-                </div>
-                {analysisFlow.error && (
-                  <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{analysisFlow.error}</p>
-                )}
-              </div>
-            </div>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {activeBatch.personas.map((persona, idx) => {
               // Use combined key to prevent collisions from duplicate persona IDs
