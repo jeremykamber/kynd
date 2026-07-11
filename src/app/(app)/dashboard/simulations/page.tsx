@@ -1,11 +1,18 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useSimulationStore } from '@/ui/stores/simulationStore'
+import { usePersonaStore } from '@/ui/stores/personaStore'
+import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon } from 'lucide-react'
+import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon, PlusIcon } from 'lucide-react'
 import { computeRunAverages } from '@/ui/dashboard/utils/computeBenchmarks'
+import { Persona } from '@/domain/entities/Persona'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 function SimulationCard({ simulation }: { simulation: import('@/domain/entities/Simulation').Simulation }) {
   const router = useRouter()
@@ -130,22 +137,120 @@ function SimulationCard({ simulation }: { simulation: import('@/domain/entities/
   )
 }
 
+function NewSimulationForm({ onRun }: { onRun: (url: string, personas: Persona[]) => void }) {
+  const batches = usePersonaStore((s) => s.batches)
+  const [selectedBatchId, setSelectedBatchId] = useState<string>(batches[0]?.id ?? '')
+  const [url, setUrl] = useState('')
+
+  const selectedBatch = batches.find((b) => b.id === selectedBatchId)
+
+  const handleSubmit = () => {
+    if (!url.trim() || !selectedBatch) return
+    onRun(url, selectedBatch.personas)
+  }
+
+  if (batches.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>Create a persona batch first, then come back to run a simulation.</p>
+          <Button asChild variant="default" size="sm" className="w-fit">
+            <Link href="/dashboard">Go to Dashboard</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="batch-select" className="text-sm font-medium">Persona Batch</label>
+          <Select value={selectedBatchId} onValueChange={setSelectedBatchId}>
+            <SelectTrigger id="batch-select">
+              <SelectValue placeholder="Select a batch" />
+            </SelectTrigger>
+            <SelectContent>
+              {batches.map((batch) => (
+                <SelectItem key={batch.id} value={batch.id}>
+                  {batch.label} — {batch.personas.length} personas
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="pricing-url" className="text-sm font-medium">Pricing Page URL</label>
+          <Input
+            id="pricing-url"
+            type="url"
+            placeholder="https://your-startup.com/pricing"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        </div>
+        <Button
+          disabled={!url.trim()}
+          onClick={handleSubmit}
+        >
+          Run Simulation
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function SimulationsPage() {
   const simulations = useSimulationStore((s) => s.simulations)
+  const analysisFlow = useAnalysisFlow()
+  const [showNewForm, setShowNewForm] = useState(false)
 
   const inProgress = simulations.filter((s) => s.status === 'IN_PROGRESS')
   const completed = simulations.filter((s) => s.status !== 'IN_PROGRESS')
 
+  const handleRunSimulation = (url: string, personas: Persona[]) => {
+    analysisFlow.setPricingUrl(url)
+    analysisFlow.handleAnalyzePricing(personas)
+    setShowNewForm(false)
+  }
+
   return (
     <div className="flex flex-col gap-8 w-full h-full animate-in fade-in duration-500">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Simulations</h1>
-        <p className="text-sm text-muted-foreground">
-          {simulations.length === 0
-            ? 'No simulations yet. Run a pricing simulation from the dashboard to get started.'
-            : `${completed.length} completed · ${inProgress.length} in progress`}
-        </p>
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Simulations</h1>
+          <p className="text-sm text-muted-foreground">
+            {simulations.length === 0
+              ? 'No simulations yet. Run your first simulation to get started.'
+              : `${completed.length} completed · ${inProgress.length} in progress`}
+          </p>
+        </div>
+        <Button
+          onClick={() => setShowNewForm(!showNewForm)}
+          size="sm"
+        >
+          <PlusIcon className="h-3.5 w-3.5" />
+          Run New Simulation
+        </Button>
       </div>
+
+      {showNewForm && (
+        <NewSimulationForm onRun={handleRunSimulation} />
+      )}
+
+      {analysisFlow.isPending && (
+        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 text-sm text-blue-600 flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+          Simulation is running…
+          <Link
+            href="/dashboard/simulations"
+            className="ml-auto text-xs font-medium text-blue-600 hover:underline"
+          >
+            Refresh
+          </Link>
+        </div>
+      )}
 
       {inProgress.length > 0 && (
         <section className="flex flex-col gap-3">
@@ -174,20 +279,14 @@ export default function SimulationsPage() {
         </section>
       )}
 
-      {simulations.length === 0 && (
+      {simulations.length === 0 && !showNewForm && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-4">
             <ClockIcon className="h-6 w-6 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground text-sm max-w-sm">
-            Run a pricing simulation from the dashboard with your personas, and it will appear here.
+            No simulations yet. Click "Run New Simulation" above to get started.
           </p>
-          <Link
-            href="/dashboard"
-            className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go to Dashboard
-          </Link>
         </div>
       )}
     </div>
