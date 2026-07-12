@@ -30,7 +30,7 @@ const personasRateLimiter = new RateLimiterMemory({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const { personaDescription } = await req.json();
+  const { personaDescription, count } = await req.json();
 
   // ── Validate input ──────────────────────────────────────────────────────
   if (!personaDescription || typeof personaDescription !== "string" || personaDescription.trim().length === 0) {
@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+
+  const personaCount = typeof count === "number" && count >= 1 && count <= 20 ? count : 5;
 
   // ── Rate limit ──────────────────────────────────────────────────────────
   const clientIP =
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
   // ── Generate runId and kick off background generation ───────────────────
   const runId = `pt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-  runGeneration(runId, personaDescription).catch((err) => {
+  runGeneration(runId, personaDescription, personaCount).catch((err) => {
     console.error(`[generate-personas] Background generation failed for ${runId}:`, err);
   });
 
@@ -71,7 +73,7 @@ export async function POST(req: NextRequest) {
 // Background generation runner
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function runGeneration(runId: string, personaDescription: string) {
+async function runGeneration(runId: string, personaDescription: string, count: number) {
   try {
     storeProgress(runId, { step: "BRAINSTORMING_PERSONAS" });
 
@@ -84,7 +86,7 @@ async function runGeneration(runId: string, personaDescription: string) {
         completedAnalyses: progress.completedCount ?? progress.completedSubSteps ?? undefined,
         totalAnalyses: progress.totalCount ?? progress.totalSubSteps ?? undefined,
       });
-    });
+    }, count);
 
     const serialized = JSON.parse(JSON.stringify(personas));
     personaGenerationStore.save(runId, serialized);

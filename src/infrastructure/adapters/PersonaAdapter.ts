@@ -14,7 +14,7 @@ export class PersonaAdapter {
    * - Values, fears, communication style, decision style: Wang et al. (2024b) — psychographic specification
    */
   async generateInitialPersonas(personaDescription: string, count?: number): Promise<Persona[]> {
-    const personaCount = count ?? 3;
+    const personaCount = count ?? 5;
     const system = `You are a persona generator creating realistic buyer personas for SaaS pricing evaluation.
 
 Generate a JSON array of ${personaCount} DISTINCT personas matching this TypeScript interface:
@@ -195,7 +195,7 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
    * Streaming version of generateInitialPersonas using Vercel AI SDK's streamObject.
    */
   async * generateInitialPersonasStream(personaDescription: string, count?: number): AsyncIterable<Partial<Persona>[]> {
-    const personaCount = count ?? 3;
+    const personaCount = count ?? 5;
     const system = `You are a persona generator creating realistic buyer personas for SaaS pricing evaluation.
 Generate a JSON array of ${personaCount} DISTINCT personas matching this TypeScript interface:
 interface Persona {

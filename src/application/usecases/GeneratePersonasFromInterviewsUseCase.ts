@@ -85,6 +85,7 @@ export class GeneratePersonasFromInterviewsUseCase {
     async execute(
         transcripts: { filename: string; content: string }[],
         onProgress?: (progress: InterviewPipelineProgress) => void,
+        count: number = 5,
     ): Promise<Persona[]> {
         if (transcripts.length === 0) {
             throw new Error("At least one interview transcript is required");
@@ -128,7 +129,7 @@ export class GeneratePersonasFromInterviewsUseCase {
 
         // Phase 3: Sample — weighted draw with LLM-based coherence validation
         onProgress?.({ step: 'SAMPLING' });
-        const targetCount = Math.max(successfulExtractions.length * 2, 10);
+        const targetCount = count;
 
         const sampledSignals = await samplePersonas(
             distribution,

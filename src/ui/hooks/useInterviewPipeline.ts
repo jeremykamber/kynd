@@ -25,6 +25,7 @@ export interface InterviewFile {
 
 export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) {
   const [files, setFiles] = useState<InterviewFile[]>([])
+  const [personaCount, setPersonaCount] = useState(5)
   const [personas, setPersonas] = useState<Persona[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
@@ -158,6 +159,7 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
           const blob = new Blob([file.content], { type: 'text/plain' })
           formData.append('files', blob, file.name)
         }
+        formData.append('count', String(personaCount))
 
         const result: any = await generatePersonasFromInterviewsAction(formData)
         const streamData = result.streamData
@@ -222,7 +224,7 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
         }
       }
     })()
-  }, [files, onSuccess])
+  }, [files, personaCount, onSuccess])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -236,6 +238,7 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
 
   return {
     files, addFile, removeFile, clearFiles,
+    personaCount, setPersonaCount,
     personas, setPersonas,
     error, setError,
     isPending,

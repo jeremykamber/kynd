@@ -18,7 +18,7 @@ const personasRateLimiter = new RateLimiterMemory({
 
 import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
-async function runLocally(personaDescription: string) {
+async function runLocally(personaDescription: string, count: number) {
     console.log("generatePersonasAction called...");
     const stream = createStreamableValue<any>({ step: "BRAINSTORMING_PERSONAS" });
 
@@ -44,7 +44,7 @@ async function runLocally(personaDescription: string) {
 
             const personas = await useCase.execute(personaDescription, (progress) => {
                 try { stream.update(progress); } catch {}
-            });
+            }, count);
 
             const finalPersonas = JSON.parse(JSON.stringify(personas));
             stream.done({ step: "DONE", personas: finalPersonas });
@@ -57,14 +57,14 @@ async function runLocally(personaDescription: string) {
     return { streamData: stream.value };
 }
 
-async function runRemote(personaDescription: string) {
+async function runRemote(personaDescription: string, count: number) {
     const res = await fetch(`${VPS_BACKEND_URL}/api/vps/generate-personas`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${getVpsAuthToken()}`,
         },
-        body: JSON.stringify({ personaDescription }),
+        body: JSON.stringify({ personaDescription, count }),
     });
 
     if (!res.ok) {
@@ -76,7 +76,7 @@ async function runRemote(personaDescription: string) {
     return { streamData: undefined as unknown as ReturnType<typeof createStreamableValue>['value'], runId: data.runId as string };
 }
 
-export async function generatePersonasAction(personaDescription: string) {
-    if (shouldRunLocally()) return runLocally(personaDescription);
-    return runRemote(personaDescription);
+export async function generatePersonasAction(personaDescription: string, count: number = 5) {
+    if (shouldRunLocally()) return runLocally(personaDescription, count);
+    return runRemote(personaDescription, count);
 }

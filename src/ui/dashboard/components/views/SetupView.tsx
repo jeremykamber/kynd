@@ -58,6 +58,22 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                 onChange={(e) => personaFlow.setCustomerProfile(e.target.value)}
                 disabled={personaFlow.isPending}
               />
+              <div className="flex flex-col gap-2">
+                <label htmlFor="persona-count" className="text-sm font-medium">Number of personas</label>
+                <input
+                  id="persona-count"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={personaFlow.personaCount}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10)
+                    if (!isNaN(v) && v >= 1 && v <= 20) personaFlow.setPersonaCount(v)
+                  }}
+                  disabled={personaFlow.isPending}
+                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-24"
+                />
+              </div>
               <div className="flex items-center justify-between">
                 <Button variant="link" asChild className="h-auto p-0 text-muted-foreground">
                   <Link href="/dashboard/interviews" className="inline-flex items-center gap-1">

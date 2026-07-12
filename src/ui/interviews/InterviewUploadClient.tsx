@@ -18,6 +18,8 @@ export function InterviewUploadClient() {
     error,
     isPending,
     progress,
+    personaCount,
+    setPersonaCount,
     handleSubmit,
     handleCancel,
   } = useInterviewPipeline()
@@ -247,6 +249,24 @@ export function InterviewUploadClient() {
                   Need at least 2 interview transcripts to generate personas. Upload one more to proceed.
                 </p>
               )}
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Number of Personas to Generate
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={personaCount}
+                  onChange={(e) => setPersonaCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+                  disabled={isPending}
+                  className="h-10 w-24 rounded-md border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  1–20 personas. More personas = richer behavioral coverage but longer generation time.
+                </p>
+              </div>
 
               <div className="flex justify-end">
                 <button

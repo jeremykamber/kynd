@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
     // ── Parse multipart form data ───────────────────────────────────────────
     const formData = await req.formData();
     const files: { filename: string; content: string }[] = [];
+    let personaCount = 5;
 
     for (const [key, value] of formData.entries()) {
         if (
@@ -60,6 +61,9 @@ export async function POST(req: NextRequest) {
         ) {
             const content = await value.text();
             files.push({ filename: value.name, content });
+        } else if (key === "count" && typeof value === "string") {
+            const parsed = parseInt(value, 10);
+            if (!isNaN(parsed) && parsed >= 1 && parsed <= 20) personaCount = parsed;
         }
     }
 
@@ -76,7 +80,7 @@ export async function POST(req: NextRequest) {
     // ── Generate runId and kick off background processing ───────────────────
     const runId = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-    runPipeline(runId, files).catch((err) => {
+    runPipeline(runId, files, personaCount).catch((err) => {
         console.error(`[generate-personas-from-interviews] Background pipeline failed for ${runId}:`, err);
     });
 
@@ -90,6 +94,7 @@ export async function POST(req: NextRequest) {
 async function runPipeline(
     runId: string,
     files: { filename: string; content: string }[],
+    count: number,
 ) {
     try {
         storeProgress(runId, { step: "PARSING_FILES" });
@@ -110,7 +115,7 @@ async function runPipeline(
                 completedAnalyses: progress.current ?? progress.total ?? undefined,
                 totalAnalyses: progress.total ?? undefined,
             });
-        });
+        }, count);
 
         const serialized = JSON.parse(JSON.stringify(personas));
         personaGenerationStore.save(runId, serialized);

@@ -21,6 +21,7 @@ export interface PersonaProgress {
 
 export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
   const [customerProfile, setCustomerProfile] = useState('')
+  const [personaCount, setPersonaCount] = useState(5)
   const [personas, setPersonas] = useState<Persona[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
@@ -143,7 +144,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
     ;(async () => {
       try {
-        const result: any = await generatePersonasAction(customerProfile)
+        const result: any = await generatePersonasAction(customerProfile, personaCount)
         const streamData = result.streamData
         const id = result.runId as string | undefined
         setIsPending(false) // core action returned — release loading state
@@ -198,11 +199,13 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
         }
       }
     })()
-  }, [customerProfile, onSuccess])
+  }, [customerProfile, personaCount, onSuccess])
 
   return {
     customerProfile,
     setCustomerProfile,
+    personaCount,
+    setPersonaCount,
     personas,
     setPersonas,
     error,

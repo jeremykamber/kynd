@@ -40,10 +40,14 @@ async function runLocally(formData: FormData) {
     }
 
     const files: { filename: string; content: string }[] = [];
+    let personaCount = 5;
     for (const [key, value] of formData.entries()) {
         if (value instanceof File && (key === "files" || key.startsWith("file_"))) {
             const content = await value.text();
             files.push({ filename: value.name, content });
+        } else if (key === "count" && typeof value === "string") {
+            const parsed = parseInt(value, 10);
+            if (!isNaN(parsed) && parsed >= 1 && parsed <= 20) personaCount = parsed;
         }
     }
 
@@ -65,7 +69,7 @@ async function runLocally(formData: FormData) {
 
             const personas = await useCase.execute(files, (progress) => {
                 stream.update(progress);
-            });
+            }, personaCount);
 
             const finalPersonas = JSON.parse(JSON.stringify(personas));
             stream.done({ step: "DONE", personas: finalPersonas });
