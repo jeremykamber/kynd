@@ -390,7 +390,7 @@ export function DashboardClient() {
           steps={[
             { title: 'Analyzing Market', description: 'Mapping demographics and psychographics' },
             { title: 'Generating Personas', description: 'Creating detailed backstories and traits' },
-            { title: 'Rationalizing Behavior', description: 'Anchoring psychographics to personality (PB&J)' },
+            { title: 'Rationalizing Behavior', description: 'Anchoring psychographics to personality traits' },
             { title: 'Finalizing', description: 'Preparing avatars, insights, and profiles' },
           ]}
         >
@@ -400,7 +400,9 @@ export function DashboardClient() {
                 {personaFlow.personaProgress.step === 'BRAINSTORMING_PERSONAS' &&
                   'Identifying key demographic segments...'}
                 {personaFlow.personaProgress.step === 'GENERATING_BACKSTORIES' &&
-                  `Fleshing out backstories (${personaFlow.personaProgress.completedCount || 0}/${personaFlow.personaProgress.totalCount || 3})`}
+                  personaFlow.personaProgress.totalCount
+                    ? `Fleshing out backstories (${personaFlow.personaProgress.completedCount ?? 0}/${personaFlow.personaProgress.totalCount})`
+                    : 'Fleshing out backstories...'}
                 {personaFlow.personaProgress.step === 'ENHANCING_WITH_PBJ' &&
                   'Building psychological rationales...'}
               </p>
