@@ -11,6 +11,7 @@ export default function MarketingLayout({
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 max-w-screen-xl items-center justify-between px-6 md:px-8">
           <Link href="/" className="flex items-center space-x-2">
+            <img src="/kynd_logo.svg" alt="Kynd" className="h-8 w-8" />
             <span className="font-bold tracking-tight text-lg select-none">
               Kynd
             </span>
@@ -42,9 +43,12 @@ export default function MarketingLayout({
       <footer className="border-t border-border/40 py-12 bg-background">
         <div className="container mx-auto max-w-screen-xl px-6 md:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex flex-col items-center md:items-start">
-            <span className="font-bold tracking-tight text-lg select-none">
-              Kynd
-            </span>
+            <div className="flex items-center gap-2">
+              <img src="/kynd_logo.svg" alt="Kynd" className="h-6 w-6" />
+              <span className="font-bold tracking-tight text-lg select-none">
+                Kynd
+              </span>
+            </div>
             <p className="text-sm text-muted-foreground mt-2 text-center md:text-left">
               &copy; {new Date().getFullYear()} Kynd. All rights reserved.
             </p>
