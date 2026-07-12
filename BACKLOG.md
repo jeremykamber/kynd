@@ -65,6 +65,18 @@
 
 ---
 
+## 🚀 Performance (P1)
+
+Pipeline instrumentation and optimization. Persona generation and simulation analysis both take 1 minute+. These issues are ordered — #43 (instrumentation) should land first so the rest have data behind them.
+
+- [ ] **#43 — Instrument pipelines with wall-clock timing**: Add elapsed-time logging to every phase boundary in `GeneratePersonasUseCase` and `ParsePricingPageUseCase`. Log call counts, retry events, and batch vs. fallback paths. Output a summary timeline at the end of each pipeline run.
+- [ ] **#44 — Cache browser screenshots and HTML**: In-memory cache on VPS keyed by URL + viewport + locale. Skip Playwright navigation on repeat analyses. ~5-10s saved per cache hit.
+- [ ] **#45 — Merge persona generation phases incrementally**: Combine backstories + insights into one call (safe first step), then evaluate merging PB&J scaffolds (1 call per persona instead of 3). Do not merge all four phases at once — measure each change.
+- [ ] **#46 — Benchmark simulation concurrency**: Test p-limit values of 5, 7, 10, 12 for persona analysis. Plot the knee of the curve. Set to measured optimal, not guessed optimal.
+- [ ] **#47 — Reduce JSON parse failures and retries**: Measure batch backstory/insight parse failure rates. Add JSON repair before retry. Improve prompt-level JSON reliability.
+
+---
+
 ## 📋 TODO (Future Phases)
 
 ### Phase 3: Deep Evaluation & Refinement (P2)
