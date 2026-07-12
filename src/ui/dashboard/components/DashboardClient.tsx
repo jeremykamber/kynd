@@ -44,7 +44,7 @@ export function DashboardClient() {
     if (personaFlow.personas && showSetup) {
       setShowSetup(false)
     }
-  }, [personaFlow.personas])
+  }, [personaFlow.personas, showSetup])
 
   const toastIdRef = useRef<string | number | null>(null)
 

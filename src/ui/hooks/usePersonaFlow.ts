@@ -113,12 +113,14 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
         } catch { /* retry */ }
       }
 
-      // Exhausted 300 attempts (10 min)
-      if (progressInterval) clearInterval(progressInterval)
-      if (mountedRef.current) {
-        setError('Persona generation timed out. Please try again.')
-        setPersonaProgress(null)
-        abortControllerRef.current = null
+      // Only set timeout error if we actually timed out (not cancelled)
+      if (!cancelled && !controller?.signal.aborted) {
+        if (progressInterval) clearInterval(progressInterval)
+        if (mountedRef.current) {
+          setError('Persona generation timed out. Please try again.')
+          setPersonaProgress(null)
+          abortControllerRef.current = null
+        }
       }
     })()
 

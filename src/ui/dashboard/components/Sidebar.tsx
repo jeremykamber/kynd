@@ -16,8 +16,7 @@ export function Sidebar() {
 
   const isInterviews = pathname === '/dashboard/interviews'
   const isSimulations = pathname.startsWith('/dashboard/simulations')
-  const isSettings = pathname === '/dashboard/settings'
-  const isPersonas = !isInterviews && !isSettings && !isSimulations
+  const isPersonas = pathname === '/dashboard'
 
   const handlePersonasClick = () => {
     if (pathname === '/dashboard') {

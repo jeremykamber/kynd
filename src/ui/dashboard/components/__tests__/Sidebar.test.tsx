@@ -4,8 +4,10 @@ import React from "react";
 
 // Stable mocks at module level
 const mockUsePathname = vi.fn();
+const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   usePathname: () => mockUsePathname(),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 const mockSetActiveBatch = vi.fn();
@@ -21,8 +23,13 @@ vi.mock("@/components/ui/scroll-area", () => ({
   ),
 }));
 
+vi.mock("@/components/ui/button", () => ({
+  Button: ({ children, onClick, className, ...props }: any) => (
+    <button onClick={onClick} className={className} {...props}>{children}</button>
+  ),
+}));
+
 vi.mock("lucide-react", () => ({
-  MessageSquareIcon: () => <svg data-testid="message-square-icon" />,
   UserIcon: () => <svg data-testid="user-icon" />,
   FileTextIcon: () => <svg data-testid="file-text-icon" />,
   PlayIcon: () => <svg data-testid="play-icon" />,
@@ -47,50 +54,59 @@ vi.mock("next/link", () => ({
 
 import { Sidebar } from "../Sidebar";
 
+function getPersonasButton(container: HTMLElement) {
+  // The Personas nav item is a <button> inside the <nav>
+  const buttons = container.querySelectorAll("nav button");
+  for (const btn of buttons) {
+    if (btn.textContent?.includes("Personas")) return btn;
+  }
+  throw new Error("Could not find Personas button");
+}
+
 describe("Sidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders the Debates link with correct href", () => {
+  it("highlights Personas when on /dashboard", () => {
     mockUsePathname.mockReturnValue("/dashboard");
     const { container } = render(<Sidebar />);
 
-    const link = container.querySelector('a[href="/dashboard/debates"]');
+    const personasBtn = getPersonasButton(container);
+    expect(personasBtn.className).toContain("bg-primary/10");
+  });
+
+  it("does NOT highlight Personas when on /dashboard/interviews", () => {
+    mockUsePathname.mockReturnValue("/dashboard/interviews");
+    const { container } = render(<Sidebar />);
+
+    const personasBtn = getPersonasButton(container);
+    expect(personasBtn.className).not.toContain("bg-primary/10");
+  });
+
+  it("does NOT highlight Personas when on /dashboard/simulations", () => {
+    mockUsePathname.mockReturnValue("/dashboard/simulations");
+    const { container } = render(<Sidebar />);
+
+    const personasBtn = getPersonasButton(container);
+    expect(personasBtn.className).not.toContain("bg-primary/10");
+  });
+
+  it("highlights Interviews when on /dashboard/interviews", () => {
+    mockUsePathname.mockReturnValue("/dashboard/interviews");
+    const { container } = render(<Sidebar />);
+
+    const link = container.querySelector('a[href="/dashboard/interviews"]');
     expect(link).not.toBeNull();
-    expect(container.querySelector('[data-testid="message-square-icon"]')).not.toBeNull();
+    expect(link!.className).toContain("bg-primary/10");
   });
 
-  it("does NOT highlight the home link when on /dashboard/debates", () => {
-    mockUsePathname.mockReturnValue("/dashboard/debates");
+  it("highlights Simulations when on /dashboard/simulations", () => {
+    mockUsePathname.mockReturnValue("/dashboard/simulations");
     const { container } = render(<Sidebar />);
 
-    const homeLink = container.querySelector('a[href="/dashboard"]');
-    expect(homeLink).not.toBeNull();
-
-    const cls = homeLink!.getAttribute("class") ?? "";
-    expect(cls).not.toContain("bg-primary/10");
-  });
-
-  it("highlights the Debates link when on /dashboard/debates", () => {
-    mockUsePathname.mockReturnValue("/dashboard/debates");
-    const { container } = render(<Sidebar />);
-
-    const debatesLink = container.querySelector('a[href="/dashboard/debates"]');
-    expect(debatesLink).not.toBeNull();
-
-    const cls = debatesLink!.getAttribute("class") ?? "";
-    expect(cls).toContain("bg-primary/10");
-  });
-
-  it("highlights the home link when on /dashboard", () => {
-    mockUsePathname.mockReturnValue("/dashboard");
-    const { container } = render(<Sidebar />);
-
-    const homeLink = container.querySelector('a[href="/dashboard"]');
-    expect(homeLink).not.toBeNull();
-
-    const cls = homeLink!.getAttribute("class") ?? "";
-    expect(cls).toContain("bg-primary/10");
+    const link = container.querySelector('a[href="/dashboard/simulations"]');
+    expect(link).not.toBeNull();
+    expect(link!.className).toContain("bg-primary/10");
   });
 });

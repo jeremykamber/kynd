@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSimulationStore } from '@/ui/stores/simulationStore'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
@@ -139,8 +139,15 @@ function SimulationCard({ simulation }: { simulation: import('@/domain/entities/
 
 function NewSimulationForm({ onRun }: { onRun: (url: string, personas: Persona[]) => void }) {
   const batches = usePersonaStore((s) => s.batches)
-  const [selectedBatchId, setSelectedBatchId] = useState<string>(batches[0]?.id ?? '')
+  const [selectedBatchId, setSelectedBatchId] = useState<string>('')
   const [url, setUrl] = useState('')
+
+  // Sync selected batch when batches hydrate or change
+  useEffect(() => {
+    if (batches.length > 0 && !batches.find((b) => b.id === selectedBatchId)) {
+      setSelectedBatchId(batches[0].id) // eslint-disable-line react-hooks/set-state-in-effect
+    }
+  }, [batches, selectedBatchId])
 
   const selectedBatch = batches.find((b) => b.id === selectedBatchId)
 

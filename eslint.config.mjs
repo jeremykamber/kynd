@@ -15,7 +15,6 @@ const eslintConfig = defineConfig([
     // Generated / vendor code:
     ".netlify/**",
     ".agents/**",
-    "test/**",
   ]),
 ]);
 
