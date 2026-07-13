@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { Upload, FileText, XIcon, CheckCircle2 } from 'lucide-react'
+import { Upload, FileText, XIcon, CheckCircle2, LayersIcon } from 'lucide-react'
 import { useInterviewPipeline } from '@/ui/hooks/useInterviewPipeline'
 import { MinimalCard } from '@/components/custom/MinimalCard'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +23,8 @@ export function InterviewUploadClient() {
     handleSubmit,
     handleCancel,
   } = useInterviewPipeline()
+
+  const [showExpandedFlow, setShowExpandedFlow] = useState(false)
 
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -289,13 +291,22 @@ export function InterviewUploadClient() {
         </section>
       </div>
 
-      {/* Pipeline Progress Dialog */}
+      {/* Floating "Show Details" button when pipeline is active */}
+      {progress && !showExpandedFlow && (
+        <button
+          onClick={() => setShowExpandedFlow(true)}
+          className="fixed bottom-6 right-6 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-xs font-semibold shadow-lg transition-colors hover:bg-accent"
+        >
+          <LayersIcon className="h-3.5 w-3.5" />
+          Show Progress
+        </button>
+      )}
+
+      {/* Pipeline Progress Dialog — expanded view */}
       <FlowDialog
-        open={progress !== null}
+        open={showExpandedFlow && progress !== null}
         onOpenChange={(open) => {
-          if (!open && progress) {
-            handleCancel()
-          }
+          if (!open) setShowExpandedFlow(false)
         }}
         title="Processing Interview Transcripts"
         description="Extracting behavioral signals, pooling patterns, and generating interview-grounded personas."

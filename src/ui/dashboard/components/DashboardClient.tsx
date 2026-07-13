@@ -34,6 +34,7 @@ export function DashboardClient() {
     const [sheetDefaultTab, setSheetDefaultTab] = useState<"profile" | "chat" | "variant">("profile")
     const [pendingPersonaIds, setPendingPersonaIds] = useState<Set<string>>(new Set())
     const [showSetup, setShowSetup] = useState(false)
+    const [showExpandedFlow, setShowExpandedFlow] = useState(false)
     const batches = usePersonaStore((s) => s.batches)
     const activeBatchId = usePersonaStore((s) => s.activeBatchId)
     const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
@@ -386,18 +387,23 @@ export function DashboardClient() {
                 </div>
             )}
 
-            {/* Persona Generation Streaming Dialog (only in setup view) */}
+            {/* Floating "Show Details" button when generation is active (but expanded dialog is closed) */}
+            {showSetupView && personaFlow.personaProgress && !showExpandedFlow && (
+              <button
+                onClick={() => setShowExpandedFlow(true)}
+                className="fixed bottom-6 right-6 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-xs font-semibold shadow-lg transition-colors hover:bg-accent"
+              >
+                <LayersIcon className="h-3.5 w-3.5" />
+                Show Progress
+              </button>
+            )}
+
+            {/* Persona Generation Streaming Dialog — expanded view (only in setup view) */}
             {showSetupView && (
                 <FlowDialog
-                    open={!!personaFlow.personaProgress}
+                    open={showExpandedFlow && !!personaFlow.personaProgress}
                     onOpenChange={(open) => {
-                        if (!open && personaFlow.personaProgress) {
-                            if (personaFlow.personaProgress.step === 'DONE') {
-                                personaFlow.handleClearProgress()
-                            } else {
-                                personaFlow.handleCancel()
-                            }
-                        }
+                        if (!open) setShowExpandedFlow(false)
                     }}
                     transparentOverlay
                     title="Synthesizing Audience"

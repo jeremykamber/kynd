@@ -72,8 +72,10 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
         if (p.found && p.progress && mountedRef.current) {
           setPersonaProgress({
             step: (p.progress.step as PersonaProgressStep) || 'BRAINSTORMING_PERSONAS',
-            completedCount: p.progress.completedAnalyses,
-            totalCount: p.progress.totalAnalyses,
+            streamingText: p.progress.streamingText,
+            personaName: p.progress.personaName,
+            completedCount: p.progress.completedCount ?? p.progress.completedAnalyses,
+            totalCount: p.progress.totalCount ?? p.progress.totalAnalyses,
           })
         }
       } catch { /* non-critical */ }
@@ -92,6 +94,11 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
           cancelled = true
           if (progressInterval) clearInterval(progressInterval)
+
+          // Don't removeActiveGeneration here — the background toaster
+          // (PersonaProgressToaster) detects completion independently and
+          // owns cleanup. The runId stays in activeGenerationRunIds until
+          // the toast is dismissed or the user explicitly cancels.
 
           if (pollResult.error) {
             if (mountedRef.current) {
@@ -158,6 +165,11 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
         const streamData = result.streamData
         const id = result.runId as string | undefined
         setIsPending(false) // core action returned — release loading state
+
+        if (id) {
+          // Register for background toast tracking
+          usePersonaStore.getState().addActiveGeneration(id)
+        }
 
         if (streamData) {
           // ── Local dev: read streaming updates ───────────────────────────
