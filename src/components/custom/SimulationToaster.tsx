@@ -3,7 +3,9 @@
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useSimulationStore } from '@/ui/stores/simulationStore'
-import { ClockIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon } from 'lucide-react'
+import { getProgressAction } from '@/actions/getProgress'
+import { getSimulationResultAction } from '@/actions/getSimulationResult'
+import { ClockIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon } from 'lucide-react'
 import type { Simulation } from '@/domain/entities/Simulation'
 
 /**
@@ -11,20 +13,22 @@ import type { Simulation } from '@/domain/entities/Simulation'
  * are never orphaned when React re-renders the tree (e.g. suspense, nav).
  */
 const toastIdMap = new Map<string, string | number>()
-const initialTerminalSims = new Set<string>()
 
 function SimulationToastContent({
   sim,
   onView,
+  onDismiss,
   actionLabel,
 }: {
   sim: Simulation
   onView: () => void
+  onDismiss: () => void
   actionLabel?: string
 }) {
   const completed = sim.completedAnalyses ?? 0
   const total = sim.totalAnalyses ?? 0
   const progress = total > 0 ? Math.min(completed / total, 1) : 0
+  const isTerminal = sim.status !== 'IN_PROGRESS'
 
   const statusConfig = {
     IN_PROGRESS: {
@@ -86,9 +90,32 @@ function SimulationToastContent({
             {actionLabel}
           </button>
         )}
+        {isTerminal && (
+          <button
+            onClick={onDismiss}
+            className="shrink-0 h-5 w-5 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            aria-label="Dismiss"
+          >
+            <XIcon className="h-3 w-3" />
+          </button>
+        )}
       </div>
     </div>
   )
+}
+
+/**
+ * Parse a snapshot string into a map of sim IDs to their statuses.
+ * Snapshot format: "id1:STATUS1:c/t|id2:STATUS2:c/t|..."
+ */
+function parseSnapshotStatuses(snapshot: string): Map<string, string> {
+  const map = new Map<string, string>()
+  if (!snapshot) return map
+  for (const part of snapshot.split('|')) {
+    const [id, status] = part.split(':')
+    if (id && status) map.set(id, status)
+  }
+  return map
 }
 
 export function SimulationToaster() {
@@ -110,18 +137,23 @@ export function SimulationToaster() {
   }
 
   useEffect(() => {
-    // First mount: record which sims were already terminal so we never
-    // create toasts for pre-existing completed/errored sims.
+    // Build a set of sim IDs that were already terminal in the previous
+    // snapshot. Only sims that transitioned INTO a terminal state (i.e.
+    // were not terminal before) should get a toast. This prevents the
+    // flash-back bug where pre-existing terminal sims briefly appear as
+    // toasts after Zustand persist hydrates or the component remounts.
+    const prevStatuses = parseSnapshotStatuses(lastSnapshotRef.current)
+    const prevTerminal = new Set<string>()
+    for (const [id, status] of prevStatuses) {
+      if (status !== 'IN_PROGRESS') prevTerminal.add(id)
+    }
+
+    // On the very first run (empty prev snapshot), just record current
+    // state and bail — nothing to transition from.
     if (lastSnapshotRef.current === '') {
       const store = useSimulationStore.getState()
       for (const id of store.dismissedSimulationIds) {
         toastIdMap.delete(id)
-      }
-      initialTerminalSims.clear()
-      for (const sim of store.simulations) {
-        if (sim.status === 'COMPLETED' || sim.status === 'ERROR' || sim.status === 'CANCELLED') {
-          initialTerminalSims.add(sim.id)
-        }
       }
       lastSnapshotRef.current = snapshot
       return
@@ -135,7 +167,10 @@ export function SimulationToaster() {
 
     for (const sim of simulations) {
       if (dismissedIds.includes(sim.id)) continue
-      if (initialTerminalSims.has(sim.id)) continue
+
+      // Skip sims that were already terminal in the previous snapshot —
+      // they already had their chance to show a toast (or were dismissed).
+      if (prevTerminal.has(sim.id)) continue
 
       const existingToastId = toastIdMap.get(sim.id)
 
@@ -150,6 +185,7 @@ export function SimulationToaster() {
           <SimulationToastContent
             sim={sim}
             onView={() => navigateTo(`/dashboard/simulations/${sim.id}`)}
+            onDismiss={onDismiss}
             actionLabel="View"
           />
         )
@@ -169,6 +205,7 @@ export function SimulationToaster() {
           <SimulationToastContent
             sim={sim}
             onView={() => navigateTo(`/dashboard/simulations/${sim.id}`)}
+            onDismiss={onDismiss}
             actionLabel="View Results"
           />
         )
@@ -187,6 +224,7 @@ export function SimulationToaster() {
           <SimulationToastContent
             sim={sim}
             onView={() => navigateTo(`/dashboard/simulations/${sim.id}`)}
+            onDismiss={onDismiss}
             actionLabel="Details"
           />
         )
@@ -205,6 +243,7 @@ export function SimulationToaster() {
           <SimulationToastContent
             sim={sim}
             onView={() => navigateTo(`/dashboard/simulations/${sim.id}`)}
+            onDismiss={onDismiss}
           />
         )
 
@@ -220,6 +259,56 @@ export function SimulationToaster() {
       }
     }
   }, [snapshot])
+
+  // Global progress polling — runs on every page since this component is
+  // mounted in the root layout. Bridges server-side progress (from the VPS
+  // analysis IIFE) to the Zustand store so the toast and any list/detail
+  // page stay in sync without relying on the RSC stream (which is undefined
+  // in VPS mode).
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const sims = useSimulationStore.getState().simulations
+      const inProgress = sims.filter((s) => s.status === 'IN_PROGRESS')
+      if (inProgress.length === 0) return
+
+      for (const sim of inProgress) {
+        try {
+          const result = await getProgressAction(sim.id)
+          if (!result.found || !result.progress) continue
+
+          const p = result.progress
+          const updates: Partial<Simulation> = {}
+          if (p.step) updates.currentStep = p.step as any
+          if (p.completedAnalyses !== undefined) updates.completedAnalyses = p.completedAnalyses
+          if (p.totalAnalyses !== undefined) updates.totalAnalyses = p.totalAnalyses
+
+          if (Object.keys(updates).length > 0) {
+            useSimulationStore.getState().updateSimulation(sim.id, updates)
+          }
+
+          if (p.hasCompleted) {
+            const result2 = await getSimulationResultAction(sim.id)
+            if (result2.found && result2.analyses && result2.analyses.length > 0) {
+              useSimulationStore.getState().markComplete(sim.id, result2.analyses)
+            } else if (result2.found && result2.error) {
+              useSimulationStore.getState().markError(sim.id, result2.error)
+            } else if (result2.found) {
+              // Completed but no analyses and no error — avoid infinite IN_PROGRESS
+              useSimulationStore.getState().markError(sim.id, 'Simulation completed with no results')
+            }
+          }
+
+          if (p.error) {
+            useSimulationStore.getState().markError(sim.id, p.error)
+          }
+        } catch {
+          // Poller error — retry on next interval
+        }
+      }
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   return null
 }
