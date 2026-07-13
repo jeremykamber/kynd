@@ -25,6 +25,7 @@ export function InterviewUploadClient() {
   } = useInterviewPipeline()
 
   const [showExpandedFlow, setShowExpandedFlow] = useState(false)
+  const [personaCountInput, setPersonaCountInput] = useState(String(personaCount))
 
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -260,8 +261,23 @@ export function InterviewUploadClient() {
                   type="number"
                   min={1}
                   max={20}
-                  value={personaCount}
-                  onChange={(e) => setPersonaCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+                  value={personaCountInput}
+                  onChange={(e) => {
+                    setPersonaCountInput(e.target.value)
+                  }}
+                  onBlur={() => {
+                    const v = parseInt(personaCountInput, 10)
+                    if (isNaN(v) || v < 1) {
+                      setPersonaCount(1)
+                      setPersonaCountInput('1')
+                    } else if (v > 20) {
+                      setPersonaCount(20)
+                      setPersonaCountInput('20')
+                    } else {
+                      setPersonaCount(v)
+                      setPersonaCountInput(String(v))
+                    }
+                  }}
                   disabled={isPending}
                   className="h-10 w-24 rounded-md border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />

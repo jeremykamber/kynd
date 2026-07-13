@@ -98,6 +98,7 @@ Pipeline instrumentation and optimization. Persona generation and simulation ana
 ---
 
 ### Architecture & Code Quality (P3)
+- [ ] **Per-Persona LLM Calls for Guaranteed Count**: Split `generateInitialPersonas` into individual LLM calls per persona (one call = one persona). This guarantees the exact count the user requested, eliminates LLM count drift entirely, and allows per-persona retry on failure. Trade-off: slower generation due to sequential calls, but correctness > speed for this use case. Can be parallelized with `Promise.all` for throughput.
 - [ ] **#49 — Unified Background Task Queue**: When a 3rd background task type emerges (e.g., A/B test runner, persona browser agent companion), extract a shared `BackgroundTask` domain type and `taskQueueStore` (Zustand). Merge `SimulationToaster` and `PersonaProgressToaster` into a single `TaskToastRenderer`. Queue should be a thin mailbox with exactly `upsert()`, `remove()`, `clearCompleted()` — no domain logic, no execution control. Each domain owns polling and publishes to the queue; the queue owns only what the user sees.
 
 ### Observability & Debugging (P3)
