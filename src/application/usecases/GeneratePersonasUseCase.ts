@@ -4,7 +4,7 @@ import { LlmServicePort } from "../../domain/ports/LlmServicePort";
 export type PersonaGenerationProgressStep =
     | 'BRAINSTORMING_PERSONAS'
     | 'GENERATING_BACKSTORIES'
-    | 'ENHANCING_WITH_PBJ'
+    | 'ADDING_BEHAVIORAL_DEPTH'
     | 'GENERATING_INSIGHTS'
     | 'DONE'
     | 'ERROR';
@@ -97,7 +97,7 @@ export class GeneratePersonasUseCase {
         // Joshi et al. (2025): improves persona alignment by 6-9% over backstory-only
         console.log("[GeneratePersonasUseCase] Enhancing personas with PB&J psychological rationales...");
         onProgress?.({
-            step: 'ENHANCING_WITH_PBJ',
+            step: 'ADDING_BEHAVIORAL_DEPTH',
             personaName: personas[0]?.name,
             personas: JSON.parse(JSON.stringify(personas)),
             totalCount,

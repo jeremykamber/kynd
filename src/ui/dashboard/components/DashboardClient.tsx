@@ -250,7 +250,8 @@ export function DashboardClient() {
         [insertPersonasAfter, updatePersona],
     )
 
-    const showSetupView = batches.length === 0 || showSetup
+    // Skip setup view when generation is active — batch list shows skeleton cards instead
+    const showSetupView = (batches.length === 0 || showSetup) && activeRunIds.length === 0
 
     // Compute an approximate overall progress percentage from the current phase
     const progressPercent = personaFlow.personaProgress
@@ -260,7 +261,7 @@ export function DashboardClient() {
                 ? personaFlow.personaProgress.totalCount && personaFlow.personaProgress.totalCount > 0
                     ? 20 + ((personaFlow.personaProgress.completedCount ?? 0) / personaFlow.personaProgress.totalCount) * 30
                     : 20
-                : personaFlow.personaProgress.step === 'ENHANCING_WITH_PBJ'
+                : personaFlow.personaProgress.step === 'ADDING_BEHAVIORAL_DEPTH'
                     ? 50
                     : personaFlow.personaProgress.step === 'GENERATING_INSIGHTS'
                         ? 75
@@ -305,6 +306,22 @@ export function DashboardClient() {
 
                     {!activeBatch ? (
                         <div className="flex flex-col gap-4">
+                            {/* Active generation entries — skeleton cards at the top */}
+                            {activeRunIds.map((runId) => (
+                                <Link
+                                    key={runId}
+                                    href={`/dashboard/generating/${runId}`}
+                                    className="flex items-center gap-4 rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80 animate-pulse"
+                                >
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                        <ClockIcon className="h-5 w-5 text-primary animate-spin" />
+                                    </div>
+                                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                        <span className="font-semibold truncate">Generating personas...</span>
+                                        <span className="text-sm text-muted-foreground">In progress</span>
+                                    </div>
+                                </Link>
+                            ))}
                             {batches.map((batch) => (
                                 <button
                                     key={batch.id}
@@ -332,22 +349,6 @@ export function DashboardClient() {
                                         })}
                                     </span>
                                 </button>
-                            ))}
-                            {/* Active generation entries — skeleton cards linking to progress page */}
-                            {activeRunIds.map((runId) => (
-                                <Link
-                                    key={runId}
-                                    href={`/dashboard/generating/${runId}`}
-                                    className="flex items-center gap-4 rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80 animate-pulse"
-                                >
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                                        <ClockIcon className="h-5 w-5 text-primary animate-spin" />
-                                    </div>
-                                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                        <span className="font-semibold truncate">Generating personas...</span>
-                                        <span className="text-sm text-muted-foreground">In progress</span>
-                                    </div>
-                                </Link>
                             ))}
                         </div>
                     ) : (
@@ -433,7 +434,7 @@ export function DashboardClient() {
                             ? 0
                             : personaFlow.personaProgress?.step === 'GENERATING_BACKSTORIES'
                                 ? 1
-                                : personaFlow.personaProgress?.step === 'ENHANCING_WITH_PBJ'
+                                : personaFlow.personaProgress?.step === 'ADDING_BEHAVIORAL_DEPTH'
                                     ? 2
                                     : personaFlow.personaProgress?.step === 'GENERATING_INSIGHTS'
                                         ? 2

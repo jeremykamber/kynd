@@ -48,7 +48,9 @@ export const usePersonaStore = create<PersonaStoreState>()(
       addBatch: (batch) =>
         set((state) => ({
           batches: [batch, ...state.batches],
-          activeBatchId: batch.id,
+          // Intentionally NOT setting activeBatchId — keeps user on the batch
+          // list view after generation completes. Navigate via "View Batch"
+          // toast or by clicking the batch card.
         })),
 
       setActiveBatch: (id) => set({ activeBatchId: id }),

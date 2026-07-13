@@ -46,7 +46,7 @@ function stepToIndex(step: string | undefined, steps: FlowStep[]): number {
   // Persona steps
   if (step === 'BRAINSTORMING_PERSONAS') return 0
   if (step === 'GENERATING_BACKSTORIES') return 1
-  if (step === 'ENHANCING_WITH_PBJ') return 2
+  if (step === 'ADDING_BEHAVIORAL_DEPTH') return 2
   if (step === 'GENERATING_INSIGHTS') return 2
   if (step === 'DONE') return 3
   return 0
