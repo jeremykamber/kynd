@@ -57,8 +57,11 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     setError('Analysis cancelled by user')
   }
 
-  const handleAnalyzePricing = (personas: Persona[]) => {
-    if (!pricingUrl.trim() && !pricingImageBase64) {
+  const handleAnalyzePricing = (personas: Persona[], overrideUrl?: string) => {
+    // Use overrideUrl when provided, so callers can pass the URL directly
+    // without relying on pricingUrl state (which may not have committed yet).
+    const activeUrl = overrideUrl?.trim() || pricingUrl.trim()
+    if (!activeUrl && !pricingImageBase64) {
       console.log(`[TRACE] [useAnalysisFlow] handleAnalyzePricing: no URL or image, skipping`)
       return
     }
@@ -70,7 +73,7 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     console.log(`[TRACE] [useAnalysisFlow] ========================================`)
     console.log(`[TRACE] [useAnalysisFlow] STARTING PRICING ANALYSIS FLOW`)
     console.log(`[TRACE] [useAnalysisFlow] ========================================`)
-    console.log(`[TRACE] [useAnalysisFlow] url=${pricingUrl}, imageBase64=${pricingImageBase64 ? 'present (' + pricingImageBase64.length + ' chars)' : 'none'}`)
+    console.log(`[TRACE] [useAnalysisFlow] url=${activeUrl}, imageBase64=${pricingImageBase64 ? 'present (' + pricingImageBase64.length + ' chars)' : 'none'}`)
     console.log(`[TRACE] [useAnalysisFlow] personas=${personas.length}: [${personas.map(p => p.name).join(', ')}]`)
 
     setError(null)
@@ -79,12 +82,12 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     setAnalysisProgress({ step: 'STARTING' })
 
     const simulationId = `sim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-    console.log(`[TRACE] [useAnalysisFlow] Creating simulation: id=${simulationId}, url=${pricingUrl}`)
+    console.log(`[TRACE] [useAnalysisFlow] Creating simulation: id=${simulationId}, url=${activeUrl}`)
 
     useSimulationStore.getState().addSimulation({
       id: simulationId,
-      name: generateSimulationName(pricingUrl),
-      url: pricingUrl,
+      name: generateSimulationName(activeUrl),
+      url: activeUrl,
       status: 'IN_PROGRESS',
       personaCount: personas.length,
       personaNames: personas.map((p) => p.name),
@@ -106,7 +109,7 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
       };
 
       try {
-        const urlToUse = pricingImageBase64 ? "Manual Upload" : pricingUrl;
+        const urlToUse = pricingImageBase64 ? "Manual Upload" : activeUrl;
         console.log(`[TRACE] [useAnalysisFlow] Calling analyzePricingPageAction with url="${urlToUse}", ${personas.length} personas...`)
         const actionStartTime = Date.now();
         const { streamData, requestId } = await analyzePricingPageAction(urlToUse, personas, simulationId, pricingImageBase64 || undefined)

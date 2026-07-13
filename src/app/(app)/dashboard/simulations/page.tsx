@@ -218,7 +218,7 @@ export default function SimulationsPage() {
 
   const handleRunSimulation = (url: string, personas: Persona[]) => {
     analysisFlow.setPricingUrl(url)
-    analysisFlow.handleAnalyzePricing(personas)
+    analysisFlow.handleAnalyzePricing(personas, url)
     setShowNewForm(false)
   }
 
