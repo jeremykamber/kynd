@@ -124,7 +124,6 @@ export function SimulationToaster() {
       const viewAction = (label: string, path: string) => ({
         label,
         onClick: () => {
-          persistDismiss(sim.id)
           navigateTo(path)
         },
       })
@@ -138,7 +137,6 @@ export function SimulationToaster() {
           <SimulationToastContent
             sim={sim}
             onView={() => {
-              persistDismiss(sim.id)
               navigateTo(`/dashboard/simulations/${sim.id}`)
             }}
           />

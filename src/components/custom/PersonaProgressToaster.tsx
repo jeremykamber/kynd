@@ -92,7 +92,6 @@ export function PersonaProgressToaster() {
               action: {
                 label: 'View Batch',
                 onClick: () => {
-                  persistDismiss(runId)
                   window.location.href = '/dashboard'
                 },
               },
@@ -105,7 +104,6 @@ export function PersonaProgressToaster() {
               action: {
                 label: 'View Batch',
                 onClick: () => {
-                  persistDismiss(runId)
                   window.location.href = '/dashboard'
                 },
               },
@@ -136,7 +134,6 @@ export function PersonaProgressToaster() {
             subtext={subtext}
             progress={progress}
             onView={() => {
-              persistDismiss(runId)
               window.location.href = `/dashboard/generating/${runId}`
             }}
           />
