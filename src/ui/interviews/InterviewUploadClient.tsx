@@ -308,34 +308,16 @@ export function InterviewUploadClient() {
           : 0
         }
         steps={[
-          { title: 'Extracting Signals', description: 'Analyzing interview transcripts for behavioral signals' },
-          { title: 'Pooling Signals', description: 'Aggregating patterns across all interviews' },
-          { title: 'Sampling Personas', description: 'Drawing coherent persona profiles from the distribution' },
-          { title: 'Generating Personas', description: 'Building backstories, psychographics, and insights' },
-          { title: 'Ingesting to Memory', description: 'Indexing personas for retrieval-augmented chat' },
+          { title: 'Extracting Signals', description: 'Analyzing interview transcripts for behavioral signals', cyclingTexts: ['Analyzing transcripts for behavioral patterns...', 'Identifying key themes across interviews...', 'Mapping signals to psychographic dimensions...'] },
+          { title: 'Pooling Signals', description: 'Aggregating patterns across all interviews', cyclingTexts: ['Aggregating patterns across all transcripts...', 'Finding common behavioral threads...', 'Building a unified signal model...'] },
+          { title: 'Sampling Personas', description: 'Drawing coherent persona profiles from the distribution', cyclingTexts: ['Drawing persona profiles from the distribution...', 'Selecting diverse archetypes...', 'Optimizing for coverage and distinction...'] },
+          { title: 'Generating Personas', description: 'Building backstories, psychographics, and insights', cyclingTexts: ['Building interview-grounded backstories...', 'Developing psychographic profiles...', 'Crafting behavioral insights...'] },
+          { title: 'Ingesting to Memory', description: 'Indexing personas for retrieval-augmented chat', cyclingTexts: ['Indexing personas for retrieval...', 'Building embedding vectors...', 'Optimizing for semantic search...'] },
         ]}
+        streamingText={progress?.message}
       >
-        {progress && (
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <p className="text-sm font-medium text-muted-foreground animate-pulse">
-              {progress.step === 'UPLOADING' && 'Uploading transcripts...'}
-              {progress.step === 'EXTRACTING' && (
-                progress.total
-                  ? `Extracting signals from interviews (${progress.current ?? 0}/${progress.total})`
-                  : 'Extracting signals from interviews...'
-              )}
-              {progress.step === 'POOLING' && 'Pooling signals across all transcripts...'}
-              {progress.step === 'SAMPLING' && 'Sampling coherent persona profiles...'}
-              {progress.step === 'GENERATING' && 'Generating detailed personas...'}
-              {progress.step === 'INGESTING' && 'Indexing personas for chat...'}
-            </p>
-            {progress.message && (
-              <p className="text-sm text-foreground/80">
-                {progress.message}
-              </p>
-            )}
-          </div>
-        )}
+        {/* Children slot reserved for future progress bar / persona dots */}
+        {progress && <div />}
       </FlowDialog>
     </div>
   )

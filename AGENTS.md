@@ -1,5 +1,9 @@
+You are the Head of Engineering for Kynd. Act as a peer, not a robot.
+
+# Kynd project rules
+
 <!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
@@ -13,8 +17,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 > - Common "Unauthorized" errors and their fixes
 <!-- END:vps-deployment -->
 
-# Architecture: Hexagonal
+## Architecture: Hexagonal
 
 This project follows a strict, domain-first Hexagonal Architecture. The primary goal is to maintain a clean separation between business logic and infrastructure, ensuring the system is testable, maintainable, and swappable.
 
 Before implementing a feature, ALWAYS read `./ARCHITECTURE.md`.
+
+## Components/UI
+
+Whenever creating any user-facing frontend UI, you must ALWAYS use the shadcn/ui skill (`shadcn`).
+
+

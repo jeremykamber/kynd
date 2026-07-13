@@ -53,12 +53,13 @@ export class GeneratePersonasUseCase {
         // Broadcast initial personas immediately for UI responsiveness
         onProgress?.({
             step: 'GENERATING_BACKSTORIES',
+            personaName: personas[0]?.name,
             personas,
             totalCount: personas.length,
             completedCount: 0,
             totalSubSteps: personas.length * subStepsPerPersona,
             completedSubSteps: 0,
-            streamingText: ""
+            streamingText: `Building stories for ${personas.length} personas...`
         });
 
         const totalCount = personas.length;
@@ -69,11 +70,13 @@ export class GeneratePersonasUseCase {
         console.log("[GeneratePersonasUseCase] Generating batch backstories...");
         onProgress?.({
             step: 'GENERATING_BACKSTORIES',
+            personaName: personas[0]?.name,
             personas,
             totalCount,
             completedCount: 0,
             totalSubSteps,
             completedSubSteps: 0,
+            streamingText: `Phase 2 of 4: Building stories...`,
         });
 
         const backstoryTexts = await (this.llmService as any).generateAbbreviatedBackstoriesBatch(personas);
@@ -95,9 +98,11 @@ export class GeneratePersonasUseCase {
         console.log("[GeneratePersonasUseCase] Enhancing personas with PB&J psychological rationales...");
         onProgress?.({
             step: 'ENHANCING_WITH_PBJ',
+            personaName: personas[0]?.name,
             personas: JSON.parse(JSON.stringify(personas)),
             totalCount,
             completedCount: 0,
+            streamingText: `Phase 3 of 4: Connecting traits to behavior...`,
         });
 
         personas = await this.llmService.rationalizePersonas(personas);
@@ -107,9 +112,11 @@ export class GeneratePersonasUseCase {
         console.log("[GeneratePersonasUseCase] Generating batch AI Insights...");
         onProgress?.({
             step: 'GENERATING_INSIGHTS',
+            personaName: personas[0]?.name,
             personas: JSON.parse(JSON.stringify(personas)),
             totalCount,
             completedCount: 0,
+            streamingText: `Phase 4 of 4: Generating insights...`,
         });
 
         const insightTexts = await (this.llmService as any).generatePersonaInsightsBatch(personas);
