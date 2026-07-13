@@ -9,19 +9,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { StepIndicator } from "./StepIndicator"
+import { Progress } from "@/components/ui/progress"
+
+export interface FlowDialogStep {
+  title: string
+  description?: string
+  /** Optional texts to cycle through every ~3s with fade while this step is active */
+  cyclingTexts?: string[]
+}
 
 export interface FlowDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
-  steps: {
-    title: string;
-    description?: string;
-  }[]
+  steps: FlowDialogStep[]
   currentStep: number
   children?: React.ReactNode
   transparentOverlay?: boolean
+  progressPercent?: number
+  streamingText?: string
+  personaName?: string
+  completedCount?: number
+  totalCount?: number
 }
 
 export function FlowDialog({
@@ -32,8 +42,44 @@ export function FlowDialog({
   steps,
   currentStep,
   children,
-  transparentOverlay = false
+  transparentOverlay = false,
+  progressPercent,
+  streamingText,
+  personaName,
+  completedCount,
+  totalCount
 }: FlowDialogProps) {
+  /// ── Streaming text cycling (per-step) ───────────────────────────────────
+  const currentStepTexts = steps[currentStep]?.cyclingTexts
+  const [textIndex, setTextIndex] = React.useState(0)
+  const [isFading, setIsFading] = React.useState(false)
+  const cycledText = currentStepTexts?.length
+    ? currentStepTexts[textIndex % currentStepTexts.length]
+    : null
+  const displayText = cycledText ?? (streamingText ?? null)
+  // Sub-line telemetry only shown when main caption is from cyclingTexts
+  const showSubLine = !!currentStepTexts?.length
+  const hasTelemetry = showSubLine && (streamingText || personaName)
+
+  // Reset index when step changes; start cycling interval if texts available
+  React.useEffect(() => {
+    setTextIndex(0)
+    setIsFading(false)
+
+    const texts = steps[currentStep]?.cyclingTexts
+    if (!texts || texts.length <= 1) return
+
+    const interval = setInterval(() => {
+      setIsFading(true)
+      setTimeout(() => {
+        setTextIndex((prev) => (prev + 1) % texts.length)
+        setIsFading(false)
+      }, 150)
+    }, 3000)
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep])
+
   /* Overlay-less mode: render as an inline fixed panel so the dashboard remains visible */
   if (transparentOverlay) {
     if (!open) return null
@@ -60,18 +106,45 @@ export function FlowDialog({
                 <StepIndicator steps={steps} currentStep={currentStep} />
               </div>
               <div className="flex-1 min-h-[200px] flex flex-col justify-center items-center">
+                {/* Status text — rendered by dialog (separate from children) */}
+                {displayText && (
+                  <div className="mb-4 text-center">
+                    <p
+                      className="text-sm text-muted-foreground transition-opacity duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                      style={{ opacity: isFading ? 0 : 1 }}
+                    >
+                      {displayText}
+                    </p>
+                    {/* Sub-line telemetry — only when main caption is from cyclingTexts */}
+                    {hasTelemetry && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {streamingText && (
+                          <p className="text-xs font-mono text-muted-foreground/60">
+                            ↳ system: {streamingText}
+                          </p>
+                        )}
+                        {personaName && (
+                          <p className="text-xs font-mono text-muted-foreground/60">
+                            ↳ persona: {personaName}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Content — children or defaults */}
                 {children ? (
                   <div className="w-full">
                     {children}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center space-y-5">
-                    <div className="w-48 h-1 bg-muted rounded-sm overflow-hidden">
-                      <div className="h-full bg-primary rounded-sm w-1/3 animate-[loading-bar_2s_ease-in-out_infinite]" />
-                    </div>
-                    <p className="text-sm font-medium text-muted-foreground tracking-widest uppercase">
-                      Processing
-                    </p>
+                  <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto space-y-4">
+                    <Progress value={progressPercent ?? 33} className="h-2 w-full" />
+                    {completedCount !== undefined && totalCount !== undefined && (
+                      <p className="text-xs font-mono text-muted-foreground tabular-nums">
+                        {completedCount}/{totalCount}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -106,18 +179,45 @@ export function FlowDialog({
           </div>
           
           <div className="flex-1 min-h-[300px] flex flex-col justify-center items-center">
+            {/* Status text — rendered by dialog (separate from children) */}
+            {displayText && (
+              <div className="mb-6 text-center">
+                <p
+                  className="text-sm text-muted-foreground transition-opacity duration-200"
+                  style={{ opacity: isFading ? 0 : 1 }}
+                >
+                  {displayText}
+                </p>
+                {/* Sub-line telemetry — only when main caption is from cyclingTexts */}
+                {hasTelemetry && (
+                  <div className="mt-1.5 space-y-0.5">
+                    {streamingText && (
+                      <p className="text-xs font-mono text-muted-foreground/60">
+                        ↳ system: {streamingText}
+                      </p>
+                    )}
+                    {personaName && (
+                      <p className="text-xs font-mono text-muted-foreground/60">
+                        ↳ persona: {personaName}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Content — children or defaults */}
             {children ? (
               <div className="w-full h-full animate-in fade-in zoom-in-95 duration-500">
                 {children}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center space-y-6 animate-in fade-in duration-700">
-                <div className="w-48 h-1 bg-muted rounded-sm overflow-hidden">
-                  <div className="h-full bg-primary rounded-sm w-1/3 animate-[loading-bar_2s_ease-in-out_infinite]" />
-                </div>
-                <p className="text-sm font-medium text-muted-foreground tracking-widest uppercase">
-                  Processing
-                </p>
+              <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto space-y-4 animate-in fade-in duration-500">
+                <Progress value={progressPercent ?? 33} className="h-2 w-full" />
+                {completedCount !== undefined && totalCount !== undefined && (
+                  <p className="text-xs font-mono text-muted-foreground tabular-nums">
+                    {completedCount}/{totalCount}
+                  </p>
+                )}
               </div>
             )}
           </div>

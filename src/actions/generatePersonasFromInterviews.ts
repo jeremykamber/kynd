@@ -19,9 +19,16 @@ const pipelineRateLimiter = new RateLimiterMemory({
 });
 
 import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
+import { storeProgress, storeCompleted } from "@/actions/getProgress";
+import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
+
+function generateRunId(): string {
+  return `pipeline-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 async function runLocally(formData: FormData) {
-    console.log("generatePersonasFromInterviewsAction called...");
+    const runId = generateRunId();
+    console.log(`generatePersonasFromInterviewsAction called [runId=${runId}]...`);
     const stream = createStreamableValue<any>({ step: "UPLOADING" });
 
     let clientIP = 'unknown';
@@ -36,8 +43,10 @@ async function runLocally(formData: FormData) {
         const msBeforeNext = rejRes.msBeforeNext;
         const retryAfter = Math.round(msBeforeNext / 1000);
         stream.done({ step: "ERROR", error: `Rate limit exceeded. Try again in ${retryAfter} seconds.` });
-        return { streamData: stream.value };
+        return { streamData: stream.value, runId };
     }
+
+    await storeProgress(runId, { step: "UPLOADING" });
 
     const files: { filename: string; content: string }[] = [];
     let personaCount = 5;
@@ -53,7 +62,7 @@ async function runLocally(formData: FormData) {
 
     if (files.length === 0) {
         stream.done({ step: "ERROR", error: "No transcript files provided. Please upload at least one interview transcript." });
-        return { streamData: stream.value };
+        return { streamData: stream.value, runId };
     }
 
     (async () => {
@@ -69,17 +78,28 @@ async function runLocally(formData: FormData) {
 
             const personas = await useCase.execute(files, (progress) => {
                 stream.update(progress);
+                storeProgress(runId, {
+                    step: progress.step,
+                    streamingText: progress.message,
+                    completedCount: progress.current,
+                    totalCount: progress.total,
+                });
             }, personaCount);
 
             const finalPersonas = JSON.parse(JSON.stringify(personas));
             stream.done({ step: "DONE", personas: finalPersonas });
+            personaGenerationStore.save(runId, finalPersonas);
+            await storeCompleted(runId);
         } catch (error) {
             console.error("Error generating personas from interviews:", error);
-            stream.done({ step: "ERROR", error: (error as Error).message });
+            const msg = (error as Error).message;
+            stream.done({ step: "ERROR", error: msg });
+            personaGenerationStore.saveError(runId, msg);
+            await storeProgress(runId, { error: msg, hasCompleted: true });
         }
     })();
 
-    return { streamData: stream.value };
+    return { streamData: stream.value, runId };
 }
 
 async function runRemote(formData: FormData) {
@@ -87,7 +107,6 @@ async function runRemote(formData: FormData) {
         method: "POST",
         headers: {
             Authorization: `Bearer ${getVpsAuthToken()}`,
-            // No Content-Type — let fetch set multipart boundary automatically
         },
         body: formData,
     });

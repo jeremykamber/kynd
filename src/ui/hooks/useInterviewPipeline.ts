@@ -166,6 +166,11 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
         const id = result.runId as string | undefined
         setIsPending(false) // core action returned — release loading state
 
+        if (id) {
+          // Register for background toast tracking
+          usePersonaStore.getState().addActiveGeneration(id)
+        }
+
         if (streamData) {
           // ── Local dev: read streaming updates ───────────────────────
           for await (const update of readStreamableValue<any>(streamData)) {

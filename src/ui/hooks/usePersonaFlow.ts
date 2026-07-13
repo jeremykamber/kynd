@@ -6,10 +6,11 @@ import { getProgressAction } from '@/actions/getProgress'
 import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
 import { readStreamableValue } from '@ai-sdk/rsc'
 
-export type PersonaProgressStep = 'BRAINSTORMING_PERSONAS' | 'GENERATING_BACKSTORIES' | 'ENHANCING_WITH_PBJ' | 'DONE' | 'ERROR'
+export type PersonaProgressStep = 'BRAINSTORMING_PERSONAS' | 'GENERATING_BACKSTORIES' | 'ADDING_BEHAVIORAL_DEPTH' | 'GENERATING_INSIGHTS' | 'DONE' | 'ERROR'
 
 export interface PersonaProgress {
   step: PersonaProgressStep
+  streamingText?: string
   personaName?: string
   completedCount?: number
   totalCount?: number
@@ -26,6 +27,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const [personaProgress, setPersonaProgress] = useState<PersonaProgress | null>(null)
+  const [lastCompletedBatchId, setLastCompletedBatchId] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const mountedRef = useRef(true)
 
@@ -43,6 +45,12 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     }
     setPersonaProgress(null)
     setError('Persona generation cancelled')
+    setIsPending(false)
+  }, [])
+
+  const handleClearProgress = useCallback(() => {
+    setPersonaProgress(null)
+    abortControllerRef.current = null
     setIsPending(false)
   }, [])
 
@@ -64,8 +72,10 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
         if (p.found && p.progress && mountedRef.current) {
           setPersonaProgress({
             step: (p.progress.step as PersonaProgressStep) || 'BRAINSTORMING_PERSONAS',
-            completedCount: p.progress.completedAnalyses,
-            totalCount: p.progress.totalAnalyses,
+            streamingText: p.progress.streamingText,
+            personaName: p.progress.personaName,
+            completedCount: p.progress.completedCount ?? p.progress.completedAnalyses,
+            totalCount: p.progress.totalCount ?? p.progress.totalAnalyses,
           })
         }
       } catch { /* non-critical */ }
@@ -84,6 +94,11 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
           cancelled = true
           if (progressInterval) clearInterval(progressInterval)
+
+          // Don't removeActiveGeneration here — the background toaster
+          // (PersonaProgressToaster) detects completion independently and
+          // owns cleanup. The runId stays in activeGenerationRunIds until
+          // the toast is dismissed or the user explicitly cancels.
 
           if (pollResult.error) {
             if (mountedRef.current) {
@@ -104,8 +119,9 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
             }
             usePersonaStore.getState().addBatch(batch)
             if (mountedRef.current) {
+              setLastCompletedBatchId(batch.id)
               setPersonas(pollResult.personas)
-              setPersonaProgress(null)
+              setPersonaProgress({ step: 'DONE', personas: pollResult.personas, completedCount: pollResult.personas.length, totalCount: pollResult.personas.length })
               abortControllerRef.current = null
             }
             if (onSuccess) onSuccess(pollResult.personas)
@@ -137,6 +153,7 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
     setError(null)
     setRunId(null)
+    setLastCompletedBatchId(null)
     const controller = new AbortController()
     abortControllerRef.current = controller
     setPersonaProgress({ step: 'BRAINSTORMING_PERSONAS' })
@@ -148,6 +165,11 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
         const streamData = result.streamData
         const id = result.runId as string | undefined
         setIsPending(false) // core action returned — release loading state
+
+        if (id) {
+          // Register for background toast tracking
+          usePersonaStore.getState().addActiveGeneration(id)
+        }
 
         if (streamData) {
           // ── Local dev: read streaming updates ───────────────────────────
@@ -173,8 +195,9 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
               }
               usePersonaStore.getState().addBatch(batch)
               if (mountedRef.current) {
+                setLastCompletedBatchId(batch.id)
                 setPersonas(update.personas)
-                setPersonaProgress(null)
+                setPersonaProgress({ step: 'DONE', personas: update.personas, completedCount: update.personas!.length, totalCount: update.personas!.length })
                 abortControllerRef.current = null
               }
               if (onSuccess) onSuccess(update.personas)
@@ -212,7 +235,9 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     setError,
     isPending,
     personaProgress,
+    lastCompletedBatchId,
     handleGeneratePersonas,
-    handleCancel
+    handleCancel,
+    handleClearProgress,
   }
 }
