@@ -16,37 +16,76 @@ const initialTerminalSims = new Set<string>()
 function SimulationToastContent({
   sim,
   onView,
+  actionLabel,
 }: {
   sim: Simulation
   onView: () => void
+  actionLabel?: string
 }) {
   const completed = sim.completedAnalyses ?? 0
   const total = sim.totalAnalyses ?? 0
   const progress = total > 0 ? Math.min(completed / total, 1) : 0
-  const label =
-    sim.completedAnalyses != null && sim.totalAnalyses != null
-      ? `${sim.completedAnalyses}/${sim.totalAnalyses} analyses`
-      : 'Analyzing...'
+
+  const statusConfig = {
+    IN_PROGRESS: {
+      icon: <ClockIcon className="h-4 w-4 shrink-0 text-primary animate-spin" />,
+      label: sim.completedAnalyses != null && sim.totalAnalyses != null
+        ? `${sim.completedAnalyses}/${sim.totalAnalyses} analyses`
+        : 'Analyzing...',
+      accentClass: 'bg-primary/[0.06]',
+      ringClass: 'ring-primary/20',
+      progressWidth: `${progress * 100}%`,
+      buttonClass: 'text-primary hover:text-primary/80',
+    },
+    COMPLETED: {
+      icon: <CheckCircleIcon className="h-4 w-4 shrink-0 text-green-500" />,
+      label: 'Simulation complete',
+      accentClass: 'bg-green-500/[0.06]',
+      ringClass: 'ring-green-500/20',
+      progressWidth: '100%',
+      buttonClass: 'text-green-600 hover:text-green-700',
+    },
+    ERROR: {
+      icon: <XCircleIcon className="h-4 w-4 shrink-0 text-destructive" />,
+      label: sim.error || 'Simulation failed',
+      accentClass: 'bg-destructive/[0.06]',
+      ringClass: 'ring-destructive/20',
+      progressWidth: '100%',
+      buttonClass: 'text-destructive hover:text-destructive/80',
+    },
+    CANCELLED: {
+      icon: <AlertCircleIcon className="h-4 w-4 shrink-0 text-muted-foreground" />,
+      label: 'Simulation cancelled',
+      accentClass: 'bg-muted/30',
+      ringClass: 'ring-muted-foreground/20',
+      progressWidth: '100%',
+      buttonClass: 'text-muted-foreground hover:text-foreground',
+    },
+  }[sim.status]
 
   return (
     <div className="relative overflow-hidden rounded-lg border border-border bg-card">
-      <div className="pointer-events-none absolute inset-0 z-20 rounded-lg ring-1 ring-primary/20 animate-[sim-ring-fade_0.6s_ease-out_forwards]" />
+      {sim.status === 'IN_PROGRESS' && (
+        <div className="pointer-events-none absolute inset-0 z-20 rounded-lg ring-1 ring-primary/20 animate-[sim-ring-fade_0.6s_ease-out_forwards]" />
+      )}
       <div
-        className="absolute inset-y-0 left-0 bg-primary/[0.06] transition-all duration-300 ease-out"
-        style={{ width: `${progress * 100}%` }}
+        className={`absolute inset-y-0 left-0 ${statusConfig.accentClass} transition-all duration-300 ease-out`}
+        style={{ width: statusConfig.progressWidth }}
       />
       <div className="relative z-10 flex items-center gap-3 p-4">
-        <ClockIcon className="h-4 w-4 shrink-0 text-primary animate-spin" />
+        {statusConfig.icon}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">{sim.name}</p>
-          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-xs text-muted-foreground">{statusConfig.label}</p>
         </div>
-        <button
-          onClick={onView}
-          className="shrink-0 text-xs font-semibold text-primary underline underline-offset-4 transition-colors hover:text-primary/80"
-        >
-          View
-        </button>
+        {actionLabel && (
+          <button
+            onClick={onView}
+            className={`shrink-0 text-xs font-semibold underline underline-offset-4 transition-colors ${statusConfig.buttonClass}`}
+          >
+            {actionLabel}
+          </button>
+        )}
       </div>
     </div>
   )
@@ -111,6 +150,7 @@ export function SimulationToaster() {
           <SimulationToastContent
             sim={sim}
             onView={() => navigateTo(`/dashboard/simulations/${sim.id}`)}
+            actionLabel="View"
           />
         )
 
@@ -125,66 +165,57 @@ export function SimulationToaster() {
           toastIdMap.set(sim.id, id)
         }
       } else if (sim.status === 'COMPLETED') {
+        const content = (
+          <SimulationToastContent
+            sim={sim}
+            onView={() => navigateTo(`/dashboard/simulations/${sim.id}`)}
+            actionLabel="View Results"
+          />
+        )
+
         if (existingToastId) {
-          toast.success(sim.name, {
-            id: existingToastId,
-            description: 'Simulation complete',
-            icon: <CheckCircleIcon className="h-4 w-4 text-green-500" />,
-            dismissible: true,
-            onDismiss,
-            action: {
-              label: 'View Results',
-              onClick: () => navigateTo(`/dashboard/simulations/${sim.id}`),
-            },
-          })
+          toast.custom(() => content, { id: existingToastId })
         } else {
-          const id = toast.success(sim.name, {
-            description: 'Simulation complete',
-            icon: <CheckCircleIcon className="h-4 w-4 text-green-500" />,
+          const id = toast.custom(() => content, {
             dismissible: true,
             onDismiss,
-            action: {
-              label: 'View Results',
-              onClick: () => navigateTo(`/dashboard/simulations/${sim.id}`),
-            },
           })
           toastIdMap.set(sim.id, id)
         }
       } else if (sim.status === 'ERROR') {
+        const content = (
+          <SimulationToastContent
+            sim={sim}
+            onView={() => navigateTo(`/dashboard/simulations/${sim.id}`)}
+            actionLabel="Details"
+          />
+        )
+
         if (existingToastId) {
-          toast.error(sim.name, {
-            id: existingToastId,
-            description: sim.error || 'Simulation failed',
-            icon: <XCircleIcon className="h-4 w-4 text-destructive" />,
-            dismissible: true,
-            onDismiss,
-            action: {
-              label: 'Details',
-              onClick: () => navigateTo(`/dashboard/simulations/${sim.id}`),
-            },
-          })
+          toast.custom(() => content, { id: existingToastId })
         } else {
-          const id = toast.error(sim.name, {
-            description: sim.error || 'Simulation failed',
-            icon: <XCircleIcon className="h-4 w-4 text-destructive" />,
+          const id = toast.custom(() => content, {
             dismissible: true,
             onDismiss,
-            action: {
-              label: 'Details',
-              onClick: () => navigateTo(`/dashboard/simulations/${sim.id}`),
-            },
           })
           toastIdMap.set(sim.id, id)
         }
       } else if (sim.status === 'CANCELLED') {
+        const content = (
+          <SimulationToastContent
+            sim={sim}
+            onView={() => navigateTo(`/dashboard/simulations/${sim.id}`)}
+          />
+        )
+
         if (existingToastId) {
-          toast.warning(sim.name, {
-            id: existingToastId,
-            description: 'Simulation cancelled',
-            icon: <AlertCircleIcon className="h-4 w-4 text-muted-foreground" />,
+          toast.custom(() => content, { id: existingToastId })
+        } else {
+          const id = toast.custom(() => content, {
             dismissible: true,
             onDismiss,
           })
+          toastIdMap.set(sim.id, id)
         }
       }
     }

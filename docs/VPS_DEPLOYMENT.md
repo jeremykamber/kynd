@@ -191,7 +191,9 @@ npx pm2 restart ecosystem.config.js
 Bug in the persona analysis validation step — the validation logic expects fields that optional personas might not have. This is a known issue.
 
 ### "browserContext.newPage: Browser closed"
-The browser server process was killed. Caused by `RemotePlaywrightAdapter.close()` calling `this.browser.close()` on a WebSocket-connected browser. **Fixed** — now only page + context are cleaned up.
+The browser server process was killed or couldn't start. Common causes:
+1. **Dual PM2 daemons** — If root's PM2 (`/root/.pm2`) and user's PM2 (`~/.pm2`) both try to manage the same ports, the second one crash-loops with `EADDRINUSE`. Check with `npx pm2 list` under both users. Only one should manage the services.
+2. **Browser close during navigation** — `RemotePlaywrightAdapter.close()` used to call `this.browser.close()` which killed the WebSocket-connected browser. Fixed — now only page + context are cleaned up.
 
 ### "Headers Timeout Error"
 OpenRouter API timeout. The LLM provider is slow or unreachable. Retry the request.
