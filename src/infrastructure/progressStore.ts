@@ -6,8 +6,12 @@
 
 export interface ProgressState {
   step?: string;
+  streamingText?: string;
+  personaName?: string;
   completedAnalyses?: number;
   totalAnalyses?: number;
+  completedCount?: number;
+  totalCount?: number;
   error?: string;
   hasCompleted?: boolean;
 }
