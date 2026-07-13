@@ -1,4 +1,4 @@
-# DeepBound Architecture
+# Kynd Architecture
 
 **AI-powered user testing** — creates high-fidelity AI personas, simulates their behavior on websites/apps, and produces behavioral insights for pricing pages and product experiences.
 
