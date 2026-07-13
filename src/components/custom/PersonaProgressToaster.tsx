@@ -8,14 +8,15 @@ import { getProgressAction } from '@/actions/getProgress'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
 import { usePathname } from 'next/navigation'
 
+const POLL_INTERVAL_MS = 1000
+
 /**
  * Background toaster that polls active persona generation runIds and surfaces
  * progress/completion/errors as Sonner toasts.
  *
- * Mirrors SimulationToaster pattern — mounted at the app layout level so it
- * survives navigation. The hook (usePersonaFlow / useInterviewPipeline)
- * registers a runId in personaStore when generation starts and removes it on
- * completion or cancellation.
+ * Polls every 2s while any runs are active (unlike SimulationToaster which
+ * relies on the store snapshot changing — persona progress updates within a
+ * single runId don't trigger snapshot changes, so interval polling is needed).
  */
 export function PersonaProgressToaster() {
   const pathname = usePathname()
@@ -23,12 +24,7 @@ export function PersonaProgressToaster() {
   const removedRef = useRef<Set<string>>(new Set())
   const toastIdsRef = useRef<Map<string, string | number>>(new Map())
   const lastCompletionRef = useRef<Set<string>>(new Set())
-  const lastSnapshotRef = useRef<string>('')
-  const pathnameRef = useRef<string>('')
-  const throttleRef = useRef<number>(0)
-
-  // Serialise active run IDs so the snapshot comparator catches adds/removes
-  const snapshot = activeRunIds.sort().join(',')
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const persistDismiss = (runId: string) => {
     removedRef.current.add(runId)
@@ -36,33 +32,35 @@ export function PersonaProgressToaster() {
     usePersonaStore.getState().removeActiveGeneration(runId)
   }
 
+  // ── Interval-based polling: runs every 2s while runs are active ──
   useEffect(() => {
-    const now = Date.now()
-    if (now - throttleRef.current < 300) return
-    throttleRef.current = now
+      if (activeRunIds.length === 0) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      return
+    }
 
-    if (snapshot === lastSnapshotRef.current && pathname === pathnameRef.current) return
-    lastSnapshotRef.current = snapshot
-    pathnameRef.current = pathname
+    const poll = async () => {
+      const runIds = usePersonaStore.getState().activeGenerationRunIds
+      if (runIds.length === 0) return
 
-    for (const runId of activeRunIds) {
-      // Skip if this run was explicitly dismissed
-      if (removedRef.current.has(runId)) continue
+      for (const runId of runIds) {
+        if (removedRef.current.has(runId)) continue
 
-      const existingToastId = toastIdsRef.current.get(runId)
+        const existingToastId = toastIdsRef.current.get(runId)
 
-      // ── Poll progress → show/hide toast per runId ──────────────
-      ;(async () => {
-        // First check for a final result (completed/error)
+        // 1. Check for a final result (completed/error)
         const result = await getPersonaGenerationResultAction(runId)
 
         if (result.found) {
-          if (lastCompletionRef.current.has(runId)) return
+          if (lastCompletionRef.current.has(runId)) continue
 
           lastCompletionRef.current.add(runId)
+          removedRef.current.add(runId) // stop further polling for this run
 
           if (result.error) {
-            // ── Error state ─────────────────────────────────────
             if (existingToastId) {
               toast.error('Generation Failed', {
                 id: existingToastId,
@@ -80,12 +78,11 @@ export function PersonaProgressToaster() {
               })
               toastIdsRef.current.set(runId, id)
             }
-            return
+            continue
           }
 
           const personaCount = result.personas?.length ?? 0
 
-          // ── Completed state ────────────────────────────────────
           if (existingToastId) {
             toast.success(`${personaCount} Personas Ready`, {
               id: existingToastId,
@@ -115,23 +112,20 @@ export function PersonaProgressToaster() {
             })
             toastIdsRef.current.set(runId, id)
           }
-          return
+          continue
         }
 
-        // ── Still in progress — poll progress details ──────────
+        // 2. Still in progress — poll progress details and update toast
         const p = await getProgressAction(runId)
-        if (!p.found) return
+        if (!p.found) continue
 
-        const step = p.progress?.step
         const streamingText = p.progress?.streamingText
+        const step = p.progress?.step
         const completed = p.progress?.completedCount ?? p.progress?.completedAnalyses
         const total = p.progress?.totalCount ?? p.progress?.totalAnalyses
-        const progress = total && total > 0 ? Math.min(completed! / total, 1) : 0
+        const progress = total && total ? Math.min((completed ?? 0) / total, 1) : 0
 
-        // Title: use streamingText when available, otherwise format the step name
         const title = streamingText ?? formatStepName(step)
-
-        // Subtext: persona count fraction when available
         const subtext = completed != null && total != null
           ? `${completed}/${total} personas`
           : undefined
@@ -143,7 +137,7 @@ export function PersonaProgressToaster() {
             progress={progress}
             onView={() => {
               persistDismiss(runId)
-              window.location.href = '/dashboard'
+              window.location.href = `/dashboard/generating/${runId}`
             }}
           />
         )
@@ -158,9 +152,41 @@ export function PersonaProgressToaster() {
           })
           toastIdsRef.current.set(runId, id)
         }
-      })()
+      }
     }
-  }, [snapshot, pathname])
+
+    poll()
+    intervalRef.current = setInterval(poll, POLL_INTERVAL_MS)
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+    // Re-run when the set of runIds changes (adds/removes)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRunIds.length])
+
+  // ── Route-based toast suppression on /dashboard ──
+  const prevPathnameRef = useRef<string>('')
+  useEffect(() => {
+    const isDashboard = pathname === '/dashboard'
+    const wasDashboard = prevPathnameRef.current === '/dashboard'
+    prevPathnameRef.current = pathname
+
+    if (isDashboard && !wasDashboard) {
+      // Entered dashboard — dismiss progress toasts (skeleton cards handle it)
+      const runIds = usePersonaStore.getState().activeGenerationRunIds
+      for (const runId of runIds) {
+        const tid = toastIdsRef.current.get(runId)
+        if (tid) {
+          toast.dismiss(tid)
+          toastIdsRef.current.delete(runId)
+        }
+      }
+    }
+  }, [pathname])
 
   return null
 }
