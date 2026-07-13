@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { ClockIcon, CheckCircleIcon, XCircleIcon, LayersIcon } from 'lucide-react'
+import { ClockIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import { getProgressAction } from '@/actions/getProgress'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
@@ -120,26 +120,37 @@ export function PersonaProgressToaster() {
 
         // ── Still in progress — poll progress details ──────────
         const p = await getProgressAction(runId)
-        const step = p.found && p.progress?.step ? p.progress.step : 'Generating...'
-        const details =
-          p.found && p.progress?.completedCount != null && p.progress?.totalCount != null
-            ? `${p.progress.completedCount}/${p.progress.totalCount}`
-            : p.found && p.progress?.streamingText
-              ? p.progress.streamingText
-              : undefined
+        if (!p.found) return
+
+        const step = p.progress?.step
+        const streamingText = p.progress?.streamingText
+        const completed = p.progress?.completedCount ?? p.progress?.completedAnalyses
+        const total = p.progress?.totalCount ?? p.progress?.totalAnalyses
+        const progress = total && total > 0 ? Math.min(completed! / total, 1) : 0
+
+        // Title: use streamingText when available, otherwise format the step name
+        const title = streamingText ?? formatStepName(step)
+
+        // Subtext: persona count fraction when available
+        const subtext = completed != null && total != null
+          ? `${completed}/${total} personas`
+          : undefined
 
         const content = (
-          <ProgressToastContent
-            label={step}
-            details={details}
+          <PersonaToastContent
+            title={title}
+            subtext={subtext}
+            progress={progress}
+            onView={() => {
+              persistDismiss(runId)
+              window.location.href = '/dashboard'
+            }}
           />
         )
 
         if (existingToastId) {
           toast.custom(() => content, { id: existingToastId })
         } else {
-          // Don't create a toast until the first progress update comes back
-          if (!p.found) return
           const id = toast.custom(() => content, {
             dismissible: true,
             onDismiss: () => persistDismiss(runId),
@@ -154,25 +165,49 @@ export function PersonaProgressToaster() {
   return null
 }
 
-/** Inline content component for the progress toast */
-function ProgressToastContent({
-  label,
-  details,
+/** Match SimulationToaster's progress card exactly — ring animation, progress bar, View button */
+function PersonaToastContent({
+  title,
+  subtext,
+  progress,
+  onView,
 }: {
-  label: string
-  details?: string
+  title: string
+  subtext?: string
+  progress: number
+  onView: () => void
 }) {
   return (
     <div className="relative overflow-hidden rounded-lg border border-border bg-card">
+      <div className="pointer-events-none absolute inset-0 z-20 rounded-lg ring-1 ring-primary/20 animate-[sim-ring-fade_0.6s_ease-out_forwards]" />
+      <div
+        className="absolute inset-y-0 left-0 bg-primary/[0.06] transition-all duration-300 ease-out"
+        style={{ width: `${progress * 100}%` }}
+      />
       <div className="relative z-10 flex items-start gap-3 p-4">
         <ClockIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary animate-spin" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-          {details && (
-            <p className="text-xs text-muted-foreground">{details}</p>
+          <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+          {subtext && (
+            <p className="text-xs text-muted-foreground">{subtext}</p>
           )}
         </div>
+        <button
+          onClick={onView}
+          className="shrink-0 text-xs font-semibold text-primary underline underline-offset-4 transition-colors hover:text-primary/80"
+        >
+          View
+        </button>
       </div>
     </div>
   )
+}
+
+/** Turn a raw step name like "BRAINSTORMING_PERSONAS" into "Brainstorming Personas" */
+function formatStepName(step?: string): string {
+  if (!step) return 'Generating personas...'
+  return step
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (l) => l.toUpperCase())
 }
