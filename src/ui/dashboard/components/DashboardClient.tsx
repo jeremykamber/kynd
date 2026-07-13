@@ -44,12 +44,15 @@ export function DashboardClient() {
     const removePersona = usePersonaStore((s) => s.removePersona)
     const personaFlow = usePersonaFlow()
 
-    // Auto-exit setup view when generation completes (but not during done-state dialog)
+    // Auto-exit setup view when generation starts (runId registered) or
+    // when the first persona streams in. The batch list view handles
+    // active-visibility via skeleton cards + toast.
     useEffect(() => {
-        if (personaFlow.personas && showSetup && personaFlow.personaProgress?.step !== 'DONE') {
+        if (!showSetup) return
+        if (activeRunIds.length > 0 || (personaFlow.personas && personaFlow.personaProgress?.step !== 'DONE')) {
             setShowSetup(false)
         }
-    }, [personaFlow.personas, showSetup, personaFlow.personaProgress])
+    }, [showSetup, activeRunIds.length, personaFlow.personas, personaFlow.personaProgress?.step])
 
     const toastIdRef = useRef<string | number | null>(null)
 
