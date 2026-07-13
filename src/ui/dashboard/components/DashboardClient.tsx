@@ -12,7 +12,7 @@ import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
 import { PersonaSkeletonCard } from '@/components/custom/PersonaSkeletonCard'
 import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
 import type { VariationFormData } from '@/components/custom/SimilarPersonaDialog'
-import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon } from 'lucide-react'
+import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon } from 'lucide-react'
 import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
 import { Progress } from '@/components/ui/progress'
@@ -36,6 +36,7 @@ export function DashboardClient() {
     const [showSetup, setShowSetup] = useState(false)
     const [showExpandedFlow, setShowExpandedFlow] = useState(false)
     const batches = usePersonaStore((s) => s.batches)
+    const activeRunIds = usePersonaStore((s) => s.activeGenerationRunIds)
     const activeBatchId = usePersonaStore((s) => s.activeBatchId)
     const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
     const insertPersonasAfter = usePersonaStore((s) => s.insertPersonasAfter)
@@ -328,6 +329,22 @@ export function DashboardClient() {
                                         })}
                                     </span>
                                 </button>
+                            ))}
+                            {/* Active generation entries — skeleton cards linking to progress page */}
+                            {activeRunIds.map((runId) => (
+                                <Link
+                                    key={runId}
+                                    href={`/dashboard/generating/${runId}`}
+                                    className="flex items-center gap-4 rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80 animate-pulse"
+                                >
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                        <ClockIcon className="h-5 w-5 text-primary animate-spin" />
+                                    </div>
+                                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                        <span className="font-semibold truncate">Generating personas...</span>
+                                        <span className="text-sm text-muted-foreground">In progress</span>
+                                    </div>
+                                </Link>
                             ))}
                         </div>
                     ) : (
