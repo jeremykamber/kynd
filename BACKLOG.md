@@ -98,7 +98,7 @@ Pipeline instrumentation and optimization. Persona generation and simulation ana
 ---
 
 ### Architecture & Code Quality (P3)
-- [ ] **Unified Background Task Queue**: When a 3rd background task type emerges (e.g., A/B test runner, persona browser agent companion), extract a shared `BackgroundTask` domain type and `taskQueueStore` (Zustand). Merge `SimulationToaster` and `PersonaProgressToaster` into a single `TaskToastRenderer`. Queue should be a thin mailbox with exactly `upsert()`, `remove()`, `clearCompleted()` — no domain logic, no execution control. Each domain owns polling and publishes to the queue; the queue owns only what the user sees.
+- [ ] **#49 — Unified Background Task Queue**: When a 3rd background task type emerges (e.g., A/B test runner, persona browser agent companion), extract a shared `BackgroundTask` domain type and `taskQueueStore` (Zustand). Merge `SimulationToaster` and `PersonaProgressToaster` into a single `TaskToastRenderer`. Queue should be a thin mailbox with exactly `upsert()`, `remove()`, `clearCompleted()` — no domain logic, no execution control. Each domain owns polling and publishes to the queue; the queue owns only what the user sees.
 
 ### Observability & Debugging (P3)
 - [ ] **Client-Side Log Sink**: Lightweight `ClientLogger` that mirrors `console.log` calls to a `POST /api/vps/client-logs` endpoint, appending client-side trace events (cancel, polling, stream arrival) into the per-run `AnalysisLogger` JSONL file
