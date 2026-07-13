@@ -39,7 +39,25 @@ export class GeneratePersonasUseCase {
             streamingText: "Generating persona profiles..."
         });
 
-        let personas: Persona[] = await this.llmService.generateInitialPersonas(personaDescription, count);
+        // Retry once on count mismatch — LLMs sometimes return wrong counts despite prompt enforcement
+        let personas: Persona[] | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                personas = await this.llmService.generateInitialPersonas(personaDescription, count);
+                break;
+            } catch (err) {
+                const msg = (err as Error).message ?? '';
+                if (msg.includes('count mismatch') && attempt === 0) {
+                    console.warn(`[GeneratePersonasUseCase] Attempt ${attempt + 1} failed: ${msg} — retrying`);
+                    onProgress?.({
+                        step: 'BRAINSTORMING_PERSONAS',
+                        streamingText: "Retrying with corrected persona count..."
+                    });
+                    continue;
+                }
+                throw err; // Non-count errors or second failure — propagate
+            }
+        }
 
         if (!personas || personas.length === 0) {
             throw new Error("Failed to generate any personas from the description");

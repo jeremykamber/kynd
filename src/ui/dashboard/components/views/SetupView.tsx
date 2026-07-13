@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from 'react'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
 import { MinimalCard } from '@/components/custom/MinimalCard'
 import { MOCK_PERSONAS } from '@/domain/entities/MockPersonas'
@@ -14,6 +15,10 @@ interface SetupViewProps {
 }
 
 export function SetupView({ personaFlow, onBack }: SetupViewProps) {
+  // Local string state for the persona count input so backspace/delete works.
+  // Synced to personaFlow.personaCount at mount only; onBlur clamps and writes back.
+  const [personaCountInput, setPersonaCountInput] = useState(String(personaFlow.personaCount))
+
   return (
     <div className="flex flex-col gap-16 max-w-4xl mx-auto w-full">
       <div className="flex justify-between">
@@ -65,10 +70,24 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                   type="number"
                   min={1}
                   max={20}
-                  value={personaFlow.personaCount}
+                  value={personaCountInput}
                   onChange={(e) => {
-                    const v = parseInt(e.target.value, 10)
-                    if (!isNaN(v) && v >= 1 && v <= 20) personaFlow.setPersonaCount(v)
+                    // Allow any input including empty string (for backspace/delete)
+                    setPersonaCountInput(e.target.value)
+                  }}
+                  onBlur={() => {
+                    // Clamp to valid range on blur
+                    const v = parseInt(personaCountInput, 10)
+                    if (isNaN(v) || v < 1) {
+                      personaFlow.setPersonaCount(1)
+                      setPersonaCountInput('1')
+                    } else if (v > 20) {
+                      personaFlow.setPersonaCount(20)
+                      setPersonaCountInput('20')
+                    } else {
+                      personaFlow.setPersonaCount(v)
+                      setPersonaCountInput(String(v))
+                    }
                   }}
                   disabled={personaFlow.isPending}
                   className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-24"

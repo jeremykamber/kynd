@@ -211,6 +211,10 @@ export function DashboardClient() {
                             placeholderIds.forEach((id) => next.delete(id))
                             return next
                         })
+
+                        // Close the detail sheet now that variants are visible
+                        setIsDetailSheetOpen(false)
+                        setSelectedPersonaId(null)
                         return
                     }
 
@@ -251,7 +255,7 @@ export function DashboardClient() {
     )
 
     // Skip setup view when generation is active — batch list shows skeleton cards instead
-    const showSetupView = (batches.length === 0 || showSetup) && activeRunIds.length === 0
+    const showSetupView = (batches.length === 0 || showSetup) && activeRunIds.length === 0 && !activeBatchId
 
     // Compute an approximate overall progress percentage from the current phase
     const progressPercent = personaFlow.personaProgress

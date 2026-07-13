@@ -17,7 +17,7 @@ export class PersonaAdapter {
     const personaCount = count ?? 5;
     const system = `You are a persona generator creating realistic buyer personas for SaaS pricing evaluation.
 
-Generate a JSON array of ${personaCount} DISTINCT personas matching this TypeScript interface:
+Generate a JSON array of EXACTLY ${personaCount} DISTINCT personas matching this TypeScript interface:
 
 interface Persona {
   id: string;
@@ -49,6 +49,11 @@ interface Persona {
   domainExpertise: string[];      // Domains they know well (e.g. ["cloud infrastructure", "B2B SaaS", "product management"])
 }
 
+COUNT ENFORCEMENT:
+- You MUST return EXACTLY ${personaCount} persona objects in the JSON array — no more, no fewer.
+- Before returning, count the personas in your array. If it is not exactly ${personaCount}, adjust before responding.
+- Do NOT pad with filler personas. If you find yourself generating a duplicate or low-effort persona, replace it with a genuinely distinct one.
+
 CRITICAL REQUIREMENTS:
 - BIG FIVE ROOT CAUSES: Assign high-fidelity Big Five scalars (0-100). These are the "genes" of the persona.
 - PRICING CALIBRATION: Derive pricingSensitivity and typicalBudget from the persona's Big Five, role, and the target market description. A well-funded VP of Engineering at a Series B will have very different expectations than a bootstrapped indie developer. This calibration MUST be consistent with their other psychographics.
@@ -64,7 +69,7 @@ CRITICAL REQUIREMENTS:
 
 Return ONLY valid JSON without explanatory text or markdown code blocks.`;
 
-    const user = `Create ${personaCount} diverse personas for: "${personaDescription}". Ensure a spectrum of decision-making styles and value systems.`;
+    const user = `Create EXACTLY ${personaCount} diverse personas for: "${personaDescription}". The array must contain precisely ${personaCount} elements — count before returning. Ensure a spectrum of decision-making styles and value systems.`;
 
     const content = await this.llmService.createChatCompletion(
       [
@@ -85,7 +90,19 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
       if (!Array.isArray(parsed))
         throw new Error("Expected JSON array from LLM");
       console.log("[PersonaAdapter] Successfully parsed", parsed.length, "personas from LLM");
-      parsed.forEach((p: any, i: number) => {
+
+      // Enforce count — truncate excess silently; throw on deficit so caller can retry.
+      let personas = parsed;
+      if (parsed.length > personaCount) {
+        console.log("[PersonaAdapter] LLM returned", parsed.length, "personas — truncating to", personaCount);
+        personas = parsed.slice(0, personaCount);
+      } else if (parsed.length < personaCount) {
+        console.warn("[PersonaAdapter] LLM returned", parsed.length, "personas — expected", personaCount);
+        throw new Error(
+          `Persona count mismatch: expected ${personaCount}, got ${parsed.length}. The generation will be retried automatically.`
+        );
+      }
+      validatedPersonas.forEach((p: any, i: number) => {
         console.log(`[PersonaAdapter] Persona ${i + 1}:`, JSON.stringify({
           name: p.name,
           occupation: p.occupation,
@@ -130,7 +147,7 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
       const seed = seedFrom(personaDescription || "");
       const chosenNames = seededShuffle(GENDERLESS_NAMES, seed);
 
-      return parsed.map(
+      return personas.map(
         (p: Record<string, unknown>, idx: number) =>
           ({
             id: (p.id as string) ?? `persona-${idx}`,
