@@ -92,8 +92,17 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Kick off background analysis ────────────────────────────────────────
-    runAnalysis(id, url, personas, imageBase64).catch((err) => {
+    const ANALYSIS_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+    Promise.race([
+        runAnalysis(id, url, personas, imageBase64),
+        new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Analysis timed out after 10 minutes')), ANALYSIS_TIMEOUT_MS)
+        ),
+    ]).catch((err) => {
         console.error(`[analyze-pricing] Background analysis failed for ${id}:`, err);
+        simulationResultStore.saveError(id, err.message);
+        storeProgress(id, { step: 'ERROR', error: err.message });
     });
 
     return NextResponse.json({ runId: id });
@@ -111,20 +120,22 @@ async function runAnalysis(
 ) {
     const startTime = Date.now();
     const log = AnalysisLogger.forRun(id);
-    await log.init();
-
-    const abortController = cancellationManager.createRequest(id);
-    const abortSignal = abortController.signal;
-
-    log.info("runAnalysis", "=== ANALYSIS START ===", {
-        url,
-        personaCount: personas.length,
-        personaNames: personas.map((p) => p.name),
-        hasImage: !!imageBase64,
-        requestId: id,
-    });
+    let abortSignal: AbortSignal = new AbortController().signal;
 
     try {
+        await log.init();
+
+        const abortController = cancellationManager.createRequest(id);
+        abortSignal = abortController.signal;
+
+        log.info("runAnalysis", "=== ANALYSIS START ===", {
+            url,
+            personaCount: personas.length,
+            personaNames: personas.map((p) => p.name),
+            hasImage: !!imageBase64,
+            requestId: id,
+        });
+
         if (abortSignal.aborted) {
             log.warn("runAnalysis", "Request was already aborted before starting");
             simulationResultStore.saveError(id, "Request was cancelled");
