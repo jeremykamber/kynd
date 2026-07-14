@@ -139,7 +139,7 @@ export function FlowDialog({
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto space-y-4">
-                    <Progress value={progressPercent ?? 33} className="h-2 w-full" />
+                    <Progress value={progressPercent ?? 33} className="h-2 w-full" indicatorClassName="animate-pulse" />
                     {completedCount !== undefined && totalCount !== undefined && (
                       <p className="text-xs font-mono text-muted-foreground tabular-nums">
                         {completedCount}/{totalCount}
@@ -212,7 +212,7 @@ export function FlowDialog({
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center w-full max-w-xs mx-auto space-y-4 animate-in fade-in duration-500">
-                <Progress value={progressPercent ?? 33} className="h-2 w-full" />
+                <Progress value={progressPercent ?? 33} className="h-2 w-full" indicatorClassName="animate-pulse" />
                 {completedCount !== undefined && totalCount !== undefined && (
                   <p className="text-xs font-mono text-muted-foreground tabular-nums">
                     {completedCount}/{totalCount}

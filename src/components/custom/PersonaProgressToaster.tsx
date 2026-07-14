@@ -23,10 +23,17 @@ const STEP_PROGRESS: Record<string, number> = {
   ADDING_BEHAVIORAL_DEPTH: 0.5,
   GENERATING_INSIGHTS: 0.75,
   DONE: 1,
+  // Long-form keys (ICP pipeline)
   EXTRACTING_SIGNALS: 0.15,
   POOLING_SIGNALS: 0.35,
   SAMPLING_PERSONAS: 0.5,
   INGESTING_TO_MEMORY: 0.8,
+  // Short-form keys (interview pipeline — server emits these)
+  EXTRACTING: 0.15,
+  POOLING: 0.35,
+  SAMPLING: 0.5,
+  GENERATING: 0.65,
+  INGESTING: 0.8,
 }
 
 /**
@@ -222,10 +229,17 @@ const STEP_DISPLAY: Record<string, string> = {
   ENHANCING_WITH_PBJ: 'Adding behavioral depth', // retrofitting — same reason as STEP_PROGRESS above
   ADDING_BEHAVIORAL_DEPTH: 'Adding behavioral depth',
   GENERATING_INSIGHTS: 'Generating insights',
+  // Long-form keys (ICP pipeline)
   EXTRACTING_SIGNALS: 'Extracting signals from interviews',
   POOLING_SIGNALS: 'Pooling signals across interviews',
   SAMPLING_PERSONAS: 'Sampling persona profiles',
   INGESTING_TO_MEMORY: 'Indexing personas for chat',
+  // Short-form keys (interview pipeline — server emits these)
+  EXTRACTING: 'Extracting signals from interviews',
+  POOLING: 'Pooling signals across interviews',
+  SAMPLING: 'Sampling persona profiles',
+  GENERATING: 'Generating personas',
+  INGESTING: 'Indexing personas for chat',
   DONE: 'Complete',
   ERROR: 'Error',
 }
