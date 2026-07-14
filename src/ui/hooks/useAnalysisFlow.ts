@@ -5,6 +5,7 @@ import { analyzePricingPageAction } from '@/actions/analyzePricingPage'
 import { predictGazeAction } from '@/actions/predictGaze'
 import { cancelRequestAction } from '@/actions/cancelRequest'
 import { getSimulationResultAction } from '@/actions/getSimulationResult'
+import { getProgressAction } from '@/actions/getProgress'
 import { getScreenshotAction } from '@/actions/getScreenshot'
 import { readStreamableValue } from '@ai-sdk/rsc'
 import { PricingAnalysisProgressStep } from '@/application/usecases/ParsePricingPageUseCase'
@@ -209,9 +210,24 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
 
         // ── Remote/VPS or stream-disconnected: poll result store ────────────
         console.log(`[TRACE] [useAnalysisFlow] Polling result store. simulationId=${simulationId}, requestId=${requestId}`)
-        for (let attempt = 0; attempt < 300; attempt++) {
+        for (let attempt = 0; attempt < 600; attempt++) {
           if (!mountedRef.current || controller.signal.aborted) break
           await new Promise((r) => setTimeout(r, 1000))
+
+          // Poll progress every 3 seconds for step/completedCount visibility
+          if (attempt % 3 === 0) {
+            try {
+              const progressResult = await getProgressAction(simulationId)
+              if (progressResult.found && progressResult.progress) {
+                const p = progressResult.progress
+                useSimulationStore.getState().updateSimulation(simulationId, {
+                  currentStep: (p.step as any) ?? undefined,
+                  completedAnalyses: p.completedCount ?? p.completedAnalyses,
+                })
+              }
+            } catch { /* non-critical */ }
+          }
+
           try {
             const result = await getSimulationResultAction(simulationId)
             if (!result.found) continue
@@ -231,17 +247,18 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
           } catch { /* retry */ }
         }
 
-        // Exhausted 300 polling attempts (~5 min) without a result
+        // Exhausted 600 polling attempts (~10 min) without a result
         clearScreenshotPoll()
         if (mountedRef.current && !controller.signal.aborted) {
           setError('Simulation analysis timed out. Please try again.')
-          useSimulationStore.getState().markError(simulationId, 'Timed out after 300 polling attempts')
+          useSimulationStore.getState().markError(simulationId, 'Timed out after 600 polling attempts')
           setAnalysisProgress(null)
           setCurrentRequestId(null)
         }
       } catch (err) {
         clearScreenshotPoll()
         console.log(`[TRACE] [useAnalysisFlow] CAUGHT ERROR:`, (err as Error).message)
+        useSimulationStore.getState().markError(simulationId, (err as Error).message)
         if (mountedRef.current) {
           if (!controller.signal.aborted) {
             setError((err as Error).message)
