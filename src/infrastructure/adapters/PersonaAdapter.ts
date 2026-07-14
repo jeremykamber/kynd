@@ -102,7 +102,7 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
           `Persona count mismatch: expected ${personaCount}, got ${parsed.length}. The generation will be retried automatically.`
         );
       }
-      validatedPersonas.forEach((p: any, i: number) => {
+      personas.forEach((p: any, i: number) => {
         console.log(`[PersonaAdapter] Persona ${i + 1}:`, JSON.stringify({
           name: p.name,
           occupation: p.occupation,

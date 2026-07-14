@@ -143,10 +143,19 @@ export class GeneratePersonasFromInterviewsUseCase {
             .join('\n\n---\n\n');
 
         // Phase 5: Generate — delegate to GeneratePersonasUseCase for full persona creation
+        // Forward sub-step progress (backstories, behavioral depth, etc.) so the UI
+        // shows actual progress during this long-running phase instead of staying stuck.
         onProgress?.({ step: 'GENERATING', message: 'Generating personas from interview signals' });
         const personas = await this.generatePersonasUseCase.execute(
             combinedDescription,
-            undefined,
+            onProgress ? (inner) => {
+                onProgress({
+                    step: 'GENERATING',
+                    message: inner.streamingText ?? inner.step,
+                    current: inner.completedCount,
+                    total: inner.totalCount,
+                });
+            } : undefined,
             targetCount,
         );
 

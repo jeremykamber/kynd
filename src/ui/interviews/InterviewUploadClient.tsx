@@ -342,10 +342,14 @@ export function InterviewUploadClient() {
           { title: 'Ingesting to Memory', description: 'Indexing personas for retrieval-augmented chat', cyclingTexts: ['Indexing personas for retrieval...', 'Building embedding vectors...', 'Optimizing for semantic search...'] },
         ]}
         streamingText={progress?.message}
-      >
-        {/* Children slot reserved for future progress bar / persona dots */}
-        {progress && <div />}
-      </FlowDialog>
+        progressPercent={
+          progress?.current != null && progress?.total != null && progress.total > 0
+            ? Math.round((progress.current / progress.total) * 100)
+            : undefined
+        }
+        completedCount={progress?.current}
+        totalCount={progress?.total}
+      />
     </div>
   )
 }
