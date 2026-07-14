@@ -75,7 +75,14 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
       try {
         const p = await getProgressAction(runId)
         if (p.found && p.progress && p.progress.step && mountedRef.current) {
-          setProgress(p.progress as InterviewProgress)
+          // ProgressState uses completedCount/totalCount; InterviewProgress uses current/total
+          setProgress({
+            step: p.progress.step as InterviewProgress['step'],
+            current: p.progress.completedCount ?? p.progress.completedAnalyses,
+            total: p.progress.totalCount ?? p.progress.totalAnalyses,
+            message: p.progress.streamingText,
+            error: p.progress.error,
+          })
         }
       } catch { /* non-critical */ }
     }

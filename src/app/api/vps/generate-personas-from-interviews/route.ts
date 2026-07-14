@@ -115,8 +115,6 @@ async function runPipeline(
             storeProgress(runId, {
                 step: progress.step,
                 streamingText: progress.message,
-                current: progress.current,
-                total: progress.total,
                 completedCount: progress.current,
                 totalCount: progress.total,
                 completedAnalyses: progress.current,
