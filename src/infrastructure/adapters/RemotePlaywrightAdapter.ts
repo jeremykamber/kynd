@@ -262,7 +262,10 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
         // disconnect() closes only the client-side WebSocket. The server-side
         // browser process keeps running. Without this, every request leaks a
         // WebSocket connection that accumulates until the browser server degrades.
-        this.browser?.disconnect();
+        // disconnect() closes only the client-side WebSocket. The server-side
+        // browser process keeps running. Use optional chaining since older
+        // Playwright versions (pre-1.49) don't expose this method on Browser.
+        (this.browser as any)?.disconnect?.();
         this.browser = null;
         this.page = null;
         this.context = null;
