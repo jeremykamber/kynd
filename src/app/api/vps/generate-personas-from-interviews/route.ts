@@ -109,11 +109,18 @@ async function runPipeline(
         );
 
         const personas = await useCase.execute(files, (progress) => {
-            // Map interview pipeline progress to generic progress store
+            // Store under all field names so both interview pipeline and simulation
+            // consumers can read them (InterviewProgress uses current/total,
+            // ProgressState uses completedCount/totalCount and completedAnalyses/totalAnalyses).
             storeProgress(runId, {
                 step: progress.step,
-                completedAnalyses: progress.current ?? progress.total ?? undefined,
-                totalAnalyses: progress.total ?? undefined,
+                streamingText: progress.message,
+                current: progress.current,
+                total: progress.total,
+                completedCount: progress.current,
+                totalCount: progress.total,
+                completedAnalyses: progress.current,
+                totalAnalyses: progress.total,
             });
         }, count);
 

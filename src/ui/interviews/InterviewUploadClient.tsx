@@ -324,20 +324,22 @@ export function InterviewUploadClient() {
         onOpenChange={(open) => {
           if (!open) setShowExpandedFlow(false)
         }}
-        title="Synthesizing Personas"
-        description="Analyzing interview transcripts and generating grounded personas."
+        title="Processing Interview Transcripts"
+        description="Extracting behavioral signals, pooling patterns, and generating interview-grounded personas."
         currentStep={
-          progress?.step === 'EXTRACTING' || progress?.step === 'POOLING' ? 0
-          : progress?.step === 'SAMPLING' || progress?.step === 'GENERATING' ? 1
-          : progress?.step === 'INGESTING' ? 2
-          : progress?.step === 'DONE' ? 3
+          progress?.step === 'EXTRACTING' ? 0
+          : progress?.step === 'POOLING' ? 1
+          : progress?.step === 'SAMPLING' ? 2
+          : progress?.step === 'GENERATING' ? 3
+          : progress?.step === 'INGESTING' ? 4
           : 0
         }
         steps={[
-          { title: 'Analyzing Market', description: 'Mapping demographics and psychographics', cyclingTexts: ['Analyzing transcripts for behavioral patterns...', 'Identifying key themes across interviews...', 'Mapping signals to psychographic dimensions...', 'Aggregating patterns across all transcripts...'] },
-          { title: 'Generating Personas', description: 'Creating detailed backstories and traits', cyclingTexts: ['Drawing persona profiles from the distribution...', 'Building interview-grounded backstories...', 'Developing psychographic profiles...', 'Crafting behavioral insights...'] },
-          { title: 'Rationalizing Behavior', description: 'Anchoring psychographics to personality traits', cyclingTexts: ['Indexing personas for retrieval...', 'Building embedding vectors...', 'Optimizing for semantic search...'] },
-          { title: 'Finalizing', description: 'Preparing avatars, insights, and profiles', cyclingTexts: ['Finalizing persona profiles...', 'Preparing insights and recommendations...'] },
+          { title: 'Extracting Signals', description: 'Analyzing interview transcripts for behavioral signals', cyclingTexts: ['Analyzing transcripts for behavioral patterns...', 'Identifying key themes across interviews...', 'Mapping signals to psychographic dimensions...'] },
+          { title: 'Pooling Signals', description: 'Aggregating patterns across all interviews', cyclingTexts: ['Aggregating patterns across all transcripts...', 'Finding common behavioral threads...', 'Building a unified signal model...'] },
+          { title: 'Sampling Personas', description: 'Drawing coherent persona profiles from the distribution', cyclingTexts: ['Drawing persona profiles from the distribution...', 'Selecting diverse archetypes...', 'Optimizing for coverage and distinction...'] },
+          { title: 'Generating Personas', description: 'Building backstories, psychographics, and insights', cyclingTexts: ['Building interview-grounded backstories...', 'Developing psychographic profiles...', 'Crafting behavioral insights...'] },
+          { title: 'Ingesting to Memory', description: 'Indexing personas for retrieval-augmented chat', cyclingTexts: ['Indexing personas for retrieval...', 'Building embedding vectors...', 'Optimizing for semantic search...'] },
         ]}
         streamingText={progress?.message}
         progressPercent={
