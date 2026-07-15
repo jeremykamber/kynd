@@ -31,8 +31,10 @@ export function generateSimulationName(url: string, batchName?: string): string 
       ? `“${batchName}” on ${siteName}`
       : `Pricing Analysis — ${siteName}`
   } catch {
+    // URL didn't parse — use the raw string as the site label
+    const label = url || 'Pricing Page'
     return batchName
-      ? `“${batchName}” — Pricing Analysis`
-      : 'Pricing Analysis'
+      ? `"${batchName}" — ${label}`
+      : `Pricing Analysis — ${label}`
   }
 }

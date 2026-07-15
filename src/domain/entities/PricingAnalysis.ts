@@ -64,7 +64,7 @@ export function validatePricingAnalysis(entity: PricingAnalysis): boolean {
 
     if (!entity.id || typeof entity.id !== "string") return false;
     if (!entity.url || typeof entity.url !== "string") return false;
-    if (entity.url !== "Manual Upload" && !entity.url.startsWith("uploaded://")) {
+    if (entity.url !== "Screenshot Upload" && !entity.url.startsWith("uploaded://")) {
         try { new URL(entity.url); } catch (e) { return false; }
     }
     if (!entity.screenshotBase64 || typeof entity.screenshotBase64 !== "string") return false;

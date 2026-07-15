@@ -58,11 +58,12 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     setError('Analysis cancelled by user')
   }
 
-  const handleAnalyzePricing = (personas: Persona[], overrideUrl?: string) => {
+  const handleAnalyzePricing = (personas: Persona[], overrideUrl?: string, overrideImageBase64?: string) => {
     // Use overrideUrl when provided, so callers can pass the URL directly
     // without relying on pricingUrl state (which may not have committed yet).
     const activeUrl = overrideUrl?.trim() || pricingUrl.trim()
-    if (!activeUrl && !pricingImageBase64) {
+    const activeImage = overrideImageBase64 ?? pricingImageBase64
+    if (!activeUrl && !activeImage) {
       console.log(`[TRACE] [useAnalysisFlow] handleAnalyzePricing: no URL or image, skipping`)
       return
     }
@@ -74,7 +75,7 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
     console.log(`[TRACE] [useAnalysisFlow] ========================================`)
     console.log(`[TRACE] [useAnalysisFlow] STARTING PRICING ANALYSIS FLOW`)
     console.log(`[TRACE] [useAnalysisFlow] ========================================`)
-    console.log(`[TRACE] [useAnalysisFlow] url=${activeUrl}, imageBase64=${pricingImageBase64 ? 'present (' + pricingImageBase64.length + ' chars)' : 'none'}`)
+    console.log(`[TRACE] [useAnalysisFlow] url=${activeUrl}, imageBase64=${activeImage ? 'present (' + activeImage.length + ' chars)' : 'none'}`)
     console.log(`[TRACE] [useAnalysisFlow] personas=${personas.length}: [${personas.map(p => p.name).join(', ')}]`)
 
     setError(null)
@@ -110,10 +111,10 @@ export function useAnalysisFlow(onSuccess?: (analyses: PricingAnalysis[]) => voi
       };
 
       try {
-        const urlToUse = pricingImageBase64 ? "Manual Upload" : activeUrl;
+        const urlToUse = activeImage ? "Screenshot Upload" : activeUrl;
         console.log(`[TRACE] [useAnalysisFlow] Calling analyzePricingPageAction with url="${urlToUse}", ${personas.length} personas...`)
         const actionStartTime = Date.now();
-        const { streamData, requestId } = await analyzePricingPageAction(urlToUse, personas, simulationId, pricingImageBase64 || undefined)
+        const { streamData, requestId } = await analyzePricingPageAction(urlToUse, personas, simulationId, activeImage || undefined)
         const actionCallDuration = Date.now() - actionStartTime;
         setCurrentRequestId(requestId)
         console.log(`[TRACE] [useAnalysisFlow] analyzePricingPageAction returned in ${actionCallDuration}ms. requestId=${requestId}`)

@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useSimulationStore } from '@/ui/stores/simulationStore'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon, PlusIcon } from 'lucide-react'
+import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon, PlusIcon, UploadIcon, ImageIcon, LinkIcon } from 'lucide-react'
 import { computeRunAverages } from '@/ui/dashboard/utils/computeBenchmarks'
 import { Persona } from '@/domain/entities/Persona'
 import { Button } from '@/components/ui/button'
@@ -137,7 +137,7 @@ function SimulationCard({ simulation }: { simulation: import('@/domain/entities/
   )
 }
 
-function NewSimulationForm({ onRun }: { onRun: (url: string, personas: Persona[]) => void }) {
+function NewSimulationForm({ onRun }: { onRun: (url: string, personas: Persona[], imageBase64?: string) => void }) {
   const batches = usePersonaStore((s) => s.batches)
   const [selectedBatchId, setSelectedBatchId] = useState<string>('')
   const [url, setUrl] = useState('')
@@ -151,9 +151,86 @@ function NewSimulationForm({ onRun }: { onRun: (url: string, personas: Persona[]
 
   const selectedBatch = batches.find((b) => b.id === selectedBatchId)
 
+  const [inputMode, setInputMode] = useState<'url' | 'screenshot'>('url')
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
+  const [imageBase64, setImageBase64] = useState<string | null>(null)
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageBase64Ref = useRef<string | null>(null)
+
+  const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
+
+  const validateAndReadFile = useCallback((file: File) => {
+    setValidationError(null)
+
+    if (!ACCEPTED_TYPES.includes(file.type as any)) {
+      setValidationError('Only PNG, JPG, and WEBP images are accepted.')
+      return
+    }
+    if (file.size > MAX_SIZE_BYTES) {
+      setValidationError('Image must be under 10 MB.')
+      return
+    }
+
+    setScreenshotFile(file)
+    setScreenshotPreview(URL.createObjectURL(file))
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      setImageBase64(result)
+      imageBase64Ref.current = result
+    }
+    reader.onerror = () => {
+      setValidationError('Failed to read file. Please try again.')
+    }
+    reader.readAsDataURL(file)
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) validateAndReadFile(file)
+  }, [validateAndReadFile])
+
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) validateAndReadFile(file)
+  }, [validateAndReadFile])
+
+  const removeScreenshot = useCallback(() => {
+    setScreenshotFile(null)
+    setScreenshotPreview(null)
+    setImageBase64(null)
+    imageBase64Ref.current = null
+    setValidationError(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }, [])
+
   const handleSubmit = () => {
-    if (!url.trim() || !selectedBatch) return
-    onRun(url, selectedBatch.personas)
+    if (!selectedBatch) return
+
+    if (inputMode === 'url') {
+      if (!url.trim()) return
+      onRun(url, selectedBatch.personas)
+    } else {
+      if (!imageBase64Ref.current) return
+      onRun('Screenshot Upload', selectedBatch.personas, imageBase64Ref.current)
+    }
   }
 
   if (batches.length === 0) {
@@ -187,18 +264,110 @@ function NewSimulationForm({ onRun }: { onRun: (url: string, personas: Persona[]
             </SelectContent>
           </Select>
         </div>
+        {/* ── Input mode toggle ──────────────────────────────────── */}
         <div className="flex flex-col gap-2">
-          <label htmlFor="pricing-url" className="text-sm font-medium">Pricing Page URL</label>
-          <Input
-            id="pricing-url"
-            type="url"
-            placeholder="https://your-startup.com/pricing"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
+          <div className="flex gap-1 rounded-lg bg-muted p-1">
+            <button
+              type="button"
+              onClick={() => setInputMode('url')}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                inputMode === 'url'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <LinkIcon className="h-3.5 w-3.5" />
+              URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputMode('screenshot')}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                inputMode === 'screenshot'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ImageIcon className="h-3.5 w-3.5" />
+              Screenshot
+            </button>
+          </div>
+
+          {inputMode === 'url' ? (
+            /* ── URL mode ──────────────────────────────────────── */
+            <div className="flex flex-col gap-2">
+              <label htmlFor="pricing-url" className="text-sm font-medium">Pricing Page URL</label>
+              <Input
+                id="pricing-url"
+                type="url"
+                placeholder="https://your-startup.com/pricing"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+            </div>
+          ) : (
+            /* ── Screenshot mode ──────────────────────────────── */
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Pricing Page Screenshot</label>
+              {!screenshotFile ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-sm text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground cursor-pointer ${
+                    isDragOver ? 'border-primary bg-primary/5' : ''
+                  }`}
+                >
+                  <UploadIcon className="h-6 w-6" />
+                  Drop a screenshot or click to browse
+                  <span className="text-xs text-muted-foreground/70">PNG, JPG, or WEBP — under 10 MB</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  {screenshotPreview && (
+                    <img
+                      src={screenshotPreview}
+                      alt="Screenshot preview"
+                      className="h-14 w-14 rounded object-cover"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{screenshotFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(screenshotFile.size / 1024).toFixed(0)} KB
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeScreenshot}
+                    className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors"
+                    aria-label="Remove screenshot"
+                  >
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleFileInput}
+                className="hidden"
+              />
+              {validationError && (
+                <p className="text-xs text-destructive">{validationError}</p>
+              )}
+            </div>
+          )}
         </div>
         <Button
-          disabled={!url.trim()}
+          disabled={
+            inputMode === 'url'
+              ? !url.trim()
+              : !imageBase64Ref.current
+          }
           onClick={handleSubmit}
         >
           Run Simulation
@@ -216,9 +385,12 @@ export default function SimulationsPage() {
   const inProgress = simulations.filter((s) => s.status === 'IN_PROGRESS')
   const completed = simulations.filter((s) => s.status !== 'IN_PROGRESS')
 
-  const handleRunSimulation = (url: string, personas: Persona[]) => {
+  const handleRunSimulation = (url: string, personas: Persona[], imageBase64?: string) => {
+    if (imageBase64) {
+      analysisFlow.setPricingImageBase64(imageBase64)
+    }
     analysisFlow.setPricingUrl(url)
-    analysisFlow.handleAnalyzePricing(personas, url)
+    analysisFlow.handleAnalyzePricing(personas, url, imageBase64)
     setShowNewForm(false)
   }
 
