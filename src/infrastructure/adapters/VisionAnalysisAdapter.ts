@@ -408,49 +408,66 @@ export class VisionAnalysisAdapter {
         maxTokens: tokenLimit,
       });
 
-      const completionStart = Date.now();
+      const MAX_RETRIES = 2;
+      const RETRY_DELAY_MS = 2_000;
       const prompt = `Evaluate this pricing page. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
-      const streamResult = streamObject({
-        model: this.llmService.provider(this.llmService.visionModel),
-        schema: PricingAnalysisSchema,
-        schemaName: "PricingAnalysis",
-        schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
-        system,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image", image: screenshotBase64 },
-            ],
-          },
-        ],
-        temperature: 0.1,
-        maxTokens: tokenLimit,
-      } as any);
-      // Drain the partial stream (keeps the pipeline flowing — without a consumer,
-      // streamObject's internal TransformStream stalls) while racing against a
-      // timeout so a hanging LLM never blocks the queue permanently.
       const ANALYSIS_TIMEOUT_MS = 180_000;
-      // Drain the stream in the background WITH a catch handler — when the
-      // timeout wins the race, the loser's streamResult.object must be caught
-      // to prevent an unhandled promise rejection (the LLM may still respond).
-      const drainAndResolve = (async () => {
-        for await (const _ of streamResult.partialObjectStream) {
-          // Discard partials — we only need the final validated object.
+
+      let analysisObj: any = null;
+
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 0) {
+          log?.info("VisionAnalysisAdapter", `[AUDIT] Retry attempt ${attempt}/${MAX_RETRIES} for "${persona.name}" — waiting ${RETRY_DELAY_MS}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
         }
-        return streamResult.object;
-      })().catch(() => null);
-      const analysisObj = await Promise.race([
-        drainAndResolve,
-        new Promise<any>((_, reject) =>
-          setTimeout(
-            () => reject(new Error(`Analysis timed out after ${ANALYSIS_TIMEOUT_MS}ms`)),
-            ANALYSIS_TIMEOUT_MS,
+
+        const completionStart = Date.now();
+        const streamResult = streamObject({
+          model: this.llmService.provider(this.llmService.visionModel),
+          schema: PricingAnalysisSchema,
+          schemaName: "PricingAnalysis",
+          schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
+          system,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image", image: screenshotBase64 },
+              ],
+            },
+          ],
+          temperature: 0.1,
+          maxTokens: tokenLimit,
+        } as any);
+        // Drain the partial stream (keeps the pipeline flowing — without a consumer,
+        // streamObject's internal TransformStream stalls) while racing against a
+        // timeout so a hanging LLM never blocks the queue permanently.
+        // Drain the stream in the background WITH a catch handler — when the
+        // timeout wins the race, the loser's streamResult.object must be caught
+        // to prevent an unhandled promise rejection (the LLM may still respond).
+        const drainAndResolve = (async () => {
+          for await (const _ of streamResult.partialObjectStream) {
+            // Discard partials — we only need the final validated object.
+          }
+          return streamResult.object;
+        })().catch(() => null);
+        analysisObj = await Promise.race([
+          drainAndResolve,
+          new Promise<any>((_, reject) =>
+            setTimeout(
+              () => reject(new Error(`Analysis timed out after ${ANALYSIS_TIMEOUT_MS}ms`)),
+              ANALYSIS_TIMEOUT_MS,
+            ),
           ),
-        ),
-      ]);
-      const completionDuration = Date.now() - completionStart;
+        ]);
+
+        if (analysisObj) break;
+
+        log?.warn("VisionAnalysisAdapter", `[AUDIT] Null result for "${persona.name}" on attempt ${attempt + 1}/${MAX_RETRIES + 1} — will ${attempt < MAX_RETRIES ? "retry" : "fall through to fallback"}`);
+      }
+
+      const completionDuration = Date.now() - methodStart;
       log?.info("VisionAnalysisAdapter", `[AUDIT] Analysis completed for "${persona.name}"`, {
         durationMs: completionDuration,
         scores: analysisObj.scores ? {
