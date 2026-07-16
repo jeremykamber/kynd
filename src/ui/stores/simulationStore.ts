@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { Simulation, SimulationStatus } from '@/domain/entities/Simulation'
 import { PricingAnalysis } from '@/domain/entities/PricingAnalysis'
+import { indexedDBStorage } from '@/infrastructure/services/indexedDBStorage'
 
 interface SimulationStoreState {
   simulations: Simulation[]
@@ -92,10 +93,15 @@ export const useSimulationStore = create<SimulationStoreState>()(
     }),
     {
       name: 'simulation-storage',
-      storage: createJSONStorage(() => localStorage),
-      // Only persist metadata, not streaming data
+      storage: createJSONStorage(() => indexedDBStorage),
+      // Only persist metadata, not streaming data or large screenshots
       partialize: (state) => ({
-        simulations: state.simulations.map(({ streamingTexts, screenshot, ...rest }) => rest),
+        simulations: state.simulations.map(({ streamingTexts, screenshot, analyses, ...rest }) => ({
+          ...rest,
+          // Strip base64 screenshots from each analysis to keep storage lean.
+          // Screenshots are served via the server-side screenshot store on demand.
+          analyses: analyses?.map(({ screenshotBase64, ...rest }) => rest),
+        })),
         dismissedSimulationIds: state.dismissedSimulationIds,
       }),
     }
