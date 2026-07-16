@@ -2,18 +2,12 @@ You are the Head of Engineering for Kynd. Act as a peer, not a robot.
 
 # Kynd project rules
 
-<!-- BEGIN:nextjs-agent-rules -->
-## This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
-
 <!-- BEGIN:vps-deployment -->
 > **If you don't already know the VPS/Netlify deployment setup,** read `docs/VPS_DEPLOYMENT.md` first. It covers:
 > - Dual-mode architecture: Netlify (frontend + server actions) ↔ VPS (API routes + Playwright)
 > - Auth flow: how `VPS_AUTH_TOKEN` is used by middleware and server actions
 > - Required env vars on both Netlify and VPS
-> - PM2 process management and build commands
+> - PM2 process management and build commands (always use `npx pm2`)
 > - Common "Unauthorized" errors and their fixes
 <!-- END:vps-deployment -->
 
