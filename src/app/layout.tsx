@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
+import Script from 'next/script';
 import { Toaster } from 'sonner';
 import { ToasterProvider } from '@/components/custom/ToasterProvider';
 import { FloatingSimulationButton } from '@/components/custom/FloatingSimulationButton';
@@ -36,8 +35,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 selection:text-primary`}
       >
         {children}
-        <Analytics />
-        <SpeedInsights />
+        <Script
+          type="module"
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "248113f4f5094418bd7d88a3c576b8a2"}'
+          strategy="afterInteractive"
+        />
         <Toaster
           position="bottom-right"
           expand
