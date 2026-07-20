@@ -44,15 +44,20 @@ export function DashboardClient() {
     const removePersona = usePersonaStore((s) => s.removePersona)
     const personaFlow = usePersonaFlow()
 
-    // Auto-exit setup view when generation starts (runId registered) or
-    // when the first persona streams in. The batch list view handles
-    // active-visibility via skeleton cards + toast.
+    // True when a generation is actively running (not completed or errored).
+    // Used to auto-exit the setup view and to gate the "New Batch" flow.
+    const isGenerating = activeRunIds.length > 0 ||
+        // Loose != catches both null and undefined — step is absent before/after clear
+        (personaFlow.personaProgress?.step != null &&
+         personaFlow.personaProgress.step !== 'DONE' &&
+         personaFlow.personaProgress.step !== 'ERROR')
+
+    // Auto-exit setup view when generation starts — the batch list view
+    // handles active-visibility via skeleton cards + toast.
     useEffect(() => {
         if (!showSetup) return
-        if (activeRunIds.length > 0 || (personaFlow.personas && personaFlow.personaProgress?.step !== 'DONE')) {
-            setShowSetup(false)
-        }
-    }, [showSetup, activeRunIds.length, personaFlow.personas, personaFlow.personaProgress?.step])
+        if (isGenerating) setShowSetup(false)
+    }, [showSetup, isGenerating])
 
     const toastIdRef = useRef<string | number | null>(null)
 
@@ -255,7 +260,7 @@ export function DashboardClient() {
     )
 
     // Skip setup view when generation is active — batch list shows skeleton cards instead
-    const showSetupView = (batches.length === 0 || showSetup) && activeRunIds.length === 0 && !activeBatchId
+    const showSetupView = (batches.length === 0 || showSetup) && !isGenerating && !activeBatchId
 
     // Compute an approximate overall progress percentage from the current phase
     const progressPercent = personaFlow.personaProgress
