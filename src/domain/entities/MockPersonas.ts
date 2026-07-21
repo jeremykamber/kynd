@@ -1,6 +1,12 @@
 import { Persona } from "./Persona";
+import { PersonaBatch } from "@/ui/stores/personaStore";
 
-export const MOCK_PERSONAS: Persona[] = [
+export const DEMO_PERSONA_BATCH: PersonaBatch = {
+  id: "demo-batch",
+  label: "B2B SaaS Founders & Developers",
+  source: "description",
+  createdAt: new Date().toISOString(),
+  personas: [
   {
     id: "mock-1",
     name: "Sarah Miller",
@@ -73,4 +79,7 @@ export const MOCK_PERSONAS: Persona[] = [
     backstory: "I've survived three corporate acquisitions, and each one started with a management team that bought 'revolutionary' software that none of the teams actually used. That history has made me hyper-vigilant — some call it Neuroticism, I call it being a steward of my team's sanity. I don't care about 'innovation' if the onboarding takes six weeks and the interface confuses my junior managers. My primary trauma was in 2019 when I championed a $50k CRM migration that failed because the team hated the 'modern' dashboard that hid all the actual data. I spent six months apologizing to the board. Now, I look for stability, clear service level agreements, and 'white-glove' support. I buy with my gut first — if the site feels slick and corporate-safe, I'm interested. But if there's a single broken link or a typo in the pricing table, it's a red flag for the entire company's stability.",
     aiInsight: "Elena needs safety signals above the fold. Her past migration trauma means she's scanning for 'Uptimes', 'SLAs', and enterprise-grade support guarantees."
   }
-];
+  ]
+};
+
+export const MOCK_PERSONAS: Persona[] = DEMO_PERSONA_BATCH.personas;

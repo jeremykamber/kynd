@@ -256,6 +256,15 @@ This applies to all segmented toggle groups, option rows, and count selectors ac
 - **Color Variants:** Cerulean Blue text for active/selected states. Muted Foreground for neutral. Alert Red text for warning/error.
 - **Padding:** `4px 10px`.
 
+### Destructive Actions (Delete / Close)
+
+- **Style:** Small circle (`size-6 rounded-full`) with `XIcon` (`size-3.5`), positioned absolutely at `-top-2 -right-2` on the parent container.
+- **Color:** Alert Red background at 90% opacity (`bg-destructive/90`), Instrument White text (`text-destructive-foreground`).
+- **Visibility:** Hidden at rest (`opacity-0`), revealed on parent group hover (`group-hover:opacity-100`) with 150ms opacity transition.
+- **Hover:** Full opacity red (`hover:bg-destructive`).
+- **Parent:** The parent container must have `group relative` classes to enable the hover reveal.
+- **Usage:** Used on cards, list items, and tags where deletion is a secondary action. The button must never be visible at rest — it only appears when the user is actively engaging with the item.
+
 ## 6. Do's and Don'ts
 
 ### Do:

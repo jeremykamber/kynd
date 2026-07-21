@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { UserIcon, FileTextIcon, LayersIcon, PlayIcon } from 'lucide-react'
+import { UserIcon, FileTextIcon, LayersIcon, PlayIcon, SparklesIcon } from 'lucide-react'
 
 export function Sidebar() {
   const batches = usePersonaStore((s) => s.batches)
@@ -95,7 +95,12 @@ export function Sidebar() {
                 >
                   <LayersIcon className="h-3.5 w-3.5 shrink-0" />
                   <div className="flex flex-col min-w-0">
-                    <span className="truncate font-medium">{batch.label}</span>
+                    <span className="truncate font-medium flex items-center gap-1.5">
+                      {batch.label}
+                      {batch.id === 'demo-batch' && (
+                        <SparklesIcon className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+                      )}
+                    </span>
                     <span className="text-[10px] opacity-60">
                       {batch.personas.length} personas · {new Date(batch.createdAt).toLocaleDateString()}
                     </span>

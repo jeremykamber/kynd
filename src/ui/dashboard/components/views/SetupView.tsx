@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
 import { MinimalCard } from '@/components/custom/MinimalCard'
-import { MOCK_PERSONAS } from '@/domain/entities/MockPersonas'
+import { DEMO_PERSONA_BATCH } from '@/domain/entities/MockPersonas'
+import { usePersonaStore } from '@/ui/stores/personaStore'
 import Link from 'next/link'
 import { ArrowRightIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,10 @@ interface SetupViewProps {
 }
 
 export function SetupView({ personaFlow, onBack }: SetupViewProps) {
+  const batches = usePersonaStore((s) => s.batches)
+  const addBatch = usePersonaStore((s) => s.addBatch)
+  const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
+  const hasDemoBatch = batches.some((b) => b.id === DEMO_PERSONA_BATCH.id)
   // Local string state for the persona count input so backspace/delete works.
   // Synced to personaFlow.personaCount at mount only; onBlur clamps and writes back.
   const [personaCountInput, setPersonaCountInput] = useState(String(personaFlow.personaCount))
@@ -30,10 +35,17 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => personaFlow.setPersonas(MOCK_PERSONAS)}
+          onClick={() => {
+            if (hasDemoBatch) {
+              setActiveBatch(DEMO_PERSONA_BATCH.id)
+            } else {
+              addBatch(DEMO_PERSONA_BATCH)
+              setActiveBatch(DEMO_PERSONA_BATCH.id)
+            }
+          }}
           className="text-muted-foreground hover:text-foreground ml-auto"
         >
-          Load Demo Personas
+          Load Demo Persona Batch
         </Button>
       </div>
       <div className="flex flex-col gap-4 text-center items-center">

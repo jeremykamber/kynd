@@ -12,7 +12,7 @@ import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
 import { PersonaSkeletonCard } from '@/components/custom/PersonaSkeletonCard'
 import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
 import type { VariationFormData } from '@/components/custom/SimilarPersonaDialog'
-import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon } from 'lucide-react'
+import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon, XIcon } from 'lucide-react'
 import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
 import { Progress } from '@/components/ui/progress'
@@ -42,17 +42,23 @@ export function DashboardClient() {
     const insertPersonasAfter = usePersonaStore((s) => s.insertPersonasAfter)
     const updatePersona = usePersonaStore((s) => s.updatePersona)
     const removePersona = usePersonaStore((s) => s.removePersona)
+    const removeBatch = usePersonaStore((s) => s.removeBatch)
     const personaFlow = usePersonaFlow()
 
-    // Auto-exit setup view when generation starts (runId registered) or
-    // when the first persona streams in. The batch list view handles
-    // active-visibility via skeleton cards + toast.
+    // True when a generation is actively running (not completed or errored).
+    // Used to auto-exit the setup view and to gate the "New Batch" flow.
+    const isGenerating = activeRunIds.length > 0 ||
+        // Loose != catches both null and undefined — step is absent before/after clear
+        (personaFlow.personaProgress?.step != null &&
+         personaFlow.personaProgress.step !== 'DONE' &&
+         personaFlow.personaProgress.step !== 'ERROR')
+
+    // Auto-exit setup view when generation starts — the batch list view
+    // handles active-visibility via skeleton cards + toast.
     useEffect(() => {
         if (!showSetup) return
-        if (activeRunIds.length > 0 || (personaFlow.personas && personaFlow.personaProgress?.step !== 'DONE')) {
-            setShowSetup(false)
-        }
-    }, [showSetup, activeRunIds.length, personaFlow.personas, personaFlow.personaProgress?.step])
+        if (isGenerating) setShowSetup(false)
+    }, [showSetup, isGenerating])
 
     const toastIdRef = useRef<string | number | null>(null)
 
@@ -255,7 +261,7 @@ export function DashboardClient() {
     )
 
     // Skip setup view when generation is active — batch list shows skeleton cards instead
-    const showSetupView = (batches.length === 0 || showSetup) && activeRunIds.length === 0 && !activeBatchId
+    const showSetupView = (batches.length === 0 || showSetup) && !isGenerating && !activeBatchId
 
     // Compute an approximate overall progress percentage from the current phase
     const progressPercent = personaFlow.personaProgress
@@ -327,32 +333,47 @@ export function DashboardClient() {
                                 </Link>
                             ))}
                             {batches.map((batch) => (
-                                <button
+                                <div
                                     key={batch.id}
-                                    onClick={() => setActiveBatch(batch.id)}
-                                    className="flex items-center gap-4 rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80"
+                                    className="group relative"
                                 >
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                                        <LayersIcon className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                        <span className="font-semibold truncate">{batch.label}</span>
-                                        <span className="text-sm text-muted-foreground">
-                                            {batch.personas.length} personas ·{' '}
-                                            {batch.source === 'interviews'
-                                                ? `${batch.transcriptCount} transcripts`
-                                                : 'from description'}
+                                    <button
+                                        onClick={() => setActiveBatch(batch.id)}
+                                        className="flex items-center gap-4 w-full rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80"
+                                    >
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                            <LayersIcon className="h-5 w-5 text-primary" />
+                                        </div>
+                                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                            <span className="font-semibold truncate">{batch.label}</span>
+                                            <span className="text-sm text-muted-foreground">
+                                                {batch.personas.length} personas ·{' '}
+                                                {batch.source === 'interviews'
+                                                    ? `${batch.transcriptCount} transcripts`
+                                                    : 'from description'}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground shrink-0">
+                                            {new Date(batch.createdAt).toLocaleDateString(undefined, {
+                                                month: 'short',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                            })}
                                         </span>
-                                    </div>
-                                    <span className="text-xs text-muted-foreground shrink-0">
-                                        {new Date(batch.createdAt).toLocaleDateString(undefined, {
-                                            month: 'short',
-                                            day: 'numeric',
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                        })}
-                                    </span>
-                                </button>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            removeBatch(batch.id)
+                                        }}
+                                        className="absolute -top-2 -right-2 flex items-center justify-center size-6 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-destructive focus:outline-none z-10"
+                                        aria-label="Delete batch"
+                                    >
+                                        <XIcon className="size-3.5" />
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     ) : (
