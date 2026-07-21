@@ -38,7 +38,7 @@ export interface PricingAnalysis {
 
 export const PricingAnalysisSchema = z.object({
     gutReaction: z.string().describe("Your initial, visceral reaction to the page in one short sentence. Be blunt and use your personality."),
-    thoughts: z.string().describe("A deep-dive evaluation of the pricing strategy in exactly 2 paragraphs. Speak in first person as the persona."),
+    thoughts: z.string().describe("A structured evaluation using [The Good], [The Bad], and [The Dealbreaker] sections. Speak in first person as the persona. Be specific and grounded in what you see on the page."),
     scores: z.object({
         clarity: z.number().min(1).max(10).describe("How clear is the pricing?"),
         clarityReason: z.string().describe("1-2 sentences explaining why you gave this clarity score."),
@@ -53,7 +53,7 @@ export const PricingAnalysisSchema = z.object({
         buyIntent: z.number().min(1).max(10).describe("How likely are you to actually purchase? 1=Never, 10=Ready to buy now."),
         buyIntentReason: z.string().describe("1-2 sentences explaining your purchase intent."),
     }),
-    risks: z.array(z.string()).describe("A list of 3 specific things that bothered you or felt like risks."),
+    risks: z.array(z.string()).describe("3 specific risks or concerns, stated from your (the persona's) perspective. Ground each in something concrete you saw on the page."),
     recommendations: z.array(z.string()).describe("2-3 specific, actionable recommendations DIRECTED AT THE COMPANY. Use imperative sentences (e.g. 'Add a monthly billing option'). Do NOT write as the persona reflecting on their own buying decision — write as the persona telling the company what to change."),
     aiSuggestion: z.string().describe("A single, persona-specific actionable insight in YOUR (the persona's) voice. What is THE ONE THING this company should change to win YOU over? Reference something specific on the page. Keep it in first person, grounded in your persona. This is NOT boilerplate."),
 });
