@@ -55,8 +55,8 @@ export const PricingAnalysisSchema = z.object({
         buyIntentReason: z.string().describe("1-2 sentences explaining your purchase intent."),
     }),
     risks: z.array(z.string()).describe("3 specific risks or concerns, stated from your (the persona's) perspective. Ground each in something concrete you saw on the page."),
-    recommendations: z.array(z.string()).describe("2-3 specific, actionable directives TO THE COMPANY — what they should change on their pricing page. Use imperative sentences (e.g. 'Add a monthly billing option', 'Remove the annual lock-in'). Do NOT use first person. Do NOT write self-advice like 'Check if...' or 'Look for...' — you are telling the company what to fix."),
-    aiSuggestion: z.string().describe("A single, persona-specific actionable insight in YOUR (the persona's) voice. What is THE ONE THING this company should change to win YOU over? Reference something specific on the page. Keep it in first person, grounded in your persona. This is NOT boilerplate."),
+    recommendations: z.array(z.string()).describe("2-3 imperative sentences directed AT THE COMPANY telling them what to change. NOT self-advice. WRONG: 'Check if the Pro plan has a free trial.' WRONG: 'Look for a job search tool.' CORRECT: 'Offer a free trial on the Pro plan.' CORRECT: 'Add a job search section.'"),
+    aiSuggestion: z.string().describe("ONE insight in YOUR (the persona's) first-person voice: what should THE COMPANY change to win YOU over? Reference something specific on the page. WRONG: 'Emerson, you should look for another tool.' WRONG: 'You should check for free trials.' CORRECT: 'I'd sign up tomorrow if you added a free trial to the Pro plan.' CORRECT: 'The one thing that would win me over is showing a student discount.'"),
     summary: z.array(z.string()).optional().describe("3-5 concise bullet points summarizing the key findings. Each bullet should be one sentence."),
 });
 

@@ -191,16 +191,16 @@ describe('Prompt framing alignment', () => {
     expect(risksDesc).toContain('perspective');
   });
 
-  it('schema recommendations description says directed at company and prohibits first person', () => {
+  it('schema recommendations description says directed at company and prohibits self-advice', () => {
     const recsDesc = PricingAnalysisSchema.shape.recommendations.description ?? '';
-    expect(recsDesc).toContain('TO THE COMPANY');
+    expect(recsDesc).toContain('AT THE COMPANY');
     expect(recsDesc).toContain('imperative');
-    expect(recsDesc).toContain('Do NOT use first person');
+    expect(recsDesc).toContain('NOT self-advice');
   });
 
-  it('schema aiSuggestion description says persona voice', () => {
+  it('schema aiSuggestion description says persona voice and first-person', () => {
     const sugDesc = PricingAnalysisSchema.shape.aiSuggestion.description ?? '';
     expect(sugDesc).toContain('persona');
-    expect(sugDesc).toContain('first person');
+    expect(sugDesc).toContain('first-person');
   });
 });

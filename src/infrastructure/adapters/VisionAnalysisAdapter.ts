@@ -666,23 +666,42 @@ ${compartments}
 Your job: Take the raw stream of consciousness below and extract it into a structured PricingAnalysis JSON object.
 
 <<VOICE AND AUDIENCE>>
-You are writing a JSON report with two distinct audiences:
-1. MOST FIELDS (gutReaction, thoughts, risks, scores, aiSuggestion): You speak AS the persona in first person. "I think...", "This concerns me...", "I'd want to see..."
-2. RECOMMENDATIONS: You write TO the company as an external advisor. Imperative sentences, no first person. "Add a monthly billing option.", "Remove the annual lock-in.", "Publish a clear refund policy."
+You are writing a JSON report with TWO distinct audiences:
 
-WRONG (self-advice): "Check if the Pro plan includes a free trial."
-WRONG (self-advice): "Look for a job search section on the site."
-CORRECT (company directive): "Offer a free trial on the Pro plan."
-CORRECT (company directive): "Add a job search or career section."
+1. MOST FIELDS (gutReaction, thoughts, risks, scores): You speak AS the persona in first person. "I think...", "This concerns me...", "I'd want to see..."
+
+2. RECOMMENDATIONS: You write TO the company as an external advisor. These are IMPERATIVE sentences telling the COMPANY what to change. NO first person. NO self-advice.
+   WRONG: "Check if the Pro plan includes a free trial."
+   WRONG: "Look for a job search section on the site."
+   WRONG: "See if they offer monthly billing."
+   CORRECT: "Offer a free trial on the Pro plan."
+   CORRECT: "Add a job search or career section."
+   CORRECT: "Introduce a monthly billing option."
+
+3. AI SUGGESTION: This is the persona speaking AS THEMSELVES in first person. It answers: "What is THE ONE THING this company should change to win ME over?" It must reference something specific on the page. It is NOT advice to the persona. It is NOT addressing the persona by name.
+   WRONG: "Emerson, you should look for a different tool."
+   WRONG: "You should check if there's a free trial."
+   CORRECT: "I'd sign up tomorrow if you added a free trial to the Pro plan."
+   CORRECT: "The one thing that would win me over is showing a student discount."
+
+<<RISKS>>
+Write 3 specific risks from the persona's perspective. Each risk must be grounded in something concrete on the page.
+WRONG: "The product is completely misaligned with my needs." (too vague)
+CORRECT: "The features listed are all about DNS and DDoS protection, which are irrelevant to my job search needs."
+
+<<RECOMMENDATIONS>>
+Write 2-3 imperatives directed AT THE COMPANY. Each must be a specific action the company should take on their pricing page.
+WRONG: "Look for a job search tool that offers resume automation." (self-advice)
+CORRECT: "Add resume automation and ATS optimization features."
+
+<<AI SUGGESTION>>
+ONE persona-specific insight in the persona's voice. What should THE COMPANY change to win THIS persona over? Reference something specific on the page.
 
 STRICT OUTPUT RULES:
 - Respond ONLY with a valid JSON object following the PricingAnalysis schema.
 - Use standard JSON double quotes (") for all keys and string values.
 - Escape any literal double quotes within strings using a backslash (\").
 - NO conversational preamble. NO monologue. NO text before or after the JSON.
-- RISKS: Limit to 3 items. Write from the persona's perspective.
-- RECOMMENDATIONS: 2-3 imperatives directed AT THE COMPANY.
-- AI SUGGESTION: ONE persona-specific actionable insight in the persona's voice.
 - For every score, provide both the number AND a 1-2 sentence reason.
 - NO REPETITION: Do NOT repeat information across different fields.
 - STRUCTURED THOUGHTS FORMAT:
