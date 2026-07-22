@@ -191,10 +191,11 @@ describe('Prompt framing alignment', () => {
     expect(risksDesc).toContain('perspective');
   });
 
-  it('schema recommendations description says directed at company', () => {
+  it('schema recommendations description says directed at company and prohibits first person', () => {
     const recsDesc = PricingAnalysisSchema.shape.recommendations.description ?? '';
-    expect(recsDesc).toContain('DIRECTED AT THE COMPANY');
+    expect(recsDesc).toContain('TO THE COMPANY');
     expect(recsDesc).toContain('imperative');
+    expect(recsDesc).toContain('Do NOT use first person');
   });
 
   it('schema aiSuggestion description says persona voice', () => {

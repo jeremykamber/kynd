@@ -54,7 +54,7 @@ export const PricingAnalysisSchema = z.object({
         buyIntentReason: z.string().describe("1-2 sentences explaining your purchase intent."),
     }),
     risks: z.array(z.string()).describe("3 specific risks or concerns, stated from your (the persona's) perspective. Ground each in something concrete you saw on the page."),
-    recommendations: z.array(z.string()).describe("2-3 specific, actionable recommendations DIRECTED AT THE COMPANY. Use imperative sentences (e.g. 'Add a monthly billing option'). Do NOT write as the persona reflecting on their own buying decision — write as the persona telling the company what to change."),
+    recommendations: z.array(z.string()).describe("2-3 specific, actionable directives TO THE COMPANY — what they should change on their pricing page. Use imperative sentences (e.g. 'Add a monthly billing option', 'Remove the annual lock-in'). Do NOT use first person. Do NOT write self-advice like 'Check if...' or 'Look for...' — you are telling the company what to fix."),
     aiSuggestion: z.string().describe("A single, persona-specific actionable insight in YOUR (the persona's) voice. What is THE ONE THING this company should change to win YOU over? Reference something specific on the page. Keep it in first person, grounded in your persona. This is NOT boilerplate."),
 });
 

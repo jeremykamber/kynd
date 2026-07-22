@@ -110,7 +110,7 @@ export class VisionAnalysisAdapter {
         - If you have nothing more to say, STOP.
         - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens to avoid truncated JSON.
         - RISKS: Limit to 3 items. Write from your (the persona's) perspective — what concerns you about this page? Ground each risk in something specific.
-        - RECOMMENDATIONS: Write 2-3 specific, actionable recommendations DIRECTED AT THE COMPANY. Use imperative sentences (e.g. "Add a monthly billing option", "Remove the annual lock-in"). Do NOT write as the persona reflecting on their own buying decision — write as the persona telling the company what to change. No first-person framing here.
+        - RECOMMENDATIONS: These are NOT your personal reflections. These are directives YOU are writing TO THE COMPANY — suggestions for what they should change on their pricing page. Write imperative sentences like "Add a monthly billing option" or "Remove the annual lock-in." Do NOT write "Check if..." or "Look for..." — you are not advising yourself. You are telling the company what to fix. Do NOT use first person here.
         - AI SUGGESTION: Write ONE persona-specific actionable insight in YOUR (the persona's) voice. This is THE ONE THING this company should change to win YOU over. Reference something specific you saw on the page. Write it as YOUR suggestion, e.g. "As a small business owner, I'd want to see..." or "I'd need to see..." — keep it in first person, grounded in your persona.
          - NO REPETITION: Do NOT repeat information across different fields. Keep 'gutReaction' short and punchy.
          
@@ -152,7 +152,7 @@ export class VisionAnalysisAdapter {
         - Funnel logic: low exploration → low analysis → low buy. High exploration → could go either way.
         - Score-sentiment alignment: If your gut reaction is positive, scores should be 6+. If critical, 4 or below.
 
-        SPEAK IN FIRST PERSON (within the JSON fields only). Be blunt, honest, and natural. Be your persona.`;
+        SPEAK IN FIRST PERSON for gutReaction, thoughts, risks, score reasons, and aiSuggestion. Be blunt, honest, and natural. Be your persona. EXCEPTION: recommendations are NOT first person — they are directives to the company (see RECOMMENDATIONS rule above).`;
 
     const prompt = `Evaluate this pricing page. Return ONLY the JSON object. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
 
@@ -378,7 +378,7 @@ export class VisionAnalysisAdapter {
         - NO conversational preamble. NO monologue. NO text before or after the JSON.
         - The 'thoughts' field MUST be limited to roughly ${Math.floor(tokenLimit * 0.75)} tokens.
         - RISKS: Limit to 3 items. Write from your (the persona's) perspective — what concerns you about this page? Ground each risk in something specific.
-        - RECOMMENDATIONS: Write 2-3 specific, actionable recommendations DIRECTED AT THE COMPANY. Use imperative sentences (e.g. "Add a monthly billing option", "Remove the annual lock-in"). Do NOT write as the persona reflecting on their own buying decision — write as the persona telling the company what to change. No first-person framing here.
+        - RECOMMENDATIONS: These are NOT your personal reflections. These are directives YOU are writing TO THE COMPANY — suggestions for what they should change on their pricing page. Write imperative sentences like "Add a monthly billing option" or "Remove the annual lock-in." Do NOT write "Check if..." or "Look for..." — you are not advising yourself. You are telling the company what to fix. Do NOT use first person here.
         - AI SUGGESTION: Write ONE persona-specific actionable insight in YOUR (the persona's) voice. This is THE ONE THING this company should change to win YOU over. Reference something specific you saw on the page. Write it as YOUR suggestion, e.g. "As a small business owner, I'd want to see..." or "I'd need to see..." — keep it in first person, grounded in your persona.
         - For every score, provide both the number AND a 1-2 sentence reason.
          - NO REPETITION: Do NOT repeat information across different fields.
@@ -399,7 +399,7 @@ export class VisionAnalysisAdapter {
         Different personas MUST give DIFFERENT scores based on their unique Big Five, values, and fears.
         Consistency is mandatory. If you feel skeptical, your scores must reflect that.
         
-        SPEAK IN FIRST PERSON (within the JSON fields only). Be blunt, honest, and natural. Be your persona.`;
+        SPEAK IN FIRST PERSON for gutReaction, thoughts, risks, score reasons, and aiSuggestion. Be blunt, honest, and natural. Be your persona. EXCEPTION: recommendations are NOT first person — they are directives to the company (see RECOMMENDATIONS rule above).`;
 
     try {
       log?.info("VisionAnalysisAdapter", `[AUDIT] Sending schema-guided completion for "${persona.name}"...`, {
