@@ -337,20 +337,44 @@ export class ParsePricingPageUseCase {
 
         let analysisObj: any;
 
-        // --- PERSONA ANALYSIS (non-streaming completion) ---
+        // --- TWO-STAGE PIPELINE ---
+        // Stage 1: Stream of consciousness (natural first-person thinking)
+        // Stage 2a: Formatter → PricingAnalysis JSON (parallel with 2b)
+        // Stage 2b: Summarizer → bullet points (parallel with 2a)
         try {
-          log.info("ParsePricingPageUseCase", `[${persona.name}] Starting analysis...`);
-          const completionStart = Date.now();
-          analysisObj = await this.llmService.analyzePricingPageCompletion(
+          log.info("ParsePricingPageUseCase", `[${persona.name}] Starting two-stage pipeline...`);
+          const pipelineStart = Date.now();
+
+          // Stage 1: Generate stream of consciousness
+          const streamStart = Date.now();
+          const stream = await this.llmService.generateStreamOfConsciousness(
             persona, capturedScreenshot, pageHtml, { tokenLimit, runId }
           );
-          const completionDuration = Date.now() - completionStart;
-          log.info("ParsePricingPageUseCase", `[${persona.name}] Analysis completed in ${completionDuration}ms`);
-          log.debug("ParsePricingPageUseCase", `[${persona.name}] Analysis result`, {
+          const streamDuration = Date.now() - streamStart;
+          log.info("ParsePricingPageUseCase", `[${persona.name}] Stream of consciousness completed in ${streamDuration}ms`, {
+            textLength: stream.text.length,
+          });
+
+          if (abortSignal?.aborted) throw new Error('Request cancelled during formatting');
+
+          // Stage 2a + 2b: Format and summarize in parallel
+          const [formattedAnalysis, summaryBullets] = await Promise.all([
+            this.llmService.formatStreamOfConsciousness(persona, stream, { tokenLimit, runId }),
+            this.llmService.summarizeStreamOfConsciousness(persona, stream, { runId }),
+          ]);
+
+          analysisObj = formattedAnalysis;
+          analysisObj.summary = summaryBullets;
+
+          const pipelineDuration = Date.now() - pipelineStart;
+          log.info("ParsePricingPageUseCase", `[${persona.name}] Two-stage pipeline completed in ${pipelineDuration}ms`, {
+            streamDurationMs: streamDuration,
+            formatAndSummarizeDurationMs: pipelineDuration - streamDuration,
             hasGutReaction: !!analysisObj?.gutReaction,
             hasThoughts: !!analysisObj?.thoughts,
             scoreKeys: analysisObj?.scores ? Object.keys(analysisObj.scores) : null,
             riskCount: analysisObj?.risks?.length || 0,
+            summaryBulletCount: summaryBullets.length,
           });
         } catch (err) {
           log.error("ParsePricingPageUseCase", `[${persona.name}] Error during analysis`, { error: String(err) });
@@ -368,6 +392,7 @@ export class ParsePricingPageUseCase {
             risks: ["[SYSTEM] Technical difficulty during analysis"],
             recommendations: [],
             aiSuggestion: "Analysis could not be completed — no suggestion available.",
+            summary: [],
           };
         }
 

@@ -1,5 +1,6 @@
 import { Persona } from "../entities/Persona";
 import { PricingAnalysis } from "../entities/PricingAnalysis";
+import { StreamOfConsciousness } from "../entities/StreamOfConsciousness";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 
 export type AgentAction =
@@ -175,6 +176,35 @@ export interface LlmServicePort {
         pageHtml?: string,
         options?: { tokenLimit?: number; runId?: string }
     ): Promise<any>;
+
+    /**
+     * Stage 1: Generate stream of consciousness (natural first-person thinking).
+     * No JSON constraints — just free-form text.
+     */
+    generateStreamOfConsciousness(
+        persona: Persona,
+        screenshotBase64: string,
+        pageHtml?: string,
+        options?: { tokenLimit?: number; runId?: string }
+    ): Promise<StreamOfConsciousness>;
+
+    /**
+     * Stage 2a: Format stream of consciousness into structured PricingAnalysis JSON.
+     */
+    formatStreamOfConsciousness(
+        persona: Persona,
+        stream: StreamOfConsciousness,
+        options?: { tokenLimit?: number; runId?: string }
+    ): Promise<PricingAnalysis>;
+
+    /**
+     * Stage 2b: Summarize stream of consciousness into bullet points.
+     */
+    summarizeStreamOfConsciousness(
+        persona: Persona,
+        stream: StreamOfConsciousness,
+        options?: { runId?: string }
+    ): Promise<string[]>;
 
     /**
      * Validates if a user's prompt is within the persona's expected domain.

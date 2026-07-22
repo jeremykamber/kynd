@@ -531,4 +531,274 @@ export class VisionAnalysisAdapter {
       };
     }
   }
+
+  private buildStreamOfConsciousnessSystemPrompt(
+    persona: Persona,
+    compartments: string,
+    personaAnchor: string,
+    ragContextString: string
+  ): string {
+    return `You are a persona evaluating a pricing page. Think aloud as this persona.
+
+${compartments}
+
+${ragContextString ? `<<RETRIEVED MEMORY>>\n${ragContextString}\n` : ""}
+
+<<ANALYSIS TASK>>
+You are looking at a pricing page. You have been provided with:
+1. A screenshot of the exact viewport containing the pricing.
+2. A verified factual summary of the page's HTML.
+
+<<VOICE AND AUDIENCE>>
+Write as the persona in FIRST PERSON. "I think...", "This concerns me...", "I'd want to see..."
+
+<<PERSONALITY BIAS APPLICATION>>
+Your personality profile drives how you evaluate. Apply it aggressively:
+- Your Neuroticism determines how many risks you flag and how severe.
+- Your Conscientiousness determines how much fine print you read.
+- Your Openness determines whether new features excite or concern you.
+- Your Extraversion determines whether you seek team validation.
+- Your Agreeableness determines whether you give benefit of doubt.
+These are WHO YOU ARE.
+
+<<OPENNESS PRIMING>>
+${personaAnchor} You're open to this. You're approaching this as someone who COULD genuinely use a tool like this. You're not looking for reasons to reject it — you're evaluating honestly, looking for what works and what doesn't. A skeptical but fair assessment.
+
+CALIBRATION — Your evaluation should be consistent with your own pricing sensitivity and typical budget.
+
+Write your raw, unfiltered stream of consciousness. Structure it using:
+[The Good] — What works well. Specific positive observations.
+[The Bad] — What doesn't work. Specific criticisms.
+[The Dealbreaker] — The single biggest reason you would NOT buy.
+
+Be blunt, honest, and natural. Be your persona. Write freely — no JSON, no formatting constraints.`;
+  }
+
+  async generateStreamOfConsciousness(
+    persona: Persona,
+    screenshotBase64: string,
+    pageHtml?: string,
+    options: { tokenLimit?: number; runId?: string } = {}
+  ) {
+    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+    const tokenLimit = options.tokenLimit ?? 2000;
+    const methodStart = Date.now();
+
+    log?.info("VisionAnalysisAdapter", `generateStreamOfConsciousness START for "${persona.name}"`, {
+      tokenLimit,
+      hasHtml: !!pageHtml,
+    });
+
+    this.ensureIngested(persona, options.runId);
+
+    const ragStart = Date.now();
+    const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
+    const ragContext = this.ragService.retrieveContext(persona, query, 3);
+    const ragDuration = Date.now() - ragStart;
+    log?.info("VisionAnalysisAdapter", `ID-RAG retrieval for "${persona.name}"`, {
+      chunkCount: ragContext.chunkCount,
+      durationMs: ragDuration,
+    });
+
+    const compartments = this.promptCompiler.compileSystemPrompt(persona);
+    const personaAnchor = this.promptCompiler.generateAnchor(persona);
+
+    const system = this.buildStreamOfConsciousnessSystemPrompt(
+      persona,
+      compartments,
+      personaAnchor,
+      ragContext.contextString
+    );
+
+    const prompt = `Evaluate this pricing page. Think aloud as ${persona.name}. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
+
+    log?.info("VisionAnalysisAdapter", `Calling LLM for stream of consciousness for "${persona.name}"...`, {
+      model: this.llmService.textModel,
+      systemPromptLength: system.length,
+    });
+
+    const text = await this.llmService.createChatCompletion(
+      [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${screenshotBase64}` } },
+          ] as any,
+        },
+      ],
+      {
+        temperature: 0.4,
+        max_tokens: tokenLimit,
+        model: this.llmService.visionModel,
+        purpose: `Stream of Consciousness — ${persona.name}`,
+        runId: options.runId,
+      }
+    );
+
+    const duration = Date.now() - methodStart;
+    log?.info("VisionAnalysisAdapter", `generateStreamOfConsciousness completed for "${persona.name}"`, {
+      durationMs: duration,
+      textLength: text.length,
+    });
+
+    return {
+      text,
+      personaId: persona.id,
+      personaName: persona.name,
+    };
+  }
+
+  private buildFormatterSystemPrompt(
+    persona: Persona,
+    compartments: string
+  ): string {
+    return `You are a formatter converting raw persona thoughts into structured JSON.
+
+${compartments}
+
+Your job: Take the raw stream of consciousness below and extract it into a structured PricingAnalysis JSON object.
+
+<<VOICE AND AUDIENCE>>
+You are writing a JSON report with two distinct audiences:
+1. MOST FIELDS (gutReaction, thoughts, risks, scores, aiSuggestion): You speak AS the persona in first person. "I think...", "This concerns me...", "I'd want to see..."
+2. RECOMMENDATIONS: You write TO the company as an external advisor. Imperative sentences, no first person. "Add a monthly billing option.", "Remove the annual lock-in.", "Publish a clear refund policy."
+
+WRONG (self-advice): "Check if the Pro plan includes a free trial."
+WRONG (self-advice): "Look for a job search section on the site."
+CORRECT (company directive): "Offer a free trial on the Pro plan."
+CORRECT (company directive): "Add a job search or career section."
+
+STRICT OUTPUT RULES:
+- Respond ONLY with a valid JSON object following the PricingAnalysis schema.
+- Use standard JSON double quotes (") for all keys and string values.
+- Escape any literal double quotes within strings using a backslash (\").
+- NO conversational preamble. NO monologue. NO text before or after the JSON.
+- RISKS: Limit to 3 items. Write from the persona's perspective.
+- RECOMMENDATIONS: 2-3 imperatives directed AT THE COMPANY.
+- AI SUGGESTION: ONE persona-specific actionable insight in the persona's voice.
+- For every score, provide both the number AND a 1-2 sentence reason.
+- NO REPETITION: Do NOT repeat information across different fields.
+- STRUCTURED THOUGHTS FORMAT:
+  Inside the 'thoughts' field, structure using: [The Good], [The Bad], [The Dealbreaker].
+- INTENT FUNNEL: explorationIntent >= analysisIntent >= buyIntent.
+- SCORES → REASONS → NARRATIVE. Each score needs a rationale.
+- Different personas MUST give DIFFERENT scores based on their unique Big Five.`;
+  }
+
+  async formatStreamOfConsciousness(
+    persona: Persona,
+    stream: { text: string; personaId: string; personaName: string },
+    options: { tokenLimit?: number; runId?: string } = {}
+  ) {
+    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+    const tokenLimit = options.tokenLimit ?? 2000;
+    const methodStart = Date.now();
+
+    log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness START for "${persona.name}"`, {
+      streamLength: stream.text.length,
+    });
+
+    const compartments = this.promptCompiler.compileSystemPrompt(persona);
+    const system = this.buildFormatterSystemPrompt(persona, compartments);
+
+    const prompt = `Here is the raw stream of consciousness from ${persona.name}:
+
+---
+${stream.text}
+---
+
+Convert this into a structured PricingAnalysis JSON object. Return ONLY the JSON.`;
+
+    log?.info("VisionAnalysisAdapter", `Calling streamObject for formatter for "${persona.name}"...`, {
+      model: this.llmService.visionModel,
+      systemPromptLength: system.length,
+    });
+
+    const streamResult = streamObject({
+      model: this.llmService.provider(this.llmService.visionModel),
+      schema: PricingAnalysisSchema,
+      schemaName: "PricingAnalysis",
+      schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
+      system,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.1,
+      maxTokens: tokenLimit,
+    } as any);
+
+    // Drain partials and resolve final object
+    for await (const _ of streamResult.partialObjectStream) {
+      // discard
+    }
+
+    const analysisObj = await streamResult.object as any;
+    const duration = Date.now() - methodStart;
+    log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness completed for "${persona.name}"`, {
+      durationMs: duration,
+      scores: analysisObj?.scores,
+    });
+
+    if (!analysisObj) {
+      throw new Error(`Formatter returned null for "${persona.name}"`);
+    }
+
+    return analysisObj;
+  }
+
+  private buildSummarizerSystemPrompt(persona: Persona): string {
+    return `You are a summarizer. Given a persona's raw analysis of a pricing page, produce 3-5 concise bullet points.
+
+Each bullet should be one sentence, capturing the most important finding.
+Focus on: what the persona liked, what concerned them, and their overall recommendation.
+
+Format: Return ONLY a JSON array of strings. No preamble. Example: ["Bullet 1", "Bullet 2", "Bullet 3"]`;
+  }
+
+  async summarizeStreamOfConsciousness(
+    persona: Persona,
+    stream: { text: string; personaId: string; personaName: string },
+    options: { runId?: string } = {}
+  ) {
+    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+    const methodStart = Date.now();
+
+    log?.info("VisionAnalysisAdapter", `summarizeStreamOfConsciousness START for "${persona.name}"`);
+
+    const system = this.buildSummarizerSystemPrompt(persona);
+
+    const prompt = `Summarize this analysis from ${persona.name} into 3-5 bullet points:
+
+---
+${stream.text}
+---
+
+Return ONLY a JSON array of strings.`;
+
+    const content = await this.llmService.createChatCompletion(
+      [{ role: "user", content: prompt }],
+      {
+        temperature: 0.1,
+        model: this.llmService.smallTextModel,
+        response_format: { type: "json_object" },
+        purpose: `Summarize — ${persona.name}`,
+        runId: options.runId,
+      }
+    );
+
+    const duration = Date.now() - methodStart;
+    try {
+      const parsed = JSON.parse(content);
+      const bullets = Array.isArray(parsed) ? parsed : parsed.bullets || parsed.summary || [];
+      log?.info("VisionAnalysisAdapter", `summarizeStreamOfConsciousness completed for "${persona.name}"`, {
+        durationMs: duration,
+        bulletCount: bullets.length,
+      });
+      return bullets.filter((b: unknown) => typeof b === "string");
+    } catch {
+      log?.warn("VisionAnalysisAdapter", `summarizeStreamOfConsciousness parse failed for "${persona.name}"`, {
+        contentPreview: content.slice(0, 200),
+      });
+      return [];
+    }
+  }
 }

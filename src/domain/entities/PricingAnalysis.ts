@@ -29,6 +29,7 @@ export interface PricingAnalysis {
     risks: string[];
     recommendations: string[];
     aiSuggestion: string;  // Persona-specific actionable insight — LLM-generated, NOT boilerplate
+    summary?: string[];  // 3-5 bullet points summarizing key findings
     gazePoints?: GazePoint[];
     gutReaction?: string;
     rawAnalysis?: string;
@@ -56,6 +57,7 @@ export const PricingAnalysisSchema = z.object({
     risks: z.array(z.string()).describe("3 specific risks or concerns, stated from your (the persona's) perspective. Ground each in something concrete you saw on the page."),
     recommendations: z.array(z.string()).describe("2-3 specific, actionable directives TO THE COMPANY — what they should change on their pricing page. Use imperative sentences (e.g. 'Add a monthly billing option', 'Remove the annual lock-in'). Do NOT use first person. Do NOT write self-advice like 'Check if...' or 'Look for...' — you are telling the company what to fix."),
     aiSuggestion: z.string().describe("A single, persona-specific actionable insight in YOUR (the persona's) voice. What is THE ONE THING this company should change to win YOU over? Reference something specific on the page. Keep it in first person, grounded in your persona. This is NOT boilerplate."),
+    summary: z.array(z.string()).optional().describe("3-5 concise bullet points summarizing the key findings. Each bullet should be one sentence."),
 });
 
 
