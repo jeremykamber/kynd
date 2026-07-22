@@ -124,26 +124,33 @@ describe('Full Simulation Flow — Dashboard → Batch Select → Run → Output
       await urlInput.fill('https://linear.app/pricing');
       await page.waitForTimeout(300);
 
-      // Step 6: Click "Run Simulation"
-      const runBtn = page.locator('button', { hasText: /^Run Simulation$/ });
+      // Step 6: Click "Run Simulation" (inside the main form, not the floating button)
+      const runBtn = page.getByRole('main').getByRole('button', { name: 'Run Simulation' });
       await runBtn.waitFor({ state: 'visible', timeout: 5000 });
       const isDisabled = await runBtn.getAttribute('disabled');
       expect(isDisabled).toBeNull();
       await runBtn.click();
       console.log('[E2E] Clicked Run Simulation');
 
-      // Step 7: Wait for analysis to complete (button reverts)
+      // Step 7: Wait for analysis to complete (button reverts to "Run Simulation")
       const startTime = Date.now();
       let completed = false;
       while (Date.now() - startTime < ANALYSIS_TIMEOUT) {
-        await page.waitForTimeout(3000);
-        const text = await page.textContent('body');
-        if (text.includes('Run Simulation') && !text.includes('Simulating')) {
-          completed = true;
-          console.log('[E2E] Analysis completed');
-          break;
+        await page.waitForTimeout(5000);
+        const bodyText = await page.textContent('body');
+        // The form shows "Simulating..." or similar while running; reverts when done
+        if (!bodyText.includes('Simulating') && !bodyText.includes('Analyzing')) {
+          // Double-check: the main Run button should be enabled again
+          const mainBtn = page.getByRole('main').getByRole('button', { name: 'Run Simulation' });
+          const btnCount = await mainBtn.count();
+          if (btnCount > 0) {
+            completed = true;
+            console.log('[E2E] Analysis completed');
+            break;
+          }
         }
       }
+      if (!completed) console.log('[E2E] Analysis did not complete within timeout, checking simulations list');
       if (!completed) console.log('[E2E] Analysis did not complete within timeout');
 
       // Step 8: Navigate to simulations list
