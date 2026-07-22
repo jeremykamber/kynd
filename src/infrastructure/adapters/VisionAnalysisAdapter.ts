@@ -583,6 +583,7 @@ Be blunt, honest, and natural. Be your persona. Write freely — no JSON, no for
     const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
     const tokenLimit = options.tokenLimit ?? 2000;
     const methodStart = Date.now();
+    const TIMEOUT_MS = 120_000;
 
     log?.info("VisionAnalysisAdapter", `generateStreamOfConsciousness START for "${persona.name}"`, {
       tokenLimit,
@@ -613,28 +614,33 @@ Be blunt, honest, and natural. Be your persona. Write freely — no JSON, no for
     const prompt = `Evaluate this pricing page. Think aloud as ${persona.name}. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
 
     log?.info("VisionAnalysisAdapter", `Calling LLM for stream of consciousness for "${persona.name}"...`, {
-      model: this.llmService.textModel,
+      model: this.llmService.visionModel,
       systemPromptLength: system.length,
     });
 
-    const text = await this.llmService.createChatCompletion(
-      [
+    const text = await Promise.race([
+      this.llmService.createChatCompletion(
+        [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: `data:image/jpeg;base64,${screenshotBase64}` } },
+            ] as any,
+          },
+        ],
         {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${screenshotBase64}` } },
-          ] as any,
-        },
-      ],
-      {
-        temperature: 0.4,
-        max_tokens: tokenLimit,
-        model: this.llmService.visionModel,
-        purpose: `Stream of Consciousness — ${persona.name}`,
-        runId: options.runId,
-      }
-    );
+          temperature: 0.4,
+          max_tokens: tokenLimit,
+          model: this.llmService.visionModel,
+          purpose: `Stream of Consciousness — ${persona.name}`,
+          runId: options.runId,
+        }
+      ),
+      new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error(`Stream of consciousness timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+      ),
+    ]);
 
     const duration = Date.now() - methodStart;
     log?.info("VisionAnalysisAdapter", `generateStreamOfConsciousness completed for "${persona.name}"`, {
@@ -694,6 +700,9 @@ STRICT OUTPUT RULES:
     const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
     const tokenLimit = options.tokenLimit ?? 2000;
     const methodStart = Date.now();
+    const TIMEOUT_MS = 90_000;
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY_MS = 2_000;
 
     log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness START for "${persona.name}"`, {
       streamLength: stream.text.length,
@@ -710,28 +719,54 @@ ${stream.text}
 
 Convert this into a structured PricingAnalysis JSON object. Return ONLY the JSON.`;
 
-    log?.info("VisionAnalysisAdapter", `Calling streamObject for formatter for "${persona.name}"...`, {
-      model: this.llmService.visionModel,
-      systemPromptLength: system.length,
-    });
+    let analysisObj: any = null;
 
-    const streamResult = streamObject({
-      model: this.llmService.provider(this.llmService.visionModel),
-      schema: PricingAnalysisSchema,
-      schemaName: "PricingAnalysis",
-      schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
-      system,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.1,
-      maxTokens: tokenLimit,
-    } as any);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness retry ${attempt}/${MAX_RETRIES} for "${persona.name}"`);
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      }
 
-    // Drain partials and resolve final object
-    for await (const _ of streamResult.partialObjectStream) {
-      // discard
+      log?.info("VisionAnalysisAdapter", `Calling streamObject for formatter for "${persona.name}" (attempt ${attempt + 1})...`, {
+        model: this.llmService.textModel,
+        systemPromptLength: system.length,
+      });
+
+      try {
+        const streamResult = streamObject({
+          model: this.llmService.provider(this.llmService.textModel),
+          schema: PricingAnalysisSchema,
+          schemaName: "PricingAnalysis",
+          schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
+          system,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.1,
+          maxTokens: tokenLimit,
+        } as any);
+
+        const drainAndResolve = (async () => {
+          for await (const _ of streamResult.partialObjectStream) {
+            // discard
+          }
+          return streamResult.object;
+        })().catch(() => null);
+
+        analysisObj = await Promise.race([
+          drainAndResolve,
+          new Promise<any>((_, reject) =>
+            setTimeout(() => reject(new Error(`Formatter timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+          ),
+        ]);
+
+        if (analysisObj) break;
+      } catch (e) {
+        log?.warn("VisionAnalysisAdapter", `formatStreamOfConsciousness attempt ${attempt + 1} failed for "${persona.name}"`, {
+          error: String(e),
+        });
+        if (attempt === MAX_RETRIES) throw e;
+      }
     }
 
-    const analysisObj = await streamResult.object as any;
     const duration = Date.now() - methodStart;
     log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness completed for "${persona.name}"`, {
       durationMs: duration,
@@ -761,6 +796,7 @@ Format: Return ONLY a JSON array of strings. No preamble. Example: ["Bullet 1", 
   ) {
     const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
     const methodStart = Date.now();
+    const TIMEOUT_MS = 60_000;
 
     log?.info("VisionAnalysisAdapter", `summarizeStreamOfConsciousness START for "${persona.name}"`);
 
@@ -774,16 +810,21 @@ ${stream.text}
 
 Return ONLY a JSON array of strings.`;
 
-    const content = await this.llmService.createChatCompletion(
-      [{ role: "user", content: prompt }],
-      {
-        temperature: 0.1,
-        model: this.llmService.smallTextModel,
-        response_format: { type: "json_object" },
-        purpose: `Summarize — ${persona.name}`,
-        runId: options.runId,
-      }
-    );
+    const content = await Promise.race([
+      this.llmService.createChatCompletion(
+        [{ role: "user", content: prompt }],
+        {
+          temperature: 0.1,
+          model: this.llmService.smallTextModel,
+          response_format: { type: "json_object" },
+          purpose: `Summarize — ${persona.name}`,
+          runId: options.runId,
+        }
+      ),
+      new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error(`Summarizer timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+      ),
+    ]);
 
     const duration = Date.now() - methodStart;
     try {
