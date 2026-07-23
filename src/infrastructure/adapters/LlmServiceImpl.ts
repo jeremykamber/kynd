@@ -10,6 +10,7 @@ import { InterviewSignalExtractor } from "./InterviewSignalExtractor";
 import { PsychographicRationalizer } from "./PsychographicRationalizer";
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
+import { StreamOfConsciousness } from "@/domain/entities/StreamOfConsciousness";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
@@ -350,6 +351,44 @@ export class LlmServiceImpl implements LlmServicePort {
       persona,
       screenshot,
       html,
+      options,
+    );
+  }
+
+  async generateStreamOfConsciousness(
+    persona: Persona,
+    screenshot: string,
+    html?: string,
+    options?: { tokenLimit?: number; runId?: string }
+  ): Promise<StreamOfConsciousness> {
+    return this.visionAdapter.generateStreamOfConsciousness(
+      persona,
+      screenshot,
+      html,
+      options,
+    );
+  }
+
+  async formatStreamOfConsciousness(
+    persona: Persona,
+    stream: StreamOfConsciousness,
+    options?: { tokenLimit?: number; runId?: string }
+  ): Promise<PricingAnalysis> {
+    return this.visionAdapter.formatStreamOfConsciousness(
+      persona,
+      stream,
+      options,
+    ) as Promise<PricingAnalysis>;
+  }
+
+  async summarizeStreamOfConsciousness(
+    persona: Persona,
+    stream: StreamOfConsciousness,
+    options?: { runId?: string }
+  ): Promise<string[]> {
+    return this.visionAdapter.summarizeStreamOfConsciousness(
+      persona,
+      stream,
       options,
     );
   }

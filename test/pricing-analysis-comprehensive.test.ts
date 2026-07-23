@@ -98,6 +98,7 @@ describe('Pricing Analysis — Complete Flow', () => {
         completed = true;
         console.log('[TEST] Analysis completed (button reverted)');
         break;
+      }
     }
     if (!completed) console.log('[TEST] Button did not revert within timeout');
 
