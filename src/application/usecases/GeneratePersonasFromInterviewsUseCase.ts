@@ -117,9 +117,9 @@ export class GeneratePersonasFromInterviewsUseCase {
             }
         }
 
-        if (successfulExtractions.length < 2) {
+        if (successfulExtractions.length === 0) {
             throw new Error(
-                `Only ${successfulExtractions.length} interview(s) extracted successfully. Need at least 2.`,
+                `No interviews extracted successfully. At least one is required.`,
             );
         }
 

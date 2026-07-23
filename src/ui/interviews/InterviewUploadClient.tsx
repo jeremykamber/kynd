@@ -240,18 +240,9 @@ export function InterviewUploadClient() {
                 <p className="text-sm text-muted-foreground">
                   {files.length === 0
                     ? 'Upload interview transcripts above to get started.'
-                    : files.length === 1
-                      ? `${files.length} transcript uploaded. Need at least 2 to generate interview-grounded personas.`
-                      : `${files.length} transcripts uploaded. Ready to extract signals and generate personas.`}
+                    : `${files.length} transcript${files.length !== 1 ? 's' : ''} uploaded. Ready to extract signals and generate personas.`}
                 </p>
               </div>
-
-              {files.length === 1 && (
-                <p className="text-sm text-amber-400 font-medium bg-amber-400/10 p-3 rounded-md flex items-center gap-2">
-                  <span className="text-base">⚠️</span>
-                  Need at least 2 interview transcripts to generate personas. Upload one more to proceed.
-                </p>
-              )}
 
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium text-muted-foreground">
@@ -289,11 +280,11 @@ export function InterviewUploadClient() {
               <div className="flex justify-end">
                 <button
                   type="button"
-                  disabled={files.length < 2 || isPending}
+                  disabled={files.length === 0 || isPending}
                   onClick={handleSubmit}
                   className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-8 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                 >
-                  {isPending ? 'Processing...' : files.length < 2 ? 'Need 2+ Transcripts' : 'Generate Personas from Interviews'}
+                  {isPending ? 'Processing...' : files.length === 0 ? 'Upload Transcripts First' : 'Generate Personas from Interviews'}
                 </button>
               </div>
 
