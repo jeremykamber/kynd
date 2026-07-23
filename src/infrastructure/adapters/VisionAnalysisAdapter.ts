@@ -9,74 +9,74 @@ import { PricingLocation } from "@/domain/ports/LlmServicePort";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
 export class VisionAnalysisAdapter {
-  private promptCompiler: PersonaPromptCompiler;
-  private ragStore: IdRagStore;
-  private ragService: IdRagService;
-  private ingestedPersonas: Set<string> = new Set();
+    private promptCompiler: PersonaPromptCompiler;
+    private ragStore: IdRagStore;
+    private ragService: IdRagService;
+    private ingestedPersonas: Set<string> = new Set();
 
-  constructor(private llmService: LlmServiceImpl) {
-    this.promptCompiler = new PersonaPromptCompiler();
-    this.ragStore = new IdRagStore();
-    this.ragService = new IdRagService(this.ragStore);
-  }
-
-  private ensureIngested(persona: Persona, runId?: string): void {
-    if (!this.ingestedPersonas.has(persona.id) && persona.backstory) {
-      this.ragStore.ingestPersona(persona);
-      this.ingestedPersonas.add(persona.id);
-      const log = runId ? AnalysisLogger.forRun(runId) : null;
-      log?.info("VisionAnalysisAdapter", `Ingested ${persona.name} backstory into ID-RAG store`, {
-        personaId: persona.id,
-        backstoryLength: persona.backstory.length,
-      });
+    constructor(private llmService: LlmServiceImpl) {
+        this.promptCompiler = new PersonaPromptCompiler();
+        this.ragStore = new IdRagStore();
+        this.ragService = new IdRagService(this.ragStore);
     }
-  }
 
-  async analyzePricingPageStream(
-    persona: Persona,
-    screenshotBase64: string,
-    pageHtml?: string,
-    options: { tokenLimit?: number; runId?: string } = {}
-  ) {
-    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
-    const tokenLimit = options.tokenLimit ?? 2000;
-    const methodStart = Date.now();
+    private ensureIngested(persona: Persona, runId?: string): void {
+        if (!this.ingestedPersonas.has(persona.id) && persona.backstory) {
+            this.ragStore.ingestPersona(persona);
+            this.ingestedPersonas.add(persona.id);
+            const log = runId ? AnalysisLogger.forRun(runId) : null;
+            log?.info("VisionAnalysisAdapter", `Ingested ${persona.name} backstory into ID-RAG store`, {
+                personaId: persona.id,
+                backstoryLength: persona.backstory.length,
+            });
+        }
+    }
 
-    log?.info("VisionAnalysisAdapter", `analyzePricingPageStream START for "${persona.name}"`, {
-      tokenLimit,
-      hasHtml: !!pageHtml,
-      htmlLength: pageHtml?.length || 0,
-      screenshotLength: screenshotBase64.length,
-    });
+    async analyzePricingPageStream(
+        persona: Persona,
+        screenshotBase64: string,
+        pageHtml?: string,
+        options: { tokenLimit?: number; runId?: string } = {}
+    ) {
+        const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+        const tokenLimit = options.tokenLimit ?? 2000;
+        const methodStart = Date.now();
 
-    this.ensureIngested(persona, options.runId);
+        log?.info("VisionAnalysisAdapter", `analyzePricingPageStream START for "${persona.name}"`, {
+            tokenLimit,
+            hasHtml: !!pageHtml,
+            htmlLength: pageHtml?.length || 0,
+            screenshotLength: screenshotBase64.length,
+        });
 
-    // Retrieve relevant memories based on the page context
-    const ragStart = Date.now();
-    const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
-    const ragContext = this.ragService.retrieveContext(persona, query, 3);
-    const ragDuration = Date.now() - ragStart;
-    log?.info("VisionAnalysisAdapter", `ID-RAG retrieval for "${persona.name}"`, {
-      query: query.slice(0, 100),
-      chunkCount: ragContext.chunkCount,
-      contextStringLength: ragContext.contextString.length,
-      durationMs: ragDuration,
-    });
+        this.ensureIngested(persona, options.runId);
 
-    const compileStart = Date.now();
-    const compartments = this.promptCompiler.compileSystemPrompt(persona);
-    const personaAnchor = this.promptCompiler.generateAnchor(persona);
-    const compileDuration = Date.now() - compileStart;
-    log?.info("VisionAnalysisAdapter", `Prompt compilation for "${persona.name}"`, {
-      compartmentsLength: compartments.length,
-      anchor: personaAnchor,
-      durationMs: compileDuration,
-    });
-    log?.debug("VisionAnalysisAdapter", `Compartmentalized prompt for "${persona.name}"`, {
-      prompt: compartments.slice(0, 1000) + `...(truncated, total ${compartments.length} chars)`,
-    });
+        // Retrieve relevant memories based on the page context
+        const ragStart = Date.now();
+        const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
+        const ragContext = this.ragService.retrieveContext(persona, query, 3);
+        const ragDuration = Date.now() - ragStart;
+        log?.info("VisionAnalysisAdapter", `ID-RAG retrieval for "${persona.name}"`, {
+            query: query.slice(0, 100),
+            chunkCount: ragContext.chunkCount,
+            contextStringLength: ragContext.contextString.length,
+            durationMs: ragDuration,
+        });
 
-    const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
+        const compileStart = Date.now();
+        const compartments = this.promptCompiler.compileSystemPrompt(persona);
+        const personaAnchor = this.promptCompiler.generateAnchor(persona);
+        const compileDuration = Date.now() - compileStart;
+        log?.info("VisionAnalysisAdapter", `Prompt compilation for "${persona.name}"`, {
+            compartmentsLength: compartments.length,
+            anchor: personaAnchor,
+            durationMs: compileDuration,
+        });
+        log?.debug("VisionAnalysisAdapter", `Compartmentalized prompt for "${persona.name}"`, {
+            prompt: compartments.slice(0, 1000) + `...(truncated, total ${compartments.length} chars)`,
+        });
+
+        const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
         ${compartments}
         
@@ -164,109 +164,109 @@ export class VisionAnalysisAdapter {
 
         Be blunt, honest, and natural. Be your persona.`;
 
-    const prompt = `Evaluate this pricing page. Return ONLY the JSON object. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
+        const prompt = `Evaluate this pricing page. Return ONLY the JSON object. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
 
-    log?.info("VisionAnalysisAdapter", `Calling streamObject for "${persona.name}"...`, {
-      model: this.llmService.visionModel,
-      systemPromptLength: system.length,
-      promptLength: prompt.length,
-      maxTokens: tokenLimit,
-    });
+        log?.info("VisionAnalysisAdapter", `Calling streamObject for "${persona.name}"...`, {
+            model: this.llmService.visionModel,
+            systemPromptLength: system.length,
+            promptLength: prompt.length,
+            maxTokens: tokenLimit,
+        });
 
-    const streamObjectStart = Date.now();
-    const streamObjResult = streamObject({
-      model: this.llmService.provider(this.llmService.visionModel),
-      schema: PricingAnalysisSchema,
-      schemaName: "PricingAnalysis",
-      schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
-      system,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            {
-              type: "image",
-              image: screenshotBase64,
-            },
-          ],
-        },
-      ],
-      temperature: 0.4,
-      maxTokens: tokenLimit,
-    } as any);
-    const streamObjectDuration = Date.now() - streamObjectStart;
-    const totalDuration = Date.now() - methodStart;
-    log?.info("VisionAnalysisAdapter", `streamObject() call returned for "${persona.name}"`, {
-      streamObjectCallDurationMs: streamObjectDuration,
-      totalAdapterDurationMs: totalDuration,
-    });
+        const streamObjectStart = Date.now();
+        const streamObjResult = streamObject({
+            model: this.llmService.provider(this.llmService.visionModel),
+            schema: PricingAnalysisSchema,
+            schemaName: "PricingAnalysis",
+            schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
+            system,
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: prompt },
+                        {
+                            type: "image",
+                            image: screenshotBase64,
+                        },
+                    ],
+                },
+            ],
+            temperature: 0.4,
+            maxTokens: tokenLimit,
+        } as any);
+        const streamObjectDuration = Date.now() - streamObjectStart;
+        const totalDuration = Date.now() - methodStart;
+        log?.info("VisionAnalysisAdapter", `streamObject() call returned for "${persona.name}"`, {
+            streamObjectCallDurationMs: streamObjectDuration,
+            totalAdapterDurationMs: totalDuration,
+        });
 
-    streamObjResult.object
-      .then((fullObject: any) => {
-        console.log(
-          `[TRACE] [AnalysisComplete] persona=${persona.name}, scores=${JSON.stringify({ clarity: fullObject.scores?.clarity, trust: fullObject.scores?.trust, buyIntent: fullObject.scores?.buyIntent })}, risks=${fullObject.risks?.length ?? 0}`
-        );
-      })
-      .catch(() => {});
-    return streamObjResult;
-  }
+        streamObjResult.object
+            .then((fullObject: any) => {
+                console.log(
+                    `[TRACE] [AnalysisComplete] persona=${persona.name}, scores=${JSON.stringify({ clarity: fullObject.scores?.clarity, trust: fullObject.scores?.trust, buyIntent: fullObject.scores?.buyIntent })}, risks=${fullObject.risks?.length ?? 0}`
+                );
+            })
+            .catch(() => { });
+        return streamObjResult;
+    }
 
-  async isPricingVisible(screenshotBase64: string, runId?: string): Promise<boolean> {
-    const log = runId ? AnalysisLogger.forRun(runId) : null;
-    log?.trace("VisionAnalysisAdapter", "isPricingVisible called", {
-      screenshotLength: screenshotBase64.length,
-    });
+    async isPricingVisible(screenshotBase64: string, runId?: string): Promise<boolean> {
+        const log = runId ? AnalysisLogger.forRun(runId) : null;
+        log?.trace("VisionAnalysisAdapter", "isPricingVisible called", {
+            screenshotLength: screenshotBase64.length,
+        });
 
-    const prompt = `Can you see the pricing (tiers, dollar amounts, or plan names) in roughly the center of this screen?
+        const prompt = `Can you see the pricing (tiers, dollar amounts, or plan names) in roughly the center of this screen?
             Return ONLY the word "TRUE" if it is clearly visible, or "FALSE" if it is not. No other text.`;
 
-    const callStart = Date.now();
-    const result = await this.llmService.withRetry(async () => {
-      const resp = await LlmServiceImpl.limiter(() =>
-        this.llmService.client.chat.completions.create({
-          model: this.llmService.scoutVisionModel,
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:image/jpeg;base64,${screenshotBase64}`,
-                  },
-                },
-              ],
-            },
-          ],
-          max_tokens: 10,
-          temperature: 0,
-        }),
-      );
+        const callStart = Date.now();
+        const result = await this.llmService.withRetry(async () => {
+            const resp = await LlmServiceImpl.limiter(() =>
+                this.llmService.client.chat.completions.create({
+                    model: this.llmService.scoutVisionModel,
+                    messages: [
+                        {
+                            role: "user",
+                            content: [
+                                { type: "text", text: prompt },
+                                {
+                                    type: "image_url",
+                                    image_url: {
+                                        url: `data:image/jpeg;base64,${screenshotBase64}`,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                    max_tokens: 10,
+                    temperature: 0,
+                }),
+            );
 
-      const content =
-        resp?.choices?.[0]?.message?.content?.toUpperCase().trim() || "FALSE";
-      return content.includes("TRUE");
-    });
-    const duration = Date.now() - callStart;
+            const content =
+                resp?.choices?.[0]?.message?.content?.toUpperCase().trim() || "FALSE";
+            return content.includes("TRUE");
+        });
+        const duration = Date.now() - callStart;
 
-    log?.info("VisionAnalysisAdapter", `isPricingVisible result`, {
-      result,
-      model: this.llmService.scoutVisionModel,
-      durationMs: duration,
-    });
+        log?.info("VisionAnalysisAdapter", `isPricingVisible result`, {
+            result,
+            model: this.llmService.scoutVisionModel,
+            durationMs: duration,
+        });
 
-    return result;
-  }
+        return result;
+    }
 
-  async isPricingVisibleInHtml(html: string, runId?: string): Promise<PricingLocation> {
-    const log = runId ? AnalysisLogger.forRun(runId) : null;
-    log?.trace("VisionAnalysisAdapter", "isPricingVisibleInHtml called", {
-      htmlLength: html.length,
-    });
+    async isPricingVisibleInHtml(html: string, runId?: string): Promise<PricingLocation> {
+        const log = runId ? AnalysisLogger.forRun(runId) : null;
+        log?.trace("VisionAnalysisAdapter", "isPricingVisibleInHtml called", {
+            htmlLength: html.length,
+        });
 
-    const prompt = `Analyze if the following text contains pricing information (plans, prices, etc.).
+        const prompt = `Analyze if the following text contains pricing information (plans, prices, etc.).
         
         TEXT:
         """\n${html}\n"""
@@ -281,82 +281,82 @@ export class VisionAnalysisAdapter {
         
         Return ONLY valid JSON.`;
 
-    const callStart = Date.now();
-    const content = await this.llmService.createChatCompletion(
-      [{ role: "user", content: prompt }],
-      {
-        temperature: 0,
-        model: this.llmService.smallTextModel,
-        response_format: { type: "json_object" },
-        purpose: "Scouting HTML",
-      },
-    );
+        const callStart = Date.now();
+        const content = await this.llmService.createChatCompletion(
+            [{ role: "user", content: prompt }],
+            {
+                temperature: 0,
+                model: this.llmService.smallTextModel,
+                response_format: { type: "json_object" },
+                purpose: "Scouting HTML",
+            },
+        );
 
-    try {
-      const result = JSON.parse(content);
-      const duration = Date.now() - callStart;
-      log?.info("VisionAnalysisAdapter", `isPricingVisibleInHtml result`, {
-        found: result.found,
-        selector: result.selector || null,
-        anchorText: result.anchorText || null,
-        reasoning: result.reasoning,
-        durationMs: duration,
-      });
-      return {
-        found: !!result.found,
-        selector: result.selector || undefined,
-        anchorText: result.anchorText || undefined,
-        reasoning: result.reasoning
-      };
-    } catch (e) {
-      log?.warn("VisionAnalysisAdapter", "isPricingVisibleInHtml failed to parse LLM response", {
-        error: String(e),
-        contentPreview: content.slice(0, 200),
-      });
-      return { found: false, reasoning: "Failed to parse LLM response" };
+        try {
+            const result = JSON.parse(content);
+            const duration = Date.now() - callStart;
+            log?.info("VisionAnalysisAdapter", `isPricingVisibleInHtml result`, {
+                found: result.found,
+                selector: result.selector || null,
+                anchorText: result.anchorText || null,
+                reasoning: result.reasoning,
+                durationMs: duration,
+            });
+            return {
+                found: !!result.found,
+                selector: result.selector || undefined,
+                anchorText: result.anchorText || undefined,
+                reasoning: result.reasoning
+            };
+        } catch (e) {
+            log?.warn("VisionAnalysisAdapter", "isPricingVisibleInHtml failed to parse LLM response", {
+                error: String(e),
+                contentPreview: content.slice(0, 200),
+            });
+            return { found: false, reasoning: "Failed to parse LLM response" };
+        }
     }
-  }
 
-  async analyzePricingPageCompletion(
-    persona: Persona,
-    screenshotBase64: string,
-    pageHtml?: string,
-    options: { tokenLimit?: number; runId?: string } = {}
-  ) {
-    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
-    const tokenLimit = options.tokenLimit ?? 2000;
-    const methodStart = Date.now();
+    async analyzePricingPageCompletion(
+        persona: Persona,
+        screenshotBase64: string,
+        pageHtml?: string,
+        options: { tokenLimit?: number; runId?: string } = {}
+    ) {
+        const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+        const tokenLimit = options.tokenLimit ?? 2000;
+        const methodStart = Date.now();
 
-    log?.info("VisionAnalysisAdapter", `analyzePricingPageCompletion (AUDIT) START for "${persona.name}"`, {
-      tokenLimit,
-      hasHtml: !!pageHtml,
-      htmlLength: pageHtml?.length || 0,
-      screenshotLength: screenshotBase64.length,
-    });
+        log?.info("VisionAnalysisAdapter", `analyzePricingPageCompletion (AUDIT) START for "${persona.name}"`, {
+            tokenLimit,
+            hasHtml: !!pageHtml,
+            htmlLength: pageHtml?.length || 0,
+            screenshotLength: screenshotBase64.length,
+        });
 
-    this.ensureIngested(persona, options.runId);
+        this.ensureIngested(persona, options.runId);
 
-    const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
-    const ragStart = Date.now();
-    const ragContext = this.ragService.retrieveContext(persona, query, 3);
-    const ragDuration = Date.now() - ragStart;
-    log?.info("VisionAnalysisAdapter", `[AUDIT] ID-RAG retrieval for "${persona.name}"`, {
-      chunkCount: ragContext.chunkCount,
-      contextStringLength: ragContext.contextString.length,
-      durationMs: ragDuration,
-    });
+        const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
+        const ragStart = Date.now();
+        const ragContext = this.ragService.retrieveContext(persona, query, 3);
+        const ragDuration = Date.now() - ragStart;
+        log?.info("VisionAnalysisAdapter", `[AUDIT] ID-RAG retrieval for "${persona.name}"`, {
+            chunkCount: ragContext.chunkCount,
+            contextStringLength: ragContext.contextString.length,
+            durationMs: ragDuration,
+        });
 
-    const compileStart = Date.now();
-    const compartments = this.promptCompiler.compileSystemPrompt(persona);
-    const personaAnchor = this.promptCompiler.generateAnchor(persona);
-    const compileDuration = Date.now() - compileStart;
-    log?.info("VisionAnalysisAdapter", `[AUDIT] Prompt compilation for "${persona.name}"`, {
-      compartmentsLength: compartments.length,
-      anchor: personaAnchor,
-      durationMs: compileDuration,
-    });
+        const compileStart = Date.now();
+        const compartments = this.promptCompiler.compileSystemPrompt(persona);
+        const personaAnchor = this.promptCompiler.generateAnchor(persona);
+        const compileDuration = Date.now() - compileStart;
+        log?.info("VisionAnalysisAdapter", `[AUDIT] Prompt compilation for "${persona.name}"`, {
+            compartmentsLength: compartments.length,
+            anchor: personaAnchor,
+            durationMs: compileDuration,
+        });
 
-    const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
+        const system = `You are a specialized JSON-only agent evaluating a pricing page as a specific persona.
         
         ${compartments}
         
@@ -421,124 +421,124 @@ export class VisionAnalysisAdapter {
         
         Be blunt, honest, and natural. Be your persona.`;
 
-    try {
-      log?.info("VisionAnalysisAdapter", `[AUDIT] Sending schema-guided completion for "${persona.name}"...`, {
-        model: this.llmService.visionModel,
-        systemPromptLength: system.length,
-        maxTokens: tokenLimit,
-      });
+        try {
+            log?.info("VisionAnalysisAdapter", `[AUDIT] Sending schema-guided completion for "${persona.name}"...`, {
+                model: this.llmService.visionModel,
+                systemPromptLength: system.length,
+                maxTokens: tokenLimit,
+            });
 
-      const MAX_RETRIES = 2;
-      const RETRY_DELAY_MS = 2_000;
-      const prompt = `Evaluate this pricing page. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
-      const ANALYSIS_TIMEOUT_MS = 180_000;
+            const MAX_RETRIES = 2;
+            const RETRY_DELAY_MS = 2_000;
+            const prompt = `Evaluate this pricing page. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
+            const ANALYSIS_TIMEOUT_MS = 180_000;
 
-      let analysisObj: any = null;
+            let analysisObj: any = null;
 
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (attempt > 0) {
-          log?.info("VisionAnalysisAdapter", `[AUDIT] Retry attempt ${attempt}/${MAX_RETRIES} for "${persona.name}" — waiting ${RETRY_DELAY_MS}ms...`);
-          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                if (attempt > 0) {
+                    log?.info("VisionAnalysisAdapter", `[AUDIT] Retry attempt ${attempt}/${MAX_RETRIES} for "${persona.name}" — waiting ${RETRY_DELAY_MS}ms...`);
+                    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+                }
+
+                const completionStart = Date.now();
+                const streamResult = streamObject({
+                    model: this.llmService.provider(this.llmService.visionModel),
+                    schema: PricingAnalysisSchema,
+                    schemaName: "PricingAnalysis",
+                    schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
+                    system,
+                    messages: [
+                        {
+                            role: "user",
+                            content: [
+                                { type: "text", text: prompt },
+                                { type: "image", image: screenshotBase64 },
+                            ],
+                        },
+                    ],
+                    temperature: 0.1,
+                    maxTokens: tokenLimit,
+                } as any);
+                // Drain the partial stream (keeps the pipeline flowing — without a consumer,
+                // streamObject's internal TransformStream stalls) while racing against a
+                // timeout so a hanging LLM never blocks the queue permanently.
+                // Drain the stream in the background WITH a catch handler — when the
+                // timeout wins the race, the loser's streamResult.object must be caught
+                // to prevent an unhandled promise rejection (the LLM may still respond).
+                const drainAndResolve = (async () => {
+                    for await (const _ of streamResult.partialObjectStream) {
+                        // Discard partials — we only need the final validated object.
+                    }
+                    return streamResult.object;
+                })().catch(() => null);
+                analysisObj = await Promise.race([
+                    drainAndResolve,
+                    new Promise<any>((_, reject) =>
+                        setTimeout(
+                            () => reject(new Error(`Analysis timed out after ${ANALYSIS_TIMEOUT_MS}ms`)),
+                            ANALYSIS_TIMEOUT_MS,
+                        ),
+                    ),
+                ]);
+
+                if (analysisObj) break;
+
+                log?.warn("VisionAnalysisAdapter", `[AUDIT] Null result for "${persona.name}" on attempt ${attempt + 1}/${MAX_RETRIES + 1} — will ${attempt < MAX_RETRIES ? "retry" : "fall through to fallback"}`);
+            }
+
+            const completionDuration = Date.now() - methodStart;
+            log?.info("VisionAnalysisAdapter", `[AUDIT] Analysis completed for "${persona.name}"`, {
+                durationMs: completionDuration,
+                scores: analysisObj.scores ? {
+                    clarity: analysisObj.scores.clarity,
+                    valuePerception: analysisObj.scores.valuePerception,
+                    trust: analysisObj.scores.trust,
+                    explorationIntent: analysisObj.scores.explorationIntent,
+                    analysisIntent: analysisObj.scores.analysisIntent,
+                    buyIntent: analysisObj.scores.buyIntent,
+                } : null,
+            });
+            console.log(`[TRACE] [AnalysisComplete] persona=${persona.name}, scores=${JSON.stringify(analysisObj.scores)}, risks=${analysisObj.risks?.length ?? 0}`);
+            return analysisObj;
+        } catch (e) {
+            const totalDuration = Date.now() - methodStart;
+            log?.error("VisionAnalysisAdapter", `[AUDIT] Error for "${persona.name}"`, {
+                error: String(e),
+                totalDurationMs: totalDuration,
+            });
+            return {
+                gutReaction:
+                    "Overall, this audit could not be completed due to a system issue.",
+                thoughts: "An error occurred during pricing analysis.",
+                scores: {
+                    clarity: 1,
+                    clarityReason: "System error — analysis could not be completed.",
+                    valuePerception: 1,
+                    valuePerceptionReason: "System error — analysis could not be completed.",
+                    trust: 1,
+                    trustReason: "System error — analysis could not be completed.",
+                    explorationIntent: 1,
+                    explorationIntentReason: "System error — analysis could not be completed.",
+                    analysisIntent: 1,
+                    analysisIntentReason: "System error — analysis could not be completed.",
+                    buyIntent: 1,
+                    buyIntentReason: "System error — analysis could not be completed.",
+                },
+                risks: ["[SYSTEM] LLM completion or analysis failed"],
+                recommendations: [],
+                aiSuggestion: "System error — analysis could not be completed.",
+            };
         }
-
-        const completionStart = Date.now();
-        const streamResult = streamObject({
-          model: this.llmService.provider(this.llmService.visionModel),
-          schema: PricingAnalysisSchema,
-          schemaName: "PricingAnalysis",
-          schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
-          system,
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                { type: "image", image: screenshotBase64 },
-              ],
-            },
-          ],
-          temperature: 0.1,
-          maxTokens: tokenLimit,
-        } as any);
-        // Drain the partial stream (keeps the pipeline flowing — without a consumer,
-        // streamObject's internal TransformStream stalls) while racing against a
-        // timeout so a hanging LLM never blocks the queue permanently.
-        // Drain the stream in the background WITH a catch handler — when the
-        // timeout wins the race, the loser's streamResult.object must be caught
-        // to prevent an unhandled promise rejection (the LLM may still respond).
-        const drainAndResolve = (async () => {
-          for await (const _ of streamResult.partialObjectStream) {
-            // Discard partials — we only need the final validated object.
-          }
-          return streamResult.object;
-        })().catch(() => null);
-        analysisObj = await Promise.race([
-          drainAndResolve,
-          new Promise<any>((_, reject) =>
-            setTimeout(
-              () => reject(new Error(`Analysis timed out after ${ANALYSIS_TIMEOUT_MS}ms`)),
-              ANALYSIS_TIMEOUT_MS,
-            ),
-          ),
-        ]);
-
-        if (analysisObj) break;
-
-        log?.warn("VisionAnalysisAdapter", `[AUDIT] Null result for "${persona.name}" on attempt ${attempt + 1}/${MAX_RETRIES + 1} — will ${attempt < MAX_RETRIES ? "retry" : "fall through to fallback"}`);
-      }
-
-      const completionDuration = Date.now() - methodStart;
-      log?.info("VisionAnalysisAdapter", `[AUDIT] Analysis completed for "${persona.name}"`, {
-        durationMs: completionDuration,
-        scores: analysisObj.scores ? {
-          clarity: analysisObj.scores.clarity,
-          valuePerception: analysisObj.scores.valuePerception,
-          trust: analysisObj.scores.trust,
-          explorationIntent: analysisObj.scores.explorationIntent,
-          analysisIntent: analysisObj.scores.analysisIntent,
-          buyIntent: analysisObj.scores.buyIntent,
-        } : null,
-      });
-      console.log(`[TRACE] [AnalysisComplete] persona=${persona.name}, scores=${JSON.stringify(analysisObj.scores)}, risks=${analysisObj.risks?.length ?? 0}`);
-      return analysisObj;
-    } catch (e) {
-      const totalDuration = Date.now() - methodStart;
-      log?.error("VisionAnalysisAdapter", `[AUDIT] Error for "${persona.name}"`, {
-        error: String(e),
-        totalDurationMs: totalDuration,
-      });
-      return {
-        gutReaction:
-          "Overall, this audit could not be completed due to a system issue.",
-        thoughts: "An error occurred during pricing analysis.",
-        scores: {
-          clarity: 1,
-          clarityReason: "System error — analysis could not be completed.",
-          valuePerception: 1,
-          valuePerceptionReason: "System error — analysis could not be completed.",
-          trust: 1,
-          trustReason: "System error — analysis could not be completed.",
-          explorationIntent: 1,
-          explorationIntentReason: "System error — analysis could not be completed.",
-          analysisIntent: 1,
-          analysisIntentReason: "System error — analysis could not be completed.",
-          buyIntent: 1,
-          buyIntentReason: "System error — analysis could not be completed.",
-        },
-        risks: ["[SYSTEM] LLM completion or analysis failed"],
-        recommendations: [],
-        aiSuggestion: "System error — analysis could not be completed.",
-      };
     }
-  }
 
-  private buildStreamOfConsciousnessSystemPrompt(
-    persona: Persona,
-    compartments: string,
-    personaAnchor: string,
-    ragContextString: string
-  ): string {
-    return `You are a persona evaluating a pricing page. Think aloud as this persona.
+    private buildStreamOfConsciousnessSystemPrompt(
+        persona: Persona,
+        compartments: string,
+        personaAnchor: string,
+        ragContextString: string
+    ): string {
+        return `You are a persona evaluating a pricing page. Think aloud as this persona.
 
 ${compartments}
 
@@ -572,165 +572,124 @@ Write your raw, unfiltered stream of consciousness. Structure it using:
 [The Dealbreaker] — The single biggest reason you would NOT buy.
 
 Be blunt, honest, and natural. Be your persona. Write freely — no JSON, no formatting constraints.`;
-  }
+    }
 
-  async generateStreamOfConsciousness(
-    persona: Persona,
-    screenshotBase64: string,
-    pageHtml?: string,
-    options: { tokenLimit?: number; runId?: string } = {}
-  ) {
-    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
-    const tokenLimit = options.tokenLimit ?? 2000;
-    const methodStart = Date.now();
-    const TIMEOUT_MS = 120_000;
+    async generateStreamOfConsciousness(
+        persona: Persona,
+        screenshotBase64: string,
+        pageHtml?: string,
+        options: { tokenLimit?: number; runId?: string } = {}
+    ) {
+        const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+        const tokenLimit = options.tokenLimit ?? 2000;
+        const methodStart = Date.now();
+        const TIMEOUT_MS = 120_000;
 
-    log?.info("VisionAnalysisAdapter", `generateStreamOfConsciousness START for "${persona.name}"`, {
-      tokenLimit,
-      hasHtml: !!pageHtml,
-    });
+        log?.info("VisionAnalysisAdapter", `generateStreamOfConsciousness START for "${persona.name}"`, {
+            tokenLimit,
+            hasHtml: !!pageHtml,
+        });
 
-    this.ensureIngested(persona, options.runId);
+        this.ensureIngested(persona, options.runId);
 
-    const ragStart = Date.now();
-    const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
-    const ragContext = this.ragService.retrieveContext(persona, query, 3);
-    const ragDuration = Date.now() - ragStart;
-    log?.info("VisionAnalysisAdapter", `ID-RAG retrieval for "${persona.name}"`, {
-      chunkCount: ragContext.chunkCount,
-      durationMs: ragDuration,
-    });
+        const ragStart = Date.now();
+        const query = pageHtml ? `Pricing page about ${pageHtml.slice(0, 200)}` : "Evaluating a pricing page";
+        const ragContext = this.ragService.retrieveContext(persona, query, 3);
+        const ragDuration = Date.now() - ragStart;
+        log?.info("VisionAnalysisAdapter", `ID-RAG retrieval for "${persona.name}"`, {
+            chunkCount: ragContext.chunkCount,
+            durationMs: ragDuration,
+        });
 
-    const compartments = this.promptCompiler.compileSystemPrompt(persona);
-    const personaAnchor = this.promptCompiler.generateAnchor(persona);
+        const compartments = this.promptCompiler.compileSystemPrompt(persona);
+        const personaAnchor = this.promptCompiler.generateAnchor(persona);
 
-    const system = this.buildStreamOfConsciousnessSystemPrompt(
-      persona,
-      compartments,
-      personaAnchor,
-      ragContext.contextString
-    );
+        const system = this.buildStreamOfConsciousnessSystemPrompt(
+            persona,
+            compartments,
+            personaAnchor,
+            ragContext.contextString
+        );
 
-    const prompt = `Evaluate this pricing page. Think aloud as ${persona.name}. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
+        const prompt = `Evaluate this pricing page. Think aloud as ${persona.name}. ${pageHtml ? `\n\nPAGE FACT SUMMARY:\n"""\n${pageHtml}\n"""` : ""}`;
 
-    log?.info("VisionAnalysisAdapter", `Calling LLM for stream of consciousness for "${persona.name}"...`, {
-      model: this.llmService.visionModel,
-      systemPromptLength: system.length,
-    });
+        log?.info("VisionAnalysisAdapter", `Calling LLM for stream of consciousness for "${persona.name}"...`, {
+            model: this.llmService.visionModel,
+            systemPromptLength: system.length,
+        });
 
-    const text = await Promise.race([
-      this.llmService.createChatCompletion(
-        [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: `data:image/jpeg;base64,${screenshotBase64}` } },
-            ] as any,
-          },
-        ],
-        {
-          temperature: 0.4,
-          max_tokens: tokenLimit,
-          model: this.llmService.visionModel,
-          purpose: `Stream of Consciousness — ${persona.name}`,
-          runId: options.runId,
-        }
-      ),
-      new Promise<string>((_, reject) =>
-        setTimeout(() => reject(new Error(`Stream of consciousness timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-      ),
-    ]);
+        const text = await Promise.race([
+            this.llmService.createChatCompletion(
+                [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: prompt },
+                            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${screenshotBase64}` } },
+                        ] as any,
+                    },
+                ],
+                {
+                    temperature: 0.4,
+                    max_tokens: tokenLimit,
+                    model: this.llmService.visionModel,
+                    purpose: `Stream of Consciousness — ${persona.name}`,
+                    runId: options.runId,
+                }
+            ),
+            new Promise<string>((_, reject) =>
+                setTimeout(() => reject(new Error(`Stream of consciousness timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+            ),
+        ]);
 
-    const duration = Date.now() - methodStart;
-    log?.info("VisionAnalysisAdapter", `generateStreamOfConsciousness completed for "${persona.name}"`, {
-      durationMs: duration,
-      textLength: text.length,
-    });
+        const duration = Date.now() - methodStart;
+        log?.info("VisionAnalysisAdapter", `generateStreamOfConsciousness completed for "${persona.name}"`, {
+            durationMs: duration,
+            textLength: text.length,
+        });
 
-    return {
-      text,
-      personaId: persona.id,
-      personaName: persona.name,
-    };
-  }
+        return {
+            text,
+            personaId: persona.id,
+            personaName: persona.name,
+        };
+    }
 
-  private buildFormatterSystemPrompt(
-    persona: Persona,
-    compartments: string
-  ): string {
-    return `You are a formatter converting raw persona thoughts into structured JSON.
+    private buildFormatterSystemPrompt(
+        persona: Persona,
+        compartments: string
+    ): string {
+        return `Extract the user stream-of-consciousness into a valid PricingAnalysis object matching the schema.
 
 ${compartments}
 
-Your job: Take the raw stream of consciousness below and extract it into a structured PricingAnalysis JSON object.
+Formatting Rules:
+1. "gutReaction", "thoughts", "risks", "scores": Speak in FIRST PERSON ("I", "my") as the persona.
+2. "recommendations", "aiSuggestion": Write IMPERATIVE directives for the COMPANY starting with action verbs.
+3. "thoughts": Must format value as "[The Good] ... [The Bad] ... [The Dealbreaker] ...".
+4. "scores": Ensure intent funnel holds: explorationIntent >= analysisIntent >= buyIntent.`;
+    }
 
-<<VOICE AND AUDIENCE>>
-You are writing a JSON report with TWO distinct audiences:
+    async formatStreamOfConsciousness(
+        persona: Persona,
+        stream: { text: string; personaId: string; personaName: string },
+        options: { tokenLimit?: number; runId?: string } = {}
+    ) {
+        const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+        const tokenLimit = options.tokenLimit ?? 2000;
+        const methodStart = Date.now();
+        const TIMEOUT_MS = 90_000;
+        const MAX_RETRIES = 2;
+        const RETRY_DELAY_MS = 2_000;
 
-1. MOST FIELDS (gutReaction, thoughts, risks, scores): You speak AS the persona in first person. "I think...", "This concerns me...", "I'd want to see..."
+        log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness START for "${persona.name}"`, {
+            streamLength: stream.text.length,
+        });
 
-2. RECOMMENDATIONS: You write TO the company as an external advisor. These are IMPERATIVE sentences telling the COMPANY what to change. NO first person. NO self-advice.
-   WRONG: "Check if the Pro plan includes a free trial."
-   WRONG: "Look for a job search section on the site."
-   WRONG: "See if they offer monthly billing."
-   CORRECT: "Offer a free trial on the Pro plan."
-   CORRECT: "Add a job search or career section."
-   CORRECT: "Introduce a monthly billing option."
+        const compartments = this.promptCompiler.compileSystemPrompt(persona);
+        const system = this.buildFormatterSystemPrompt(persona, compartments);
 
-3. AI SUGGESTION: This is the persona speaking AS THEMSELVES in first person. It answers: "What is THE ONE THING this company should change to win ME over?" It must reference something specific on the page. It is NOT advice to the persona. It is NOT addressing the persona by name.
-   WRONG: "Emerson, you should look for a different tool."
-   WRONG: "You should check if there's a free trial."
-   CORRECT: "I'd sign up tomorrow if you added a free trial to the Pro plan."
-   CORRECT: "The one thing that would win me over is showing a student discount."
-
-<<RISKS>>
-Write 3 specific risks from the persona's perspective. Each risk must be grounded in something concrete on the page.
-WRONG: "The product is completely misaligned with my needs." (too vague)
-CORRECT: "The features listed are all about DNS and DDoS protection, which are irrelevant to my job search needs."
-
-<<RECOMMENDATIONS>>
-Write 2-3 imperatives directed AT THE COMPANY. Each must be a specific action the company should take on their pricing page.
-WRONG: "Look for a job search tool that offers resume automation." (self-advice)
-CORRECT: "Add resume automation and ATS optimization features."
-
-<<AI SUGGESTION>>
-ONE persona-specific insight in the persona's voice. What should THE COMPANY change to win THIS persona over? Reference something specific on the page.
-
-STRICT OUTPUT RULES:
-- Respond ONLY with a valid JSON object following the PricingAnalysis schema.
-- Use standard JSON double quotes (") for all keys and string values.
-- Escape any literal double quotes within strings using a backslash (\").
-- NO conversational preamble. NO monologue. NO text before or after the JSON.
-- For every score, provide both the number AND a 1-2 sentence reason.
-- NO REPETITION: Do NOT repeat information across different fields.
-- STRUCTURED THOUGHTS FORMAT:
-  Inside the 'thoughts' field, structure using: [The Good], [The Bad], [The Dealbreaker].
-- INTENT FUNNEL: explorationIntent >= analysisIntent >= buyIntent.
-- SCORES → REASONS → NARRATIVE. Each score needs a rationale.
-- Different personas MUST give DIFFERENT scores based on their unique Big Five.`;
-  }
-
-  async formatStreamOfConsciousness(
-    persona: Persona,
-    stream: { text: string; personaId: string; personaName: string },
-    options: { tokenLimit?: number; runId?: string } = {}
-  ) {
-    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
-    const tokenLimit = options.tokenLimit ?? 2000;
-    const methodStart = Date.now();
-    const TIMEOUT_MS = 90_000;
-    const MAX_RETRIES = 2;
-    const RETRY_DELAY_MS = 2_000;
-
-    log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness START for "${persona.name}"`, {
-      streamLength: stream.text.length,
-    });
-
-    const compartments = this.promptCompiler.compileSystemPrompt(persona);
-    const system = this.buildFormatterSystemPrompt(persona, compartments);
-
-    const prompt = `Here is the raw stream of consciousness from ${persona.name}:
+        const prompt = `Here is the raw stream of consciousness from ${persona.name}:
 
 ---
 ${stream.text}
@@ -738,90 +697,90 @@ ${stream.text}
 
 Convert this into a structured PricingAnalysis JSON object. Return ONLY the JSON.`;
 
-    let analysisObj: any = null;
+        let analysisObj: any = null;
 
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      if (attempt > 0) {
-        log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness retry ${attempt}/${MAX_RETRIES} for "${persona.name}"`);
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-      }
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            if (attempt > 0) {
+                log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness retry ${attempt}/${MAX_RETRIES} for "${persona.name}"`);
+                await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+            }
 
-      log?.info("VisionAnalysisAdapter", `Calling streamObject for formatter for "${persona.name}" (attempt ${attempt + 1})...`, {
-        model: this.llmService.textModel,
-        systemPromptLength: system.length,
-      });
+            log?.info("VisionAnalysisAdapter", `Calling streamObject for formatter for "${persona.name}" (attempt ${attempt + 1})...`, {
+                model: this.llmService.textModel,
+                systemPromptLength: system.length,
+            });
 
-      try {
-        const streamResult = streamObject({
-          model: this.llmService.provider(this.llmService.textModel),
-          schema: PricingAnalysisSchema,
-          schemaName: "PricingAnalysis",
-          schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
-          system,
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.1,
-          maxTokens: tokenLimit,
-        } as any);
+            try {
+                const streamResult = streamObject({
+                    model: this.llmService.provider(this.llmService.textModel),
+                    schema: PricingAnalysisSchema,
+                    schemaName: "PricingAnalysis",
+                    schemaDescription: "A detailed evaluation of a pricing page from a persona's perspective.",
+                    system,
+                    messages: [{ role: "user", content: prompt }],
+                    temperature: 0.1,
+                    maxTokens: tokenLimit,
+                } as any);
 
-        const drainAndResolve = (async () => {
-          for await (const _ of streamResult.partialObjectStream) {
-            // discard
-          }
-          return streamResult.object;
-        })().catch(() => null);
+                const drainAndResolve = (async () => {
+                    for await (const _ of streamResult.partialObjectStream) {
+                        // discard
+                    }
+                    return streamResult.object;
+                })().catch(() => null);
 
-        analysisObj = await Promise.race([
-          drainAndResolve,
-          new Promise<any>((_, reject) =>
-            setTimeout(() => reject(new Error(`Formatter timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-          ),
-        ]);
+                analysisObj = await Promise.race([
+                    drainAndResolve,
+                    new Promise<any>((_, reject) =>
+                        setTimeout(() => reject(new Error(`Formatter timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+                    ),
+                ]);
 
-        if (analysisObj) break;
-      } catch (e) {
-        log?.warn("VisionAnalysisAdapter", `formatStreamOfConsciousness attempt ${attempt + 1} failed for "${persona.name}"`, {
-          error: String(e),
+                if (analysisObj) break;
+            } catch (e) {
+                log?.warn("VisionAnalysisAdapter", `formatStreamOfConsciousness attempt ${attempt + 1} failed for "${persona.name}"`, {
+                    error: String(e),
+                });
+                if (attempt === MAX_RETRIES) throw e;
+            }
+        }
+
+        const duration = Date.now() - methodStart;
+        log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness completed for "${persona.name}"`, {
+            durationMs: duration,
+            scores: analysisObj?.scores,
         });
-        if (attempt === MAX_RETRIES) throw e;
-      }
+
+        if (!analysisObj) {
+            throw new Error(`Formatter returned null for "${persona.name}"`);
+        }
+
+        return analysisObj;
     }
 
-    const duration = Date.now() - methodStart;
-    log?.info("VisionAnalysisAdapter", `formatStreamOfConsciousness completed for "${persona.name}"`, {
-      durationMs: duration,
-      scores: analysisObj?.scores,
-    });
-
-    if (!analysisObj) {
-      throw new Error(`Formatter returned null for "${persona.name}"`);
-    }
-
-    return analysisObj;
-  }
-
-  private buildSummarizerSystemPrompt(persona: Persona): string {
-    return `You are a summarizer. Given a persona's raw analysis of a pricing page, produce 3-5 concise bullet points.
+    private buildSummarizerSystemPrompt(persona: Persona): string {
+        return `You are a summarizer. Given a persona's raw analysis of a pricing page, produce 3-5 concise bullet points.
 
 Each bullet should be one sentence, capturing the most important finding.
 Focus on: what the persona liked, what concerned them, and their overall recommendation.
 
 Format: Return ONLY a JSON array of strings. No preamble. Example: ["Bullet 1", "Bullet 2", "Bullet 3"]`;
-  }
+    }
 
-  async summarizeStreamOfConsciousness(
-    persona: Persona,
-    stream: { text: string; personaId: string; personaName: string },
-    options: { runId?: string } = {}
-  ) {
-    const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
-    const methodStart = Date.now();
-    const TIMEOUT_MS = 60_000;
+    async summarizeStreamOfConsciousness(
+        persona: Persona,
+        stream: { text: string; personaId: string; personaName: string },
+        options: { runId?: string } = {}
+    ) {
+        const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+        const methodStart = Date.now();
+        const TIMEOUT_MS = 60_000;
 
-    log?.info("VisionAnalysisAdapter", `summarizeStreamOfConsciousness START for "${persona.name}"`);
+        log?.info("VisionAnalysisAdapter", `summarizeStreamOfConsciousness START for "${persona.name}"`);
 
-    const system = this.buildSummarizerSystemPrompt(persona);
+        const system = this.buildSummarizerSystemPrompt(persona);
 
-    const prompt = `Summarize this analysis from ${persona.name} into 3-5 bullet points:
+        const prompt = `Summarize this analysis from ${persona.name} into 3-5 bullet points:
 
 ---
 ${stream.text}
@@ -829,36 +788,36 @@ ${stream.text}
 
 Return ONLY a JSON array of strings.`;
 
-    const content = await Promise.race([
-      this.llmService.createChatCompletion(
-        [{ role: "user", content: prompt }],
-        {
-          temperature: 0.1,
-          model: this.llmService.smallTextModel,
-          response_format: { type: "json_object" },
-          purpose: `Summarize — ${persona.name}`,
-          runId: options.runId,
-        }
-      ),
-      new Promise<string>((_, reject) =>
-        setTimeout(() => reject(new Error(`Summarizer timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-      ),
-    ]);
+        const content = await Promise.race([
+            this.llmService.createChatCompletion(
+                [{ role: "user", content: prompt }],
+                {
+                    temperature: 0.1,
+                    model: this.llmService.smallTextModel,
+                    response_format: { type: "json_object" },
+                    purpose: `Summarize — ${persona.name}`,
+                    runId: options.runId,
+                }
+            ),
+            new Promise<string>((_, reject) =>
+                setTimeout(() => reject(new Error(`Summarizer timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+            ),
+        ]);
 
-    const duration = Date.now() - methodStart;
-    try {
-      const parsed = JSON.parse(content);
-      const bullets = Array.isArray(parsed) ? parsed : parsed.bullets || parsed.summary || [];
-      log?.info("VisionAnalysisAdapter", `summarizeStreamOfConsciousness completed for "${persona.name}"`, {
-        durationMs: duration,
-        bulletCount: bullets.length,
-      });
-      return bullets.filter((b: unknown) => typeof b === "string");
-    } catch {
-      log?.warn("VisionAnalysisAdapter", `summarizeStreamOfConsciousness parse failed for "${persona.name}"`, {
-        contentPreview: content.slice(0, 200),
-      });
-      return [];
+        const duration = Date.now() - methodStart;
+        try {
+            const parsed = JSON.parse(content);
+            const bullets = Array.isArray(parsed) ? parsed : parsed.bullets || parsed.summary || [];
+            log?.info("VisionAnalysisAdapter", `summarizeStreamOfConsciousness completed for "${persona.name}"`, {
+                durationMs: duration,
+                bulletCount: bullets.length,
+            });
+            return bullets.filter((b: unknown) => typeof b === "string");
+        } catch {
+            log?.warn("VisionAnalysisAdapter", `summarizeStreamOfConsciousness parse failed for "${persona.name}"`, {
+                contentPreview: content.slice(0, 200),
+            });
+            return [];
+        }
     }
-  }
 }

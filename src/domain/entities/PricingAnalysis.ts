@@ -38,28 +38,27 @@ export interface PricingAnalysis {
 }
 
 export const PricingAnalysisSchema = z.object({
-    gutReaction: z.string().describe("Your initial, visceral reaction to the page in one short sentence. Be blunt and use your personality."),
-    thoughts: z.string().describe("A structured evaluation using [The Good], [The Bad], and [The Dealbreaker] sections. Speak in first person as the persona. Be specific and grounded in what you see on the page."),
+    gutReaction: z.string().describe("Initial, visceral reaction to the page in one short sentence as the persona."),
+    thoughts: z.string().describe("Structured evaluation using [The Good], [The Bad], and [The Dealbreaker] sections in first person as the persona."),
     scores: z.object({
         clarity: z.number().min(1).max(10).describe("How clear is the pricing?"),
-        clarityReason: z.string().describe("1-2 sentences explaining why you gave this clarity score."),
-        valuePerception: z.number().min(1).max(10).describe("How is the perceived value?"),
-        valuePerceptionReason: z.string().describe("1-2 sentences explaining why you gave this value score."),
-        trust: z.number().min(1).max(10).describe("How much do you trust this page?"),
-        trustReason: z.string().describe("1-2 sentences explaining why you gave this trust score."),
-        explorationIntent: z.number().min(1).max(10).describe("Would you explore this further? Click around? Read more? 1=No interest, 10=Already trying to find the signup button."),
-        explorationIntentReason: z.string().describe("1-2 sentences explaining your exploration intent."),
-        analysisIntent: z.number().min(1).max(10).describe("Would you do a deep analysis? Compare with alternatives? Run a trial? 1=Not worth my time, 10=I'm already planning the pilot."),
-        analysisIntentReason: z.string().describe("1-2 sentences explaining your analysis intent."),
-        buyIntent: z.number().min(1).max(10).describe("How likely are you to actually purchase? 1=Never, 10=Ready to buy now."),
-        buyIntentReason: z.string().describe("1-2 sentences explaining your purchase intent."),
+        clarityReason: z.string().describe("1-2 sentences explaining the clarity score."),
+        valuePerception: z.number().min(1).max(10).describe("Perceived value score."),
+        valuePerceptionReason: z.string().describe("1-2 sentences explaining the value perception score."),
+        trust: z.number().min(1).max(10).describe("Trust score."),
+        trustReason: z.string().describe("1-2 sentences explaining the trust score."),
+        explorationIntent: z.number().min(1).max(10).describe("Exploration intent score."),
+        explorationIntentReason: z.string().describe("1-2 sentences explaining exploration intent."),
+        analysisIntent: z.number().min(1).max(10).describe("Analysis intent score."),
+        analysisIntentReason: z.string().describe("1-2 sentences explaining analysis intent."),
+        buyIntent: z.number().min(1).max(10).describe("Purchase intent score."),
+        buyIntentReason: z.string().describe("1-2 sentences explaining purchase intent."),
     }),
-    risks: z.array(z.string()).describe("3 specific risks or concerns, stated from your (the persona's) perspective. Ground each in something concrete you saw on the page."),
-    recommendations: z.array(z.string()).describe("2-3 imperative sentences directed AT THE COMPANY telling them what to change. NOT self-advice. WRONG: 'Check if the Pro plan has a free trial.' WRONG: 'Look for a job search tool.' CORRECT: 'Offer a free trial on the Pro plan.' CORRECT: 'Add a job search section.'"),
-    aiSuggestion: z.string().describe("ONE insight in YOUR (the persona's) first-person voice: what should THE COMPANY change to win YOU over? Reference something specific on the page. WRONG: 'Emerson, you should look for another tool.' WRONG: 'You should check for free trials.' CORRECT: 'I'd sign up tomorrow if you added a free trial to the Pro plan.' CORRECT: 'The one thing that would win me over is showing a student discount.'"),
-    summary: z.array(z.string()).optional().describe("3-5 concise bullet points summarizing the key findings. Each bullet should be one sentence."),
+    risks: z.array(z.string()).describe("3 concrete risks stated in first person from the persona's perspective."),
+    recommendations: z.array(z.string()).describe("2-3 imperative action items directed AT THE COMPANY starting with action verbs (e.g. 'Add', 'Offer', 'Reframe'). No advice to the user."),
+    aiSuggestion: z.string().describe("ONE imperative sentence directed AT THE COMPANY stating the single most critical change to win this persona over. Starts with an action verb. No pronouns (no 'I', 'my', 'you', or persona names)."),
+    summary: z.array(z.string()).optional().describe("3-5 concise bullet points summarizing key findings."),
 });
-
 
 export function validatePricingAnalysis(entity: PricingAnalysis): boolean {
     if (!entity || typeof entity !== "object") return false;
