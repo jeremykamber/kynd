@@ -205,7 +205,7 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
     expect(mockGenerateUseCase.execute).toHaveBeenCalledTimes(1);
     expect(mockGenerateUseCase.execute).toHaveBeenCalledWith(
       expect.any(String),
-      undefined,
+      expect.any(Function),
       expect.any(Number),
     );
 
@@ -383,7 +383,7 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
     );
 
     await expect(useCase.execute(transcripts)).rejects.toThrow(
-      'Only 0 interview(s) extracted successfully. Need at least 2.',
+      'No interviews extracted successfully. At least one is required.',
     );
 
     expect(poolSignals).not.toHaveBeenCalled();
@@ -405,16 +405,23 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 7b) Minimum 2 successful extractions requirement
+  // 7b) Single successful extraction is enough
   // ---------------------------------------------------------------------------
-  it('should throw when fewer than 2 extractions succeed', async () => {
+  it('should proceed when only 1 extraction succeeds', async () => {
     mockLlmService.extractInterviewSignals
       .mockResolvedValueOnce(baseSignal)
       .mockRejectedValueOnce(new Error('fail'))
       .mockRejectedValueOnce(new Error('fail'));
 
-    await expect(useCase.execute(transcripts)).rejects.toThrow(
-      'Only 1 interview(s) extracted successfully. Need at least 2.',
-    );
+    vi.mocked(poolSignals).mockReturnValue(mockDistribution);
+    vi.mocked(samplePersonas).mockResolvedValue([mockSampledSignals[0]]);
+    mockGenerateUseCase.execute.mockResolvedValue(mockPersonas);
+
+    const result = await useCase.execute(transcripts);
+
+    expect(result).toHaveLength(2);
+    expect(poolSignals).toHaveBeenCalled();
+    expect(samplePersonas).toHaveBeenCalled();
+    expect(mockGenerateUseCase.execute).toHaveBeenCalled();
   });
 });
