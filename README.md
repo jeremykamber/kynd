@@ -140,8 +140,8 @@ Tests live in two places, both run by `bun test` (Vitest, jsdom):
 | `src/**/__tests__/*.test.ts` | Unit / integration | Co-located with the code they cover. |
 | `test/*.test.ts`, `test/*.spec.ts` | Cross-layer and browser E2E | Specs spawn `next dev`, so the suite runs files serially (see `vitest.config.ts`). |
 
-`bun run release` runs `vitest.release.config.ts`, which excludes the non-deterministic files
-listed in that config. Keep that list empty unless something is genuinely broken.
+`bun run release` is the gate to run before pushing or demoing: `next build` (which typechecks)
+followed by the same Vitest suite.
 
 New to the browser specs? [`docs/E2E_TEST_GUIDE.md`](docs/E2E_TEST_GUIDE.md) covers the
 server-management and seeding patterns.

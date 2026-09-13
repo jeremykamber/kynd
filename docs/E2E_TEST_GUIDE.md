@@ -445,7 +445,7 @@ await page.waitForTimeout(500);
 
 ## Release Gate
 
-`bun run release` runs the production build (`next build`, which typechecks) followed by the deterministic test subset (`vitest run --config vitest.release.config.ts`) — no live LLM calls. Run it before any external demo, then do the human pass in `docs/RELEASE_CHECKLIST.md`.
+`bun run release` runs the production build (`next build`, which typechecks) followed by the Vitest suite — no live LLM calls. Run it before any external demo, then do the human pass in `docs/RELEASE_CHECKLIST.md`.
 
 Real-pipeline verification (with live LLM calls) is intentional and on-demand: use the `verify-kynd` skill (`bun scripts/verify-output.ts`) when prompts or pipeline structure change. See `.agents/skills/verify-kynd/SKILL.md`.
 
