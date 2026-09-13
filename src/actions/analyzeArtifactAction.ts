@@ -159,7 +159,7 @@ async function runLocally(
                     });
                 }
 
-                analysisResultStore.save(id, responses);
+                analysisResultStore.save(id, responses, synthesis ?? undefined);
                 storeCompleted(id);
                 stream.done({
                     step: "DONE",
