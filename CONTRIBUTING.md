@@ -76,11 +76,12 @@ it.
 
 ### Imports
 
-Use the `@/` alias (configured in `tsconfig.json`) — never `../../`:
+Cross-layer imports use the `@/` alias (configured in `tsconfig.json`). Sibling files — including a
+spec reaching the shared helper in a parent `__tests__/` — use relative paths:
 
 ```typescript
 import { Persona } from "@/domain/entities/Persona";
-import { cn } from "@/lib/utils";
+import { mockPersona } from "../../__tests__/test-utils";
 ```
 
 ### Layering
@@ -108,12 +109,14 @@ Log prefixes are `[ModuleName]`, optionally with a request id and purpose:
 
 ## Backend changes
 
-Anything outside the UI and server actions runs on the VPS. After merging a backend change:
+The VPS backend is `src/app/api/vps/*` plus `playwright-server.js` — the routes that run multi-minute
+LLM pipelines or drive a browser. `src/app/api/report/route.ts` is *not* one of them: it is a public
+Next.js route deployed with the rest of the app on Netlify. After merging a change to the VPS backend:
 
 ```bash
 # on the VPS, in the repo checkout
-git pull
-npm run build
+git pull origin dev
+bun run build
 npx pm2 restart ecosystem.config.js
 ```
 

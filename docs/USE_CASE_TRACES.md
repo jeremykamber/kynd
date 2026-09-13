@@ -251,7 +251,7 @@ src/app/(app)/dashboard/analyses/page.tsx (list + New Analysis form)
       │   ├─ new SynthesizeArtifactResultsUseCase(llmService).execute(
       │   │     completedResponses, researchQuestion,
       │   │     { runId, failedCount, totalPersonaCount: responses.length })
-      │   ├─ analysisResultStore.save(id, responses)
+      │   ├─ analysisResultStore.save(id, responses, synthesis ?? undefined)
       │   ├─ storeCompleted(id)
       │   └─ stream.done({ step: "DONE", analyses: responses, synthesis })
       │

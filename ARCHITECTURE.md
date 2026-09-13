@@ -24,7 +24,10 @@ Kynd is deliberately split, and the split explains most of the codebase's shape:
 Long-running work (multi-call LLM pipelines, browser automation) cannot run inside a serverless
 function, so those routes live on the VPS and are polled. `src/infrastructure/config.ts` decides
 which side executes: `shouldRunLocally()` returns `false` unless `FORCE_LOCAL=true`, so by default
-every server action delegates through `runRemote()` to `POST $VPS_BACKEND_URL/api/vps/<endpoint>`.
+the long-running actions — analysis, persona generation, interviews, chat, debate, and their
+pollers — delegate through `runRemote()` to `POST $VPS_BACKEND_URL/api/vps/<endpoint>`. Three
+actions never take that branch: `regenPersonaTraits` and `generateBatchTitleAction` build the LLM
+client in-process, and `applyCounterfactualTest` returns an empty result when running remote.
 
 `src/middleware.ts` guards `/api/vps/:path*`: it returns 404 unless `IS_VPS=true`, then requires
 `Authorization: Bearer $VPS_AUTH_TOKEN`. If you are debugging an "Unauthorized", start there.
@@ -52,10 +55,20 @@ infrastructure    Adapters implementing ports (LLM, browser, RAG, storage, loggi
 | `application` | `domain` | `infrastructure`, React, Next |
 | `infrastructure` | `domain`, application types | React, Next |
 | `actions` | `application`, `infrastructure` | Business logic |
-| `ui`, `app` | `actions`, `domain` shapes | `infrastructure` directly |
+| `ui`, `app` | `actions`, `domain` shapes | `infrastructure` directly (exceptions below) |
 
-The `infrastructure → application` edge is type-only. A port's *implementation* lives in
-`infrastructure`; the port itself is declared in `domain`.
+Three edges above are intent, not enforcement — fix these before citing the table as a rule:
+
+- `ui/stores/{analysis,persona,debate}Store.ts` import `infrastructure/services/indexedDBStorage`,
+  and `ui/hooks/useAnalysisFlow.ts` imports the `ArtifactInput` type from an adapter.
+- `src/app/api/report/route.ts`, the synchronous public report endpoint, builds
+  `RemotePlaywrightAdapter`, `LlmServiceImpl`, and `AnalysisLogger` itself.
+- `infrastructure` imports `application/interviewPipeline` for real: `ngramUtils` at runtime and
+  `ExtractedInterviewSignals` as a type. `domain/ports/LlmServicePort.ts` imports that same type,
+  so this inversion runs both ways; the pipeline's shared types and n-gram helpers belong inward,
+  in `domain` or `lib`.
+
+A port's *implementation* lives in `infrastructure`; the port itself is declared in `domain`.
 
 ## Directory map
 
@@ -201,8 +214,8 @@ analyses page → useAnalysisFlow → analyzeArtifactAction
   → AnalyzeArtifactUseCase
       intake      ArtifactIntakeAdapter (URL → RemotePlaywrightAdapter + HtmlSummarizer,
                                        or screenshot → pass-through)
-      per persona VisionAnalysisAdapter: cognitive stage stream → PersonaResponse
-      synthesis   synthesizeArtifactResults → ArtifactSynthesis
+      per persona VisionAnalysisAdapter: generateVisceralMonologue → extractPersonaResponse
+      synthesis   SynthesizeArtifactResultsUseCase → ArtifactSynthesis
   → analysisStore (Zustand + IndexedDB)
 ```
 

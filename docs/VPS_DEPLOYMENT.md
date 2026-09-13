@@ -17,7 +17,7 @@ Browser → Netlify (Next.js) → Server Actions → runRemote() → VPS API (po
 
 ## How It Works
 
-Server actions (`src/actions/*.ts`) check `shouldRunLocally()` from `src/infrastructure/config.ts`. It returns `true` only when `FORCE_LOCAL=true` is set — in production that variable is unset, so it returns `false`. This forces every server action to call `runRemote()`, which POSTs to `VPS_BACKEND_URL/api/vps/<endpoint>` with an `Authorization: Bearer <token>` header.
+Server actions (`src/actions/*.ts`) check `shouldRunLocally()` from `src/infrastructure/config.ts`. It returns `true` only when `FORCE_LOCAL=true` is set — in production that variable is unset, so it returns `false`, and the long-running actions call `runRemote()`, which POSTs to `VPS_BACKEND_URL/api/vps/<endpoint>` with an `Authorization: Bearer <token>` header. (`regenPersonaTraits` and `generateBatchTitleAction` build the LLM client in-process instead, and `applyCounterfactualTest` answers locally only.)
 
 The VPS runs a Next.js standalone build that only serves `/api/vps/*` routes. A middleware (`src/middleware.ts`) guards all these routes:
 1. Checks `IS_VPS=true` — if not set, returns 404 (prevents Netlify from exposing these routes)
@@ -73,7 +73,7 @@ Routes that make a single fast LLM call or do quick synchronous work can stay sy
 - `chat-with-panel` — streaming response (`ReadableStream`)
 - `debate` — streaming response (`text/event-stream` SSE)
 - `generate-similar-personas` — single synchronous pipeline call
-- `record-step` — synchronous DB save
+- `record-step` — appends a step; every third step it calls the LLM to refresh the session's short-term memory
 - `requests` — `GET` lists active request IDs, `POST` cancels one
 
 ### Adding a New Long-Running Route

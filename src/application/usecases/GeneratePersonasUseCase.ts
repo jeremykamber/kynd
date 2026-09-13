@@ -1,5 +1,5 @@
 import { Persona } from "@/domain/entities/Persona";
-import { LlmServicePort, PersonaPhase, PersonaPhaseProgress } from "../../domain/ports/LlmServicePort";
+import { LlmServicePort, PersonaPhase, PersonaPhaseProgress } from "@/domain/ports/LlmServicePort";
 
 export type PersonaGenerationProgressStep =
     | 'BRAINSTORMING_PERSONAS'

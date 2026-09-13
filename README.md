@@ -55,8 +55,17 @@ bun install
 cp .env.example .env
 ```
 
-Fill in at minimum `OPENROUTER_API_KEY`. See
-[Environment variables](#environment-variables) for the rest.
+Fill in at minimum `OPENROUTER_API_KEY`, then choose how the pipeline runs — the template leaves
+`VPS_BACKEND_URL` and `VPS_AUTH_TOKEN` unset, so a fresh checkout renders the site but cannot run an
+analysis:
+
+- **Against a backend**: set `VPS_BACKEND_URL` and `VPS_AUTH_TOKEN` to a running VPS
+  ([`docs/VPS_DEPLOYMENT.md`](docs/VPS_DEPLOYMENT.md)).
+- **Entirely on this machine**: set `FORCE_LOCAL=true` and
+  `PLAYWRIGHT_WS_ENDPOINT=ws://localhost:8081/playwright-ws`, then start
+  `node playwright-server.js` next to `bun dev` (step 3).
+
+See [Environment variables](#environment-variables) for the rest.
 
 ### 3. Run
 
@@ -67,10 +76,10 @@ bun dev
 Open <http://localhost:3000> for the marketing site, or <http://localhost:3000/dashboard> for
 the app.
 
-> **Where does the pipeline actually run?** Every server action calls `shouldRunLocally()`
-> (`src/infrastructure/config.ts`). It returns `false` unless `FORCE_LOCAL=true`, so by default
-> actions POST to a **remote backend** at `VPS_BACKEND_URL`. To run everything in-process
-> (including browser automation) on your machine:
+> **Where does the pipeline actually run?** The long-running server actions call
+> `shouldRunLocally()` (`src/infrastructure/config.ts`). It returns `false` unless
+> `FORCE_LOCAL=true`, so by default they POST to a **remote backend** at `VPS_BACKEND_URL`. To run
+> everything in-process (including browser automation) on your machine:
 >
 > ```bash
 > # terminal 1 — exposes Chromium over WebSocket on :8081

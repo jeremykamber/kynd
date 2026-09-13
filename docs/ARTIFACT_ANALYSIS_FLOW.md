@@ -140,7 +140,7 @@ User Input
 
 | File | Purpose |
 |------|---------|
-| `src/ui/dashboard/utils/fallbackSynthesis.ts` | Fallback synthesis when the LLM synthesis call fails — groups findings by word overlap |
+| `src/ui/dashboard/utils/fallbackSynthesis.ts` | Empty synthesis carrying the caller-known counts, for analyses that finished without server-side synthesis |
 
 ### VPS (`src/app/api/vps/`)
 
@@ -257,7 +257,7 @@ The VPS runs two PM2 processes:
 Build and deploy:
 ```bash
 git pull origin dev
-npm run build
+bun run build
 npx pm2 restart kynd-backend-engine
 ```
 

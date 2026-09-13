@@ -1,7 +1,7 @@
 # Persona Browser Agent — Architecture & Design
 
-> **PRE-IMPLEMENTATION DESIGN DOCUMENT — nothing described here exists in `src/`.**
-> There is no `PersonaBrowserAgent` and no Stagehand integration in the repository. This is a design sketch retained for reference only. For implemented persona behavior, see [PERSONA_INFERENCE_SYSTEM.md](./PERSONA_INFERENCE_SYSTEM.md) and [ARTIFACT_ANALYSIS_FLOW.md](./ARTIFACT_ANALYSIS_FLOW.md).
+> **PRE-IMPLEMENTATION DESIGN DOCUMENT — none of the components proposed here exist in `src/`.**
+> There is no `PersonaBrowserAgent`, no `PersonaBrowserAgentPort`, and no Stagehand integration in the repository. The browsing that does ship is artifact intake inside `AnalyzeArtifactUseCase`, which drives `RemotePlaywrightAdapter`. This is a design sketch retained for reference only. For implemented persona behavior, see [PERSONA_INFERENCE_SYSTEM.md](./PERSONA_INFERENCE_SYSTEM.md) and [ARTIFACT_ANALYSIS_FLOW.md](./ARTIFACT_ANALYSIS_FLOW.md).
 
 > **Status**: Design document — pre-implementation
 > **Date**: 2026-05-21
