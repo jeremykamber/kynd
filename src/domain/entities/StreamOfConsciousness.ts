@@ -1,9 +1,18 @@
+/**
+ * A raw first-person monologue produced by the persona while experiencing an
+ * artifact, paired with the identity that produced it.
+ */
 export interface StreamOfConsciousness {
   text: string;
   personaId: string;
   personaName: string;
 }
 
+/**
+ * Accepts a value shaped like StreamOfConsciousness whose text is long enough
+ * to be a real monologue (at least 20 characters) and whose identity is
+ * non-empty. Type guard: narrows `entity` on success.
+ */
 export function validateStreamOfConsciousness(
   entity: unknown
 ): entity is StreamOfConsciousness {

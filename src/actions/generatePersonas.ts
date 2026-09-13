@@ -3,7 +3,7 @@
 import { GeneratePersonasUseCase } from "@/application/usecases/GeneratePersonasUseCase";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 
-import { createStreamableValue } from "@ai-sdk/rsc";
+import { createStreamableValue, type StreamableValue } from "@ai-sdk/rsc";
 
 import { shouldRunLocally } from "@/infrastructure/config";
 import { storeProgress, storeCompleted } from "@/actions/getProgress";
@@ -29,7 +29,6 @@ async function runLocally(personaDescription: string, count: number, mode?: Pers
         return { streamData: stream.value, runId };
     }
 
-    // Initial progress
     await storeProgress(runId, { step: "BRAINSTORMING_PERSONAS" });
 
     (async () => {
@@ -51,7 +50,6 @@ async function runLocally(personaDescription: string, count: number, mode?: Pers
 
             const finalPersonas = JSON.parse(JSON.stringify(personas));
             stream.done({ step: "DONE", personas: finalPersonas });
-            // Store final results for polling consumers
             personaGenerationStore.save(runId, finalPersonas);
             await storeCompleted(runId);
         } catch (error) {
@@ -68,9 +66,14 @@ async function runLocally(personaDescription: string, count: number, mode?: Pers
 
 async function runRemote(personaDescription: string, count: number, mode?: PersonaGenerationMode) {
     const data = await vpsPost<{ runId: string }>("generate-personas", { personaDescription, count, mode });
-    return { streamData: undefined as unknown as ReturnType<typeof createStreamableValue>['value'], runId: data.runId };
+    return { streamData: undefined as unknown as StreamableValue, runId: data.runId };
 }
 
+/**
+ * Generates personas from a description. Resolves the runId without waiting:
+ * local mode streams progress via `streamData`; remote returns `streamData`
+ * undefined (poll getPersonaGenerationResultAction).
+ */
 export async function generatePersonasAction(
     personaDescription: string,
     count: number = 5,

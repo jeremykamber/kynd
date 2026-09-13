@@ -77,6 +77,20 @@ function formatPersonaDescription(signal: SampledPersonaSignal): string {
 
 export type InterviewGenerationMode = 'individual' | 'synthesized';
 
+/**
+ * Turns interview transcripts into personas.
+ *
+ * The default 'synthesized' pipeline extracts signals per transcript, pools
+ * them into a weighted distribution, samples representative signal sets (with
+ * an LLM coherence check), generates research-mode personas from them, and
+ * ingests each persona's backstory and signal chunks into the ID-RAG store so
+ * later citations can point at the source interviews. 'individual' mode instead
+ * generates personas from one interview at a time and performs no ingestion.
+ *
+ * Guarantees: rejects if no transcripts are given or every extraction fails;
+ * individually failed extractions are skipped while at least one succeeds.
+ * Extraction and generation run through the injected LlmServicePort.
+ */
 export class GeneratePersonasFromInterviewsUseCase {
     constructor(
         private llmService: LlmServicePort,
@@ -84,6 +98,13 @@ export class GeneratePersonasFromInterviewsUseCase {
         private generatePersonasUseCase: GeneratePersonasUseCase,
     ) { }
 
+    /**
+     * @param count In 'synthesized' mode, the number of personas to sample and
+     *   generate (default 5); in 'individual' mode, the per-interview persona
+     *   target.
+     * @param onProgress Emits the pipeline phase with counters; `personas` is
+     *   populated only on the final 'DONE' step.
+     */
     async execute(
         transcripts: { filename: string; content: string }[],
         onProgress?: (progress: InterviewPipelineProgress) => void,

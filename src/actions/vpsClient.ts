@@ -1,35 +1,22 @@
 /**
- * Shared VPS HTTP client for server actions.
- *
- * Every action that talks to the VPS backend duplicates the same boilerplate:
- * VPS_BACKEND_URL, Authorization header, JSON Content-Type, error handling.
- * This module owns that plumbing once. Each action provides only the endpoint
- * path and its request body — the client handles the rest.
- *
- * Ousterhout red flag addressed: Repetition (identical fetch boilerplate
- * across 8+ action files).
+ * HTTP client for the VPS backend. Server actions use these helpers so the
+ * base URL, bearer auth, and error handling are defined once. Endpoint
+ * arguments are path segments under `/api/vps/`.
  */
 
 import { VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
 
-export interface VpsResponse {
-  ok: boolean;
-  status: number;
-  data: unknown;
-  error?: string;
+function authorizationHeader(): Record<string, string> {
+  return { Authorization: `Bearer ${getVpsAuthToken()}` };
 }
 
-function authHeaders(): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${getVpsAuthToken()}`,
-  };
+function jsonHeaders(): Record<string, string> {
+  return { "Content-Type": "application/json", ...authorizationHeader() };
 }
 
 /**
- * POST JSON to a VPS endpoint. Returns the parsed response body on success,
- * or a VpsResponse with the error details on failure. Callers never need to
- * deal with fetch errors, non-2xx status codes, or response parsing.
+ * POST a JSON body to a VPS endpoint. Resolves with the parsed response body;
+ * throws when the response is not ok.
  */
 export async function vpsPost<T = unknown>(
   endpoint: string,
@@ -37,7 +24,7 @@ export async function vpsPost<T = unknown>(
 ): Promise<T> {
   const res = await fetch(`${VPS_BACKEND_URL}/api/vps/${endpoint}`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: jsonHeaders(),
     body: JSON.stringify(body),
   });
 
@@ -50,8 +37,8 @@ export async function vpsPost<T = unknown>(
 }
 
 /**
- * Raw POST to a VPS endpoint. Returns the fetch Response so callers can
- * read the body as a stream (for SSE/chunked responses).
+ * POST a JSON body and return the raw Response, for callers that stream the
+ * body (SSE/chunked). Does not throw on a non-ok status — check res.ok.
  */
 export async function vpsFetchRaw(
   endpoint: string,
@@ -59,14 +46,29 @@ export async function vpsFetchRaw(
 ): Promise<Response> {
   return fetch(`${VPS_BACKEND_URL}/api/vps/${endpoint}`, {
     method: "POST",
-    headers: authHeaders(),
+    headers: jsonHeaders(),
     body: JSON.stringify(body),
   });
 }
 
 /**
- * GET from a VPS endpoint. Used by polling actions (progress, results,
- * screenshots). Returns the parsed JSON body.
+ * POST a FormData body. Content-Type is left unset so fetch can add the
+ * multipart boundary; returns the raw Response (callers check res.ok).
+ */
+export async function vpsPostForm(
+  endpoint: string,
+  formData: FormData,
+): Promise<Response> {
+  return fetch(`${VPS_BACKEND_URL}/api/vps/${endpoint}`, {
+    method: "POST",
+    headers: authorizationHeader(),
+    body: formData,
+  });
+}
+
+/**
+ * GET a VPS endpoint with optional query params. Resolves with the parsed
+ * JSON body; throws when the response is not ok.
  */
 export async function vpsGet<T = unknown>(
   endpoint: string,
@@ -80,7 +82,7 @@ export async function vpsGet<T = unknown>(
   }
 
   const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${getVpsAuthToken()}` },
+    headers: authorizationHeader(),
   });
 
   if (!res.ok) {

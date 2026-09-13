@@ -1,9 +1,14 @@
 import { z } from "zod";
 import type { PersonaProfile } from "./PersonaProfile";
 
+/**
+ * A point of visual attention recorded on the analyzed page.
+ */
 export interface GazePoint {
+    /** Screenshot-relative pixel coordinates of the gaze target. */
     x: number;
     y: number;
+    /** What the persona was looking at (e.g. "Headline", "CTA Button"). */
     focusLabel: string;
 }
 
@@ -11,6 +16,10 @@ export interface GazePoint {
  * @deprecated Use PersonaResponse instead. This type is preserved for backward
  * compatibility during the transition to artifact-agnostic analysis.
  * It will be removed in a later phase.
+ *
+ * Pricing-era analysis shape: a first-person reaction plus six 1-10 scores
+ * (each with its rationale), risks, recommendations, and one headline
+ * suggestion.
  */
 export interface PricingAnalysis {
     id: string;
@@ -65,6 +74,11 @@ export const PricingAnalysisSchema = z.object({
     summary: z.array(z.string()).optional().describe("3-5 concise bullet points summarizing key findings."),
 });
 
+/**
+ * Checks a legacy pricing analysis has its required text fields and six
+ * 1-10 scores with non-empty rationales. `url`, `screenshotBase64`, and the
+ * optional fields are not checked.
+ */
 export function validatePricingAnalysis(entity: PricingAnalysis): boolean {
     if (!entity || typeof entity !== "object") return false;
     if (!entity.id || typeof entity.id !== "string") return false;

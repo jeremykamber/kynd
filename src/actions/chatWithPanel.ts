@@ -86,8 +86,9 @@ async function runRemote(
 }
 
 /**
- * Panel synthesis chat — question the whole cohort at once. Grounds the
- * answer in every persona's analysis response + the cross-persona synthesis.
+ * Streams a panel answer grounded in every persona's response + the
+ * synthesis. `streamData` streams the accumulated text ending as the full
+ * reply or `{ step: "ERROR" }`; local runs in-process, remote pipes the VPS.
  */
 export async function chatWithPanelAction(
   responses: PersonaResponse[],

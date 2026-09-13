@@ -4,8 +4,10 @@ import { InteractionStep } from "@/domain/entities/InteractionStep";
 import { stripCodeFence } from "./llmUtils";
 
 /**
- * Adapter for Memory Service using an LLM to summarize interaction history.
- * Implements IMemoryServicePort to provide "Current State of Mind" summaries.
+ * IMemoryServicePort implementation that summarizes a persona's recent browser
+ * interactions into a two-sentence "Current State of Mind". Talks directly to
+ * an OpenAI-compatible chat-completions endpoint with its own client (it does
+ * not route through LlmServiceImpl); the prompt is assembled here.
  */
 export class LlmMemoryAdapter implements IMemoryServicePort {
   private client: OpenAI;
@@ -17,7 +19,10 @@ export class LlmMemoryAdapter implements IMemoryServicePort {
   }
 
   /**
-   * Factory method to create an instance from environment variables.
+   * Builds an instance from OPENROUTER_BASE_URL (default
+   * https://openrouter.ai/api/v1), OPENROUTER_MODEL (default
+   * deepseek/deepseek-v4-flash), and OPENROUTER_API_KEY. Throws when the key is
+   * unset.
    */
   static createFromEnv(): LlmMemoryAdapter {
     const baseURL = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";

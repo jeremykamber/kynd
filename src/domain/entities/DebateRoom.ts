@@ -32,7 +32,8 @@ export interface DebateRoom {
 
 /**
  * Streaming events yielded by DebateAdapter.executeDebate().
- * Discriminated union — use `event.type` to narrow.
+ * Discriminated union — use `event.type` to narrow. `error` is terminal: no
+ * further event follows it.
  */
 export type DebateStreamEvent =
   | { type: "debate_start"; proposal: string; participants: string[] }

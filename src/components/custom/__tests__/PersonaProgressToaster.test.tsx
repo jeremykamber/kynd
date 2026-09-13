@@ -3,13 +3,11 @@ import { render, act, cleanup } from '@testing-library/react'
 import { PersonaProgressToaster } from '../PersonaProgressToaster'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Regression test for the duplicate-toast race: poll() is async and runs on a
 // 1s interval with no in-flight guard, so two overlapping executions can both
 // read the (then-empty) toast-id map and each create a fresh toast for the
 // same run. Sonner dedupes by id, so every toast call for a run must share
 // one id — a deterministic id derived from the runId.
-// ─────────────────────────────────────────────────────────────────────────────
 
 function deferred<T>() {
   let resolve!: (v: T) => void

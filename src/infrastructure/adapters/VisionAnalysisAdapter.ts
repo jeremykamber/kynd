@@ -6,9 +6,6 @@ import type { ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { CohortSynthesisContent } from "@/domain/entities/ArtifactSynthesis";
 import { LlmServiceImpl } from "./LlmServiceImpl";
-import { PersonaPromptCompiler } from "./PersonaPromptCompiler";
-import { IdRagStore } from "./IdRagStore";
-import { IdRagService } from "./IdRagService";
 import { streamObject } from "ai";
 import { PricingLocation } from "@/domain/ports/LlmServicePort";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -168,30 +165,18 @@ const CohortSynthesisSchema = z.object({
   ),
 });
 
+/**
+ * Artifact-analysis sub-adapter behind LlmServiceImpl. Runs the two-stage
+ * think-aloud pipeline — a persona reacts to the screenshot (visceral
+ * monologue), then the same text is mapped to a PersonaResponse — plus cohort
+ * synthesis across all transcripts. Prompts come from the exported
+ * buildVisceralMonologueSystemPrompt/buildPersonaExtractionSystemPrompt
+ * functions; completions and the vision LLM call go to its owning
+ * LlmServiceImpl (and through it the OpenAI-compatible provider). Internal to
+ * the LLM adapter, not a port implementation.
+ */
 export class VisionAnalysisAdapter {
-    private promptCompiler: PersonaPromptCompiler;
-    private ragStore: IdRagStore;
-    private ragService: IdRagService;
-    private ingestedPersonas: Set<string> = new Set();
-
-    constructor(private llmService: LlmServiceImpl) {
-        this.promptCompiler = new PersonaPromptCompiler();
-        this.ragStore = new IdRagStore();
-        this.ragService = new IdRagService(this.ragStore);
-    }
-
-    private ensureIngested(persona: Persona, runId?: string): void {
-        if (!this.ingestedPersonas.has(persona.id) && persona.backstory) {
-            this.ragStore.ingestPersona(persona);
-            this.ingestedPersonas.add(persona.id);
-            const log = runId ? AnalysisLogger.forRun(runId) : null;
-            log?.info("VisionAnalysisAdapter", `Ingested ${persona.name} backstory into ID-RAG store`, {
-                personaId: persona.id,
-                backstoryLength: persona.backstory.length,
-            });
-        }
-    }
-
+    constructor(private llmService: LlmServiceImpl) {}
 
     async generateVisceralMonologue(
         persona: Persona,

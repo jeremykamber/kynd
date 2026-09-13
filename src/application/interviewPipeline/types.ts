@@ -1,5 +1,6 @@
-/* Application-layer types for interview -> persona pipeline
- * Pure data interfaces only (no behavior)
+/**
+ * Application-layer types for the interview → persona pipeline.
+ * Pure data: no behavior.
  */
 
 export interface ExtractedSignal {
@@ -11,6 +12,7 @@ export interface ExtractedSignal {
   sourceSegmentId: string;
 }
 
+/** One interview's extracted signals, grouped by category. */
 export interface ExtractedInterviewSignals {
   interviewId: string;
   painPoints: ExtractedSignal[];
@@ -34,6 +36,11 @@ export interface WeightedItem {
   sourceExamples: string[];
 }
 
+/**
+ * Interview-wide aggregation produced by poolSignals. Every WeightedItem list
+ * is sorted by descending weight; `totalInterviews` is the denominator those
+ * weights were computed against.
+ */
 export interface PooledDistributionSummary {
   painPoints: WeightedItem[];
   goals: WeightedItem[];
@@ -49,6 +56,11 @@ export interface PooledDistributionSummary {
   totalInterviews: number;
 }
 
+/**
+ * One sampled persona blueprint. List fields hold several drawn signals; the
+ * single-item fields (context entries, communicationStyle, decisionPattern)
+ * are `undefined` when the corresponding pool was empty.
+ */
 export interface SampledPersonaSignal {
   id: string;
   painPoints: ExtractedSignal[];

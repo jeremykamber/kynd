@@ -1,12 +1,20 @@
 import { z } from "zod";
 
+/**
+ * How much a persona attribute is grounded in evidence: `observed` came
+ * straight from source material, `interpreted` was inferred from it, and
+ * `synthetic` was invented to fill a gap.
+ */
 export type TierLabel = 'observed' | 'interpreted' | 'synthetic';
 
+/** How a persona was constructed; mirrors Persona.generationMode. */
 export type PersonaGenerationMode = 'research' | 'strategy' | 'cluster';
 
+/** Provenance for one persona attribute. */
 export interface AttributeProvenance {
   attribute: string;
   tier: TierLabel;
+  /** 0-1. */
   confidence: number;
   evidence?: string;
   source?: string;
@@ -14,12 +22,15 @@ export interface AttributeProvenance {
   rationale?: string;
 }
 
+/** Per-attribute grounding for a persona, with an overall confidence score. */
 export interface PersonaProvenance {
   attributes: AttributeProvenance[];
   generationMode: PersonaGenerationMode;
+  /** 0-1, aggregated across attributes. */
   overallConfidence: number;
 }
 
+/** A direct excerpt from a source transcript that backs one persona attribute. */
 export interface EvidenceLink {
   transcriptId: string;
   excerpt: string;
@@ -27,6 +38,7 @@ export interface EvidenceLink {
   timestamp?: string;
 }
 
+/** What a cluster-mode persona represents: a group of interview subjects. */
 export interface ClusterInfo {
   representedCount: number;
   sourceIds: string[];

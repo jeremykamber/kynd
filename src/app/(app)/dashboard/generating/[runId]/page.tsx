@@ -52,6 +52,11 @@ function stepToIndex(step: string | undefined, steps: FlowStep[]): number {
   return 0
 }
 
+/**
+ * /dashboard/generating/[runId]: progress screen for a background persona run.
+ * The runId prefix ("persona-" / "pipeline-") selects which pipeline's step
+ * labels apply; the page polls every second for progress and for completion.
+ */
 export default function GeneratingPage() {
   const params = useParams()
   const router = useRouter()
@@ -78,14 +83,12 @@ export default function GeneratingPage() {
     const poll = async () => {
       if (!mountedRef.current) return
 
-      // Check for completion first
       const res = await getPersonaGenerationResultAction(runId)
       if (res.found) {
         if (mountedRef.current) setResult(res)
         return
       }
 
-      // Poll progress
       const p = await getProgressAction(runId)
       if (!p.found || !p.progress || !mountedRef.current) return
 
@@ -120,7 +123,6 @@ export default function GeneratingPage() {
       </button>
 
       {result ? (
-        /* ── Completion / Error state ── */
         <div className="rounded-xl border border-border bg-card p-8 md:p-12">
           {result.error ? (
             <div className="flex flex-col items-center gap-4 text-center">
@@ -148,7 +150,6 @@ export default function GeneratingPage() {
           )}
         </div>
       ) : (
-        /* ── Progress view ── */
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 sm:px-8 pt-6 pb-2 border-b border-border/40">
             <div className="flex items-center justify-between">

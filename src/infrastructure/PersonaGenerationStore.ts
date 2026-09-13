@@ -8,12 +8,15 @@ interface StoredPersonaGeneration {
 }
 
 /**
- * Server-side in-memory store for completed persona generation results.
- * Persona generation runs in a fire-and-forget IIFE on the VPS; this store
- * captures the final results so they can be fetched by a polling GET endpoint.
+ * Server-side in-memory store for completed persona-generation runs.
+ * Generation runs in a fire-and-forget IIFE (on the VPS or in-process); this
+ * store captures the final personas, or the failure, so a polling GET can
+ * fetch them after the original request has returned.
  *
- * Results are kept for 30 minutes after completion, then cleaned up.
- * Delegates to ExpiringStore for HMR-safe storage and TTL cleanup.
+ * Runs live for 30 minutes after the last save, then are dropped. Writes come
+ * from the generation actions/routes; reads come from
+ * `src/actions/getPersonaGenerationResult.ts` and
+ * `src/app/api/vps/persona-result/route.ts`.
  */
 class PersonaGenerationStore {
   private readonly store = new ExpiringStore<StoredPersonaGeneration>(

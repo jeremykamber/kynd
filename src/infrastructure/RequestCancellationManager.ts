@@ -28,14 +28,6 @@ class RequestCancellationManager {
   }
 
   /**
-   * Get the AbortSignal for a request ID.
-   */
-  getSignal(requestId: string): AbortSignal | null {
-    const request = this.activeRequests.get(requestId);
-    return request?.controller.signal || null;
-  }
-
-  /**
    * Cancel a specific request by ID.
    */
   cancelRequest(requestId: string): boolean {
@@ -49,19 +41,6 @@ class RequestCancellationManager {
     this.activeRequests.delete(requestId);
     console.log(`[RequestCancellation] Cancelled request: ${requestId}`);
     return true;
-  }
-
-  /**
-   * Cancel all active requests.
-   */
-  cancelAll(): number {
-    const count = this.activeRequests.size;
-    for (const [id, request] of this.activeRequests) {
-      request.controller.abort();
-    }
-    this.activeRequests.clear();
-    console.log(`[RequestCancellation] Cancelled all ${count} requests`);
-    return count;
   }
 
   /**

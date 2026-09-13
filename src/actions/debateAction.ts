@@ -93,8 +93,9 @@ async function runRemote(
 }
 
 /**
- * Server action for starting a multi-persona debate.
- * Uses local execution in development, VPS SSE fetch in production.
+ * Starts a multi-persona debate. Returns `streamData`, an async stream of
+ * DebateStreamEvents ending in `debate_end` or `error`. Local mode drives the
+ * DebateAdapter in-process; remote mode parses the VPS SSE response.
  */
 export async function debateAction(
   proposal: string,

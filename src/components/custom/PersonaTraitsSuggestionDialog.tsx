@@ -100,6 +100,12 @@ function DiffRow({ label, suggested, original, apply, onToggle }: {
   )
 }
 
+/**
+ * Review dialog for traits inferred from an edited backstory: each field is
+ * shown suggested-vs-original with per-field Apply/Keep toggles. While
+ * `suggestedTraits` is null it renders a loading state. On confirm it hands the
+ * parent a `{ field: shouldApply }` decision map and closes.
+ */
 export function PersonaTraitsSuggestionDialog({
   isOpen,
   onClose,
@@ -227,7 +233,6 @@ export function PersonaTraitsSuggestionDialog({
             </button>
           </div>
 
-          {/* OCEAN */}
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-card border border-border">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-2">Personality Traits (OCEAN)</h3>
             {oceanRows.map((row) => (
@@ -242,7 +247,6 @@ export function PersonaTraitsSuggestionDialog({
             ))}
           </div>
 
-          {/* Psychographics */}
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-card border border-border">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-2">Psychographics</h3>
             {psychoRows.map((row) => (

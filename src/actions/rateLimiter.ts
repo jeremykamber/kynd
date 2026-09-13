@@ -1,11 +1,7 @@
 /**
- * Shared rate limiter configuration for server actions.
- *
- * Extracted from analyzeArtifactAction, generatePersonas, and
- * generatePersonasFromInterviews which all duplicated the same
- * env-var parsing and RateLimiterMemory construction.
- *
- * Ousterhout red flag addressed: Repetition.
+ * Per-client-IP rate limiting for server actions. Each action calls
+ * createRateLimiter with its own key prefix so limits are independent, while
+ * all limiters share the env-configured budget.
  */
 
 import { headers } from 'next/headers';
@@ -16,6 +12,7 @@ const RATE_LIMIT_WINDOW_S = Math.floor(
   parseInt(process.env.AUDIT_RATE_LIMIT_WINDOW_MS || '60000') / 1000,
 );
 
+/** Creates a limiter whose counters are namespaced by `keyPrefix`. */
 export function createRateLimiter(keyPrefix: string): RateLimiterMemory {
   return new RateLimiterMemory({
     keyPrefix,
@@ -28,6 +25,11 @@ interface RateLimitRejection {
   msBeforeNext?: number;
 }
 
+/**
+ * Consumes one point for the caller's IP. Resolves `allowed: false` with the
+ * seconds to wait when the budget is exhausted; the IP falls back to
+ * `'unknown'` outside a request scope.
+ */
 export async function checkRateLimit(
   limiter: RateLimiterMemory,
 ): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {

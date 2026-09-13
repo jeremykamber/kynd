@@ -82,7 +82,6 @@ User Input
 | `ArtifactIntake.ts` | Normalized artifact input: screenshot, HTML, summary |
 | `ArtifactAnalysis.ts` | Container entity for a run |
 | `ArtifactSynthesis.ts` | Cross-persona synthesis: top findings, disagreements, frictions |
-| `GazePoint.ts` | Visual attention prediction (legacy) |
 | `PricingAnalysis.ts` | @deprecated Legacy pricing-specific entity |
 
 ### Ports (`src/domain/ports/`)

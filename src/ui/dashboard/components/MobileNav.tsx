@@ -12,6 +12,10 @@ function navLinkClass(active: boolean) {
   }`
 }
 
+/**
+ * Mobile-only top navigation for the three dashboard sections (hidden at `md`
+ * and up). The active link is derived from the current pathname.
+ */
 export function MobileNav() {
   const pathname = usePathname()
 

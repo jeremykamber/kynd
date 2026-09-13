@@ -1,6 +1,6 @@
 /**
  * Loading skeleton for /dashboard/analyses.
- * Shows skeleton cards matching the AnalysisCard layout.
+ * Card shapes mirror the AnalysisCard rows they stand in for.
  */
 export default function AnalysesLoading() {
   return (

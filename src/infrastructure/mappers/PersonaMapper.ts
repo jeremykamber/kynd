@@ -1,3 +1,8 @@
+/**
+ * Boundary mapping between Persona entities and their persisted row shape.
+ * `dbToPersona` supplies defaults for fields absent from older rows so callers
+ * always receive a complete Persona.
+ */
 import { Persona } from '../../domain/entities/Persona'
 
 export function dbToPersona(db: any): Persona {

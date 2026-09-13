@@ -1,25 +1,20 @@
 "use server";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Server-side progress store for long-running VPS analyses.
-// The RSC stream (readStreamableValue) uses an in-memory promise chain that
-// dies when the user navigates away from the dashboard. Without a persistent
-// store, the analysis stays IN_PROGRESS forever because the DONE event is
-// never consumed by the disconnected client.
-//
-// This store acts as a side-channel: progress callbacks in the analysis
-// pipeline write here, and the analysis detail page polls for updates
-// after navigation. Combined with the AnalysisResultStore (which captures
-// the final analyses), this ensures progress visibility survives navigation.
-//
-// IMPORTANT: Do not import types from other modules. "use server" files are
-// transformed by the bundler and type imports can break at runtime.
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Progress side-channel for long-running runs. The RSC stream dies when a
+ * client navigates away, so the pipeline writes progress here and pages poll
+ * it after navigation. The store is in-memory and per server process: entries
+ * do not survive a restart or reach another instance.
+ *
+ * Do not import types from other modules here — "use server" files are
+ * rewritten by the bundler and such imports can break at runtime.
+ */
 
 import { shouldRunLocally } from "@/infrastructure/config";
 import { progressMap } from "@/infrastructure/progressStore";
 import { vpsGet } from "./vpsClient";
 
+/** Progress fields reported for a run; absent fields are omitted. */
 export interface ProgressState {
   step?: string;
   streamingText?: string;
@@ -34,6 +29,10 @@ export interface ProgressState {
   title?: string;
 }
 
+/**
+ * Merges the defined fields of `state` into the run's stored progress;
+ * undefined fields are ignored.
+ */
 export async function storeProgress(runId: string, state: ProgressState): Promise<void> {
   const existing = progressMap.get(runId) || {};
   const clean = Object.fromEntries(
@@ -43,11 +42,17 @@ export async function storeProgress(runId: string, state: ProgressState): Promis
   console.log(`[PROGRESS_STORE] Saved for ${runId}: step=${state.step ?? existing.step ?? '?'}, completed=${state.completedResponses ?? existing.completedResponses ?? '?'}/${state.totalResponses ?? existing.totalResponses ?? '?'}, hasCompleted=${!!state.hasCompleted}, error=${state.error ?? 'none'}`);
 }
 
+/** Marks a run finished and records an optional error message. */
 export async function storeCompleted(runId: string, errorMsg?: string): Promise<void> {
   console.log(`[PROGRESS_STORE] markCompleted for ${runId}`);
   await storeProgress(runId, { step: 'DONE', hasCompleted: true, error: errorMsg });
 }
 
+/**
+ * Returns a run's stored progress: local mode reads the in-memory store,
+ * remote mode GETs the VPS. Resolves `{ found: false }` when the run is
+ * unknown or the VPS errors.
+ */
 export async function getProgressAction(runId: string): Promise<{
   found: boolean;
   progress?: ProgressState;

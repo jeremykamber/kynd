@@ -8,50 +8,53 @@ Fuller conventions live in `CONTRIBUTING.md` (workflow, tests, conventions) and 
 
 ---
 
-## 1. Hexagonal Pattern (DTO + Use Case)
+## 1. Port → Use Case → Adapter
 
-*Use this when a feature has real business rules that must be independent of React, Next.js, and the LLM.*
+*Use this when a feature has real rules that must stay independent of React, Next.js, and the LLM. The
+use case depends on a port; an adapter in infrastructure implements it.*
 
-### Domain DTO (`src/domain/dtos/UserDTO.ts`)
+### Port (`src/domain/ports/IMemoryServicePort.ts`)
 
 ```typescript
-export interface UserDTO {
-  id: string
-  username: string
-  email: string
-  password: string
+import { InteractionStep } from '../entities/InteractionStep'
+
+export interface IMemoryServicePort {
+  summarizeSteps(steps: InteractionStep[]): Promise<string>
 }
 ```
 
-### Port (`src/domain/ports/UserRepositoryPort.ts`)
+### Use Case (`src/application/usecases/RecordStepUseCase.ts`)
 
 ```typescript
-import { User } from '../entities/User'
+export class RecordStepUseCase {
+  constructor(private readonly memoryService: IMemoryServicePort) { }
 
-export interface UserRepositoryPort {
-  saveUser(user: User): Promise<void>
-  findUserByEmail(email: string): Promise<User | null>
-  updateUser(user: User): Promise<void>
-  deleteUser(id: string): Promise<void>
+  async execute(session: TestingSession, step: InteractionStep): Promise<TestingSession> {
+    const updatedSteps = [...session.steps, step];
+
+    let updatedMemory = session.shortTermMemory;
+
+    if (updatedSteps.length > 0 && updatedSteps.length % 3 === 0) {
+      updatedMemory = await this.memoryService.summarizeSteps(updatedSteps);
+    }
+
+    return { ...session, steps: updatedSteps, shortTermMemory: updatedMemory };
+  }
 }
 ```
 
-### Use Case (`src/application/usecases/RegisterUserUseCase.ts`)
+### Adapter (`src/infrastructure/adapters/LlmMemoryAdapter.ts`)
 
 ```typescript
-import { UserRepositoryPort } from '../../domain/ports/UserRepositoryPort'
-import { UserDTO } from '../../domain/dtos/UserDTO'
-import { User } from '../../domain/entities/User'
+export class LlmMemoryAdapter implements IMemoryServicePort {
+  constructor(private client: OpenAI, private model: string) { }
 
-export class RegisterUserUseCase {
-  constructor(private repo: UserRepositoryPort) {}
+  static createFromEnv(): LlmMemoryAdapter {
+    // Reads OPENROUTER_BASE_URL, OPENROUTER_MODEL, OPENROUTER_API_KEY; throws when the key is unset.
+  }
 
-  async execute(dto: UserDTO): Promise<void> {
-    const user = User.fromDTO(dto)
-    if (!user.validate()) throw new Error('Invalid user')
-    const existing = await this.repo.findUserByEmail(user.email)
-    if (existing) throw new Error('Email already registered')
-    await this.repo.saveUser(user)
+  async summarizeSteps(steps: InteractionStep[]): Promise<string> {
+    // Assembles the prompt here and calls the chat-completions endpoint.
   }
 }
 ```

@@ -28,7 +28,6 @@ export function Slider({
   onChange,
   className,
 }: SliderProps) {
-  // Compute fill percentage for the active track
   const fillPercent = ((value - min) / (max - min)) * 100
 
   return (
@@ -42,16 +41,12 @@ export function Slider({
         </span>
       </div>
 
-      {/* Custom range slider */}
       <div className="relative h-6 flex items-center">
-        {/* Track background */}
         <div className="absolute left-0 right-0 h-1.5 rounded-sm bg-muted" />
-        {/* Active track fill */}
         <div
           className="absolute left-0 h-1.5 rounded-sm bg-primary transition-[width] duration-150"
           style={{ width: `${fillPercent}%` }}
         />
-        {/* Tick marks */}
         {showTickMarks && (
           <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 flex items-center justify-between pointer-events-none">
             {Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) => {
@@ -69,7 +64,7 @@ export function Slider({
             })}
           </div>
         )}
-        {/* Native range input (invisible, captures gestures) */}
+        {/* Invisible native input: the visuals are the divs above, this captures the gestures. */}
         <input
           type="range"
           min={min}
@@ -98,7 +93,6 @@ export function Slider({
         />
       </div>
 
-      {/* Labels */}
       {(leftLabel || rightLabel) && (
         <div className="flex justify-between text-[10px] text-muted-foreground/60 font-medium">
           <span>{leftLabel ?? ""}</span>

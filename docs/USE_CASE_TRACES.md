@@ -151,11 +151,9 @@ PersonaChat.tsx / PersonaChatInline.tsx
       │   analysis: ChatAnalysisContext = PricingAnalysis | PersonaResponse | null
       │   (src/actions/chatWithPersona.ts)
       ├─ LlmServiceImpl.createFromEnv("openrouter")
-      ├─ new ChatWithPersonaUseCase(llmService)
-      │   └─ executeStream(persona, analysis, message, history)
-      │       └─ llmService.chatWithPersonaStream(persona, analysis, message, history)
-      │           └─ LlmServiceImpl.chatWithPersonaStream()
-      │               └─ ChatAdapter.chatWithPersonaStream()
+      ├─ llmService.chatWithPersonaStream(persona, analysis, message, history)
+      │   └─ LlmServiceImpl.chatWithPersonaStream()
+      │       └─ ChatAdapter.chatWithPersonaStream()
       │
       └─ action iterates the AsyncIterable, cumulatively stream.update(fullText)
           → client reads with readStreamableValue
@@ -194,8 +192,8 @@ ChatAdapter.chatWithPersonaStream(persona, analysis, message, history)
        purpose: "Streaming Chat" }) → AsyncIterable<string>
 ```
 
-`ChatWithPersonaUseCase.execute` is the non-streaming sibling (collects the same stream into one string
-via `LlmServiceImpl.chatWithPersona`); the action uses `executeStream`.
+The non-streaming sibling is `LlmServiceImpl.chatWithPersona` (collects the same stream into one
+string); the action uses the streaming form.
 
 ### Panel chat (whole cohort)
 
@@ -203,19 +201,16 @@ via `LlmServiceImpl.chatWithPersona`); the action uses `executeStream`.
 PanelChat.tsx  (src/ui/dashboard/components/chat/PanelChat.tsx)
   └─ chatWithPanelAction(responses, synthesis, message, history)
       │   (src/actions/chatWithPanel.ts)
-      └─ ChatWithPanelUseCase.executeStream(responses, synthesis, message, history)
-          └─ llmService.chatWithPanelStream(...)
-              └─ ChatAdapter.chatWithPanelStream(...)
-                  └─ ChatPromptCompiler.compilePanelMessages({ responses, synthesis, … })
-                      → llmService.createChatCompletionStream(..., purpose: "Panel Synthesis Chat")
+      └─ llmService.chatWithPanelStream(responses, synthesis, message, history)
+          └─ ChatAdapter.chatWithPanelStream(...)
+              └─ ChatPromptCompiler.compilePanelMessages({ responses, synthesis, … })
+                  → llmService.createChatCompletionStream(..., purpose: "Panel Synthesis Chat")
 ```
 
 ### Key Entities / Adapters
 
 | Symbol | File | Role |
 |--------|------|------|
-| `ChatWithPersonaUseCase` | `src/application/usecases/ChatWithPersonaUseCase.ts` | Thin orchestrator, delegates to `LlmServicePort` |
-| `ChatWithPanelUseCase` | `src/application/usecases/ChatWithPanelUseCase.ts` | Cohort-level research-synthesis voice |
 | `ChatAdapter` | `src/infrastructure/adapters/ChatAdapter.ts` | Prompt compilation, ID-RAG retrieval, 4-turn re-grounding, streaming |
 | `ChatPromptCompiler` | `src/infrastructure/adapters/ChatPromptCompiler.ts` | Assembles OpenAI message arrays for persona + panel chat |
 | `PersonaPromptCompiler` | `src/infrastructure/adapters/PersonaPromptCompiler.ts` | Compartmentalised persona prompt, archetype anchor |
@@ -307,7 +302,7 @@ execute(input, personas, businessGoal, researchQuestion, onProgress, abortSignal
   │
   └── Return PersonaResponse[] (Promise.allSettled; zero responses → throw)
 
-Synthesis (src/application/usecases/synthesizeArtifactResults.ts)
+Synthesis (src/application/usecases/SynthesizeArtifactResultsUseCase.ts)
   └─ SynthesizeArtifactResultsUseCase.execute(completedResponses, researchQuestion, options)
       ├─ transcripts = responses.map(rawAnalysis + personaId + personaName)
       ├─ llmService.generateCohortSynthesis(researchQuestion, transcripts, options)

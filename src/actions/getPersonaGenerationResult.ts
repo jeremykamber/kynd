@@ -5,6 +5,7 @@ import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore"
 import { shouldRunLocally } from "@/infrastructure/config";
 import { vpsGet } from "./vpsClient";
 
+/** Outcome of getPersonaGenerationResultAction; `personas` is set only when found. */
 export interface PersonaGenerationResult {
   found: boolean;
   personas?: Persona[];
@@ -12,6 +13,11 @@ export interface PersonaGenerationResult {
   completedAt?: string;
 }
 
+/**
+ * Returns a completed persona generation: local mode reads the in-memory
+ * store, remote mode GETs the VPS. Resolves `{ found: false }` when unknown,
+ * still running, or on a VPS error.
+ */
 export async function getPersonaGenerationResultAction(runId: string): Promise<PersonaGenerationResult> {
   if (shouldRunLocally()) {
     const result = personaGenerationStore.get(runId);

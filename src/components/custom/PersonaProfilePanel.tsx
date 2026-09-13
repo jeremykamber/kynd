@@ -2,7 +2,6 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { MinimalCard } from "./MinimalCard"
 import { PersonaAvatar } from "./PersonaAvatar"
-import { StatusBadge } from "./StatusBadge"
 import { CopyIcon, GitForkIcon, XIcon, AlertTriangleIcon } from "lucide-react"
 import {
   Dialog,
@@ -23,6 +22,12 @@ export interface PersonaProfilePanelProps extends React.HTMLAttributes<HTMLDivEl
   onDelete?: (personaId: string) => void
 }
 
+/**
+ * Compact persona card for the batch grid: identity, two Big Five bars and a
+ * psychographic snapshot, plus optional delete, create-variant and chat
+ * actions. The delete confirmation reads `useAnalysisStore` to warn when the
+ * persona has already been used in analyses; it owns no persistence itself.
+ */
 export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onDelete, className, ...props }: PersonaProfilePanelProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
 
@@ -78,7 +83,6 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
           <div className="h-px w-full bg-border/40" />
 
           <div className="flex flex-col gap-3">
-            {/* Big Five: show the two most distinctive traits */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-end gap-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest min-w-0 truncate">Conscientiousness</span>
@@ -107,7 +111,6 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
               </div>
             </div>
 
-            {/* Psychographic snapshot */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {persona.values?.slice(0, 2).map((v, i) => (
                 <span key={i} className="text-[11px] font-medium text-primary/80 bg-primary/10 px-2 py-0.5 rounded-sm truncate max-w-[100px]">

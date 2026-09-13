@@ -109,9 +109,7 @@ src/
 | `PersonaProfile` | Presentation-layer snapshot used by reports and chat |
 | `DebateRoom` | Multi-persona debate state |
 | `InteractionStep` / `TestingSession` / `StreamOfConsciousness` | Step recording and think-aloud capture |
-| `User` | Account |
 | `PricingAnalysis` | **Legacy** pricing-specific entity — `@deprecated` in favour of `PersonaResponse` |
-| `GazePoint` | Visual attention prediction |
 
 `Persona` is the one entity whose schema is written for an LLM contract: it pairs the TypeScript
 interface with a Zod schema so generated output can be validated.
@@ -123,10 +121,7 @@ interface with a Zod schema so generated output can be validated.
 | `LlmServicePort` | The application's single LLM façade: persona generation (three modes), artifact analysis, chat, interview signal extraction, rationalization, debate support |
 | `BrowserServicePort` | Navigate, scroll, capture viewport, locate element, extract cleaned HTML |
 | `IDebateServicePort` | Run a multi-round, multi-persona debate; yields streamed events |
-| `IGazePredictionPort` | Predict gaze points on a screenshot for a persona |
 | `IMemoryServicePort` | Summarize recorded interaction steps into a running context |
-| `DatabaseServicePort` | Table-oriented CRUD over a client-side store |
-| `UserRepositoryPort` | User CRUD |
 
 `LlmServicePort` is intentionally large: it is a façade over an LLM provider, and callers should
 not care which prompt or model backs a given operation. `LlmServiceImpl` owns the adapters and
@@ -137,13 +132,10 @@ delegates.
 | Use case | Does |
 | --- | --- |
 | `AnalyzeArtifactUseCase` | Intake → per-persona analysis → response assembly |
-| `synthesizeArtifactResults` (function) | Cohort synthesis across persona responses |
+| `SynthesizeArtifactResultsUseCase` | Cohort synthesis across persona responses |
 | `GeneratePersonasUseCase` | Generate personas from a description; dispatches research / strategy / cluster modes |
 | `GeneratePersonasFromInterviewsUseCase` | Full interview pipeline: extract → pool → sample → generate → ID-RAG ingest |
-| `ChatWithPersonaUseCase` / `ChatWithPanelUseCase` | Single-persona and cohort chat |
-| `DebateUseCase` | Multi-round persona debate |
 | `RecordStepUseCase` | Append an interaction step and refresh session memory |
-| `RegisterUserUseCase`, `LoginUserUseCase`, `EditUserUseCase`, `DeleteUserUseCase` | User lifecycle |
 
 The interview pipeline's pure steps live in `src/application/interviewPipeline/` (chunking,
 n-gram fingerprinting, pooling, weighted sampling) and are unit-tested independently of the LLM.
@@ -232,7 +224,7 @@ debate runs turn-based rounds through `DebateAdapter`.
 | --- | --- | --- |
 | Persona batches | `ui/stores/personaStore.ts` (Zustand + localStorage) | Reload |
 | Analyses | `ui/stores/analysisStore.ts` (Zustand + IndexedDB) | Reload |
-| Debates, user | `ui/stores/debateStore.ts`, `userStore.ts` | Reload |
+| Debates | `ui/stores/debateStore.ts` | Reload |
 | In-flight run results | `infrastructure/AnalysisResultStore.ts`, `PersonaGenerationStore.ts` (globalThis, HMR-safe) | Process only |
 | Progress for pollers | `infrastructure/progressStore.ts` | Process only |
 | Cancellation | `infrastructure/RequestCancellationManager.ts` | Process only |

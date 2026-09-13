@@ -1,12 +1,13 @@
 /**
- * Generic in-memory store with automatic TTL-based cleanup.
+ * Namespaced in-memory map whose entries expire on their own: a key is dropped
+ * CLEANUP_MS after its last write. An instance is a view onto one globalThis-
+ * backed map, so the fire-and-forget task that writes entries and the request
+ * that later reads them keep sharing the same data across Next.js HMR reloads,
+ * which otherwise reset module-level state.
  *
- * Survives Next.js HMR via globalThis keys — the running IIFE writes to the
- * original Map, and polling reads from it; without this, hot reload wipes
- * the in-memory data while the old instance still owns it.
- *
- * Extracted from AnalysisResultStore and PersonaGenerationStore to eliminate
- * duplicated cleanup/storage logic (Ousterhout red flag: Repetition).
+ * Process-local only — nothing is shared between server instances, and there is
+ * no persistence. Callers must pass key strings that are unique across every
+ * ExpiringStore in the process; all instances share one global key registry.
  */
 
 const CLEANUP_MS = 30 * 60 * 1000; // 30 minutes

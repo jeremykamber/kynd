@@ -13,8 +13,7 @@ about what they actually saw. The full stack:
 - UI: `src/ui/dashboard/components/chat/PersonaChat.tsx` (modal),
   `PersonaChatInline.tsx` (tab), `PanelChat.tsx` (cohort modal, new).
 - Action: `src/actions/chatWithPersona.ts`, `src/actions/chatWithPanel.ts`
-  (both dual-mode: local via use cases, remote via VPS API routes).
-- Use cases: `ChatWithPersonaUseCase`, `ChatWithPanelUseCase`.
+  (both dual-mode: local in the action, remote via VPS API routes).
 - Domain port: `LlmServicePort.chatWithPersonaStream`, `chatWithPanelStream`.
 - Adapter: `ChatAdapter` (ID-RAG backstory grounding) → `ChatPromptCompiler`
   → `LlmServiceImpl.createChatCompletionStream` (OpenRouter).
@@ -34,8 +33,8 @@ about what they actually saw. The full stack:
 
 ## Panel (cohort) synthesis chat
 
-`PanelChat` + `chatWithPanelAction` → `ChatWithPanelUseCase` →
-`chatWithPanelStream` → `ChatPromptCompiler.compilePanelMessages`. It answers
+`PanelChat` + `chatWithPanelAction` → `llmService.chatWithPanelStream` →
+`ChatPromptCompiler.compilePanelMessages`. It answers
 "what would our users think of X?" grounded in ALL responses + the
 `ArtifactSynthesis`. No persona identity — it's a research-synthesis voice.
 VPS route: `POST /api/vps/chat-with-panel` (mirrors chat-with-persona).

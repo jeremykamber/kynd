@@ -12,6 +12,11 @@ interface AudienceViewProps {
   analysisFlow: ReturnType<typeof useAnalysisFlow>
 }
 
+/**
+ * Pre-analysis audience view: shows generated persona cards and runs artifact
+ * analysis for the whole batch through `analysisFlow`. Owns the
+ * persona-detail modal and per-persona chat state.
+ */
 export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
@@ -68,7 +73,6 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
         </div>
       )}
 
-      {/* Detail Modal */}
       <PersonaDetailModal
         persona={selectedPersona ?? null}
         isOpen={isDetailModalOpen}

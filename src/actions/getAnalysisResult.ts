@@ -6,6 +6,11 @@ import { analysisResultStore } from "@/infrastructure/AnalysisResultStore";
 import { shouldRunLocally } from "@/infrastructure/config";
 import { vpsGet } from "./vpsClient";
 
+/**
+ * Returns a completed analysis: local mode reads the in-memory store, remote
+ * mode GETs the VPS. Resolves `{ found: false }` when the run is unknown,
+ * still running, or the VPS errors.
+ */
 export async function getAnalysisResultAction(runId: string): Promise<{
   found: boolean;
   analyses?: PersonaResponse[];

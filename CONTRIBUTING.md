@@ -71,7 +71,8 @@ real pipeline and judges the raw output against the persona schema and pipeline 
 | Constants | `UPPER_SNAKE_CASE` | `OPENROUTER_API_KEY` |
 | Booleans | `is` / `has` prefix | `isPending` |
 
-The one legacy exception is `IChatServicePort`, which predates the convention. Do not copy it.
+Two older ports still carry an `I` prefix (`IMemoryServicePort`, `IDebateServicePort`); new ports omit
+it.
 
 ### Imports
 

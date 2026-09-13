@@ -36,6 +36,10 @@ import { BehavioralDimensionSchema } from "./BehavioralDimension";
  * - research: evidence-first, minimal invention, no fabricated memories
  * - strategy: richer storytelling, representative assumptions, optimized for imagination
  * - cluster: synthetic representative from multiple interview signals
+ *
+ * Score ranges: Big Five and behavioral dimensions are 0-100; provenance
+ * confidence is 0-1. `valueEvidence`/`fearEvidence` are index-parallel to
+ * `values`/`fears` when present (element i backs element i).
  */
 export interface Persona {
   id: string;
@@ -199,11 +203,22 @@ export const PersonaSchema = z.object({
     .describe("PB&J rationales — causal explanations connecting the persona's profile to their values, fears, and decisions"),
 });
 
+/**
+ * Validates `entity` against PersonaSchema.
+ * @returns true when every required field is present and well-typed; optional
+ *   fields are only checked when present.
+ */
 export function validatePersona(entity: unknown): boolean {
   if (!entity || typeof entity !== 'object') return false;
   return PersonaSchema.safeParse(entity).success;
 }
 
+/**
+ * Renders a persona as a flat text block with one `Label: value` line per
+ * field, grouped into sections (Big Five, behavioral dimensions, provenance,
+ * evidence links, cluster info). Missing or empty values render as "—" so the
+ * layout stays stable; a non-object input renders as just "—".
+ */
 export function stringifyPersona(entity: unknown): string {
   if (!entity || typeof entity !== 'object') return "—";
   const p = entity as Record<string, unknown>;

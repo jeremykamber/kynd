@@ -5,12 +5,13 @@ import { GeneratePersonasUseCase } from "@/application/usecases/GeneratePersonas
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { IdRagStore } from "@/infrastructure/adapters/IdRagStore";
 
-import { createStreamableValue } from "@ai-sdk/rsc";
+import { createStreamableValue, type StreamableValue } from "@ai-sdk/rsc";
 
-import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
+import { shouldRunLocally } from "@/infrastructure/config";
 import { storeProgress, storeCompleted } from "@/actions/getProgress";
 import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
 import { createRateLimiter, checkRateLimit } from "./rateLimiter";
+import { vpsPostForm } from "./vpsClient";
 
 const pipelineRateLimiter = createRateLimiter('pipeline');
 
@@ -88,15 +89,8 @@ async function runLocally(formData: FormData) {
     return { streamData: stream.value, runId };
 }
 
-// FormData can't go through vpsPost (JSON-only); uses raw fetch with auth headers.
 async function runRemote(formData: FormData) {
-    const res = await fetch(`${VPS_BACKEND_URL}/api/vps/generate-personas-from-interviews`, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${getVpsAuthToken()}`,
-        },
-        body: formData,
-    });
+    const res = await vpsPostForm("generate-personas-from-interviews", formData);
 
     if (!res.ok) {
         const errBody = await res.text().catch(() => res.statusText);
@@ -104,9 +98,17 @@ async function runRemote(formData: FormData) {
     }
 
     const data = await res.json();
-    return { streamData: undefined as unknown as ReturnType<typeof createStreamableValue>['value'], runId: data.runId as string };
+    return { streamData: undefined as unknown as StreamableValue, runId: data.runId as string };
 }
 
+/**
+ * Generates personas from uploaded transcripts. Resolves the runId without
+ * waiting: local mode streams progress via `streamData`; remote returns
+ * `streamData` undefined (poll getPersonaGenerationResultAction).
+ *
+ * FormData needs one or more `files`/`file_*` entries; optional `count`
+ * (1–20) and `mode` (`individual` | `synthesized`).
+ */
 export async function generatePersonasFromInterviewsAction(formData: FormData) {
     if (shouldRunLocally()) return runLocally(formData);
     return runRemote(formData);

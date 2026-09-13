@@ -9,6 +9,12 @@ export const GENERIC_ERROR_SUMMARY = 'Something went wrong'
 
 const MAX_SUMMARY_CHARS = 160
 
+/**
+ * Returns the first non-blank line of `message`, trimmed and capped at 160
+ * characters (an ellipsis is appended when truncation happens). JSON/array
+ * blobs collapse to `GENERIC_ERROR_SUMMARY`; blank input yields
+ * `'Unknown error'`. The result is always a single non-empty line.
+ */
 export function summarizeError(message: string): string {
   const firstLine = message
     .split('\n')

@@ -87,6 +87,11 @@ async function runRemote(
   return { streamData: stream.value };
 }
 
+/**
+ * Streams one persona's chat reply (grounded in the persona + analysis).
+ * `streamData` is a stream of the accumulated text ending as the full reply
+ * or `{ step: "ERROR" }`; local runs in-process, remote pipes the VPS.
+ */
 export async function chatWithPersonaAction(
   persona: Persona,
   analysis: ChatAnalysisContext,

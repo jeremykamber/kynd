@@ -1,4 +1,3 @@
-// ─── Shared test data & helpers for VPS API route tests ─────────────────────
 import type { Persona } from "@/domain/entities/Persona";
 import type { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import type { TestingSession } from "@/domain/entities/TestingSession";
@@ -6,7 +5,6 @@ import type { InteractionStep } from "@/domain/entities/InteractionStep";
 import type { CriticEvaluation } from "@/domain/entities/CriticEvaluation";
 import type { GazePoint } from "@/domain/entities/PricingAnalysis";
 
-// ── Mock data ───────────────────────────────────────────────────────────────
 
 export const mockPersona: Persona = {
   id: "persona-1",
@@ -83,7 +81,6 @@ export const mockGazePoints: GazePoint[] = [
   { x: 70, y: 60, focusLabel: "CTA Button" },
 ];
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 export async function collectStream(
   stream: ReadableStream<Uint8Array>,

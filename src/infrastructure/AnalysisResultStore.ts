@@ -10,14 +10,16 @@ interface StoredAnalysis {
 }
 
 /**
- * Server-side in-memory store for completed analysis results.
- * Analyses run in a fire-and-forget IIFE inside the server action.
- * When the client disconnects (reload/navigate away), the IIFE continues
- * running but the streaming response has no reader. This store captures
- * the results so they can be fetched on reconnection.
+ * Server-side in-memory store for completed artifact-analysis results.
+ * Analyses run in a fire-and-forget IIFE inside the server action; when the
+ * client disconnects (reload/navigate away), the IIFE keeps running with no
+ * reader on the streaming response. This store captures the final results (or
+ * the failure) so `getAnalysisResult`/the VPS result routes can serve them to
+ * the reconnecting client.
  *
- * Results are kept for 30 minutes after completion, then cleaned up.
- * Delegates to ExpiringStore for HMR-safe storage and TTL cleanup.
+ * Results live for 30 minutes after the last save, then are dropped. Writes
+ * come from the analysis run; reads come from `src/actions/getAnalysisResult.ts`
+ * and `src/app/api/vps/analyze-result/route.ts`.
  */
 class AnalysisResultStore {
   private readonly store = new ExpiringStore<StoredAnalysis>(

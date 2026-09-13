@@ -1,8 +1,6 @@
-// ─── POST /api/vps/generate-similar-personas ────────────────────────────────
-// Takes a reference Persona plus Big-Five trait adjustments and a variation
-// level, and generates N similar-but-distinct personas. Returns the full
-// array of Persona objects as JSON once generation is complete.
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Generates N variations of a reference persona from Big-Five adjustments and
+// a variation level, returning them synchronously as JSON (no runId polling).
 
 import { NextRequest, NextResponse } from "next/server";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";

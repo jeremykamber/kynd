@@ -4,15 +4,18 @@ import { Persona } from "@/domain/entities/Persona";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { createStreamableValue } from "@ai-sdk/rsc";
 
+/** Lifecycle step of a variation-generation run. */
 export type SimilarPersonaProgressStep = "GENERATING" | "DONE" | "ERROR";
 
+/** Payload streamed by generateSimilarPersonasAction. */
 export interface SimilarPersonaProgress {
   step: SimilarPersonaProgressStep;
   personas?: Persona[];
   error?: string;
 }
 
-import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
+import { shouldRunLocally } from "@/infrastructure/config";
+import { vpsFetchRaw } from "./vpsClient";
 
 async function runLocally(
   referencePersona: Persona,
@@ -62,14 +65,7 @@ async function runRemote(
 
   (async () => {
     try {
-      const res = await fetch(`${VPS_BACKEND_URL}/api/vps/generate-similar-personas`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getVpsAuthToken()}`,
-        },
-        body: JSON.stringify({ referencePersona, adjustments, count }),
-      });
+      const res = await vpsFetchRaw("generate-similar-personas", { referencePersona, adjustments, count });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
@@ -88,6 +84,11 @@ async function runRemote(
   return { streamData: stream.value };
 }
 
+/**
+ * Generates variation personas around a reference persona. Returns
+ * `streamData`, a stream emitting GENERATING, then DONE with the new personas
+ * or ERROR. Local mode calls the LLM in-process; remote mode POSTs to the VPS.
+ */
 export async function generateSimilarPersonasAction(
   referencePersona: Persona,
   adjustments: {

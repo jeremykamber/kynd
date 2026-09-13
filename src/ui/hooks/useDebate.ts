@@ -7,15 +7,25 @@ import type { Persona } from "@/domain/entities/Persona";
 import type { DebateRoom, DebateStreamEvent, DebateMessage } from "@/domain/entities/DebateRoom";
 
 /**
- * Hook for managing a debate session.
- * Handles starting a debate, consuming streaming events, and updating the store.
+ * Debate session driver.
+ *
+ * Owns no local state: every debate, message, round and status lives in
+ * `useDebateStore` (persisted; only the transient `isStreaming` flag is not).
+ * `startDebate` inserts a room in
+ * `setup` status, runs `debateAction`, and folds the streamed debate events
+ * into the store — one placeholder message per persona filled by `chunk`
+ * events — then resolves once the stream reports `debate_end`/`error` (or ends
+ * without a terminal event, which is treated as completed). The caller
+ * observes progress by subscribing to the store's debate status and
+ * `isStreaming`; the promise resolves with the debate id only after streaming
+ * has finished.
  */
 export function useDebate() {
   const store = useDebateStore();
 
   /**
-   * Start a new debate with the given proposal, participants, and rounds.
-   * Creates the debate in the store, calls the server action, and consumes events.
+   * Runs a full debate to completion and returns its id. The promise settles
+   * when streaming ends, not when the debate is created.
    */
   const startDebate = useCallback(
     async (
@@ -25,7 +35,6 @@ export function useDebate() {
     ): Promise<string> => {
       const debateId = `debate-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-      // Create the debate in setup state
       const debate: DebateRoom = {
         id: debateId,
         proposal,
@@ -38,7 +47,6 @@ export function useDebate() {
       };
       store.addDebate(debate);
 
-      // Track the current persona being streamed
       let currentPersonaId: string | null = null;
       let currentMessageId: string | null = null;
       let streamingContent = "";
@@ -65,7 +73,7 @@ export function useDebate() {
               currentMessageId = crypto.randomUUID();
               streamingContent = "";
 
-              // Add an empty placeholder message that will be filled by chunks
+              // Added empty, then filled by this persona's chunk events.
               store.addMessage(debateId, {
                 id: currentMessageId,
                 personaId: event.personaId,
@@ -80,7 +88,6 @@ export function useDebate() {
             case "chunk":
               if (currentPersonaId === event.personaId) {
                 streamingContent += event.text;
-                // Update the last message content (replace placeholder)
                 const debate = store.getDebate(debateId);
                 if (debate && currentMessageId) {
                   const updatedMessages = debate.messages.map((m) =>
@@ -137,8 +144,8 @@ export function useDebate() {
   );
 
   /**
-   * Add a user interjection message to an active debate.
-   * This pauses streaming and injects a user message into the transcript.
+   * Appends a user message to the debate transcript. No-op when the debate is
+   * not in the store; it does not pause or otherwise affect streaming.
    */
   const interject = useCallback(
     (debateId: string, content: string) => {

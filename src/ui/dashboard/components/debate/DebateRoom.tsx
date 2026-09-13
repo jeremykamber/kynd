@@ -6,8 +6,9 @@ import { DebateMessageBubble } from "./DebateMessageBubble";
 import { Send, CopyIcon, CheckIcon } from "lucide-react";
 
 /**
- * Main debate room UI.
- * Shows the active debate's messages, round separators, progress, and input bar.
+ * Active-debate view: messages grouped by round plus an interjection box.
+ * Reads the debate matching `activeDebateId` from the debate store and appends
+ * user interjections directly to it.
  */
 export function DebateRoom() {
   const debates = useDebateStore((s) => s.debates);
@@ -19,7 +20,6 @@ export function DebateRoom() {
   const [copied, setCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
   }, [activeDebate?.messages]);
@@ -46,8 +46,6 @@ export function DebateRoom() {
   const handleInterject = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !activeDebateId) return;
-    // Interjection will be handled by the useDebate hook
-    // For now, the store tracks the message
     useDebateStore.getState().addMessage(activeDebateId, {
       id: crypto.randomUUID(),
       personaId: "user",
@@ -60,7 +58,6 @@ export function DebateRoom() {
     setInput("");
   };
 
-  // Group messages by round for separator rendering
   const messagesByRound = activeDebate.messages.reduce<
     Record<number, typeof activeDebate.messages>
   >((acc, msg) => {
@@ -74,7 +71,6 @@ export function DebateRoom() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {/* Header */}
       <div className="shrink-0 px-6 py-4 border-b border-border/40">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-0.5">
@@ -112,7 +108,6 @@ export function DebateRoom() {
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className="mt-3 flex gap-1">
           {Array.from({ length: activeDebate.totalRounds }, (_, i) => {
             const roundNum = i + 1;
@@ -134,13 +129,11 @@ export function DebateRoom() {
         </div>
       </div>
 
-      {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scrollbar">
         {Object.entries(messagesByRound).map(([roundStr, messages]) => {
           const roundNum = Number(roundStr);
           return (
             <div key={roundStr} className="flex flex-col gap-4">
-              {/* Round separator */}
               <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-border" />
                 <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -149,7 +142,6 @@ export function DebateRoom() {
                 <div className="h-px flex-1 bg-border" />
               </div>
 
-              {/* Messages in this round */}
               {messages.map((msg) => {
                 const persona = msg.personaId !== "user"
                   ? getPersona(msg.personaId)
@@ -173,7 +165,6 @@ export function DebateRoom() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input bar */}
       {activeDebate.status === "in_progress" && (
         <div className="shrink-0 px-6 py-4 border-t border-border/40 bg-card">
           <form

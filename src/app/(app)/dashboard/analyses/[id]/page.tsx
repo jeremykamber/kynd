@@ -13,6 +13,9 @@ import { exportAnalysisAsPdf } from '@/lib/exportPdf'
 import type { Persona } from '@/domain/entities/Persona'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { MajorFinding } from '@/domain/entities/MajorFinding'
+import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
+import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
+import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import type { StageSentiment, StageOutcome } from '@/domain/entities/StageJourney'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
@@ -21,10 +24,8 @@ import { PanelChat } from '@/ui/dashboard/components/chat/PanelChat'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
 import { CitationTooltip, type EvidenceCitation } from '@/components/custom/CitationTooltip'
 import { RawThinkAloudSheet } from '@/components/custom/RawThinkAloudSheet'
-// Slice B owns SynthesizedFinding.citations; narrow it structurally here so
-// this page compiles before Slice B's type lands. Replace with the typed
-// field on merge.
-function citationsOf(finding: import('@/domain/entities/ArtifactSynthesis').SynthesizedFinding): EvidenceCitation[] {
+/** Citations on a finding, dropping any entry that lacks the fields the UI reads. */
+function citationsOf(finding: SynthesizedFinding): EvidenceCitation[] {
   if (!finding || typeof finding !== 'object' || !('citations' in finding)) return []
   const citations: unknown = finding.citations
   if (!Array.isArray(citations)) return []
@@ -74,6 +75,12 @@ function StageOutcomeBadge({ outcome }: { outcome: StageOutcome }) {
   )
 }
 
+/**
+ * /dashboard/analyses/[id]: the full report for one analysis, read from the
+ * client analysis store. While the analysis is IN_PROGRESS the page polls the
+ * server result/progress stores, both to keep the view current and to recover
+ * runs whose RSC stream was cut off by a reload or navigation.
+ */
 export default function AnalysisDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -158,7 +165,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
         if (!result.found || !result.progress) return;
 
         const p = result.progress;
-        const updates: Partial<import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis> = {};
+        const updates: Partial<ArtifactAnalysis> = {};
 
         if (p.step) updates.currentStep = p.step as any;
         if (p.completedResponses !== undefined) updates.completedResponses = p.completedResponses;
@@ -314,8 +321,8 @@ function InProgressView({
   analysis,
   onUpdate,
 }: {
-  analysis: import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis
-  onUpdate: (updates: Partial<import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis>) => void
+  analysis: ArtifactAnalysis
+  onUpdate: (updates: Partial<ArtifactAnalysis>) => void
 }) {
   const currentStep = getCurrentStep(analysis.currentStep)
 
@@ -366,7 +373,7 @@ function InProgressView({
 function PersonaIdentityCard({
   profile,
 }: {
-  profile: import('@/domain/entities/PersonaProfile').PersonaProfile
+  profile: PersonaProfile
 }) {
   const sections = [
     {
@@ -453,7 +460,7 @@ function CompletedView({
   analysis,
   onRemove,
 }: {
-  analysis: import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis
+  analysis: ArtifactAnalysis
   onRemove: () => void
 }) {
   const analyses = analysis.responses as PersonaResponse[] | undefined
@@ -508,7 +515,6 @@ function CompletedView({
       {/* ── Executive Synthesis ─────────────────────────────── */}
       {synthesis && (
         <div className="flex flex-col gap-6">
-          {/* Persona completion status */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span>Completed: {synthesis.completedCount}/{synthesis.totalPersonaCount}</span>
@@ -525,7 +531,6 @@ function CompletedView({
             </button>
           </div>
 
-          {/* Research Question Answer */}
           {synthesis.researchQuestionAnswer && (
             <div className="rounded-lg border border-primary/10 bg-primary/5 p-5">
               <span className="text-xs font-semibold text-primary uppercase tracking-wider mb-2 block">Research Question</span>
@@ -533,7 +538,6 @@ function CompletedView({
             </div>
           )}
 
-          {/* Top Findings with Observed Counts */}
           {synthesis.topFindings.length > 0 && (
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -586,7 +590,6 @@ function CompletedView({
             </div>
           )}
 
-          {/* Disagreements */}
           {synthesis.disagreements.length > 0 && (
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -607,7 +610,6 @@ function CompletedView({
             </div>
           )}
 
-          {/* Biggest Frictions */}
           {synthesis.biggestFrictions.length > 0 && (
             <div className="flex flex-col gap-2">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
