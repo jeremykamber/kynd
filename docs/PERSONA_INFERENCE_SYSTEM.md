@@ -11,7 +11,7 @@ This document describes the inference-time persona construction system implement
 | File | Technique | Description |
 |------|-----------|-------------|
 | `src/infrastructure/adapters/PersonaPromptCompiler.ts` | T1+T3 | Compartmentalized prompt builder + persona anchors |
-| `src/infrastructure/adapters/PbjScaffoldEnhancer.ts` | T2 | PB&J psychological scaffold rationalization |
+| `src/infrastructure/adapters/PsychographicRationalizer.ts` | T2 | PB&J psychological scaffold rationalization |
 | `src/infrastructure/adapters/IdRagStore.ts` | T4 | In-memory vector store for ID-RAG |
 | `src/infrastructure/adapters/IdRagService.ts` | T4 | ID-RAG service (ingestion + retrieval) |
 | `src/infrastructure/adapters/InCharacterEvaluator.ts` | T5 | Psychometric interview evaluation |
@@ -19,14 +19,14 @@ This document describes the inference-time persona construction system implement
 | `src/infrastructure/adapters/ChatAdapter.ts` | T1+T3 | Updated to use compartmentalized prompts |
 | `src/domain/entities/Persona.ts` | T1 | Added epistemic boundaries, guardrails fields |
 | `src/infrastructure/adapters/__tests__/PersonaPromptCompiler.test.ts` | Tests | 7 unit tests |
-| `src/infrastructure/adapters/__tests__/PbjScaffoldEnhancer.test.ts` | Tests | 4 unit tests |
-| `src/infrastructure/adapters/__tests__/IdRagStore.test.ts` | Tests | 8 unit tests |
+| `src/infrastructure/adapters/__tests__/PsychographicRationalizer.test.ts` | Tests | 8 unit tests |
+| `src/infrastructure/adapters/__tests__/IdRagStore.test.ts` | Tests | 14 unit tests |
 | `src/infrastructure/adapters/__tests__/InCharacterEvaluator.test.ts` | Tests | 5 unit tests |
 | `src/infrastructure/adapters/__tests__/PiconEvaluator.test.ts` | Tests | 4 unit tests |
 | `src/infrastructure/adapters/__tests__/PersonaSystemIntegration.test.ts` | Tests | 6 integration tests |
 | `test/persona-system-e2e.test.ts` | Tests | 10 E2E verification tests |
 
-**Total: 44 new tests, all passing.**
+**Total: 54 tests across the files below (44 unit/integration + 10 E2E).**
 
 ---
 
@@ -36,15 +36,15 @@ This document describes the inference-time persona construction system implement
 
 **What changed:** The existing backstory generation was enhanced with PB&J-style psychological scaffold rationalization. Backstories are now automatically chunked with metadata tags for ID-RAG retrieval.
 
-**PB&J Scaffolds** (`PbjScaffoldEnhancer.ts`):
+**PB&J Scaffolds** (`PsychographicRationalizer.ts`):
 1. **Big Five Personality Roots** — Explains why the persona has each trait level based on plausible life experiences
-2. **Cognitive-Reflex Decision Style** — Describes System 1 vs System 2 thinking manifestations
+2. **Decision Style & Values Integration** — Describes how Big Five traits and decision style manifest in real-world decisions
 3. **Core Values & Risk Worldview** — Articulates values around money, risk, efficiency, trust
 
 Each scaffold generates a post-hoc rationale in parallel, with graceful degradation if individual scaffolds fail. Rationales are formatted as a `<<PSYCHOLOGICAL RATIONALES (PB&J)>>` appendix that can augment the backstory.
 
 **Test verification:**
-- `PbjScaffoldEnhancer.test.ts` — 4 tests (generation, formatting, partial failures, empty results)
+- `PsychographicRationalizer.test.ts` — 8 tests (generation, formatting, partial failures, empty results)
 
 ---
 
@@ -128,7 +128,7 @@ Refusal Patterns: [behaviors to decline]
 Compartmentalized prompt + `<<RETRIEVED MEMORY>>` section + persona anchor
 
 **Test verification:**
-- `IdRagStore.test.ts` — 8 tests (chunking, retrieval, ranking, formatting, edge cases)
+- `IdRagStore.test.ts` — 14 tests (chunking, retrieval, ranking, formatting, edge cases)
 - `PersonaSystemIntegration.test.ts` — Tests full hybrid prompt assembly
 
 ---
@@ -192,7 +192,7 @@ Compartmentalized prompt + `<<RETRIEVED MEMORY>>` section + persona anchor
 Persona Entity
   ├── enhanced with epistemic boundaries + guardrails (T1)
   ├── backstory chunked by IdRagStore (T4)
-  └── PBJScaffoldEnhancer generates psychological rationales (T2)
+  └── PsychographicRationalizer generates psychological rationales (T2)
 
 Interaction Flow:
   ChatAdapter

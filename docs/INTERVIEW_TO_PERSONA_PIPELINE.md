@@ -126,7 +126,7 @@ This avoids the r<0.26 ceiling entirely by not requiring trait extraction from s
 | `PersonaPromptCompiler` | Same — compartmentalized prompts + ID-RAG sections |
 | `IdRagStore` | Extended to also index interview-derived chunks (with source metadata) |
 | `IdRagService` | Same — retrieves top-K relevant chunks |
-| `PbjScaffoldEnhancer` | Same — generates rationales from persona signals |
+| `PsychographicRationalizer` | Same — generates rationales from persona signals |
 | `ChatAdapter` | Same — already uses all the above |
 | `Persona` entity | No schema changes needed — all fields already exist |
 
@@ -207,7 +207,7 @@ NOT automated yet: InCharacter/PICon evaluation, activation vector steering, emo
 ### 5.1 ExtractedInterviewSignals
 
 ```typescript
-// src/domain/entities/ExtractedInterviewSignals.ts
+// src/application/interviewPipeline/types.ts
 
 export interface ExtractedSignal {
   text: string;        // Normalized description of the signal
@@ -536,7 +536,7 @@ consistent with these signals.
 
 1. **Brainstorming** (existing): LlmService generates initial persona profile from description
 2. **Backstory** (existing): Batch generation of narrative backstories
-3. **PB&J** (existing): PbjScaffoldEnhancer generates psychological rationales consistent with extracted signals
+3. **PB&J** (existing): PsychographicRationalizer generates psychological rationales consistent with extracted signals
 4. **Insights** (existing): AiInsight generated from full persona
 
 The Persona entity schema needs NO changes — all fields already exist for Big Five, values, fears, communication style, decision style, domain expertise, epistemic boundaries, response constraints, refusal patterns, backstory, and aiInsight.
@@ -726,3 +726,46 @@ User sets a filter: "Show me personas with price sensitivity > 60."
 - Feng et al. (2026). PERSONA: Dynamic and Compositional Inference-Time Personality Control via Activation Vector Algebra. ICLR 2026. — Post-MVP optimization for precise trait control.
 - Guest, Bunce & Johnson (2006). How Many Interviews Are Enough? Field Methods. — Establishes data saturation at ~12 interviews for homogeneous populations.
 - NN Group (2021). How Many Participants for a UX Interview? — Recommends 5-8 interviews per persona segment for qualitative research.
+
+---
+
+## Domain Glossary
+
+Vocabulary for the interview-to-persona pipeline: ingesting interview transcripts, extracting observable signals, pooling them across participants, and sampling coherent synthetic personas from the distribution.
+
+### Vocabulary
+
+**Interview**: A single recorded conversation with one research participant. One transcript file = one Interview.
+_Avoid_: Transcript file, participant session
+
+**ExtractedInterviewSignals**: The structured output of analyzing one Interview — pain points, goals, values, feature desires, decision patterns, context, communication style, and salient quotes, each with verbatim source attribution. Defined in `src/application/interviewPipeline/types.ts` as an application-layer type (pure data, no behavior).
+
+**PooledDistributionSummary**: A frequency-weighted aggregate of signals across all interviews in a batch. Not a stored entity — computed on-the-fly by `poolSignals` in `src/application/interviewPipeline/pooling.ts`.
+
+**SampledPersonaSignal**: A single persona's signal set drawn from the pooled distribution via weighted random sampling (`samplePersonas` in `src/application/interviewPipeline/sampling.ts`), with one coherence-validation LLM call over the batch.
+
+**Persona**: A complete synthetic user with Big Five traits, psychographic spec, epistemic boundaries, behavioral guardrails, and narrative backstory. Schema in `src/domain/entities/Persona.ts`.
+
+**ID-RAG (Identity Retrieval-Augmented Generation)**: A retrieval system over a generic `Chunk` carrying `chunkType: "backstory" | "interview"` plus free-form `metadata`, so persona responses are grounded in both identity and source evidence. Implemented in `src/infrastructure/adapters/IdRagStore.ts`.
+
+### Relationships
+
+- An **Interview** produces exactly one **ExtractedInterviewSignals**
+- **ExtractedInterviewSignals** are pooled into one **PooledDistributionSummary** per batch
+- A **PooledDistributionSummary** is sampled into N **SampledPersonaSignal** sets
+- Each **SampledPersonaSignal** is formatted into a persona description and passed to research-mode generation (`LlmServicePort.generateResearchPersonas`) → produces one **Persona**
+- A **Persona** has backstory chunks and interview-derived chunks ingested into **ID-RAG**
+- ID-RAG retrieval at chat time returns both backstory and interview chunks with source metadata
+
+### Example dialogue
+
+> **Dev:** "So an interview upload triggers the whole pipeline? Extract, pool, sample, generate — all in one action?"
+> **Domain expert:** "Yes. One server action (`generatePersonasFromInterviews`) triggers `GeneratePersonasFromInterviewsUseCase`, which orchestrates extraction (parallel LLM calls through `LlmServicePort`, implemented by `InterviewSignalExtractor`), pooling (pure math), sampling (weighted draw + one coherence-validation call), then passes each sampled signal set into research-mode generation."
+
+### Resolved ambiguities
+
+- **`ExtractionAdapter`**: the pre-existing adapter did HTML→markdown summarization for pricing pages; the pipeline proposed a second `ExtractionAdapter` for transcript→signals. Resolved: the HTML adapter is `HtmlSummarizer`; interview extraction lives in `InterviewSignalExtractor`.
+- **`ExtractedInterviewSignals` placement**: proposed as a domain entity but has no business logic. Resolved: an application-layer type alongside the pooling/sampling logic in `src/application/interviewPipeline/`, not in `src/domain/entities/`.
+- **`IdRagStore` shape**: two separate stores (backstory + interview) violated DRY. Resolved: a generic `Chunk` with `chunkType: "backstory" | "interview"` and `metadata: Record<string, unknown>`; retrieve/format is type-agnostic, and chunking lives in `chunkBackstory` (exported from `IdRagStore.ts`) and `chunkInterviewSignals` (`src/application/interviewPipeline/chunkInterviewSignals.ts`).
+- **Pipeline orchestrator**: the 7-step flow lives in a single `GeneratePersonasFromInterviewsUseCase` in `src/application/usecases/`; the server action stays thin. It composes `LlmServicePort` (extraction + research-mode generation), the pure pooling/sampling functions, and `IdRagStore`.
+- **Adapter renames**: `PbjScaffoldEnhancer` → `PsychographicRationalizer` (`src/infrastructure/adapters/PsychographicRationalizer.ts`); `ExtractionAdapter` → `HtmlSummarizer`.
