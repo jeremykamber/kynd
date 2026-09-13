@@ -1,5 +1,5 @@
 "use server";
-import { createStreamableValue } from "@ai-sdk/rsc";
+import { createStreamableValue, type StreamableValue } from "@ai-sdk/rsc";
 import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUseCase";
 import { ArtifactIntakeAdapter, type ArtifactInput } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
@@ -13,7 +13,7 @@ import { analysisResultStore } from "@/infrastructure/AnalysisResultStore";
 import { storeProgress, storeCompleted } from "./getProgress";
 import { shouldRunLocally } from "@/infrastructure/config";
 import { vpsFetchRaw } from "./vpsClient";
-import { SynthesizeArtifactResultsUseCase } from "@/application/usecases/synthesizeArtifactResults";
+import { SynthesizeArtifactResultsUseCase } from "@/application/usecases/SynthesizeArtifactResultsUseCase";
 import { createRateLimiter, checkRateLimit } from "./rateLimiter";
 
 const auditRateLimiter = createRateLimiter('audit');
@@ -23,6 +23,11 @@ const PERSONA_TOKEN_LIMIT = Number.isFinite(rawPersonaTokenLimit) && rawPersonaT
     ? rawPersonaTokenLimit
     : 2000;
 
+/**
+ * Runs a full artifact analysis. Resolves the run id without waiting: local
+ * mode streams progress to DONE via `streamData`; remote mode returns
+ * `streamData` undefined (poll getProgressAction/getAnalysisResultAction).
+ */
 export async function analyzeArtifactAction(
     input: ArtifactInput,
     personas: Persona[],
@@ -67,7 +72,6 @@ async function runLocally(
         });
     });
 
-    // Rate limiting
     const rateLimit = await checkRateLimit(auditRateLimiter);
     if (!rateLimit.allowed) {
         log.warn("analyzeArtifactAction", "Rate limit exceeded", { retryAfter: rateLimit.retryAfterSeconds });
@@ -200,5 +204,5 @@ async function runRemote(
     });
     // NOTE: the VPS stores the run under ITS OWN runId when the request omits
     // one — we pass ours through so the client's polling key matches.
-    return { streamData: undefined as unknown as ReturnType<typeof createStreamableValue>['value'], requestId: data.runId };
+    return { streamData: undefined as unknown as StreamableValue, requestId: data.runId };
 }

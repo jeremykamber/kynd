@@ -15,7 +15,7 @@ import { AnalyzeArtifactUseCase, type AnalysisProgress } from "../src/applicatio
 import { RemotePlaywrightAdapter } from "../src/infrastructure/adapters/RemotePlaywrightAdapter";
 import { LlmServiceImpl } from "../src/infrastructure/adapters/LlmServiceImpl";
 import { ArtifactIntakeAdapter, type ArtifactInput } from "../src/infrastructure/adapters/ArtifactIntakeAdapter";
-import { SynthesizeArtifactResultsUseCase } from "../src/application/usecases/synthesizeArtifactResults";
+import { SynthesizeArtifactResultsUseCase } from "../src/application/usecases/SynthesizeArtifactResultsUseCase";
 import { AnalysisLogger } from "../src/infrastructure/AnalysisLogger";
 import type { Persona } from "../src/domain/entities/Persona";
 
