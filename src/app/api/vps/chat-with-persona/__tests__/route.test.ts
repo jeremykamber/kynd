@@ -2,18 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { mockPersona, mockAnalysis, collectStream } from "../../__tests__/test-utils";
 
-const mockChatWithPersonaExecuteStream = vi.hoisted(() => vi.fn());
+const mockChatWithPersonaStream = vi.hoisted(() => vi.fn());
 
-vi.mock("@/infrastructure/adapters/LlmServiceImpl", () => {
-  const LlmServiceImpl = class {
-    static createFromEnv = vi.fn(() => new LlmServiceImpl());
-  };
-  return { LlmServiceImpl };
-});
-
-vi.mock("@/application/usecases/ChatWithPersonaUseCase", () => ({
-  ChatWithPersonaUseCase: class {
-    executeStream = mockChatWithPersonaExecuteStream;
+vi.mock("@/infrastructure/adapters/LlmServiceImpl", () => ({
+  LlmServiceImpl: {
+    createFromEnv: vi.fn(() => ({
+      chatWithPersonaStream: mockChatWithPersonaStream,
+    })),
   },
 }));
 
@@ -22,7 +17,7 @@ describe("POST /api/vps/chat-with-persona", () => {
 
   it("streams text response from chat", async () => {
     // Route sends accumulated fullText each chunk, so single yield is correct.
-    mockChatWithPersonaExecuteStream.mockImplementation(async function* () {
+    mockChatWithPersonaStream.mockImplementation(async function* () {
       yield "Hello there!";
     });
 
@@ -49,7 +44,7 @@ describe("POST /api/vps/chat-with-persona", () => {
   });
 
   it("streams text when analysis is null", async () => {
-    mockChatWithPersonaExecuteStream.mockImplementation(async function* () {
+    mockChatWithPersonaStream.mockImplementation(async function* () {
       yield "No analysis available";
     });
 
