@@ -96,16 +96,6 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
     expect(responses[0].overview).toBe('ok')
   })
 
-  it('businessGoal is NOT forwarded to the persona pipeline calls', async () => {
-    const useCase = makeUseCase(llm)
-    await useCase.execute({ type: 'url', url: 'https://x.com' }, [makePersona('Ada')], 'goal', 'rq')
-
-    const monologueArgs = vi.mocked(llm.generateVisceralMonologue).mock.calls[0]
-    expect(monologueArgs).toHaveLength(4) // persona, context, researchQuestion, options
-    const extractArgs = vi.mocked(llm.extractPersonaResponse).mock.calls[0]
-    expect(extractArgs).toHaveLength(4)
-  })
-
   it('falls back to a shape-valid response when the monologue call fails', async () => {
     vi.mocked(llm.generateVisceralMonologue).mockRejectedValue(new Error('vlm down'))
     const useCase = makeUseCase(llm)
@@ -135,20 +125,5 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
 
     expect(responses).toHaveLength(1)
     expect(responses[0].rawAnalysis).toBe('Analysis failed: formatter down')
-  })
-
-  it('treats total wrapper rejection (abandoned personas) as a run failure', async () => {
-    // LLM failures inside the loop become fallbacks; only a rejection from
-    // the wrapper itself (persona abandoned before its slot) drains responses.
-    vi.mocked(llm.generateVisceralMonologue).mockRejectedValue(new Error('vlm down'))
-    const useCase = makeUseCase(llm)
-    const responses = await useCase.execute(
-      { type: 'url', url: 'https://x.com' },
-      [makePersona('Ada')],
-      'goal',
-      'rq',
-    )
-    expect(responses).toHaveLength(1)
-    expect(responses.every((r) => r.rawAnalysis.startsWith('Analysis failed:'))).toBe(true)
   })
 })

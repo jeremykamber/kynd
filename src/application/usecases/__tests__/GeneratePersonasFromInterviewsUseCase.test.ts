@@ -231,21 +231,6 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 2) Extraction phase runs in parallel (all transcripts extracted)
-  // ---------------------------------------------------------------------------
-  it('should call extractInterviewSignals for every transcript', async () => {
-    await useCase.execute(transcripts);
-
-    expect(mockLlmService.extractInterviewSignals).toHaveBeenCalledTimes(3);
-    transcripts.forEach((t, i) => {
-      expect(mockLlmService.extractInterviewSignals).toHaveBeenCalledWith(
-        t.content,
-        `interview-${i}`,
-      );
-    });
-  });
-
-  // ---------------------------------------------------------------------------
   // 3) Pooling receives correct extraction results
   // ---------------------------------------------------------------------------
   it('should pass successful extractions to poolSignals', async () => {

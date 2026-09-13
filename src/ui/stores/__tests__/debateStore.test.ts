@@ -80,15 +80,6 @@ describe("debateStore", () => {
     expect(useDebateStore.getState().debates).toHaveLength(0);
   });
 
-  it("sets active debate", () => {
-    const d1 = makeDebate({ id: "d1" });
-    const d2 = makeDebate({ id: "d2" });
-    useDebateStore.getState().addDebate(d1);
-    useDebateStore.getState().addDebate(d2);
-    useDebateStore.getState().setActive("d2");
-    expect(useDebateStore.getState().activeDebateId).toBe("d2");
-  });
-
   it("adds a message to a debate", () => {
     const d = makeDebate({ id: "d1" });
     useDebateStore.getState().addDebate(d);

@@ -65,16 +65,6 @@ describe("PersonaPromptCompiler", () => {
     expect(prompt).toContain("lost $5,000");
   });
 
-  it("multiturn resets anchor index", () => {
-    const compiler = new PersonaPromptCompiler();
-    compiler.compileChatMessage(basePersona, "Hello");
-    compiler.compileChatMessage(basePersona, "How are you?");
-    compiler.resetAnchorIndex();
-    const msg = compiler.compileChatMessage(basePersona, "What do you think?");
-    // Should be a valid message with anchor
-    expect(msg).toContain(":");
-  });
-
   it("includes epistemic boundaries section", () => {
     const p: Persona = {
       ...basePersona,

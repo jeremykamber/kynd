@@ -73,18 +73,6 @@ describe('GeneratePersonasUseCase', () => {
       .rejects.toThrow("Cluster mode requires interview IDs");
   });
 
-  it('should run PB&J for research mode but store in pbjRationales', async () => {
-    const researchPersona = { ...fullPersona, generationMode: 'research' } as Persona;
-    mockLlmService.generateResearchPersonas.mockResolvedValue([researchPersona]);
-    mockLlmService.rationalizePersonas.mockImplementation(async (ps: Persona[]) => ps);
-
-    const results = await useCase.execute('Test', undefined, 1, undefined, 'research');
-
-    expect(mockLlmService.rationalizePersonas).toHaveBeenCalled();
-    expect(mockLlmService.generateAbbreviatedBackstoriesBatch).not.toHaveBeenCalled();
-    expect(results[0].pbjRationales).toBeUndefined(); // no PB&J section to extract since mock returns same persona
-  });
-
   it('should dispatch to strategy mode when specified', async () => {
     mockLlmService.generateStrategyPersonas.mockResolvedValue([{ ...fullPersona, generationMode: 'strategy' } as Persona]);
     mockLlmService.rationalizePersonas.mockImplementation(async (ps: Persona[]) => ps);

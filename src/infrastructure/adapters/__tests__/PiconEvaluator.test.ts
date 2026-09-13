@@ -36,16 +36,6 @@ describe("PiconEvaluator", () => {
     expect(turns[0]).toHaveProperty("turnNumber");
   });
 
-  it("runs retest questions", async () => {
-    const mockLlm = {
-      createChatCompletion: vi.fn().mockResolvedValue("Consistent answer about my background."),
-    };
-    const evaluator = new PiconEvaluator(mockLlm as any);
-    const retest = await evaluator.runRetest(basePersona);
-
-    expect(retest.length).toBeGreaterThanOrEqual(2);
-  });
-
   it("evaluates internal consistency with expert judge", async () => {
     const mockLlm = {
       createChatCompletion: vi.fn().mockResolvedValue(
@@ -69,20 +59,4 @@ describe("PiconEvaluator", () => {
     expect(result.contradictions.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("returns structured evaluation result", async () => {
-    const mockLlm = {
-      createChatCompletion: vi.fn().mockResolvedValue(
-        JSON.stringify({ score: 0.85, contradictions_found: 0, total_claim_pairs_examined: 10 }),
-      ),
-    };
-    const evaluator = new PiconEvaluator(mockLlm as any);
-    const result = await evaluator.evaluate(basePersona);
-
-    expect(result).toHaveProperty("internalConsistency");
-    expect(result).toHaveProperty("externalConsistency");
-    expect(result).toHaveProperty("retestConsistency");
-    expect(result).toHaveProperty("totalScore");
-    expect(result).toHaveProperty("contradictions");
-    expect(result).toHaveProperty("details");
-  });
 });

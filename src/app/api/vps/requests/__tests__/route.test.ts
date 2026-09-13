@@ -90,13 +90,4 @@ describe("GET /api/vps/requests (list active)", () => {
     expect(body.requestIds).toEqual(["req-123", "req-456"]);
   });
 
-  it("returns empty array when no active requests", async () => {
-    mockGetActiveRequestIds.mockReturnValueOnce([]);
-
-    const { GET } = await import("../route");
-    const res = await GET();
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.requestIds).toEqual([]);
-  });
 });

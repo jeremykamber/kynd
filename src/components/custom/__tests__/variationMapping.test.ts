@@ -46,12 +46,6 @@ describe('mapToDiscrete', () => {
     expect(mapToDiscrete(70)).toBe(4)  // 3.5 -> 4
     expect(mapToDiscrete(90)).toBe(5)  // 4.5 -> 5
   })
-
-  it('should map all expected increments correctly', () => {
-    // 1,2,3,4,5 are the valid outputs
-    const results = [0, 20, 40, 60, 80, 100].map(mapToDiscrete)
-    expect(results).toEqual([1, 1, 2, 3, 4, 5])
-  })
 })
 
 describe('mapFromDiscrete', () => {

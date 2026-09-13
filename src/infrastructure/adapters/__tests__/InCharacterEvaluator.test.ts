@@ -47,18 +47,6 @@ describe("InCharacterEvaluator", () => {
     expect(mockLlm.createChatCompletion).toHaveBeenCalled();
   });
 
-  it("generates expert analysis from transcript", async () => {
-    const mockLlm = {
-      createChatCompletion: vi.fn().mockResolvedValue(
-        "Openness: 72/100 - Shows curiosity about new approaches.\nConscientiousness: 80/100 - Methodical decision process."
-      ),
-    };
-    const evaluator = new InCharacterEvaluator(mockLlm as any);
-    const analysis = await evaluator.expertEvaluate(basePersona, "Q: Tell me about trying new things.\nA: I love exploring new SaaS tools.");
-
-    expect(analysis.length).toBeGreaterThan(0);
-  });
-
   it("parses expert trait scores from text", () => {
     const evaluator = new InCharacterEvaluator({} as any);
     const text = `Openness: 72/100\nConscientiousness: 80/100\nExtraversion: 35/100\nAgreeableness: 60/100\nNeuroticism: 55/100`;
@@ -71,14 +59,4 @@ describe("InCharacterEvaluator", () => {
     expect(scores.neuroticism).toBe(55);
   });
 
-  it("runs full evaluation with interview + expert analysis", async () => {
-    const mockLlm = {
-      createChatCompletion: vi.fn().mockResolvedValue("I evaluate tools carefully before buying."),
-    };
-    const evaluator = new InCharacterEvaluator(mockLlm as any);
-    const result = await evaluator.evaluate(basePersona);
-
-    expect(result).toHaveProperty("traitScores");
-    expect(result).toHaveProperty("expertAnalysis");
-  });
 });

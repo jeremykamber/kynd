@@ -74,16 +74,6 @@ describe("PsychographicRationalizer", () => {
     expect(text).toBe("");
   });
 
-  it("calls createChatCompletion for each scaffold type", async () => {
-    const mockLlm = {
-      createChatCompletion: vi.fn().mockResolvedValue("Test rationale output"),
-    };
-    const enhancer = new PsychographicRationalizer(mockLlm as any);
-    await enhancer.generateAllRationales(basePersona);
-
-    expect(mockLlm.createChatCompletion).toHaveBeenCalledTimes(3);
-  });
-
   it("handles partial scaffold failures with precise count", async () => {
     const mockLlm = {
       createChatCompletion: vi

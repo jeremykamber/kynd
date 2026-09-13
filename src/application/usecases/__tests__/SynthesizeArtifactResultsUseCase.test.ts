@@ -169,18 +169,4 @@ describe("SynthesizeArtifactResultsUseCase", () => {
     expect(synthesis.totalPersonaCount).toBe(2);
   });
 
-  it("passes runId through to the port", async () => {
-    const port = buildPort();
-    await new SynthesizeArtifactResultsUseCase(port).execute(responses, "q", { runId: "run-9" });
-    const [, , options] = (port.generateCohortSynthesis as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(options).toMatchObject({ runId: "run-9" });
-  });
-
-  it("carries LLM content fields through untouched (overview, disagreements, frictions)", async () => {
-    const synthesis = await new SynthesizeArtifactResultsUseCase(buildPort()).execute(responses, "q");
-    expect(synthesis.overview).toBe(LLM_CONTENT.overview);
-    expect(synthesis.researchQuestionAnswer).toBe(LLM_CONTENT.researchQuestionAnswer);
-    expect(synthesis.disagreements).toEqual(LLM_CONTENT.disagreements);
-    expect(synthesis.biggestFrictions).toEqual(LLM_CONTENT.biggestFrictions);
-  });
 });

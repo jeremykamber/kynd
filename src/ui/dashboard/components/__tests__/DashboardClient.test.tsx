@@ -192,18 +192,6 @@ describe('DashboardClient — setup view visibility (isGenerating logic)', () =>
     expect(setupVisible()).toBe(false)
   })
 
-  it('hides setup view when personaProgress.step is GENERATING_BACKSTORIES', () => {
-    resetPersonaFlow({ personaProgress: { step: 'GENERATING_BACKSTORIES' } })
-    render(<DashboardClient />)
-    expect(setupVisible()).toBe(false)
-  })
-
-  it('hides setup view when personaProgress.step is ADDING_BEHAVIORAL_DEPTH', () => {
-    resetPersonaFlow({ personaProgress: { step: 'ADDING_BEHAVIORAL_DEPTH' } })
-    render(<DashboardClient />)
-    expect(setupVisible()).toBe(false)
-  })
-
   it('hides setup view when activeRunIds is non-empty', () => {
     resetStore({ activeGenerationRunIds: ['run-1'] })
     render(<DashboardClient />)

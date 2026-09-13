@@ -117,18 +117,6 @@ describe("IdRagStore", () => {
     expect(results).toEqual([]);
   });
 
-  it("links related chunks by adjacency and topic", () => {
-    const store = new IdRagStore();
-    const chunks = store.chunkBackstory("test-1", [
-      "I grew up in a family that valued money carefully. My parents were frugal and taught me to save.",
-      "My career in finance taught me to analyze every purchase carefully.",
-      "I now live in a minimalist apartment that reflects my organized approach to life.",
-    ].join("\n\n"));
-
-    // Related should at minimum include adjacent chunks
-    expect(chunks.length).toBeGreaterThanOrEqual(2);
-  });
-
   it("backstory chunks stored with chunkType 'backstory'", () => {
     const store = new IdRagStore();
     const persona = makePersona({

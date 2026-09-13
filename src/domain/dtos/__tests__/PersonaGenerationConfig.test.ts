@@ -16,15 +16,6 @@ describe('ResearchPersonaConfig', () => {
     expect(result.success).toBe(true)
   })
 
-  it('should accept optional interviewIds', () => {
-    const result = ResearchPersonaConfigSchema.safeParse({
-      count: 3,
-      personaDescription: 'Test',
-      interviewIds: ['int-1', 'int-2'],
-    })
-    expect(result.success).toBe(true)
-  })
-
   it('should reject evidenceThreshold outside 0-1', () => {
     const result = ResearchPersonaConfigSchema.safeParse({
       count: 3,
