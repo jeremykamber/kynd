@@ -58,13 +58,37 @@ describe('GeneratePersonasUseCase', () => {
   });
 
   it('should dispatch to research mode when specified', async () => {
-    mockLlmService.generateResearchPersonas.mockResolvedValue([{ ...fullPersona, generationMode: 'research' } as Persona]);
+    const researchPersona = {
+      ...fullPersona,
+      id: 'research-1',
+      name: 'Research Persona',
+      backstory: 'Evidence-grounded research backstory.',
+    } as Persona;
+    mockLlmService.generateResearchPersonas.mockResolvedValue([researchPersona]);
+    // Distinguishable content from every other path: whichever generator was
+    // dispatched to is identifiable from the returned personas.
+    mockLlmService.generateStrategyPersonas.mockResolvedValue([
+      { ...fullPersona, id: 'strategy-1', name: 'Strategy Persona' } as Persona,
+    ]);
+    mockLlmService.generateInitialPersonas.mockResolvedValue([
+      { ...fullPersona, id: 'legacy-1', name: 'Legacy Persona' },
+    ]);
     mockLlmService.rationalizePersonas.mockImplementation(async (ps: Persona[]) => ps);
 
     const results = await useCase.execute('Test description', undefined, 1, undefined, 'research');
 
-    expect(mockLlmService.generateResearchPersonas).toHaveBeenCalled();
-    expect(results[0].generationMode).toBe('research');
+    // The caller receives the research generator's output...
+    expect(results).toHaveLength(1);
+    expect(results[0].name).toBe('Research Persona');
+    expect(results[0].backstory).toBe('Evidence-grounded research backstory.');
+    expect(mockLlmService.generateResearchPersonas).toHaveBeenCalledWith(
+      expect.objectContaining({ count: 1, personaDescription: 'Test description' }),
+      expect.anything(),
+      expect.anything(),
+    );
+
+    // ...and neither the strategy nor the legacy path ran.
+    expect(mockLlmService.generateStrategyPersonas).not.toHaveBeenCalled();
     expect(mockLlmService.generateInitialPersonas).not.toHaveBeenCalled();
   });
 

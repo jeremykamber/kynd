@@ -52,9 +52,12 @@ describe("IdRagStore", () => {
 
     store.ingestPersona(persona);
 
-    const results = store.retrieve("test-1", "contract mistake CRM cost");
-    expect(results.length).toBeGreaterThanOrEqual(1);
-    expect(results[0].score).toBeGreaterThan(0);
+    const results = store.retrieve("test-1", "contract mistake CRM cost", 1);
+
+    // The chunk about the contract mistake is the one the query surfaces; an
+    // unrelated chunk (childhood, current role) must not outrank it.
+    expect(results).toHaveLength(1);
+    expect(results[0].chunk.text).toContain("three-year contract for $15,000/year for a CRM");
   });
 
   it("retrieves top-K results sorted by relevance", () => {

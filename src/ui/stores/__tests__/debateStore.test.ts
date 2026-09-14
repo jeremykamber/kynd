@@ -1,7 +1,16 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act, cleanup } from "@testing-library/react";
 import { useDebateStore } from "../debateStore";
+import { useDebate } from "@/ui/hooks/useDebate";
 import type { DebateRoom } from "@/domain/entities/DebateRoom";
 import type { Persona } from "@/domain/entities/Persona";
+
+// The store only owns the flag; the lifecycle that sets and clears it lives in
+// useDebate, so the streaming test drives that hook with a controlled stream.
+const mockDebateAction = vi.hoisted(() => vi.fn());
+vi.mock("@/actions/debateAction", () => ({
+  debateAction: mockDebateAction,
+}));
 
 const mockPersona: Persona = {
   id: "p1",
@@ -40,12 +49,15 @@ function makeDebate(overrides?: Partial<DebateRoom>): DebateRoom {
 
 describe("debateStore", () => {
   beforeEach(() => {
+    mockDebateAction.mockReset();
     useDebateStore.setState({
       debates: [],
       activeDebateId: null,
       isStreaming: false,
     });
   });
+
+  afterEach(() => cleanup());
 
   it("adds a debate and sets it active", () => {
     const d = makeDebate();
@@ -97,11 +109,49 @@ describe("debateStore", () => {
     expect(debate?.messages[0].content).toBe("Hello");
   });
 
-  it("tracks streaming state", () => {
-    useDebateStore.getState().setStreaming(true);
+  it("tracks streaming state", async () => {
+    // A stream that parks on its terminal event lets the test observe both
+    // halves of the lifecycle: streaming while the debate runs, cleared once
+    // the debate reaches a terminal state.
+    let releaseTerminal!: () => void;
+    const terminalGate = new Promise<void>((resolve) => {
+      releaseTerminal = resolve;
+    });
+    const events = [{ type: "debate_start" }, { type: "debate_end" }];
+
+    mockDebateAction.mockResolvedValue({
+      streamData: {
+        [Symbol.asyncIterator]: () => {
+          let i = 0;
+          return {
+            next: async () => {
+              if (i === events.length - 1) await terminalGate;
+              if (i < events.length) return { value: events[i++], done: false };
+              return { value: undefined, done: true };
+            },
+          };
+        },
+      },
+    });
+
+    const { result } = renderHook(() => useDebate());
+
+    let finished!: Promise<string>;
+    await act(async () => {
+      finished = result.current.startDebate("Test proposal", [mockPersona], 1);
+    });
+
+    // While the stream is open the app reports a streaming debate.
     expect(useDebateStore.getState().isStreaming).toBe(true);
-    useDebateStore.getState().setStreaming(false);
+
+    await act(async () => {
+      releaseTerminal();
+      await finished;
+    });
+
+    // Terminal state: the flag is cleared, not left on.
     expect(useDebateStore.getState().isStreaming).toBe(false);
+    expect(useDebateStore.getState().debates[0].status).toBe("completed");
   });
 
   it("enforces max concurrent debates", () => {

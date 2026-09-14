@@ -78,8 +78,19 @@ describe("POST /api/vps/chat-with-panel", () => {
   });
 
   it("defaults missing responses and synthesis to empty/null", async () => {
-    mockChatWithPanelStream.mockImplementation(async function* () {
-      yield "ok";
+    // The real stream reads the panel responses and synthesis to build its
+    // prompt, so omitting them must arrive as an empty panel and no synthesis;
+    // anything else would throw and surface as an ERROR frame to the caller.
+    mockChatWithPanelStream.mockImplementation(async function* (
+      responses: unknown,
+      synthesis: unknown,
+    ) {
+      if (!Array.isArray(responses)) {
+        throw new TypeError("responses is not iterable");
+      }
+      if (responses.length > 0) throw new Error("expected an empty panel");
+      if (synthesis) throw new Error("expected no synthesis");
+      yield "Panel reply with no personas or synthesis.";
     });
 
     const { POST } = await import("../route");
@@ -89,8 +100,10 @@ describe("POST /api/vps/chat-with-panel", () => {
       body: JSON.stringify({ message: "Hello", history: [] }),
     });
     const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/plain");
+
     const text = await collectStream(res.body!);
-    expect(text).toBe("ok");
-    expect(mockChatWithPanelStream).toHaveBeenCalledWith([], null, "Hello", []);
+    expect(text).toBe("Panel reply with no personas or synthesis.");
   });
 });

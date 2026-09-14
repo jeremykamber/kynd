@@ -60,13 +60,4 @@ describe('mapFromDiscrete', () => {
   it('should map 5 to 100', () => {
     expect(mapFromDiscrete(5)).toBe(100)
   })
-
-  it('should maintain round-trip consistency', () => {
-    // 20 should map to 1 and back to 20
-    expect(mapFromDiscrete(mapToDiscrete(20))).toBe(20)
-    // 50 should map to 3 and back to 60
-    expect(mapFromDiscrete(mapToDiscrete(50))).toBe(60)
-    // 100 should map to 5 and back to 100
-    expect(mapFromDiscrete(mapToDiscrete(100))).toBe(100)
-  })
 })

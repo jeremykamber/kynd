@@ -65,9 +65,16 @@ describe('buildVisceralMonologueSystemPrompt (System 1 — Actor)', () => {
   })
 
   it('falls back to the research question as browsing intent only when the persona has no goals', () => {
+    // With goals: the goals are the browsing intent and the research question
+    // must NOT be injected.
+    const withGoals = buildVisceralMonologueSystemPrompt(makePersona(), 'Why do founders hesitate?')
+    expect(withGoals).toContain('You are browsing because: find affordable health insurance')
+    expect(withGoals).not.toContain('Why do founders hesitate?')
+
+    // With no goals: the research question stands in as the browsing intent.
     const noGoals = makePersona({ goals: [] })
-    const prompt = buildVisceralMonologueSystemPrompt(noGoals, 'Why do founders hesitate?')
-    expect(prompt).toContain('Why do founders hesitate?')
+    const noGoalsPrompt = buildVisceralMonologueSystemPrompt(noGoals, 'Why do founders hesitate?')
+    expect(noGoalsPrompt).toContain('You are browsing because: Why do founders hesitate?')
   })
 })
 

@@ -190,10 +190,47 @@ describe('GeneratePersonasFromInterviewsUseCase Integration', () => {
       expect(p.backstory).toBeTruthy();
     }
 
-    // Verify each stage of the LLM pipeline was invoked
-    expect(mockLlmService.extractInterviewSignals).toHaveBeenCalledTimes(3);
-    expect(mockLlmService.createChatCompletion).toHaveBeenCalledTimes(1); // coherence validation
-    expect(mockLlmService.generateResearchPersonas).toHaveBeenCalledTimes(1);
+    // Generation runs against the interviews that were extracted, over their
+    // raw transcripts as the verbatim source.
+    const config = mockLlmService.generateResearchPersonas.mock.calls[0][0];
+    expect(config.count).toBe(5);
+    expect(config.interviewIds).toEqual(['interview-0', 'interview-1', 'interview-2']);
+    expect(config.verbatimSource).toBe(
+      mockTranscripts.map((t) => t.content).join('\n\n'),
+    );
+
+    // The description handed to generation is built from the pooled interview
+    // signals, one section per sampled persona: every persona carries exactly
+    // one pooled role and at least two pooled pain-point quotes (verbatim
+    // fragments of the extracted interviews).
+    const description = config.personaDescription;
+    const extractedRoles = [
+      interview0Signals.context.role,
+      interview1Signals.context.role,
+      interview2Signals.context.role,
+    ].filter((role): role is string => Boolean(role));
+
+    const roleOccurrences = extractedRoles.reduce(
+      (count, role) => count + description.split(role).length - 1,
+      0,
+    );
+    expect(roleOccurrences).toBeGreaterThanOrEqual(personas.length);
+
+    const extractedQuotes = [interview0Signals, interview1Signals, interview2Signals]
+      .flatMap((s) => [
+        ...s.painPoints,
+        ...s.goals,
+        ...s.values,
+        ...s.featureDesires,
+        ...s.decisionPatterns,
+      ])
+      .map((signal) => signal.quote);
+
+    const quotedOccurrences = extractedQuotes.reduce(
+      (count, quote) => count + description.split(quote).length - 1,
+      0,
+    );
+    expect(quotedOccurrences).toBeGreaterThanOrEqual(personas.length * 2);
   });
 
   // ------------------------------------------------------------------

@@ -114,8 +114,20 @@ describe('PersonaDetailSheet edit mode', () => {
       />
     )
     fireEvent.click(screen.getByLabelText('Edit persona'))
-    expect(screen.queryAllByText('Conscientiousness').length).toBeGreaterThanOrEqual(1)
+
+    // The traits are displayed (with their inference badge) but expose no
+    // control: no slider, and no input holding a trait value.
     expect(screen.getByText('Inferred from backstory')).toBeTruthy()
+    expect(screen.queryAllByRole('slider')).toHaveLength(0)
+    for (const value of [
+      basePersona.conscientiousness,
+      basePersona.neuroticism,
+      basePersona.openness,
+      basePersona.extraversion,
+      basePersona.agreeableness,
+    ]) {
+      expect(screen.queryByDisplayValue(String(value))).toBeNull()
+    }
   })
 
   it('allows editing backstory in textarea', () => {

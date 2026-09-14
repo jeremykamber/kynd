@@ -30,7 +30,9 @@ const mockTraits = {
   conscientiousness: 90,
   neuroticism: 30,
   openness: 70,
-  extraversion: 55,
+  // Equal to mockPersona.extraversion: an unchanged trait, which must default
+  // to "Keep" while every changed trait defaults to "Apply".
+  extraversion: 60,
   agreeableness: 50,
   values: ['Quality', 'Precision'],
   fears: ['Bugs', 'Downtime'],
@@ -81,9 +83,20 @@ describe('PersonaTraitsSuggestionDialog', () => {
     fireEvent.click(screen.getByText('Apply selections'))
     expect(onApply).toHaveBeenCalled()
     const decisions = onApply.mock.calls[0][0]
+    // Changed traits default to apply...
     expect(decisions.conscientiousness).toBe(true)
     expect(decisions.neuroticism).toBe(true)
     expect(decisions.values).toBe(true)
+    // ...an unchanged trait defaults to keep.
+    expect(decisions.extraversion).toBe(false)
+
+    // Per-row wiring: hovering the conscientiousness row and choosing Keep
+    // flips only that decision.
+    fireEvent.click(screen.getAllByText('Keep')[0])
+    fireEvent.click(screen.getByText('Apply selections'))
+    const secondPass = onApply.mock.calls[1][0]
+    expect(secondPass.conscientiousness).toBe(false)
+    expect(secondPass.neuroticism).toBe(true)
   })
 
   it('calls onApply with all false on Keep originals', () => {

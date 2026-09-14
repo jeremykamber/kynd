@@ -87,13 +87,23 @@ describe("SynthesizeArtifactResultsUseCase", () => {
   ];
 
   it("passes raw monologues (no summarization) to the port", async () => {
+    // Longer than any plausible summarization window: only a raw pass-through
+    // preserves it byte-for-byte.
+    const longMonologue = `I opened the pricing page and froze. ${"detail ".repeat(2000)}END`;
+    const raw = [
+      buildResponse({ id: "resp-1", personaId: "p-1", rawAnalysis: longMonologue }),
+      buildResponse({ id: "resp-2", personaId: "p-2", rawAnalysis: "The export button was hidden." }),
+    ];
     const port = buildPort();
-    await new SynthesizeArtifactResultsUseCase(port).execute(responses, "What blocks signup?");
+    await new SynthesizeArtifactResultsUseCase(port).execute(raw, "What blocks signup?");
 
-    const [, transcripts] = (port.generateCohortSynthesis as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(transcripts).toEqual([
-      { personaId: "p-1", personaName: "Sarah Chen", transcript: responses[0].rawAnalysis },
-      { personaId: "p-2", personaName: "Miguel Torres", transcript: responses[1].rawAnalysis },
+    const [researchQuestion, transcripts] = vi.mocked(port.generateCohortSynthesis).mock.calls[0];
+
+    expect(researchQuestion).toBe("What blocks signup?");
+    expect(transcripts).toHaveLength(raw.length);
+    expect(transcripts.map((t) => t.transcript)).toEqual([
+      longMonologue,
+      "The export button was hidden.",
     ]);
   });
 
@@ -136,10 +146,38 @@ describe("SynthesizeArtifactResultsUseCase", () => {
   });
 
   it("never emits [cite-N] markers or locator fields into user data", async () => {
-    const synthesis = await new SynthesizeArtifactResultsUseCase(buildPort()).execute(responses, "q");
+    const unresolvedAnchor = "zzz-no-transcript-contains-this-anchor-zzz";
+    const port = buildPort({
+      generateCohortSynthesis: vi.fn().mockResolvedValue({
+        ...LLM_CONTENT,
+        topFindings: [
+          {
+            ...LLM_CONTENT.topFindings[0],
+            evidenceLocators: [
+              { personaId: "p-1", uniqueAnchorPhrase: "opened the pricing page" },
+              { personaId: "p-2", uniqueAnchorPhrase: unresolvedAnchor },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const synthesis = await new SynthesizeArtifactResultsUseCase(port).execute(responses, "q");
+
+    // The resolving locator becomes a user-visible quote...
+    const [citation] = synthesis.topFindings[0].citations!;
+    expect(citation.personaId).toBe("p-1");
+    expect(citation.quote).toContain("opened the pricing page");
+
+    // ...carrying only grounded, user-facing fields...
+    expect(Object.keys(citation).sort()).toEqual(["personaId", "personaName", "quote"]);
+
+    // ...and neither locator field names nor an anchor that resolved to
+    // nothing ever reach serialized user data.
     const json = JSON.stringify(synthesis);
     expect(json).not.toContain("evidenceLocators");
-    expect(json).not.toContain("[cite-");
+    expect(json).not.toContain("uniqueAnchorPhrase");
+    expect(json).not.toContain(unresolvedAnchor);
   });
 
   it("propagates LLM failure — throw-on-failure is the caller's aggregation point", async () => {

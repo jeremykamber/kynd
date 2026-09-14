@@ -39,9 +39,21 @@ describe("PersonaPromptCompiler", () => {
   it("generates a concise persona anchor (4-16 tokens)", () => {
     const compiler = new PersonaPromptCompiler();
     const anchor = compiler.generateAnchor(basePersona);
+
+    // Trait-derived archetype and role, not the generic "As <name>, a
+    // <occupation>:" default that every persona would otherwise fall through to.
+    expect(anchor).toContain("skeptical");
+    expect(anchor).toContain("product manager");
     expect(anchor).toContain(":");
-    expect(anchor.split(" ").length).toBeLessThanOrEqual(16);
-    expect(anchor.split(" ").length).toBeGreaterThanOrEqual(2);
+
+    const tokens = anchor.split(" ");
+    expect(tokens.length).toBeGreaterThanOrEqual(4);
+    expect(tokens.length).toBeLessThanOrEqual(16);
+
+    // Distinct trait profiles yield distinct, persona-derived anchors.
+    const cautious = compiler.generateAnchor({ ...basePersona, neuroticism: 80, conscientiousness: 85 });
+    const passionate = compiler.generateAnchor({ ...basePersona, neuroticism: 20, openness: 80 });
+    expect(new Set([anchor, cautious, passionate]).size).toBe(3);
   });
 
   it("generates different anchors for different persona profiles", () => {
