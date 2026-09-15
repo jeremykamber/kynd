@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AnalyzeArtifactUseCase } from '../AnalyzeArtifactUseCase'
+import type { AnalysisProgress } from '../AnalyzeArtifactUseCase'
 import type { ArtifactIntakeAdapter } from '@/infrastructure/adapters/ArtifactIntakeAdapter'
 import type { LlmServicePort } from '@/domain/ports/LlmServicePort'
 import type { Persona } from '@/domain/entities/Persona'
@@ -125,5 +126,32 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
 
     expect(responses).toHaveLength(1)
     expect(responses[0].rawAnalysis).toBe('Analysis failed: formatter down')
+  })
+
+  it('reports a settled-persona count that reaches the total, failures included', async () => {
+    vi.mocked(llm.generateVisceralMonologue)
+      .mockResolvedValueOnce({ text: 'visceral reaction text' })
+      .mockRejectedValueOnce(new Error('vlm down'))
+    const useCase = makeUseCase(llm)
+    const events: AnalysisProgress[] = []
+
+    await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada'), makePersona('Ben')],
+      'goal',
+      'rq',
+      (progress) => events.push(progress),
+    )
+
+    const counted = events.filter(
+      (event): event is AnalysisProgress & { completedCount: number } =>
+        event.completedCount !== undefined,
+    )
+
+    // A caller's progress bar is driven by this counter, so it has to climb to
+    // the total even when one persona only produced a degraded failure response.
+    expect(counted.every((event) => event.totalCount === 2)).toBe(true)
+    expect(counted.at(-1)?.completedCount).toBe(2)
+    expect(Math.max(...counted.map((event) => event.completedCount))).toBe(2)
   })
 })

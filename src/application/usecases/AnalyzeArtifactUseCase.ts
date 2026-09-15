@@ -61,9 +61,12 @@ export class AnalyzeArtifactUseCase {
   ) {}
 
   /**
-   * @param onProgress Reports the coarse phase and per-persona completion. A
-   *   progress event carrying `title` arrives asynchronously from a concurrent
-   *   best-effort LLM call and never delays the analysis.
+   * @param onProgress Reports the coarse phase, the persona currently in a slot,
+   *   and how many personas have settled so far. `completedCount` counts both
+   *   completed and degraded-failure responses, so it reaches `totalCount` when
+   *   the last persona settles. A progress event carrying `title` arrives
+   *   asynchronously from a concurrent best-effort LLM call and never delays the
+   *   analysis.
    * @param abortSignal Polled between pipeline stages; aborting rejects the run
    *   instead of returning partial results.
    * @param options.tokenLimit Per-LLM-call output ceiling (default 2000).
@@ -220,6 +223,12 @@ export class AnalyzeArtifactUseCase {
             log.info("AnalyzeArtifactUseCase", `${personaLog} COMPLETED (${finishedCount}/${totalCount})`, {
               durationMs: personaDuration,
             });
+            onProgress?.({
+              step: "ANALYZING",
+              personaName: persona.name,
+              totalCount,
+              completedCount: finishedCount,
+            });
 
 
             // Assemble full response with metadata
@@ -262,8 +271,17 @@ export class AnalyzeArtifactUseCase {
             return fullResponse;
           } catch (err) {
             const errMsg = (err as Error).message;
+            finishedCount++;
             log.error("AnalyzeArtifactUseCase", `${personaLog} Error during analysis`, {
               error: errMsg,
+              completedCount: finishedCount,
+              totalCount,
+            });
+            onProgress?.({
+              step: "ANALYZING",
+              personaName: persona.name,
+              totalCount,
+              completedCount: finishedCount,
             });
 
             return {
