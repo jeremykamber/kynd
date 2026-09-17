@@ -6,6 +6,11 @@
  * - Chunks of their backstory with metadata (topic, tone, relationships)
  * - Simple embedding via character n-gram hashing for semantic similarity
  * - Top-K retrieval with relevance scoring
+ *
+ * Chunks live only in the instance that owns them — nothing is persisted or
+ * shared, and the store dies with its owner (ChatAdapter, the interview
+ * persona pipeline, or a test). Reads go through `retrieve` +
+ * `formatRetrievedContext`, typically via IdRagService.
  */
 import { Persona } from "@/domain/entities/Persona";
 import { ngramFingerprint, cosineSimilarity } from "@/application/interviewPipeline/ngramUtils";
@@ -119,13 +124,7 @@ export function chunkBackstory(personaId: string, backstory: string): Chunk[] {
 export class IdRagStore {
   private chunks: Map<string, Chunk[]> = new Map();
 
-  // NOTE: The instance-private chunkBackstory implementation was removed.
-  // The exported standalone `chunkBackstory(personaId, backstory)` above is the
-  // canonical implementation and the backwards-compatible wrapper below
-  // delegates to it. Keeping this class small avoids duplicate implementations
-  // and references to removed types like `BackstoryChunk`.
-
-  /** Ingest a persona's backstory into the store. */
+  /** Replace a persona's chunks with the result of chunking their backstory. */
   ingestPersona(persona: Persona): void {
     if (!persona.backstory) return;
     const chunks = chunkBackstory(persona.id, persona.backstory);
@@ -138,7 +137,7 @@ export class IdRagStore {
     this.chunks.set(personaId, [...existing, ...chunks]);
   }
 
-  /** Backwards-compatible method kept for tests and callers: delegates to exported chunkBackstory. */
+  /** Split backstory text into chunks; delegates to the module-level chunkBackstory. */
   chunkBackstory(personaId: string, backstory: string): Chunk[] {
     return chunkBackstory(personaId, backstory);
   }

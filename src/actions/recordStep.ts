@@ -5,7 +5,8 @@ import { LlmMemoryAdapter } from "@/infrastructure/adapters/LlmMemoryAdapter";
 import { TestingSession } from "@/domain/entities/TestingSession";
 import { InteractionStep } from "@/domain/entities/InteractionStep";
 
-import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
+import { shouldRunLocally } from "@/infrastructure/config";
+import { vpsFetchRaw } from "./vpsClient";
 
 async function runLocally(
   session: TestingSession,
@@ -21,14 +22,7 @@ async function runRemote(
   session: TestingSession,
   step: InteractionStep
 ): Promise<{ success: true; session: TestingSession } | { success: false; error: string }> {
-  const res = await fetch(`${VPS_BACKEND_URL}/api/vps/record-step`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getVpsAuthToken()}`,
-    },
-    body: JSON.stringify({ session, step }),
-  });
+  const res = await vpsFetchRaw("record-step", { session, step });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     return { success: false, error: err.error || `HTTP ${res.status}` };
@@ -37,8 +31,9 @@ async function runRemote(
 }
 
 /**
- * Server action to record a new interaction step in a testing session.
- * Uses local execution in development, VPS remote in production.
+ * Records one interaction step in a testing session. Local mode runs
+ * RecordStepUseCase in-process; remote mode POSTs to the VPS. Never throws:
+ * failures resolve `{ success: false, error }`.
  */
 export async function recordStepAction(
   session: TestingSession,

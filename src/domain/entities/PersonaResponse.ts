@@ -18,12 +18,19 @@ export interface PersonaResponse {
   screenshotBase64: string;
   rawAnalysis: string;
   overview: string;
+  /**
+   * Exactly one entry per stage, in `COGNITIVE_STAGES` order; validation
+   * rejects a journey that is shorter, longer, out of order, or repeats a
+   * stage.
+   */
   customerJourney: StageJourney[];
   researchQuestionAnswer: string;
   majorFindings: MajorFinding[];
   pointsOfFriction: string[];
   unansweredQuestions: string[];
+  /** Display projection of the persona; absent for persisted older results. */
   personaProfile?: PersonaProfile;
+  /** Id of the Persona this response came from. */
   personaId?: string;
 }
 
@@ -50,6 +57,11 @@ export const PersonaResponseSchema = z.object({
   unansweredQuestions: z.array(z.string()).describe("Questions the persona still had after interacting with the artifact. These often reveal missing information."),
 });
 
+/**
+ * Checks a value has every required PersonaResponse field and a journey that
+ * covers all five cognitive stages once, in order. Optional fields and the
+ * artifact/persona identity fields are not cross-checked.
+ */
 export function validatePersonaResponse(response: PersonaResponse): boolean {
   if (!response || typeof response !== "object") return false;
 

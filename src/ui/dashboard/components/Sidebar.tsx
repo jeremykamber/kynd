@@ -7,6 +7,11 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { UserIcon, FileTextIcon, LayersIcon, PlayIcon, SparklesIcon } from 'lucide-react'
 
+/**
+ * Desktop dashboard navigation (hidden below `md`): section links plus the
+ * recent-batch list read from the persona store. Selecting a batch makes it
+ * active and routes to the persona view.
+ */
 export function Sidebar() {
   const batches = usePersonaStore((s) => s.batches)
   const activeBatchId = usePersonaStore((s) => s.activeBatchId)
@@ -27,12 +32,10 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex w-60 shrink-0 border-r border-border/40 bg-sidebar flex flex-col h-full">
-      {/* Logo area */}
       <div className="h-14 flex items-center px-6 border-b border-border/40">
         <Link href="/" className="font-bold tracking-tight text-lg select-none">Kynd</Link>
       </div>
 
-      {/* Nav links */}
       <nav className="flex flex-col p-3 gap-1">
         <Button
           variant="ghost"
@@ -70,7 +73,6 @@ export function Sidebar() {
         </Link>
       </nav>
 
-      {/* Batches section */}
       {batches.length > 0 && (
         <div className="flex flex-col flex-1 min-h-0">
           <div className="flex items-center justify-between px-6 py-2">

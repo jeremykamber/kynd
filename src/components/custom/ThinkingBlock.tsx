@@ -9,6 +9,10 @@ interface ThinkingBlockProps {
   className?: string
 }
 
+/**
+ * Collapsible view of an assistant's reasoning text. Starts collapsed and
+ * shows the character count as a size hint next to the toggle.
+ */
 export function ThinkingBlock({ content, className }: ThinkingBlockProps) {
   const [expanded, setExpanded] = useState(false)
 

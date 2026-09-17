@@ -4,9 +4,8 @@
  * This test exercises the full pipeline without external LLM dependencies:
  * - PersonaPromptCompiler (compartmentalized prompts + anchors)
  * - IdRagStore (chunking, retrieval, formatting)
- * - PbjScaffoldEnhancer (mock flow)
- * - InCharacterEvaluator (interview protocol)
- * - PiconEvaluator (consistency framework)
+ * - IdRagService (context formatting for prompt injection)
+ * - The full generation-to-interaction prompt assembly
  *
  * Prerequisites: bun install, vitest
  * Run: bun vitest run test/persona-system-e2e.test.ts

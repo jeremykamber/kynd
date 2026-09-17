@@ -7,17 +7,13 @@ export interface RagContext {
   chunkCount: number;
 }
 
+/**
+ * Thin service over the IdRagStore that retrieves the chunks for a persona and
+ * formats them into a prompt-ready context string, with optional per-run trace
+ * logging. One instance wraps one store; it owns no data of its own.
+ */
 export class IdRagService {
   constructor(private store: IdRagStore) {}
-
-  indexPersona(persona: Persona, runId?: string): void {
-    const log = runId ? AnalysisLogger.forRun(runId) : null;
-    log?.trace("IdRagService", `Indexing persona "${persona.name}"`, {
-      personaId: persona.id,
-      hasBackstory: !!persona.backstory,
-    });
-    this.store.ingestPersona(persona);
-  }
 
   retrieveContext(persona: Persona, query: string, k = 3, runId?: string): RagContext {
     const log = runId ? AnalysisLogger.forRun(runId) : null;
@@ -47,27 +43,5 @@ export class IdRagService {
     });
 
     return { contextString, chunkCount: results.length };
-  }
-
-  buildHybridPrompt(
-    persona: Persona,
-    query: string,
-    options?: {
-      systemPrompt?: string;
-      ragContext?: string;
-    },
-  ): string {
-    const parts: string[] = [];
-
-    if (options?.systemPrompt) {
-      parts.push(options.systemPrompt);
-    }
-
-    if (options?.ragContext) {
-      parts.push(options.ragContext);
-    }
-
-    parts.push(`User says: "${query}"`);
-    return parts.join("\n\n");
   }
 }

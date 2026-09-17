@@ -4,15 +4,13 @@ import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { PersonaBatch } from '@/ui/stores/personaStore'
 
 /**
- * Resolve the full Persona behind an analysis response so the report page can
- * chat in-character. Preference order:
- *  1. Exact `personaId` match inside the analysis's batch (if batchId known).
- *  2. Exact `personaId` match across any batch (batch may have been switched).
- *  3. Name match inside the analysis's batch (if batchId known).
- *  4. Name match across any batch (older runs lack personaId).
- *  5. Reconstruct a persona from the embedded PersonaProfile — degraded but
- *     usable when the source batch was deleted. Age is unknown → 0, and the
- *     prompt compiler renders `Age: —` for falsy ages.
+ * Resolves the full Persona behind an analysis response so the report page can
+ * chat in-character. Prefers an exact `personaId` match — scoped to `batchId`
+ * when given, then across all batches — falls back to a `personaProfile.name`
+ * match, and finally reconstructs a degraded persona from the embedded profile.
+ *
+ * Returns null when no batch holds the persona and the response carries no
+ * `personaProfile`.
  */
 export function resolveChatPersona(
   analysis: PersonaResponse,
@@ -25,7 +23,6 @@ export function resolveChatPersona(
   const exactId = (p: Persona) => p.id === id
   const byName = (p: Persona) => p.name === name
 
-  // If batchId is known, search that batch first to avoid cross-batch collisions
   const scopedBatch = batchId ? batches.find((b) => b.id === batchId) : null
   const batchesToSearch = scopedBatch ? [scopedBatch, ...batches.filter((b) => b.id !== batchId)] : batches
 
@@ -48,7 +45,11 @@ export function resolveChatPersona(
     : null
 }
 
-/** Reconstruct a minimal chat-capable Persona from a display projection. */
+/**
+ * Reconstructs a minimal chat-capable Persona from a display projection.
+ * Fields the projection lacks (age, education, interests, goals) are blanked;
+ * `id` becomes the persona's id.
+ */
 export function personaFromProfile(
   profile: PersonaProfile,
   id: string,

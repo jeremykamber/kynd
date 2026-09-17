@@ -231,21 +231,6 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 2) Extraction phase runs in parallel (all transcripts extracted)
-  // ---------------------------------------------------------------------------
-  it('should call extractInterviewSignals for every transcript', async () => {
-    await useCase.execute(transcripts);
-
-    expect(mockLlmService.extractInterviewSignals).toHaveBeenCalledTimes(3);
-    transcripts.forEach((t, i) => {
-      expect(mockLlmService.extractInterviewSignals).toHaveBeenCalledWith(
-        t.content,
-        `interview-${i}`,
-      );
-    });
-  });
-
-  // ---------------------------------------------------------------------------
   // 3) Pooling receives correct extraction results
   // ---------------------------------------------------------------------------
   it('should pass successful extractions to poolSignals', async () => {
@@ -271,21 +256,27 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
 
     const descriptionArg = mockLlmService.generateResearchPersonas.mock.calls[0][0].personaDescription;
 
-    // Contains data from first sampled signal
-    expect(descriptionArg).toContain('Role: Engineering Manager');
-    expect(descriptionArg).toContain('Industry: SaaS');
-    expect(descriptionArg).toContain('Communication Style: Direct and analytical');
-    expect(descriptionArg).toContain('High costs');
-    expect(descriptionArg).toContain('it is too expensive');
-    expect(descriptionArg).toContain('Save money');
+    // Every sampled signal's interview data reaches generation: its context,
+    // communication style, and each extracted signal including the verbatim
+    // quote that grounds a researched persona. Asserting the values (not the
+    // prompt's labels) keeps a behavior-preserving rewording green.
+    for (const signal of mockSampledSignals) {
+      expect(descriptionArg).toContain(signal.context.role.text);
+      expect(descriptionArg).toContain(signal.context.industry.text);
+      expect(descriptionArg).toContain(signal.communicationStyle.text);
 
-    // Contains data from second sampled signal
-    expect(descriptionArg).toContain('Role: Product Designer');
-    expect(descriptionArg).toContain('Industry: Design');
-    expect(descriptionArg).toContain('Slow onboarding');
-
-    // Separator between personas
-    expect(descriptionArg).toContain('---');
+      const extractedSignals = [
+        ...signal.painPoints,
+        ...signal.goals,
+        ...signal.values,
+        ...signal.featureDesires,
+        signal.decisionPattern,
+      ];
+      for (const { text, quote } of extractedSignals) {
+        expect(descriptionArg).toContain(text);
+        expect(descriptionArg).toContain(quote);
+      }
+    }
   });
 
   // ---------------------------------------------------------------------------

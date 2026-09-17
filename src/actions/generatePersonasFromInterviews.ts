@@ -5,44 +5,28 @@ import { GeneratePersonasUseCase } from "@/application/usecases/GeneratePersonas
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { IdRagStore } from "@/infrastructure/adapters/IdRagStore";
 
-import { createStreamableValue } from "@ai-sdk/rsc";
-import { headers } from 'next/headers';
-import { RateLimiterMemory } from 'rate-limiter-flexible';
+import { createStreamableValue, type StreamableValue } from "@ai-sdk/rsc";
 
-const AUDIT_RATE_LIMIT_MAX = parseInt(process.env.AUDIT_RATE_LIMIT_MAX || '5');
-const AUDIT_RATE_LIMIT_WINDOW_MS = parseInt(process.env.AUDIT_RATE_LIMIT_WINDOW_MS || '60000');
-
-const pipelineRateLimiter = new RateLimiterMemory({
-    keyPrefix: 'pipeline',
-    points: AUDIT_RATE_LIMIT_MAX,
-    duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
-});
-
-import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
+import { shouldRunLocally } from "@/infrastructure/config";
 import { storeProgress, storeCompleted } from "@/actions/getProgress";
 import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
+import { createRateLimiter, checkRateLimit } from "./rateLimiter";
+import { vpsPostForm } from "./vpsClient";
 
-function generateRunId(): string {
-  return `pipeline-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+const pipelineRateLimiter = createRateLimiter('pipeline');
+
+function generateRunId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 async function runLocally(formData: FormData) {
-    const runId = generateRunId();
+    const runId = generateRunId('pipeline');
     console.log(`generatePersonasFromInterviewsAction called [runId=${runId}]...`);
     const stream = createStreamableValue<any>({ step: "UPLOADING" });
 
-    let clientIP = 'unknown';
-    try {
-        const headersList = await headers();
-        clientIP = headersList.get('x-forwarded-for')?.split(',')[0] || headersList.get('x-real-ip') || 'unknown';
-    } catch { }
-
-    try {
-        await pipelineRateLimiter.consume(clientIP);
-    } catch (rejRes: any) {
-        const msBeforeNext = rejRes.msBeforeNext;
-        const retryAfter = Math.round(msBeforeNext / 1000);
-        stream.done({ step: "ERROR", error: `Rate limit exceeded. Try again in ${retryAfter} seconds.` });
+    const rateLimit = await checkRateLimit(pipelineRateLimiter);
+    if (!rateLimit.allowed) {
+        stream.done({ step: "ERROR", error: `Rate limit exceeded. Try again in ${rateLimit.retryAfterSeconds} seconds.` });
         return { streamData: stream.value, runId };
     }
 
@@ -106,13 +90,7 @@ async function runLocally(formData: FormData) {
 }
 
 async function runRemote(formData: FormData) {
-    const res = await fetch(`${VPS_BACKEND_URL}/api/vps/generate-personas-from-interviews`, {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${getVpsAuthToken()}`,
-        },
-        body: formData,
-    });
+    const res = await vpsPostForm("generate-personas-from-interviews", formData);
 
     if (!res.ok) {
         const errBody = await res.text().catch(() => res.statusText);
@@ -120,9 +98,17 @@ async function runRemote(formData: FormData) {
     }
 
     const data = await res.json();
-    return { streamData: undefined as unknown as ReturnType<typeof createStreamableValue>['value'], runId: data.runId as string };
+    return { streamData: undefined as unknown as StreamableValue, runId: data.runId as string };
 }
 
+/**
+ * Generates personas from uploaded transcripts. Resolves the runId without
+ * waiting: local mode streams progress via `streamData`; remote returns
+ * `streamData` undefined (poll getPersonaGenerationResultAction).
+ *
+ * FormData needs one or more `files`/`file_*` entries; optional `count`
+ * (1–20) and `mode` (`individual` | `synthesized`).
+ */
 export async function generatePersonasFromInterviewsAction(formData: FormData) {
     if (shouldRunLocally()) return runLocally(formData);
     return runRemote(formData);

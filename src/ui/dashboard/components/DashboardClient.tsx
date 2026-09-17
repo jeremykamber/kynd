@@ -29,6 +29,12 @@ import { generateSimilarPersonasAction } from '@/actions/generateSimilarPersonas
 import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { summarizeError } from '@/lib/errorSummary'
 
+/**
+ * Persona dashboard shell: routes between the setup form and the active
+ * batch's persona grid. Owns the variant-generation flow (placeholders → server
+ * stream → toast) and the persona detail sheet. Reads/writes the persona store
+ * and `usePersonaFlow`; reads analysis counts from the analysis store.
+ */
 export function DashboardClient() {
     const router = useRouter()
     const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
@@ -111,7 +117,6 @@ export function DashboardClient() {
             const batchId = usePersonaStore.getState().activeBatchId
             if (!batchId) return
 
-            // 1. Create placeholder personas with shimmer
             const placeholderIds: string[] = []
             const placeholders: Persona[] = []
 
@@ -141,7 +146,6 @@ export function DashboardClient() {
                 })
             }
 
-            // 2. Insert placeholders right after the reference persona
             insertPersonasAfter(batchId, referencePersona.id, placeholders)
             console.log("[DashboardClient] Variation flow started - reference:", referencePersona.name, "count:", formData.count, "placeholders:", placeholderIds.length);
             setPendingPersonaIds((prev) => {
@@ -150,7 +154,6 @@ export function DashboardClient() {
                 return next
             })
 
-            // 3. Show a toast for the generation
             const count = formData.count
             toastIdRef.current = toast.loading(
                 `Generating ${count} variation${count > 1 ? 's' : ''} of ${referencePersona.name}`,
@@ -160,7 +163,6 @@ export function DashboardClient() {
                 },
             )
 
-            // 4. Call server action and stream results
             try {
                 console.log("[DashboardClient] Calling generateSimilarPersonasAction with bigFive:", formData.bigFive, "variationLevel:", formData.variationLevel);
                 const { streamData } = await generateSimilarPersonasAction(
@@ -176,7 +178,6 @@ export function DashboardClient() {
 
                     if (update.step === 'DONE' && update.personas) {
                         console.log("[DashboardClient] Stream completed - received", update.personas.length, "personas from server");
-                        // Replace each placeholder with the real persona data
                         update.personas.forEach((realPersona, idx) => {
                             const placeholderId = placeholderIds[idx]
                             if (placeholderId) {
@@ -189,7 +190,6 @@ export function DashboardClient() {
                             }
                         })
 
-                        // Clean up any extra placeholders (if LLM returned fewer than requested)
                         for (let i = update.personas.length; i < placeholderIds.length; i++) {
                             const unusedId = placeholderIds[i]
                             if (unusedId) {
@@ -201,7 +201,6 @@ export function DashboardClient() {
                             }
                         }
 
-                        // Update toast to success
                         if (toastIdRef.current) {
                             toast.success(
                                 `${completedCount} variation${completedCount > 1 ? 's' : ''} of ${referencePersona.name} generated`,
@@ -214,14 +213,12 @@ export function DashboardClient() {
                             toastIdRef.current = null
                         }
 
-                        // Mark all as done (remove from pending)
                         setPendingPersonaIds((prev) => {
                             const next = new Set(prev)
                             placeholderIds.forEach((id) => next.delete(id))
                             return next
                         })
 
-                        // Close the detail sheet now that variants are visible
                         setIsDetailSheetOpen(false)
                         setSelectedPersonaId(null)
                         return
@@ -266,7 +263,6 @@ export function DashboardClient() {
     // Skip setup view when generation is active — batch list shows skeleton cards instead
     const showSetupView = (batches.length === 0 || showSetup) && !isGenerating && !activeBatchId
 
-    // Compute an approximate overall progress percentage from the current phase
     const progressPercent = personaFlow.personaProgress
         ? personaFlow.personaProgress.step === 'BRAINSTORMING_PERSONAS'
             ? 10
@@ -283,7 +279,6 @@ export function DashboardClient() {
 
     return (
         <>
-            {/* Main content — setup view or batch view */}
             {showSetupView ? (
                 <div className="animate-in fade-in duration-500">
                     <SetupView personaFlow={personaFlow} onBack={batches.length > 0 ? () => setShowSetup(false) : undefined} />
@@ -319,7 +314,6 @@ export function DashboardClient() {
 
                     {!activeBatch ? (
                         <div className="flex flex-col gap-4">
-                            {/* Active generation entries — skeleton cards at the top */}
                             {activeRunIds.map((runId) => (
                                 <Link
                                     key={runId}
@@ -443,7 +437,6 @@ export function DashboardClient() {
                 </div>
             )}
 
-            {/* Floating "Show Details" button when generation is active (but expanded dialog is closed) */}
             {showSetupView && personaFlow.personaProgress && !showExpandedFlow && (
               <button
                 onClick={() => setShowExpandedFlow(true)}
@@ -454,7 +447,6 @@ export function DashboardClient() {
               </button>
             )}
 
-            {/* Persona Generation Streaming Dialog — expanded view (only in setup view) */}
             {showSetupView && (
                 <FlowDialog
                     open={showExpandedFlow && !!personaFlow.personaProgress}
@@ -486,9 +478,7 @@ export function DashboardClient() {
                     totalCount={personaFlow.personaProgress?.totalCount}
                 >
                     {personaFlow.personaProgress && personaFlow.personaProgress.step === 'DONE' ? (
-                        /* ── Success / Done state ─────────────────────────────────── */
                         <div className="flex flex-col items-center justify-center w-full max-w-sm mx-auto space-y-6">
-                            {/* Success checkmark */}
                             <div className="h-14 w-14 rounded-full bg-primary flex items-center justify-center animate-in zoom-in-95 fade-in duration-300">
                                 <svg
                                     className="h-7 w-7 text-primary-foreground"
@@ -507,7 +497,6 @@ export function DashboardClient() {
                                 {personaFlow.personaProgress.personas?.length ?? 0} personas created from your target profile.
                             </p>
 
-                            {/* Action buttons */}
                             <div className="flex flex-col sm:flex-row gap-3 w-full pt-2">
                                 <button
                                     onClick={() => {
@@ -538,16 +527,13 @@ export function DashboardClient() {
                             </div>
                         </div>
                     ) : personaFlow.personaProgress ? (
-                        /* ── In-progress state ────────────────────────────────────── */
                         <div className="flex flex-col items-center justify-center w-full max-w-sm mx-auto space-y-6">
-                            {/* 8px determinate progress bar with pulsing fill */}
                             <Progress
                                 value={progressPercent}
                                 className="h-2 w-full"
                                 indicatorClassName="animate-pulse"
                             />
 
-                            {/* Persona dots — visible once names are known */}
                             {personaFlow.personaProgress.personas && personaFlow.personaProgress.personas.length > 0 && (
                                 <div className="flex flex-wrap gap-3 justify-center">
                                     {personaFlow.personaProgress.personas.map((p) => {
@@ -589,7 +575,6 @@ export function DashboardClient() {
                                 </div>
                             )}
 
-              {/* Progress bar and persona dots only — counter removed per design feedback */}
                         </div>
                     ) : null}
                 </FlowDialog>

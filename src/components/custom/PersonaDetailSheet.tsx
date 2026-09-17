@@ -33,6 +33,13 @@ interface PersonaDetailSheetProps {
 
 type Tab = "profile" | "chat" | "variant"
 
+/**
+ * Tabbed persona workspace in a dialog: profile (read, and edit with optional
+ * backstory-driven trait regeneration via `regenPersonaTraitsAction`), chat
+ * (`PersonaChatInline`), and variation controls. Persistence stays with the
+ * parent, which receives edits and generated variants through
+ * `onEdit`/`onGenerateVariation`. Returns null when `persona` is null.
+ */
 export function PersonaDetailSheet({
     persona,
     isOpen,
@@ -238,7 +245,6 @@ export function PersonaDetailSheet({
                     <DialogTitle className="sr-only">
                         {persona.name} — Profile &amp; Chat
                     </DialogTitle>
-                    {/* Header */}
                     <div className="border-b border-border/40 px-5 py-4 shrink-0">
                         <div className="flex items-center gap-3">
                             <PersonaAvatar name={persona.name} size="md" className="w-10 h-10 shrink-0" />
@@ -401,7 +407,6 @@ export function PersonaDetailSheet({
                                     </div>
                                 ) : null}
 
-                                {/* TIER 2 */}
                                 <div className="flex flex-col gap-6">
 
                                     {persona.values && persona.values.length > 0 && (
@@ -448,7 +453,6 @@ export function PersonaDetailSheet({
                                     )}
                                 </div>
 
-                                {/* TIER 3 */}
                                 <div className="flex flex-col gap-5 mt-6 border-t border-border/10 pt-6">
 
                                     <div className="flex flex-col gap-4">
@@ -587,7 +591,6 @@ export function PersonaDetailSheet({
                     {activeTab === "profile" && isEditing && draftPersona && (
                         <ScrollArea className="flex-1 min-h-0">
                             <div className="p-5 flex flex-col gap-5">
-                                {/* Identity */}
                                 <div className="flex flex-col gap-3">
                                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">IDENTITY</h4>
                                     <div className="grid grid-cols-2 gap-3">
@@ -627,7 +630,6 @@ export function PersonaDetailSheet({
                                     </div>
                                 </div>
 
-                                {/* Backstory */}
                                 <div className="flex flex-col gap-3">
                                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">BACKSTORY</h4>
                                     <Textarea
@@ -637,7 +639,6 @@ export function PersonaDetailSheet({
                                     />
                                 </div>
 
-                                {/* Goals */}
                                 <div className="flex flex-col gap-3">
                                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">GOALS</h4>
                                     <Textarea
@@ -648,7 +649,6 @@ export function PersonaDetailSheet({
                                     />
                                 </div>
 
-                                {/* Interests */}
                                 <div className="flex flex-col gap-3">
                                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">INTERESTS</h4>
                                     <Textarea
@@ -659,7 +659,6 @@ export function PersonaDetailSheet({
                                     />
                                 </div>
 
-                                {/* Psychographic */}
                                 <div className="flex flex-col gap-4">
                                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">PSYCHOGRAPHIC SPECIFICATION</h4>
                                     <div className="flex flex-col gap-3">
@@ -702,7 +701,6 @@ export function PersonaDetailSheet({
                                     </div>
                                 </div>
 
-                                {/* Pricing */}
                                 <div className="flex flex-col gap-3">
                                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">PRICING</h4>
                                     <div className="grid grid-cols-2 gap-3">
@@ -744,7 +742,6 @@ export function PersonaDetailSheet({
                                     </div>
                                 </div>
 
-                                {/* Save */}
                                 <div className="flex pt-2 pb-4">
                                     <button
                                         type="button"

@@ -7,6 +7,7 @@
 export interface PersonaProfile {
   name: string;
   occupation: string;
+  /** Big Five scores, 0-100, copied from the source Persona. */
   bigFive: {
     conscientiousness: number;
     neuroticism: number;

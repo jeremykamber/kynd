@@ -17,6 +17,11 @@ interface SetupViewProps {
   onBack?: () => void
 }
 
+/**
+ * Persona-generation setup form (guided survey or free-text description).
+ * Owns the survey/textarea toggle and persona-count input; delegates generation
+ * to `personaFlow` and loads the demo batch from the persona store.
+ */
 export function SetupView({ personaFlow, onBack }: SetupViewProps) {
   const batches = usePersonaStore((s) => s.batches)
   const addBatch = usePersonaStore((s) => s.addBatch)
@@ -107,7 +112,6 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                 />
               )}
 
-              {/* Persona count - always visible */}
               <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
                 <label htmlFor="persona-count" className="text-sm font-medium">Number of personas</label>
                 <input
@@ -135,7 +139,6 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                 />
               </div>
 
-              {/* Textarea-only generate button + interview link */}
               {useTextarea && (
                 <>
                   <div className="flex items-center justify-between">

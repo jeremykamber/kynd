@@ -1,3 +1,12 @@
+/**
+ * Client-side PDF export for an analysis report.
+ *
+ * `generatePdfFilename` derives the download name; `exportAnalysisAsPdf`
+ * renders the report and starts a browser download. Both run in the browser
+ * only — `exportAnalysisAsPdf` resolves without downloading when there is no
+ * DOM.
+ */
+
 import React from 'react'
 import { pdf } from '@react-pdf/renderer'
 import { AnalysisPdfDocument } from '@/components/custom/AnalysisPdfDocument'
@@ -6,6 +15,9 @@ import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 /**
  * Sanitizes an analysis title and appends a date stamp into a clean, filesystem-safe PDF filename.
  * Example: '"SaaS Founders" on stripe.com' -> 'kynd-report-saas-founders-on-stripe-com-2026-08-20.pdf'
+ *
+ * An empty or punctuation-only name becomes `analysis`; an absent or
+ * unparseable date becomes today.
  */
 export function generatePdfFilename(
   analysisName?: string,
@@ -26,7 +38,9 @@ export function generatePdfFilename(
 }
 
 /**
- * Compiles the AnalysisPdfDocument to a PDF Blob on the client and triggers an immediate browser download.
+ * Compiles the AnalysisPdfDocument to a PDF Blob on the client, then triggers
+ * a download named by `generatePdfFilename`. Resolves once the anchor click
+ * has been dispatched; the object URL is revoked before returning.
  */
 export async function exportAnalysisAsPdf(analysis: ArtifactAnalysis): Promise<void> {
   const doc = AnalysisPdfDocument({ analysis })

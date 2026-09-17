@@ -6,6 +6,13 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 const chromium = addExtra(baseChromium);
 
+/**
+ * BrowserServicePort implementation that drives a remote Chromium over a
+ * Playwright websocket endpoint (`PLAYWRIGHT_WS_ENDPOINT`, a browser server on
+ * the VPS). One instance owns one browser/context/page triple and exposes the
+ * page interactions and screenshots the artifact pipeline needs; the stealth
+ * plugin is applied to the connected browser.
+ */
 export class RemotePlaywrightAdapter implements BrowserServicePort {
     private readonly wsEndpoint: string;
     private browser: Browser | null = null;

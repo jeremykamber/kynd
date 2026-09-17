@@ -17,9 +17,8 @@ const POLL_INTERVAL_MS = 1000
 const STEP_PROGRESS: Record<string, number> = {
   BRAINSTORMING_PERSONAS: 0.1,
   GENERATING_BACKSTORIES: 0.2,
-  // ENHANCING_WITH_PBJ kept as a retrofitting measure — progress store entries
-  // from before the rename (cached on globalThis) still carry the old value
-  // until the server process is restarted.
+  // Alias: entries written before this step was renamed may still carry the
+  // old key, so both spellings stay mapped.
   ENHANCING_WITH_PBJ: 0.5,
   ADDING_BEHAVIORAL_DEPTH: 0.5,
   GENERATING_INSIGHTS: 0.75,
@@ -59,6 +58,12 @@ function truncateError(message: string): string {
 const removedSet = new Set<string>()
 const completedSet = new Set<string>()
 
+/**
+ * App-wide toast surface for persona-generation runs, mounted in the root
+ * layout. Polls each active runId's progress and result, adds finished batches
+ * to `usePersonaStore`, and renders one sonner toast per run (in-progress,
+ * completed, or failed). Renders nothing.
+ */
 export function PersonaProgressToaster() {
   const activeRunIds = usePersonaStore((s) => s.activeGenerationRunIds)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -85,7 +90,6 @@ export function PersonaProgressToaster() {
       for (const runId of runIds) {
         if (removedSet.has(runId)) continue
 
-        // 1. Check for a final result (completed/error)
         const result = await getPersonaGenerationResultAction(runId)
         if (result.found) {
           // A concurrent poll may have settled this run while we were awaiting.
@@ -137,7 +141,6 @@ export function PersonaProgressToaster() {
           continue
         }
 
-        // 2. Still in progress — poll progress details
         const p = await getProgressAction(runId)
         if (!p.found) continue
 
@@ -296,7 +299,8 @@ function PersonaToastContent({
 const STEP_DISPLAY: Record<string, string> = {
   BRAINSTORMING_PERSONAS: 'Brainstorming personas',
   GENERATING_BACKSTORIES: 'Generating backstories',
-  ENHANCING_WITH_PBJ: 'Adding behavioral depth', // retrofitting — same reason as STEP_PROGRESS above
+  // Same old-name alias as STEP_PROGRESS.
+  ENHANCING_WITH_PBJ: 'Adding behavioral depth',
   ADDING_BEHAVIORAL_DEPTH: 'Adding behavioral depth',
   GENERATING_INSIGHTS: 'Generating insights',
   // Long-form keys (ICP pipeline)

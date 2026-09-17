@@ -1,9 +1,6 @@
-// ─── GET /api/vps/analyze-progress ──────────────────────────────────────────
-// Poll the progress state of a running person a generation or analysis.
-// The background runner writes progress updates to the in-memory progress map;
-// this endpoint reads from that map directly. VPS-only — never call server
-// actions here (they self-reference in VPS mode).
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Polls the progress of a running analysis or persona generation by ?runId=.
+// Never call server actions here (they self-reference in VPS mode).
 
 import { NextRequest, NextResponse } from "next/server";
 import { progressMap } from "@/infrastructure/progressStore";

@@ -552,30 +552,114 @@ describe("PersonaAdapter dual-mode generation", () => {
     })
 
     it("enumerates psychographic fields in the profile prompt, with no backstory", async () => {
-      stubStructuredOutput(strategyProfile);
+      // Stand-in for the structured-output model: it only fills a field when
+      // the profile prompt asks for it, so the parsed persona below shows what
+      // the prompt actually enumerated. (Vitest re-invokes the module mock
+      // with no arguments during teardown; only the generation call carries
+      // the prompt.)
+      mockStreamText.mockImplementation((options?: { system?: string }) => {
+        const system = options?.system ?? "";
+        const asked = (field: string): boolean => new RegExp(`${field}\\s*:`).test(system);
+        return {
+          output: Promise.resolve([
+            {
+              age: 34,
+              occupation: "VP Product",
+              educationLevel: "MBA",
+              interests: asked("interests") ? ["sailing", "podcasts"] : undefined,
+              goals: asked("goals") ? ["Ship a pricing engine", "Cut churn"] : undefined,
+              conscientiousness: 80,
+              neuroticism: 45,
+              openness: 70,
+              extraversion: 55,
+              agreeableness: 60,
+              values: asked("values") ? ["Autonomy", "Evidence"] : undefined,
+              valueEvidence: asked("valueEvidence")
+                ? ["They asked for full autonomy over the roadmap", "Decisions must cite numbers"]
+                : undefined,
+              fears: asked("fears") ? ["Micromanagement", "Churn spikes"] : undefined,
+              fearEvidence: asked("fearEvidence")
+                ? ["Being overridden by investors worries them", "A churn spike would end the runway"]
+                : undefined,
+              communicationStyle: "Analytical",
+              decisionStyle: "Data-driven",
+              domainExpertise: asked("domainExpertise") ? ["pricing", "PLG"] : undefined,
+              behavioralDimensions: asked("behavioralDimensions")
+                ? [
+                    { name: "risk-tolerance", score: 70, context: "pricing changes", description: "Willing to experiment with packaging", evidence: "they run pricing experiments quarterly" },
+                    { name: "evidence-need", score: 90, context: "tool adoption", description: "Requires benchmarks before committing", evidence: "decisions must cite numbers" },
+                    { name: "speed-bias", score: 75, context: "ship velocity", description: "Prefers shipping fast over perfect", evidence: "favor quick experiments" },
+                  ]
+                : undefined,
+              bestFor: asked("bestFor") ? ["Predicting pricing-package adoption"] : undefined,
+              lessReliableFor: asked("lessReliableFor") ? ["Predicting enterprise procurement cycles"] : undefined,
+              identityContext: asked("identityContext") ? "Autonomous, evidence-driven operator across domains" : undefined,
+              situationContext: asked("situationContext") ? "Under runway pressure, favors quick experiments" : undefined,
+              evidenceLinks: asked("evidenceLinks")
+                ? [{ transcriptId: "user-input", excerpt: "full autonomy over the roadmap", attribute: "values" }]
+                : undefined,
+              attributeConfidence: asked("attributeConfidence")
+                ? [
+                    { attribute: "values", confidence: 0.8, rationale: "Stated directly in the response" },
+                    { attribute: "fears", confidence: 0.7, rationale: "Implied by the described pressures" },
+                    { attribute: "goals", confidence: 0.9, rationale: "Explicit goals in the input" },
+                    { attribute: "backstory", confidence: 0.5, rationale: "Thin input; mostly inferred" },
+                    { attribute: "risk-tolerance", confidence: 0.6, rationale: "Inferred from experimentation habit" },
+                    { attribute: "evidence-need", confidence: 0.9, rationale: "Directly stated" },
+                    { attribute: "speed-bias", confidence: 0.75, rationale: "Partially stated" },
+                  ]
+                : undefined,
+            },
+          ]),
+        };
+      });
       const llm = createMockLlmService();
       mockBackstories(llm);
       const adapter = new PersonaAdapter(llm);
 
-      await adapter.generateStrategyPersonas({
+      const personas = await adapter.generateStrategyPersonas({
         count: 1,
         personaDescription: STRATEGY_INPUT,
       });
 
-      const system = mockStreamText.mock.calls[0][0].system;
-      expect(system).toContain("values: string[]");
-      expect(system).toContain("fears: string[]");
-      expect(system).toContain("interests: string[]");
-      // Profile phase produces no backstory FIELD — the backstory comes per-persona in phase 2
-      expect(system).not.toContain("backstory: string");
-      // Evidence contract is enumerated so the LLM fills it
-      expect(system).toContain("valueEvidence: string[]");
-      expect(system).toContain("evidenceLinks");
-      expect(system).toContain("bestFor: string[]");
-      // Distinctness rule: no quote reused across values/fears
-      expect(system).toContain("DISTINCT");
-      // LLM-decided confidence contract is enumerated
-      expect(system).toContain("attributeConfidence");
+      const persona = personas[0];
+
+      // Every psychographic field the prompt enumerates survives to the
+      // generated persona; a prompt that stops asking for one produces a
+      // persona missing it here (the stub only fills requested fields).
+      expect(persona.values).toEqual(["Autonomy", "Evidence"]);
+      expect(persona.fears).toEqual(["Micromanagement", "Churn spikes"]);
+      expect(persona.interests).toEqual(["sailing", "podcasts"]);
+      expect(persona.goals).toEqual(["Ship a pricing engine", "Cut churn"]);
+      expect(persona.domainExpertise).toEqual(["pricing", "PLG"]);
+      expect(persona.bestFor).toEqual(["Predicting pricing-package adoption"]);
+      expect(persona.lessReliableFor).toEqual(["Predicting enterprise procurement cycles"]);
+      expect(persona.identityContext).toBe("Autonomous, evidence-driven operator across domains");
+      expect(persona.situationContext).toBe("Under runway pressure, favors quick experiments");
+      expect(persona.behavioralDimensions?.map((d) => d.name)).toEqual([
+        "risk-tolerance",
+        "evidence-need",
+        "speed-bias",
+      ]);
+      expect(persona.evidenceLinks).toEqual([
+        { transcriptId: "user-input", excerpt: "full autonomy over the roadmap", attribute: "values" },
+      ]);
+
+      // Evidence quotes land in their own slots and are never reused across them.
+      expect(persona.valueEvidence).toEqual([
+        "They asked for full autonomy over the roadmap",
+        "Decisions must cite numbers",
+      ]);
+      expect(persona.fearEvidence).toEqual([
+        "Being overridden by investors worries them",
+        "A churn spike would end the runway",
+      ]);
+      const quotes = [...(persona.valueEvidence ?? []), ...(persona.fearEvidence ?? [])];
+      expect(new Set(quotes).size).toBe(quotes.length);
+
+      // The profile phase yields no backstory — it arrives from the
+      // per-persona phase 2 call.
+      expect(persona.backstory).toBe("Jordan's life story.");
     })
 
     it("retries the profile batch when evidence quotes are duplicated across values", async () => {

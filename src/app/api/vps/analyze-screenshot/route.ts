@@ -1,8 +1,6 @@
-// ─── GET /api/vps/analyze-screenshot ────────────────────────────────────────
-// Poll the latest screenshot from a running artifact analysis.
-// Screenshots are large base64 strings delivered via a side-channel store
-// rather than the initial response body.
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Polls the latest screenshot of a running analysis as base64. Screenshots are
+// large, so they travel through this side channel, not the analyze response.
 
 import { NextRequest, NextResponse } from "next/server";
 import { screenshotStore } from "@/infrastructure/screenshotStore";

@@ -70,6 +70,27 @@ function withReasoningDisabled(
     };
 }
 
+/**
+ * Facade over an OpenAI-compatible chat-completions provider (OpenRouter by
+ * default, or a local Ollama server) and the only implementation of
+ * LlmServicePort. It owns the provider client, the model IDs, the shared
+ * concurrency limiter and retry policy, and the request-level reasoning
+ * suppression hook; every port method either delegates to one of the
+ * sub-adapters it constructs — PersonaAdapter, VisionAnalysisAdapter,
+ * ChatAdapter, HtmlSummarizer, InterviewSignalExtractor — or runs the raw
+ * completion itself.
+ *
+ * Prompt text is not owned here: each sub-adapter builds the messages for its
+ * own calls — PersonaAdapter, VisionAnalysisAdapter, HtmlSummarizer, and
+ * InterviewSignalExtractor inline; ChatAdapter via ChatPromptCompiler;
+ * DebateAdapter via DebatePromptCompiler — and calls back into
+ * `createChatCompletion`/`createChatCompletionStream` only to execute them.
+ * The two title helpers are the exception: each builds its prompt and calls a
+ * completion in the same method. That is why this class is mostly delegation
+ * plus the two completion primitives and the retry/logging wrapper — a reader
+ * looking for prompt wording should follow the sub-adapter named by the port
+ * method.
+ */
 export class LlmServiceImpl implements LlmServicePort {
     public client: OpenAI;
     public provider: OpenAIProvider;
@@ -146,6 +167,21 @@ export class LlmServiceImpl implements LlmServicePort {
         throw lastError;
     }
 
+    /**
+     * Builds an instance from environment variables.
+     *
+     * `provider` selects both the endpoint and the default model IDs:
+     * - "openrouter" reads OPENROUTER_BASE_URL (default
+     *   https://openrouter.ai/api/v1) and OPENROUTER_API_KEY (falling back to
+     *   OPENAI_API_KEY), defaulting the five roles to the OR_* models
+     *   (deepseek for text/small/extraction, qwen for vision/scout).
+     * - "ollama" reads OLLAMA_BASE_URL (default http://localhost:11434/v1) and
+     *   OLLAMA_API_KEY (default "ollama"), defaulting every role to
+     *   gemma3:1b-it-qat.
+     *
+     * `overrides` replaces individual model IDs for the selected provider; any
+     * role left unset keeps that provider's default.
+     */
     static createFromEnv(
         provider: "ollama" | "openrouter",
         overrides?: {

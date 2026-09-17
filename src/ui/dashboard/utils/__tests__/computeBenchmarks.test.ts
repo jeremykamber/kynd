@@ -248,9 +248,16 @@ describe("computeScoresWithBenchmarks", () => {
 
   it("should include personaName in each result", () => {
     const result = computeScoresWithBenchmarks(mockAnalyses as any);
-    expect(result[0].personaName).toBe("Casey");
-    expect(result[1].personaName).toBe("Riley");
-    expect(result[2].personaName).toBe("Elliot");
+    expect(result.map((r) => r.personaName)).toEqual(["Casey", "Riley", "Elliot"]);
+
+    // Documented fallback: with no profile name, the analysis id stands in.
+    const unnamedInput: Pick<
+      PricingAnalysis,
+      "id" | "personaProfile" | "scores" | "risks"
+    >[] = [{ ...mockAnalyses[0], id: "analysis-stand-in", personaProfile: undefined }];
+    // Test fixture carries only the fields computeScoresWithBenchmarks reads.
+    const [unnamed] = computeScoresWithBenchmarks(unnamedInput as unknown as PricingAnalysis[]);
+    expect(unnamed.personaName).toBe("analysis-stand-in");
   });
 });
 

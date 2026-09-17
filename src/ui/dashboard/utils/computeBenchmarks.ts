@@ -27,6 +27,11 @@ function getScoreValue(analysis: PricingAnalysis, key: ScoreKey): number {
   return typeof val === "number" ? val : 0;
 }
 
+/**
+ * Mean of each SCORE_KEYS dimension across `analyses`, on the entity's 1–10
+ * scale. A missing or non-numeric score counts as 0. Empty input yields every
+ * key mapped to 0.
+ */
 export function computeRunAverages(
   analyses: PricingAnalysis[],
 ): Record<string, number> {
@@ -49,6 +54,13 @@ export function computeRunAverages(
   return averages;
 }
 
+/**
+ * Pairs each analysis's scores with the cohort average for that dimension.
+ * `delta` is `value − benchmarkAvg`, or null when the cohort has fewer than 3
+ * analyses (too small to benchmark against). `personaName` falls back to the
+ * analysis id when no profile name is present. Preserves input order; empty
+ * input returns `[]`.
+ */
 export function computeScoresWithBenchmarks(
   analyses: PricingAnalysis[],
 ): AnalysisWithBenchmarks[] {
@@ -88,6 +100,11 @@ export function computeScoresWithBenchmarks(
   });
 }
 
+/**
+ * Logs one TRACE line describing the cohort's primary friction points: each
+ * analysis contributes its first risk, deduplicated. Logging side effect only;
+ * no return value.
+ */
 export function logDivergenceMetrics(analyses: PricingAnalysis[]): void {
   const primaryFrictions = new Set<string>();
   for (const analysis of analyses) {

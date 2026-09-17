@@ -1,6 +1,9 @@
-import { Persona } from "./Persona";
 import { PersonaBatch } from "@/ui/stores/personaStore";
 
+/**
+ * Built-in demo persona batch used by the setup screen's example flow; not
+ * part of the analysis pipeline.
+ */
 export const DEMO_PERSONA_BATCH: PersonaBatch = {
   id: "demo-batch",
   label: "B2B SaaS Founders & Developers",
@@ -78,5 +81,3 @@ export const DEMO_PERSONA_BATCH: PersonaBatch = {
   }
   ]
 };
-
-export const MOCK_PERSONAS: Persona[] = DEMO_PERSONA_BATCH.personas;

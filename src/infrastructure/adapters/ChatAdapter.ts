@@ -7,6 +7,15 @@ import { ChatPromptCompiler } from "./ChatPromptCompiler";
 import { IdRagStore } from "./IdRagStore";
 import { IdRagService } from "./IdRagService";
 
+/**
+ * Persona-chat sub-adapter behind LlmServiceImpl. Streams in-character
+ * replies grounded in the persona's analysis and ID-RAG memory, guards prompts
+ * outside the persona's domain, and answers panel-synthesis questions over a
+ * whole cohort. Message assembly belongs to ChatPromptCompiler; every model
+ * call goes to its owning LlmServiceImpl (and through it the
+ * OpenAI-compatible provider). Internal to the LLM adapter, not a port
+ * implementation.
+ */
 export class ChatAdapter {
   private chatPromptCompiler: ChatPromptCompiler;
   private ragStore: IdRagStore;

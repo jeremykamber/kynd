@@ -13,6 +13,10 @@ interface ResultsViewProps {
   onReset: () => void
 }
 
+/**
+ * Post-analysis results view: per-persona score metrics, intent funnel, and
+ * qualitative feedback. Owns which persona's chat dialog is open.
+ */
 export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
 
@@ -22,7 +26,6 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
   return (
     <div className="flex flex-col gap-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between border-b border-border/40 pb-6">
         <div className="flex flex-col gap-2">
           <h2 className="text-2xl font-bold tracking-tight">Analysis Results</h2>
@@ -56,7 +59,6 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
             <MinimalCard key={analysis.id} className="p-8">
               <div className="flex flex-col md:flex-row gap-8">
 
-                {/* Left Col: Persona Info & Scores */}
                 <div className="flex flex-col gap-6 w-full md:w-1/3 border-b md:border-b-0 md:border-r border-border/40 pb-8 md:pb-0 md:pr-8">
                   <div className="flex items-center gap-4">
                     <PersonaAvatar name={persona.name} size="lg" />
@@ -106,7 +108,6 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   </button>
                 </div>
 
-                {/* Right Col: Qualitative Feedback */}
                 <div className="flex flex-col gap-8 w-full md:w-2/3">
 
                   <div className="flex flex-col gap-3">
@@ -143,7 +144,6 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                     </div>
                   )}
 
-                  {/* Actionable Badge */}
                   <div className="mt-4 pt-6 border-t border-border/20 flex flex-col sm:flex-row sm:items-center gap-3">
                     <span className="bg-primary/10 text-primary border border-primary/20 text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm flex items-center gap-2 w-fit">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />

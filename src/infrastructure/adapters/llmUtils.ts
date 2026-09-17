@@ -13,16 +13,3 @@ export function stripCodeFence(s: string): string {
     .replace(/```\n?/g, "")
     .trim();
 }
-
-/**
- * Robustly extracts the first JSON object found within a string.
- * Helps handle cases where LLMs prepend/append conversational text.
- */
-export function extractJson(s: string): string {
-  const firstOpen = s.indexOf('{');
-  const lastClose = s.lastIndexOf('}');
-  if (firstOpen === -1 || lastClose === -1 || lastClose < firstOpen) {
-    return s; // Fallback to original
-  }
-  return s.slice(firstOpen, lastClose + 1);
-}

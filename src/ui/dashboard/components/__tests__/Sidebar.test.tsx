@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "@testing-library/react";
+import { render, fireEvent } from "@testing-library/react";
 import React from "react";
 
 // Stable mocks at module level
@@ -63,6 +63,22 @@ function getPersonasButton(container: HTMLElement) {
   throw new Error("Could not find Personas button");
 }
 
+// The nav marks its current section with pathname-dependent styling that is
+// not addressable by any ARIA hook, so the active/inactive distinction is
+// captured by rendering the same element under two routes and comparing the
+// two renderings — restyle-proof, and false if the marking stops varying.
+function navItemClassName(pathname: string, selector: string): string {
+  mockUsePathname.mockReturnValue(pathname);
+  const { container, unmount } = render(<Sidebar />);
+  const el = container.querySelector(selector);
+  if (!el) throw new Error(`Could not find nav item ${selector} on ${pathname}`);
+  const className = el.className;
+  unmount();
+  return className;
+}
+
+const PERSONAS_ITEM = "nav button";
+
 describe("Sidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -72,41 +88,58 @@ describe("Sidebar", () => {
     mockUsePathname.mockReturnValue("/dashboard");
     const { container } = render(<Sidebar />);
 
-    const personasBtn = getPersonasButton(container);
-    expect(personasBtn.className).toContain("bg-primary/10");
+    // The current section renders differently from how the same item renders
+    // on a sibling section.
+    const activeClass = getPersonasButton(container).className;
+    expect(activeClass).not.toBe(navItemClassName("/dashboard/interviews", PERSONAS_ITEM));
+
+    // Selecting the current section resets the batch selection and stays put.
+    fireEvent.click(getPersonasButton(container));
+    expect(mockSetActiveBatch).toHaveBeenCalledWith(null);
+    expect(mockPush).toHaveBeenCalledWith("/dashboard");
   });
 
   it("does NOT highlight Personas when on /dashboard/interviews", () => {
     mockUsePathname.mockReturnValue("/dashboard/interviews");
     const { container } = render(<Sidebar />);
 
-    const personasBtn = getPersonasButton(container);
-    expect(personasBtn.className).not.toContain("bg-primary/10");
+    // Renders exactly as it does on any other non-personas section...
+    const inactiveClass = getPersonasButton(container).className;
+    expect(inactiveClass).toBe(navItemClassName("/dashboard/analyses", PERSONAS_ITEM));
+    // ...and selecting it does not reset the batch selection.
+    fireEvent.click(getPersonasButton(container));
+    expect(mockSetActiveBatch).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith("/dashboard");
   });
 
   it("does NOT highlight Personas when on /dashboard/analyses", () => {
     mockUsePathname.mockReturnValue("/dashboard/analyses");
     const { container } = render(<Sidebar />);
 
-    const personasBtn = getPersonasButton(container);
-    expect(personasBtn.className).not.toContain("bg-primary/10");
+    const inactiveClass = getPersonasButton(container).className;
+    expect(inactiveClass).toBe(navItemClassName("/dashboard/interviews", PERSONAS_ITEM));
+    fireEvent.click(getPersonasButton(container));
+    expect(mockSetActiveBatch).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith("/dashboard");
   });
 
   it("highlights Interviews when on /dashboard/interviews", () => {
-    mockUsePathname.mockReturnValue("/dashboard/interviews");
-    const { container } = render(<Sidebar />);
-
-    const link = container.querySelector('a[href="/dashboard/interviews"]');
-    expect(link).not.toBeNull();
-    expect(link!.className).toContain("bg-primary/10");
+    const activeClass = navItemClassName(
+      "/dashboard/interviews",
+      'a[href="/dashboard/interviews"]',
+    );
+    expect(activeClass).not.toBe(
+      navItemClassName("/dashboard", 'a[href="/dashboard/interviews"]'),
+    );
   });
 
   it("highlights Analyses when on /dashboard/analyses", () => {
-    mockUsePathname.mockReturnValue("/dashboard/analyses");
-    const { container } = render(<Sidebar />);
-
-    const link = container.querySelector('a[href="/dashboard/analyses"]');
-    expect(link).not.toBeNull();
-    expect(link!.className).toContain("bg-primary/10");
+    const activeClass = navItemClassName(
+      "/dashboard/analyses",
+      'a[href="/dashboard/analyses"]',
+    );
+    expect(activeClass).not.toBe(
+      navItemClassName("/dashboard", 'a[href="/dashboard/analyses"]'),
+    );
   });
 });

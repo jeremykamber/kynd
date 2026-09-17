@@ -8,6 +8,10 @@ import { DebateSidebar } from "@/ui/dashboard/components/debate/DebateSidebar";
 import { DebateRoom } from "@/ui/dashboard/components/debate/DebateRoom";
 import { DebateSetupPanel } from "@/ui/dashboard/components/debate/DebateSetupPanel";
 
+/**
+ * /dashboard/debates: the debate workspace. Owns only the sidebar/setup-vs-room
+ * switch; the running debate lives in the debate store and streams via useDebate.
+ */
 export default function DebatesPage() {
   const [showSetup, setShowSetup] = useState(false);
   const [startingDebate, setStartingDebate] = useState(false);

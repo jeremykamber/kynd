@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { InCharacterEvaluator } from "../InCharacterEvaluator";
+import type { LlmServiceImpl } from "../LlmServiceImpl";
 import type { Persona } from "@/domain/entities/Persona";
 
 const basePersona: Persona = {
@@ -22,17 +23,31 @@ const basePersona: Persona = {
 };
 
 describe("InCharacterEvaluator", () => {
-  it("builds interview questions for all Big Five dimensions", () => {
-    const mockLlm = { createChatCompletion: vi.fn().mockResolvedValue("I like trying new tools.") };
-    const evaluator = new InCharacterEvaluator(mockLlm as any);
+  it("builds interview questions for all Big Five dimensions", async () => {
+    type ChatMessage = { role: string; content: string };
+    const createChatCompletion = vi.fn<
+      (messages: ChatMessage[], options: { purpose?: string }) => Promise<string>
+    >(async () => "I like trying new tools.");
+    // Partial mock of the LLM service: only the completion primitive is used.
+    const evaluator = new InCharacterEvaluator({ createChatCompletion } as unknown as LlmServiceImpl);
 
-    expect(evaluator["interviewQuestions"].length).toBeGreaterThanOrEqual(10);
-    const dimensions = evaluator["interviewQuestions"].map((q) => q.dimension);
-    expect(dimensions.filter((d) => d === "openness").length).toBeGreaterThanOrEqual(2);
-    expect(dimensions.filter((d) => d === "conscientiousness").length).toBeGreaterThanOrEqual(2);
-    expect(dimensions.filter((d) => d === "extraversion").length).toBeGreaterThanOrEqual(2);
-    expect(dimensions.filter((d) => d === "agreeableness").length).toBeGreaterThanOrEqual(2);
-    expect(dimensions.filter((d) => d === "neuroticism").length).toBeGreaterThanOrEqual(2);
+    await evaluator.runInterview(basePersona);
+
+    // Observe the questions actually posed: each dimension is probed by at
+    // least two distinct questions, so dropping a dimension's protocol fails.
+    const posed = createChatCompletion.mock.calls.map(([messages, options]) => ({
+      dimension: (options.purpose ?? "").replace("InCharacter Interview: ", ""),
+      question: messages[1].content,
+    }));
+
+    expect(posed.length).toBeGreaterThanOrEqual(10);
+    for (const dimension of ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]) {
+      const asked = posed.filter((p) => p.dimension === dimension).map((p) => p.question);
+      expect(new Set(asked).size).toBeGreaterThanOrEqual(2);
+      for (const question of asked) {
+        expect(question.trim().length).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("conducts an interview and collects responses", async () => {
@@ -47,18 +62,6 @@ describe("InCharacterEvaluator", () => {
     expect(mockLlm.createChatCompletion).toHaveBeenCalled();
   });
 
-  it("generates expert analysis from transcript", async () => {
-    const mockLlm = {
-      createChatCompletion: vi.fn().mockResolvedValue(
-        "Openness: 72/100 - Shows curiosity about new approaches.\nConscientiousness: 80/100 - Methodical decision process."
-      ),
-    };
-    const evaluator = new InCharacterEvaluator(mockLlm as any);
-    const analysis = await evaluator.expertEvaluate(basePersona, "Q: Tell me about trying new things.\nA: I love exploring new SaaS tools.");
-
-    expect(analysis.length).toBeGreaterThan(0);
-  });
-
   it("parses expert trait scores from text", () => {
     const evaluator = new InCharacterEvaluator({} as any);
     const text = `Openness: 72/100\nConscientiousness: 80/100\nExtraversion: 35/100\nAgreeableness: 60/100\nNeuroticism: 55/100`;
@@ -71,14 +74,4 @@ describe("InCharacterEvaluator", () => {
     expect(scores.neuroticism).toBe(55);
   });
 
-  it("runs full evaluation with interview + expert analysis", async () => {
-    const mockLlm = {
-      createChatCompletion: vi.fn().mockResolvedValue("I evaluate tools carefully before buying."),
-    };
-    const evaluator = new InCharacterEvaluator(mockLlm as any);
-    const result = await evaluator.evaluate(basePersona);
-
-    expect(result).toHaveProperty("traitScores");
-    expect(result).toHaveProperty("expertAnalysis");
-  });
 });

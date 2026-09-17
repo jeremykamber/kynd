@@ -1,10 +1,14 @@
 /** N-gram fingerprinting and cosine similarity for text comparison. */
 
+/** n-gram → occurrence count. */
 export type NGramVector = Map<string, number>;
 
 /**
- * Build a character n-gram fingerprint for a text.
- * Lowercases, normalizes whitespace, slides window of n chars, counts each n-gram.
+ * Builds a character n-gram fingerprint of `text`: lowercased, whitespace
+ * collapsed to single spaces, then every `n`-character window counted.
+ *
+ * Deterministic. Returns an empty vector when the cleaned text is shorter than
+ * `n`. `n` must be at least 1.
  */
 export function ngramFingerprint(text: string, n = 3): NGramVector {
   const vec = new Map<string, number>();
@@ -16,7 +20,11 @@ export function ngramFingerprint(text: string, n = 3): NGramVector {
   return vec;
 }
 
-/** Cosine similarity between two n-gram vectors. */
+/**
+ * Cosine similarity between two fingerprints, in [0, 1] for the non-negative
+ * counts this module produces. Returns 0 when either vector is empty or has
+ * zero norm.
+ */
 export function cosineSimilarity(a: NGramVector, b: NGramVector): number {
   let dot = 0;
   let normA = 0;

@@ -1,5 +1,8 @@
 # Persona Browser Agent — Architecture & Design
 
+> **PRE-IMPLEMENTATION DESIGN DOCUMENT — none of the components proposed here exist in `src/`.**
+> There is no `PersonaBrowserAgent`, no `PersonaBrowserAgentPort`, and no Stagehand integration in the repository. The browsing that does ship is artifact intake inside `AnalyzeArtifactUseCase`, which drives `RemotePlaywrightAdapter`. This is a design sketch retained for reference only. For implemented persona behavior, see [PERSONA_INFERENCE_SYSTEM.md](./PERSONA_INFERENCE_SYSTEM.md) and [ARTIFACT_ANALYSIS_FLOW.md](./ARTIFACT_ANALYSIS_FLOW.md).
+
 > **Status**: Design document — pre-implementation
 > **Date**: 2026-05-21
 > **Authors**: Sisyphus + Jeremy Kamber
@@ -145,7 +148,7 @@ Given a persona + URL + task description, the agent produces:
 │  ├── Stagehand (browser control + act())                          │
 │  ├── PersonaPromptCompiler (prompt construction)                  │
 │  ├── Vision-capable LLM (thinking + action)                       │
-│  └── PbjScaffoldEnhancer (optional: inject PB&J rationales)       │
+│  └── PsychographicRationalizer (optional: inject PB&J rationales)       │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -572,7 +575,7 @@ src/infrastructure/adapters/
 | Component | Purpose in Agent |
 |---|---|
 | `PersonaPromptCompiler` | Compiles the per-step persona prompt |
-| `PbjScaffoldEnhancer` | Generates PB&J rationales (optional, pre-step) |
+| `PsychographicRationalizer` | Generates PB&J rationales (optional, pre-step) |
 | `Persona` entity | The persona that drives the session |
 | `LlmServiceImpl` | LLM calls for the thinking step (via OpenRouter) |
 | `IdRagService` | Optional: factual grounding during the session |
@@ -601,7 +604,7 @@ PersonaBrowserAgent (adapter)
   ├── imports ──→ PersonaPromptCompiler (existing adapter)
   ├── imports ──→ LlmServiceImpl (existing adapter → OpenRouter)
   │
-  └── may import ──→ PbjScaffoldEnhancer (optional)
+  └── may import ──→ PsychographicRationalizer (optional)
                    ──→ IdRagService (optional, future)
 ```
 
@@ -708,7 +711,7 @@ This architecture directly implements techniques from the literature review (see
 | **Narrative backstory** | Moon et al. (2024) — Anthology | Persona.backstory → compiled into system prompt |
 | **Compartmentalized prompts** | Wang et al. (2024b) — Survey | PersonaPromptCompiler: 4 delimited sections |
 | **Big Five psychometric grounding** | Joshi et al. (2025) — PB&J | Big Five scores + behavioral mappings in psychographic section |
-| **PB&J psychological rationales** | Joshi et al. (2025) | PbjScaffoldEnhancer generates causal explanations |
+| **PB&J psychological rationales** | Joshi et al. (2025) | PsychographicRationalizer generates causal explanations |
 | **Persona anchors** | Atri et al. (2026) — SyTTA | Injected before every LLM generation in the agent loop |
 | **Periodic re-grounding** | Atri et al. (2026b) — PICon | Every step re-grounds via anchor + full persona context |
 | **InCharacter evaluation** | Wang et al. (2024a) | Can be applied to session transcripts post-hoc |

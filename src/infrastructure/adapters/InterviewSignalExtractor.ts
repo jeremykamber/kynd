@@ -5,8 +5,11 @@ import { stripCodeFence } from "./llmUtils";
 const SYSTEM_PROMPT = `You are analyzing a user interview transcript. Extract observable signals — specific behaviors, goals, pain points, values, and decision patterns mentioned by the interviewee. Do NOT infer personality traits or psychometrics. Only extract what is explicitly stated or clearly implied by the text.`;
 
 /**
- * Pattern A adapter that extracts structured signals from interview transcripts
- * in a single LLM call. Designed for the interview → persona pipeline.
+ * Extracts observable signals (behaviors, goals, pains, values, decision
+ * patterns) from a raw interview transcript in one LLM call; never infers
+ * psychometric traits. Output is validated against ExtractedInterviewSignals
+ * here, and the completion goes to LlmServiceImpl. Internal to the LLM adapter,
+ * not a port implementation.
  */
 export class InterviewSignalExtractor {
   constructor(private llmService: LlmServiceImpl) {}

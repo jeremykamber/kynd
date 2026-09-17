@@ -4,6 +4,13 @@ import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 const join = (arr?: string[]) => (arr && arr.length ? arr.join(", ") : "—");
 const normalize = (text?: string) => (text ? text.replace(/\s+/g, " ").trim() : undefined);
 
+/**
+ * Deterministic builder of the compartmentalized persona prompt: identity,
+ * Big Five psychographic profile, epistemic boundaries, and behavioral
+ * guardrails, plus the per-turn anchor line. Pure string assembly — no LLM
+ * calls. Reused by ChatPromptCompiler and DebatePromptCompiler as the shared
+ * identity/trait base of their prompts.
+ */
 export class PersonaPromptCompiler {
   private anchorIndex = 0;
 

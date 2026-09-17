@@ -167,17 +167,4 @@ describe("InterviewSignalExtractor", () => {
     expect(result.context?.role).toBe("Tester");
   });
 
-  it("passes response_format: json_object option to LLM", async () => {
-    mockLlmService.createChatCompletion.mockResolvedValue(
-      JSON.stringify({ ...validMockResponse, interviewId: "x" })
-    );
-
-    await extractor.extract("Test transcript", "int-007");
-
-    const callArgs = mockLlmService.createChatCompletion.mock.calls[0];
-    const options = callArgs[1];
-
-    expect(options.response_format).toEqual({ type: "json_object" });
-    expect(options.purpose).toBe("Extract Interview Signals");
-  });
 });

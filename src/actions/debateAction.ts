@@ -6,7 +6,8 @@ import { DebatePromptCompiler } from "@/infrastructure/adapters/DebatePromptComp
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import type { Persona } from "@/domain/entities/Persona";
 import type { DebateStreamEvent } from "@/domain/entities/DebateRoom";
-import { shouldRunLocally, VPS_BACKEND_URL, getVpsAuthToken } from "@/infrastructure/config";
+import { shouldRunLocally } from "@/infrastructure/config";
+import { vpsFetchRaw } from "./vpsClient";
 
 async function runLocally(
   proposal: string,
@@ -46,14 +47,7 @@ async function runRemote(
 
   (async () => {
     try {
-      const res = await fetch(`${VPS_BACKEND_URL}/api/vps/debate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getVpsAuthToken()}`,
-        },
-        body: JSON.stringify({ proposal, participants, totalRounds }),
-      });
+      const res = await vpsFetchRaw("debate", { proposal, participants, totalRounds });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
@@ -99,8 +93,9 @@ async function runRemote(
 }
 
 /**
- * Server action for starting a multi-persona debate.
- * Uses local execution in development, VPS SSE fetch in production.
+ * Starts a multi-persona debate. Returns `streamData`, an async stream of
+ * DebateStreamEvents ending in `debate_end` or `error`. Local mode drives the
+ * DebateAdapter in-process; remote mode parses the VPS SSE response.
  */
 export async function debateAction(
   proposal: string,

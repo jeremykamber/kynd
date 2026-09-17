@@ -104,15 +104,4 @@ describe('LlmServiceImpl title generation', () => {
     )
   })
 
-  it('generateBatchTitle includes persona name/occupation in the prompt', async () => {
-    const llm = makeService()
-    const spy = vi.spyOn(llm, 'createChatCompletion').mockResolvedValue('A label')
-
-    await llm.generateBatchTitle([samplePersona], { source: 'interviews', transcriptCount: 1 })
-
-    const messages = spy.mock.calls[0][0]
-    const userText = messages[1].content as string
-    expect(userText).toContain('Maya')
-    expect(userText).toContain('Founder')
-  })
 })

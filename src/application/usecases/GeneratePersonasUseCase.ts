@@ -1,5 +1,5 @@
 import { Persona } from "@/domain/entities/Persona";
-import { LlmServicePort, PersonaPhase, PersonaPhaseProgress } from "../../domain/ports/LlmServicePort";
+import { LlmServicePort, PersonaPhase, PersonaPhaseProgress } from "@/domain/ports/LlmServicePort";
 
 export type PersonaGenerationProgressStep =
     | 'BRAINSTORMING_PERSONAS'
@@ -22,11 +22,32 @@ export interface PersonaGenerationProgress {
 
 import type { PersonaGenerationMode } from "@/domain/entities/PersonaProvenance";
 
+/**
+ * Generates a persona cohort from a free-text description, including
+ * backstories and — when the rationalization call succeeds — PB&J
+ * psychological rationales.
+ *
+ * `mode` selects the generator: 'research' and 'strategy' use the phased LLM
+ * pipelines, an omitted mode runs the legacy two-step pipeline, and 'cluster'
+ * is rejected here because it needs interview IDs (see
+ * GeneratePersonasFromInterviewsUseCase). The instance is stateless; all work
+ * goes through the injected LlmServicePort.
+ */
 export class GeneratePersonasUseCase {
     private static readonly ABBREVIATE_BACKSTORIES = true;
 
     constructor(private llmService: LlmServicePort) { }
 
+    /**
+     * Resolves with `count ?? 3` personas. Rejects if 'cluster' mode is
+     * requested or, in the legacy pipeline, if the generator returns nothing.
+     * Personas receive `pbjRationales` unless the rationalization call fails:
+     * the phased pipelines then return personas without rationales, while the
+     * legacy pipeline propagates the failure.
+     *
+     * Progress reports per-persona backstory ticks in the phased pipelines and
+     * finer sub-step counts in the legacy pipeline.
+     */
     async execute(
         personaDescription: string,
         onProgress?: (progress: PersonaGenerationProgress) => void,

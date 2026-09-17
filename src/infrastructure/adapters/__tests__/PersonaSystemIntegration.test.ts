@@ -83,15 +83,13 @@ describe("Full Persona System Integration", () => {
       const results1 = store.retrieve(testPersona.id, "infrastructure scaling team size", 2);
       const results2 = store.retrieve(testPersona.id, "childhood Detroit father automation", 2);
 
-      // Different queries should produce different result sets
-      const texts1 = results1.map((r) => r.chunk.text.slice(0, 50)).join("");
-      const texts2 = results2.map((r) => r.chunk.text.slice(0, 50)).join("");
-
-      // At minimum, the scores should differ
-      if (results1.length > 0 && results2.length > 0) {
-        const topScoreDiff = Math.abs(results1[0].score - results2[0].score);
-        expect(topScoreDiff).toBeGreaterThan(0);
-      }
+      // Each query surfaces the chunk about its own subject first — an empty
+      // result set fails loudly instead of silently skipping the check.
+      expect(results1.length).toBeGreaterThan(0);
+      expect(results2.length).toBeGreaterThan(0);
+      expect(results1[0].chunk.text).toContain("infrastructure company");
+      expect(results2[0].chunk.text).toContain("grew up in Detroit");
+      expect(results1[0].chunk.id).not.toBe(results2[0].chunk.id);
     });
 
     it("formats context for prompt injection", () => {

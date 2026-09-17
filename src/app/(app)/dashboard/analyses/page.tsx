@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon, PlusIcon, UploadIcon, ImageIcon, LinkIcon, TargetIcon, HelpCircleIcon, FlaskConicalIcon } from 'lucide-react'
 import { Persona } from '@/domain/entities/Persona'
+import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -15,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
 
-function AnalysisCard({ analysis }: { analysis: import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis }) {
+function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
   const router = useRouter()
   const removeAnalysis = useAnalysisStore((s) => s.removeAnalysis)
   const updateAnalysis = useAnalysisStore((s) => s.updateAnalysis)
@@ -149,9 +150,8 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
   }, [batches, selectedBatchId])
   const selectedBatch = batches.find((b) => b.id === selectedBatchId)
 
-  // One-click smoke test: fill the form with the verified preset, then run
-  // immediately if a batch is already selected. Without a batch the prefill
-  // still lands and the user just picks one and presses Run.
+  // Fills the form from the preset, then runs it when a batch is available;
+  // without a batch the prefill still lands and the user submits manually.
   const prefillTestAnalysis = () => {
     setUrl(TEST_ANALYSIS_PRESET.url)
     setBusinessGoal(TEST_ANALYSIS_PRESET.businessGoal)
@@ -289,7 +289,6 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
             Run test analysis
           </Button>
         </div>
-        {/* ── Input mode toggle ──────────────────────────────────── */}
         <div className="flex flex-col gap-2">
           <div className="flex gap-1 rounded-lg bg-muted p-1">
             <button
@@ -319,7 +318,6 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
           </div>
 
           {inputMode === 'url' ? (
-            /* ── URL mode ──────────────────────────────────────── */
             <div className="flex flex-col gap-2">
               <label htmlFor="artifact-url" className="text-sm font-medium">Artifact URL</label>
               <Input
@@ -331,7 +329,6 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
               />
             </div>
           ) : (
-            /* ── Screenshot mode ──────────────────────────────── */
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Artifact Screenshot</label>
               {!screenshotFile ? (
@@ -431,6 +428,11 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
   )
 }
 
+/**
+ * /dashboard/analyses: the analysis list (in-progress first, then finished) plus
+ * the inline "Run New Analysis" form. Analysis records come from the client
+ * analysis store; starting a run is delegated to useAnalysisFlow.
+ */
 export default function AnalysesPage() {
   const analyses = useAnalysisStore((s) => s.analyses)
   const analysisFlow = useAnalysisFlow()

@@ -141,22 +141,59 @@ describe('PersonaAdapter', () => {
     })
 
     it('should pass the reference persona and adjustments to the LLM', async () => {
-      mockLlm.createChatCompletion.mockResolvedValue('[]')
+      // Stand-in for the model: it can only honour the adjustments it was
+      // actually given, so the generated persona encodes whichever target
+      // traits and variation level reached the request.
+      mockLlm.createChatCompletion.mockImplementation(
+        async (messages: { content: string }[]) => {
+          const lines = messages[0].content.split('\n')
+          const target = (trait: string): number => {
+            const line = lines.find((l) => l.startsWith(`- ${trait}:`))
+            return line ? Number(line.split(':')[1].trim()) : NaN
+          }
+          const levelLine = lines.find((l) => l.startsWith('VARIATION LEVEL:'))
+          const level = levelLine ? Number(levelLine.split(':')[1].trim().split('/')[0]) : NaN
+          return JSON.stringify([
+            {
+              name: 'Alex Rivera',
+              age: 29,
+              occupation: 'Associate Product Manager',
+              educationLevel: "Bachelor's in Computer Science",
+              interests: ['growth metrics'],
+              goals: ['Ship faster'],
+              conscientiousness: target('Conscientiousness'),
+              neuroticism: target('Neuroticism'),
+              openness: target('Openness'),
+              extraversion: target('Extraversion'),
+              agreeableness: target('Agreeableness'),
+              values: ['Speed'],
+              fears: ['Building the wrong thing'],
+              communicationStyle: 'direct',
+              decisionStyle: 'data-driven',
+              pricingSensitivity: 50,
+              typicalBudget: '$30-60/user/month',
+              domainExpertise: ['product management'],
+              backstory: `A variation generated at level ${level}.`,
+            },
+          ])
+        },
+      )
 
       const result = await adapter.generateVariationPersonas(mockReferencePersona, defaultAdjustments, 1)
 
-      expect(result).toEqual([])
-      expect(mockLlm.createChatCompletion).toHaveBeenCalledTimes(1)
-      const callArgs = mockLlm.createChatCompletion.mock.calls[0]
-      const messages = callArgs[0]
-
-      const systemMsg = messages[0].content
-      expect(systemMsg).toContain('Jordan Chen')
-      expect(systemMsg).toContain('70')
-      expect(systemMsg).toContain('VARIATION LEVEL: 40')
-
-      const userMsg = messages[1].content
-      expect(userMsg).toContain('Jordan Chen')
+      expect(result).toHaveLength(1)
+      const variation = result[0]
+      // The returned persona reflects the requested adjustments (the
+      // reference's own trait values are all different).
+      expect([
+        variation.conscientiousness,
+        variation.neuroticism,
+        variation.openness,
+        variation.extraversion,
+        variation.agreeableness,
+      ]).toEqual([70, 50, 60, 40, 65])
+      // The requested variation level was applied.
+      expect(variation.backstory).toContain('level 40')
     })
 
     it('should handle unexpected LLM response gracefully', async () => {

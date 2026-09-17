@@ -59,8 +59,13 @@ describe('exportAnalysisAsPdf', () => {
 
     await exportAnalysisAsPdf(mockAnalysis)
 
-    expect(globalThis.URL.createObjectURL).toHaveBeenCalled()
-    expect(clickSpy).toHaveBeenCalled()
+    // The anchor is what the browser hands to the download manager: it must
+    // carry the generated filename and the blob URL, and the click is what
+    // actually starts the download.
+    expect(mockAnchor.download).toBe(generatePdfFilename(mockAnalysis.name, mockAnalysis.createdAt))
+    expect(mockAnchor.download).toBe('kynd-report-test-report-2026-08-20.pdf')
+    expect(mockAnchor.href).toBe('blob:http://localhost/12345')
+    expect(clickSpy).toHaveBeenCalledTimes(1)
     expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:http://localhost/12345')
   })
 })

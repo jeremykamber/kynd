@@ -77,6 +77,15 @@ const PersonaProfileSchema = z.object({
   attributeConfidence: attributeConfidenceSchema.min(1),
 });
 
+/**
+ * Persona-generation sub-adapter behind LlmServiceImpl. Turns a description,
+ * an interview-derived config, or an existing persona into Persona records:
+ * initial batches, per-persona backstories, trait inference, variations, and
+ * counterfactual probes. It builds its own prompts inline, validates model
+ * output against Zod schemas, and delegates every completion to its owning
+ * LlmServiceImpl (and through it the OpenAI-compatible provider). Not a port
+ * implementation — it is internal to the LLM adapter.
+ */
 export class PersonaAdapter {
   constructor(private llmService: LlmServiceImpl) { }
 
@@ -112,9 +121,9 @@ export class PersonaAdapter {
   }
 
   /**
-   * Deterministic, seed-stable assignment of curated gender-neutral names
-   * (see PR #27). FNV-1a hash of the seed text + mulberry32 shuffle so the
-   * same seed yields the same name order. Returns the first `count` names.
+   * Deterministic, seed-stable assignment of curated gender-neutral names:
+   * FNV-1a hash of the seed text + mulberry32 shuffle so the same seed yields
+   * the same name order. Returns the first `count` names.
    */
   private static neutralNames(seedText: string, count: number): string[] {
     let h = 2166136261 >>> 0;

@@ -1,6 +1,10 @@
 import { Sidebar } from '@/ui/dashboard/components/Sidebar';
 import { MobileNav } from '@/ui/dashboard/components/MobileNav';
 
+/**
+ * App shell for the dashboard group: a persistent sidebar plus a mobile header,
+ * with route content rendered in the centred main column.
+ */
 export default function DashboardLayout({
   children,
 }: {

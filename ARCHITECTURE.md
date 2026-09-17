@@ -1,325 +1,285 @@
 # Kynd Architecture
 
-**AI-powered user testing** — creates high-fidelity AI personas, simulates their behavior on websites/apps, and produces behavioral insights for pricing pages and product experiences.
+Kynd is an AI user-testing tool. It builds **personas** (from a market description or from real
+interview transcripts), then runs those personas against an **artifact** — a live URL or a
+screenshot — and produces a structured behavioral report.
 
----
+This document is the map: the layers, the dependency rules, the real ports and use cases, and
+where each flow lives. Subsystem deep dives are linked at the bottom; they are the authority on
+their own flow, and this document does not restate their internals.
 
-## Tech Stack
+## Read this first: the system runs in two places
 
-| Category | Technology |
-|----------|-----------|
-| **Framework** | Next.js 16 (App Router) |
-| **Language** | TypeScript (strict mode, `react-jsx`) |
-| **Runtime** | Bun |
-| **Styling** | Tailwind CSS v4 + shadcn/ui (Radix primitives) |
-| **State** | Zustand (global) + React Server Actions (data mutations) |
-| **AI/LLM** | OpenRouter API, OpenAI SDK, Vercel AI SDK (`@ai-sdk/*`) |
-| **Testing** | Vitest (unit/integration), Playwright (E2E), jsdom env |
-| **Forms/Scaffold** | Plop (`bunx plop`) for code generation |
-| **PDF** | `@react-pdf/renderer` |
-| **Linting** | ESLint flat config (`eslint.config.mjs`), Next.js core-web-vitals + TS rules |
-| **Deploy** | Netlify |
-
----
-
-## Directory Structure
+Kynd is deliberately split, and the split explains most of the codebase's shape:
 
 ```
-.
-├── src/
-│   ├── domain/                    # 🧩 Core business logic (zero external deps)
-│   │   ├── entities/              # Business objects + Zod schemas + validation
-│   │   ├── ports/                 # Interface contracts (abstractions)
-│   │   └── dtos/                  # Data transfer objects
-│   ├── application/               # ⚙️ Orchestration layer
-│   │   ├── usecases/              # Application services (one class per use case)
-│   │   └── interviewPipeline/     # Interview-to-persona signal processing
-│   ├── infrastructure/            # 🧱 Adapter implementations (ports → concrete)
-│   │   ├── adapters/              # LLM, browser, vision, RAG, chat adapters
-│   │   ├── services/              # Browser DB, local storage
-│   │   ├── mappers/               # Domain ↔ DTO converters
-│   │   ├── AnalysisLogger.ts      # Per-run JSONL logger
-│   │   ├── SimulationResultStore.ts
-│   │   └── RequestCancellationManager.ts
-│   ├── actions/                   # 🚀 React Server Actions (thin bridges)
-│   ├── app/                       # 🌐 Next.js App Router
-│   │   ├── (marketing)/           # Public landing page
-│   │   ├── (app)/dashboard/       # Authenticated app (setup, run, results)
-│   │   └── api/                   # Route handlers (chat, report)
-│   ├── ui/                        # 🎨 React components + state
-│   │   ├── dashboard/             # Dashboard views & chat
-│   │   ├── interviews/            # Interview upload
-│   │   ├── stores/                # Zustand stores (persona, simulation, user)
-│   │   └── hooks/                 # Feature-specific hooks
-│   ├── components/                # Shared components
-│   │   ├── ui/                    # shadcn/ui primitives (button, card, dialog...)
-│   │   └── custom/                # Domain-specific (Persona*, Analysis*, FlowDialog...)
-│   ├── lib/utils.ts               # cn() helper (clsx + tailwind-merge)
-│   ├── hooks/use-theme.ts         # Shared theme hook
-│   └── data/genderless_names.ts   # Static dataset
-├── test/                          # E2E & integration test files
-├── docs/                          # Architecture guides, research, API docs
-├── scripts/                       # Utility scripts (benchmark.ts)
-├── src/templates/                 # Plop code-gen templates (Handlebars)
-├── prs/                           # PR description drafts
-└── thoughts/                      # Development notes, plans, handoffs
+┌──────────────────────────────┐        ┌────────────────────────────────────────┐
+│ Netlify                      │        │ VPS (PM2)                              │
+│  • UI + server actions       │  HTTP  │  • Next.js standalone, /api/vps/*      │
+│    (src/actions)             │ ─────▶ │  • playwright-server.js (Chromium WS)  │
+│  • 10–15 s function limit    │        │  • 60–120 s pipelines, fire-and-forget │
+└──────────────────────────────┘        └────────────────────────────────────────┘
 ```
 
----
+Long-running work (multi-call LLM pipelines, browser automation) cannot run inside a serverless
+function, so those routes live on the VPS and are polled. `src/infrastructure/config.ts` decides
+which side executes: `shouldRunLocally()` returns `false` unless `FORCE_LOCAL=true`, so by default
+the long-running actions — analysis, persona generation, interviews, chat, debate, and their
+pollers — delegate through `runRemote()` to `POST $VPS_BACKEND_URL/api/vps/<endpoint>`. Three
+actions never take that branch: `regenPersonaTraits` and `generateBatchTitleAction` build the LLM
+client in-process, and `applyCounterfactualTest` returns an empty result when running remote.
 
-## Hexagonal Architecture (Ports & Adapters)
+`src/middleware.ts` guards `/api/vps/:path*`: it returns 404 unless `IS_VPS=true`, then requires
+`Authorization: Bearer $VPS_AUTH_TOKEN`. If you are debugging an "Unauthorized", start there.
+See [`docs/VPS_DEPLOYMENT.md`](docs/VPS_DEPLOYMENT.md).
 
-The project follows a strict **domain-first hexagonal architecture**. Dependency flow is **inward**: outer layers depend on inner layers, never the reverse.
+## Layering
 
-```
-┌─────────────────────────────────────────────────┐
-│  UI Layer (src/ui, src/components, src/app)     │
-│  React components, Zustand stores, pages        │
-├─────────────────────────────────────────────────┤
-│  Actions Layer (src/actions)                    │
-│  React Server Actions — thin wrappers           │
-├─────────────────────────────────────────────────┤
-│  Application Layer (src/application)            │
-│  Use cases — orchestrate domain logic           │
-├─────────────────────────────────────────────────┤
-│  Domain Layer (src/domain)                      │
-│  Entities, Ports (interfaces), DTOs — pure TS   │
-├─────────────────────────────────────────────────┤
-│  Infrastructure Layer (src/infrastructure)      │
-│  Adapters — implement ports (LLM, DB, browser)  │
-└─────────────────────────────────────────────────┘
-```
-
-### Layer Rules
-
-| Layer | Knows About | Can Import From |
-|-------|-------------|----------------|
-| **Domain** | Nothing | Nothing (pure TS) |
-| **Application** | Domain | Domain only |
-| **Infrastructure** | Domain | Domain, Application (types) |
-| **Actions** | Application, Infrastructure | Application, Infrastructure |
-| **UI** | Actions | Actions, Domain (entities/shapes) |
-
-### Port Interfaces (src/domain/ports)
-
-| Port | Purpose |
-|------|---------|
-| `LlmServicePort` | All LLM operations: persona gen, analysis, chat, signal extraction |
-| `IChatServicePort` | Persona chat responses |
-| `ICriticServicePort` | Critical evaluation of persona outputs |
-| `IMemoryServicePort` | Memory/context persistence |
-| `IGazePredictionPort` | Visual attention prediction |
-| `VisionAnalysisServicePort` | Screenshot-based analysis |
-| `BrowserServicePort` | Playwright-based browser automation |
-| `DatabaseServicePort` | IndexedDB persistence |
-| `UserRepositoryPort` | User CRUD operations |
-| `LlmClientPort` | Low-level LLM client abstraction |
-
----
-
-## Data Flow
-
-### Main Simulation Flow
+Dependencies point **inward**. Outer layers know about inner ones; never the reverse.
 
 ```
-User opens Dashboard
-  → SetupView shows persona form
-  → User enters target description
-  → generatePersonasAction (Server Action)
-    → GeneratePersonasUseCase.execute()
-      → LlmServicePort.generateInitialPersonas()
-        → PersonaAdapter → OpenRouter API (DeepSeek V4 Flash)
-    → ← Persona[] returned to UI
-  → User enters URL, starts simulation
-    → AnalyzePricingPageUseCase
-      → Browser navigates to URL, takes screenshots
-      → LlmServicePort.analyzePricingPageStream()
-        → VisionAnalysisAdapter → OpenRouter API (Qwen VL)
-      → Streaming text updates to UI via streamable values
-    → ← PricingAnalysis[] per persona
-  → ResultsView shows analysis per persona
-  → User can chat with persona via PersonaChat
-    → chatWithPersonaAction → ChatWithPersonaUseCase → LlmServicePort.chatWithPersona()
+ui / app          React pages, feature components, hooks, Zustand stores
+   │
+actions           "use server" entry points: build deps, call one use case
+   │
+application       Use cases + interview pipeline + synthesis (pure orchestration)
+   │
+domain            Entities, ports, DTOs — pure TypeScript, no framework imports
+   ▲
+infrastructure    Adapters implementing ports (LLM, browser, RAG, storage, logging)
 ```
 
-### Interview-to-Persona Pipeline
+| Layer | May import | Must not |
+| --- | --- | --- |
+| `domain` | Nothing (pure TS) | React, Next, Zustand, any SDK |
+| `application` | `domain` | `infrastructure`, React, Next |
+| `infrastructure` | `domain`, application types | React, Next |
+| `actions` | `application`, `infrastructure` | Business logic |
+| `ui`, `app` | `actions`, `domain` shapes | `infrastructure` directly (exceptions below) |
+
+Three edges above are intent, not enforcement — fix these before citing the table as a rule:
+
+- `ui/stores/{analysis,persona,debate}Store.ts` import `infrastructure/services/indexedDBStorage`,
+  and `ui/hooks/useAnalysisFlow.ts` imports the `ArtifactInput` type from an adapter.
+- `src/app/api/report/route.ts`, the synchronous public report endpoint, builds
+  `RemotePlaywrightAdapter`, `LlmServiceImpl`, and `AnalysisLogger` itself.
+- `infrastructure` imports `application/interviewPipeline` for real: `ngramUtils` at runtime and
+  `ExtractedInterviewSignals` as a type. `domain/ports/LlmServicePort.ts` imports that same type,
+  so this inversion runs both ways; the pipeline's shared types and n-gram helpers belong inward,
+  in `domain` or `lib`.
+
+A port's *implementation* lives in `infrastructure`; the port itself is declared in `domain`.
+
+## Directory map
 
 ```
-Interview transcript uploaded
-  → InterviewUploadClient → generatePersonasFromInterviewsAction
-    → GeneratePersonasFromInterviewsUseCase
-      → LlmServicePort.extractInterviewSignals()
-        → InterviewSignalExtractor (chunking, pooling, sampling, n-gram analysis)
-      → LlmServicePort.generateInitialPersonas() (conditioned on signals)
-      → LlmServicePort.rationalizePersonas()
-        → PsychographicRationalizer (PB&J scaffold)
-      → LlmServicePort.generateAbbreviatedBackstoriesBatch()
-    → ← Persona[] returned
+src/
+├── domain/
+│   ├── entities/          # Business objects (+ Zod schemas where the LLM returns them)
+│   ├── ports/             # Interfaces the application depends on
+│   └── dtos/              # Data-transfer shapes across boundaries
+├── application/
+│   ├── usecases/          # One orchestrator per user-visible operation
+│   ├── interviewPipeline/ # Transcript → signals → pooled distribution → sampled persona
+│   └── synthesis/         # Cross-persona synthesis helpers (citations)
+├── infrastructure/
+│   ├── adapters/          # Port implementations: LLM, browser, RAG, chat, debate
+│   ├── services/          # IndexedDB persistence
+│   ├── mappers/           # Domain ↔ persistence row conversion
+│   ├── config.ts          # Local-vs-VPS execution switch
+│   ├── AnalysisLogger.ts  # Per-run JSONL logs → logs/analysis/
+│   └── *Store.ts          # In-process result/progress/cancellation state
+├── actions/               # "use server" functions
+├── app/
+│   ├── (marketing)/       # Public landing page
+│   ├── (app)/dashboard/   # Authenticated app: new, interviews, analyses, debates, generating
+│   └── api/               # chat, report, vps/*
+├── ui/
+│   ├── dashboard/         # Views, dashboard components, utils
+│   ├── interviews/        # Upload client
+│   ├── hooks/             # useAnalysisFlow, usePersonaFlow, useInterviewPipeline, useDebate
+│   └── stores/            # Zustand: persona, analysis, debate, user
+├── components/
+│   ├── ui/                # shadcn/ui primitives
+│   └── custom/            # Domain components (Persona*, Analysis*, Citation*, FlowDialog)
+├── templates/             # Plop generator templates
+└── data/, lib/, hooks/, types.ts
 ```
 
----
+## Domain
 
-## Core Domain Entities
+### Entities (`src/domain/entities/`)
 
-| Entity | File | Key Fields |
-|--------|------|------------|
-| **Persona** | `src/domain/entities/Persona.ts` | Big Five (OCEAN), values, fears, backstory, communication/decision style, pricing sensitivity |
-| **PricingAnalysis** | `src/domain/entities/PricingAnalysis.ts` | Scores (0-100), gut reaction, risks, opportunities, quotes, improvement suggestions |
-| **Simulation** | `src/domain/entities/Simulation.ts` | URL, status (IN_PROGRESS, COMPLETED, ERROR, CANCELLED), persona count, analyses |
-| **TestingSession** | `src/domain/entities/TestingSession.ts` | Session state, progress tracking |
-| **InteractionStep** | `src/domain/entities/InteractionStep.ts` | Individual step in a testing flow |
-| **CriticEvaluation** | `src/domain/entities/CriticEvaluation.ts` | Evaluation of persona quality |
-| **User** | `src/domain/entities/User.ts` | User account, auth |
+| Entity | Represents |
+| --- | --- |
+| `Persona` | A synthetic user: Big Five traits, psychographics, evidence provenance, backstory |
+| `PersonaProvenance` / `BehavioralDimension` | Evidence tier per attribute; context-specific behavioral axes |
+| `PersonaResponse` | One persona's complete analysis output (journey, findings, friction, questions) |
+| `CognitiveStage` / `StageJourney` / `MajorFinding` | The five-stage journey and its findings |
+| `ArtifactIntake` | Normalized input: screenshot + HTML + summary |
+| `ArtifactAnalysis` | Container for one analysis run |
+| `ArtifactSynthesis` | Cross-persona output: top findings, disagreements, friction |
+| `PersonaProfile` | Presentation-layer snapshot used by reports and chat |
+| `DebateRoom` | Multi-persona debate state |
+| `InteractionStep` / `TestingSession` / `StreamOfConsciousness` | Step recording and think-aloud capture |
+| `PricingAnalysis` | **Legacy** pricing-specific entity — `@deprecated` in favour of `PersonaResponse` |
 
----
+`Persona` is the one entity whose schema is written for an LLM contract: it pairs the TypeScript
+interface with a Zod schema so generated output can be validated.
 
-## Key Use Cases (src/application/usecases)
+### Ports (`src/domain/ports/`)
 
-| Use Case | File | Purpose |
-|----------|------|---------|
-| `GeneratePersonasUseCase` | `generatePersonas.ts` | Create personas from text description |
-| `GeneratePersonasFromInterviewsUseCase` | `generatePersonasFromInterviews.ts` | Extract personas from interview transcripts |
-| `ChatWithPersonaUseCase` | `chatWithPersona.ts` | Conversational follow-up with a persona |
-| `ParsePricingPageUseCase` | `parsePricingPage.ts` | Run persona through a URL and analyze |
-| `PredictGazeUseCase` | `predictGaze.ts` | Predict visual attention on a page |
-| `ValidateAnalysisUseCase` | `validateAnalysis.ts` | Validate pricing analysis results |
-| `RecordStepUseCase` | `recordStep.ts` | Record an interaction step |
-| `RegisterUserUseCase` | `registerUser.ts` | User registration |
-| `LoginUserUseCase` | `loginUser.ts` | User login |
-| `EditUserUseCase` | `editUser.ts` | User profile edits |
-| `DeleteUserUseCase` | `deleteUser.ts` | User account deletion |
+| Port | Contract |
+| --- | --- |
+| `LlmServicePort` | The application's single LLM façade: persona generation (three modes), artifact analysis, chat, interview signal extraction, rationalization, debate support |
+| `BrowserServicePort` | Navigate, scroll, capture viewport, locate element, extract cleaned HTML |
+| `IDebateServicePort` | Run a multi-round, multi-persona debate; yields streamed events |
+| `IMemoryServicePort` | Summarize recorded interaction steps into a running context |
 
----
+`LlmServicePort` is intentionally large: it is a façade over an LLM provider, and callers should
+not care which prompt or model backs a given operation. `LlmServiceImpl` owns the adapters and
+delegates.
 
-## Server Actions (src/actions)
+## Application
 
-Each action is a thin bridge — instantiates deps, calls a use case, returns serializable data.
+| Use case | Does |
+| --- | --- |
+| `AnalyzeArtifactUseCase` | Intake → per-persona analysis → response assembly |
+| `SynthesizeArtifactResultsUseCase` | Cohort synthesis across persona responses |
+| `GeneratePersonasUseCase` | Generate personas from a description; dispatches research / strategy / cluster modes |
+| `GeneratePersonasFromInterviewsUseCase` | Full interview pipeline: extract → pool → sample → generate → ID-RAG ingest |
+| `RecordStepUseCase` | Append an interaction step and refresh session memory |
+
+The interview pipeline's pure steps live in `src/application/interviewPipeline/` (chunking,
+n-gram fingerprinting, pooling, weighted sampling) and are unit-tested independently of the LLM.
+
+## Entry points
+
+### Server actions (`src/actions/`)
+
+Every action is a thin bridge: rate-limit, decide local vs remote, call one use case, return
+serializable data or a streamed result.
 
 | Action | Purpose |
-|--------|---------|
-| `generatePersonasAction` | Generate personas from description |
-| `generatePersonasFromInterviewsAction` | Generate personas from interview transcripts |
-| `generateSimilarPersonasAction` | Generate persona variations |
-| `chatWithPersonaAction` | Stream chat with a persona |
-| `analyzePricingPageAction` | Run pricing analysis |
-| `validateAnalysisAction` | Validate analysis results |
-| `predictGazeAction` | Predict visual attention |
-| `getProgressAction` | Get simulation progress |
-| `getScreenshotAction` | Capture page screenshot |
-| `getSimulationResultAction` | Get completed simulation results |
-| `recordStepAction` | Record interaction step |
-| `cancelRequestAction` | Cancel ongoing request |
+| --- | --- |
+| `analyzeArtifactAction` / `getAnalysisResult` / `getProgress` / `getScreenshot` | Run an analysis and poll its progress, results, and live screenshot |
+| `generatePersonas` / `generateSimilarPersonas` / `generatePersonasFromInterviews` / `getPersonaGenerationResult` | Persona generation and variant generation |
+| `chatWithPersona` / `chatWithPanel` | Chat |
+| `debateAction` | Debate |
+| `recordStep` / `cancelRequest` | Session recording; cancellation |
+| `regenPersonaTraits` / `applyCounterfactualTest` / `generateBatchTitleAction` | Persona trait edits, counterfactual checks, batch naming |
 
----
+### Routes (`src/app/`)
 
-## External Integrations
+| Route | Notes |
+| --- | --- |
+| `/` | Marketing landing page |
+| `/dashboard` | App shell |
+| `/dashboard/new`, `/dashboard/interviews`, `/dashboard/analyses`, `/dashboard/analyses/[id]`, `/dashboard/debates`, `/dashboard/generating/[runId]` | Feature routes |
+| `/api/chat`, `/api/report` | Public API routes (`/api/report` is the programmatic analysis endpoint) |
+| `/api/vps/*` | VPS-only; 404 off-VPS, bearer-token guarded |
 
-| Service | Purpose | Provider |
-|---------|---------|----------|
-| **OpenRouter** | LLM API gateway (DeepSeek V4 Flash, Qwen VL, etc.) | `openrouter.ai` |
-| **OpenAI** | Fallback/provider for AI SDK | API-compatible |
-| **Ollama** | Local LLM for development (Gemma 3 1B) | `localhost:11434` |
-| **Browser automation** | Playwright (stealth) for page interaction | Local/CDP |
-| **IndexedDB** | Client-side persistence via `idb-keyval` | Browser API |
-| **Netlify** | Deployment & hosting | `netlify.toml` |
+## Data flows
 
----
+### Personas from a description
+
+```
+SetupView → usePersonaFlow → generatePersonasAction
+  → GeneratePersonasUseCase.execute(description, mode)
+    → LlmServicePort.generate{Research,Strategy,Cluster}Personas()
+      → PersonaAdapter → LLM (+ Zod validation, seeded name assignment)
+    → backstories → PB&J rationalization → insights
+  → personaStore (Zustand + localStorage)
+```
+
+### Personas from interviews
+
+```
+InterviewUploadClient → useInterviewPipeline → generatePersonasFromInterviewsAction
+  → GeneratePersonasFromInterviewsUseCase
+      1 extract   InterviewSignalExtractor (one call per transcript, verbatim quotes only)
+      2 pool      pooling.ts (n-gram clustering + weighted frequencies)
+      3 sample    sampling.ts (weighted draws + LLM coherence validation)
+      4 generate  GeneratePersonasUseCase
+      5 ingest    IdRagStore (backstory + interview chunks)
+```
+
+Full specification:
+[`docs/INTERVIEW_TO_PERSONA_PIPELINE.md`](docs/INTERVIEW_TO_PERSONA_PIPELINE.md).
+
+### Artifact analysis
+
+```
+analyses page → useAnalysisFlow → analyzeArtifactAction
+  → AnalyzeArtifactUseCase
+      intake      ArtifactIntakeAdapter (URL → RemotePlaywrightAdapter + HtmlSummarizer,
+                                       or screenshot → pass-through)
+      per persona VisionAnalysisAdapter: generateVisceralMonologue → extractPersonaResponse
+      synthesis   SynthesizeArtifactResultsUseCase → ArtifactSynthesis
+  → analysisStore (Zustand + IndexedDB)
+```
+
+On the VPS this is fire-and-forget: `POST /api/vps/analyze` returns a run ID, and the client polls
+`analyze-progress`, `analyze-result`, and `analyze-screenshot`.
+
+Full specification:
+[`docs/ARTIFACT_ANALYSIS_FLOW.md`](docs/ARTIFACT_ANALYSIS_FLOW.md).
+
+### Chat and debate
+
+Chat compiles a compartmentalized persona prompt (`PersonaPromptCompiler`), retrieves relevant
+ID-RAG chunks (`IdRagService`), and streams the response. Panel chat answers across the cohort;
+debate runs turn-based rounds through `DebateAdapter`.
+
+## State and persistence
+
+| State | Where | Survives |
+| --- | --- | --- |
+| Persona batches | `ui/stores/personaStore.ts` (Zustand + localStorage) | Reload |
+| Analyses | `ui/stores/analysisStore.ts` (Zustand + IndexedDB) | Reload |
+| Debates | `ui/stores/debateStore.ts` | Reload |
+| In-flight run results | `infrastructure/AnalysisResultStore.ts`, `PersonaGenerationStore.ts` (globalThis, HMR-safe) | Process only |
+| Progress for pollers | `infrastructure/progressStore.ts` | Process only |
+| Cancellation | `infrastructure/RequestCancellationManager.ts` | Process only |
 
 ## Configuration
 
-### Environment Variables (`.env`)
+- Environment variables: [`README.md`](README.md#environment-variables) and `.env.example`.
+- Execution mode: `src/infrastructure/config.ts` (`FORCE_LOCAL`, `VPS_BACKEND_URL`, `VPS_AUTH_TOKEN`).
+- Model selection: `LlmServiceImpl.createFromEnv()` holds the OpenRouter model defaults and reads
+  `OPENROUTER_MODEL` / `OPENROUTER_CHAT_MODEL` / `OPENROUTER_BASE_URL` overrides. Provider-specific
+  choices belong here, never in `domain` or `application`.
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `OPENROUTER_API_KEY` | Yes | LLM API access |
-| `OPENAI_API_KEY` | Fallback | Alternative LLM provider |
-| `OLLAMA_BASE_URL` | Local dev | Local LLM endpoint (default: `http://localhost:11434/v1`) |
-| `OLLAMA_API_KEY` | Local dev | Local LLM auth |
-| `LOG_DIR` | No | Override log directory (default: `cwd/logs/analysis`) |
+## Testing
 
-### LLM Model Configuration
+- `src/**/__tests__/` — unit and integration tests, co-located with the code.
+- `test/*.test.ts`, `test/*.spec.ts` — cross-layer and browser E2E; specs spawn `next dev`, so
+  files run serially.
+- `bun test` runs everything; `bun run release` runs the deterministic gate.
 
-Default models (OpenRouter), configured in `LlmServiceImpl.ts`:
+Conventions and expectations: [`CONTRIBUTING.md`](CONTRIBUTING.md). Browser-test patterns:
+[`docs/E2E_TEST_GUIDE.md`](docs/E2E_TEST_GUIDE.md).
 
-| Purpose | Model |
-|---------|-------|
-| Text generation | `deepseek/deepseek-v4-flash` |
-| Small text | `deepseek/deepseek-v4-flash` |
-| Vision analysis | `qwen/qwen3-vl-30b-a3b-instruct` |
-| Scout/preview | `qwen/qwen3-vl-30b-a3b-instruct` |
-| Extraction | `deepseek/deepseek-v4-flash` |
+## Adding a feature
 
-### Config Files
+1. Model it in `domain/` (entity and, if it touches an external system, a port).
+2. Implement the orchestration in `application/usecases/`.
+3. Implement any new port in `infrastructure/adapters/`.
+4. Expose it through a server action in `src/actions/`, deciding local vs remote.
+5. If it is long-running, add an `src/app/api/vps/<name>/route.ts` following the
+   fire-and-forget + polling pattern.
+6. Build the UI in `src/ui/` (or `src/app/` for routes), using `bunx plop` to scaffold.
+7. Update the tests your change invalidates, then run `bun run release`.
 
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js configuration |
-| `tsconfig.json` | TypeScript strict mode, `@/` path alias |
-| `vitest.config.ts` | Test runner (jsdom, React plugin, `@` alias) |
-| `vitest.setup.ts` | Testing library matchers setup |
-| `eslint.config.mjs` | ESLint flat config (Next.js core-web-vitals + TS) |
-| `postcss.config.mjs` | PostCSS with Tailwind CSS v4 |
-| `components.json` | shadcn/ui component registry |
-| `plopfile.mjs` | Code generation scaffold |
+## Related documents
 
----
-
-## Build & Deploy
-
-```bash
-# Development
-bun dev              # Start Next.js dev server
-
-# Build
-bun build            # Production build
-
-# Production
-bun start            # Start production server
-
-# Testing
-bun vitest run       # Run all tests (unit + integration)
-npx playwright test  # Run E2E tests
-
-# Linting
-bun lint             # ESLint check
-
-# Code Generation
-bunx plop            # Scaffold new entities, use cases, ports, adapters, stores, components
-
-# Benchmarking
-bun benchmark        # Run benchmark script (tsx scripts/benchmark.ts)
-```
-
-### Deployment (Netlify)
-
-Configuration is in `netlify/netlify.toml` and `.netlify/state.json`. The app is built with `next build` and served via Netlify's Next.js integration.
-
----
-
-## Testing Strategy
-
-| Test Type | Location | Framework | Purpose |
-|-----------|----------|-----------|---------|
-| **Unit** | `src/**/__tests__/` | Vitest | Entities, adapters, mappers |
-| **Integration** | `src/**/__tests__/*.integration.*` | Vitest | Use cases with real adapters |
-| **E2E** | `test/*.test.ts` | Vitest + Playwright | Full system flows |
-
-Tests are **co-located** with source files in `__tests__/` directories. E2E tests live in the root `test/` directory.
-
----
-
-## Code Generation (Plop)
-
-Predefined generators for consistent scaffolding:
-
-```
-bunx plop entity    → Entity + test + mapper + mapper test (+ optional DTO)
-bunx plop usecase   → Use case class
-bunx plop port      → Port interface
-bunx plop adapter   → Adapter + test + port interface
-bunx plop service   → Infrastructure service
-bunx plop store     → Zustand store
-bunx plop component → UI component
-```
-
-Templates live in `src/templates/` as Handlebars (`.hbs`) files.
+| Document | Covers |
+| --- | --- |
+| [`docs/ARTIFACT_ANALYSIS_FLOW.md`](docs/ARTIFACT_ANALYSIS_FLOW.md) | Artifact analysis pipeline in depth |
+| [`docs/INTERVIEW_TO_PERSONA_PIPELINE.md`](docs/INTERVIEW_TO_PERSONA_PIPELINE.md) | Interview pipeline + domain glossary |
+| [`docs/PERSONA_INFERENCE_SYSTEM.md`](docs/PERSONA_INFERENCE_SYSTEM.md) | Research basis for the persona prompts |
+| [`docs/PERSONA_MODELING_PHILOSOPHY.md`](docs/PERSONA_MODELING_PHILOSOPHY.md) | Generation modes, provenance, evidence rules |
+| [`docs/USE_CASE_TRACES.md`](docs/USE_CASE_TRACES.md) | Call-by-call traces of the main flows |
+| [`docs/VPS_DEPLOYMENT.md`](docs/VPS_DEPLOYMENT.md) | Deployment, auth, PM2 |
+| [`docs/E2E_TEST_GUIDE.md`](docs/E2E_TEST_GUIDE.md) | Browser tests |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Workflow, conventions, release gate |

@@ -35,6 +35,9 @@ export interface PiconTurn {
  *
  * Reference: Kim et al. (2026) "PICon: A Multi-Turn Interrogation Framework
  * for Evaluating Persona Agent Consistency" — arXiv:2603.25620.
+ *
+ * Prompts, retest comparison, and score parsing live here; completions run on
+ * LlmServiceImpl. Internal to the LLM adapter, not a port implementation.
  */
 export class PiconEvaluator {
   constructor(private llmService: LlmServiceImpl) {}
