@@ -47,6 +47,7 @@ prs/
 .impeccable/
 .serena/
 .opencode/
+.omo/
 
 # Local code-search index (multi-MB, machine-generated)
 .qmd/
