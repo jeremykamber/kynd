@@ -112,12 +112,14 @@ describe("PersonaAdapter dual-mode generation", () => {
       }
     }
 
-    it("rejects quotes drawn from the summary when the transcript is the verbatim source (verbatimSource)", async () => {
+    it("rewrites a summary-derived quote to the transcript's own wording (verbatimSource)", async () => {
       // personaDescription is the pipeline's synthesized summary — it contains
       // the paraphrased signal text. verbatimSource is the raw interview
-      // transcript. A quote taken from the summary paraphrase must be rejected
-      // (previously the check ran against the description, so the paraphrase
-      // passed as "verbatim").
+      // transcript. A quote taken from the summary paraphrase must not survive
+      // as-is: it is rewritten to the transcript sentence it paraphrases, so
+      // the stored quote is a fragment of the transcript. (Previously the check
+      // ran against the description, so the paraphrase passed as "verbatim";
+      // now it is repaired rather than spending a retry.)
       const paraphraseQuoted = [
         { ...researchProfile[0], valueEvidence: ["scans feed by first checking names and profiles"] },
       ];
@@ -126,8 +128,7 @@ describe("PersonaAdapter dual-mode generation", () => {
         "Efficiency is core to their workflow. Transparency builds trust. " +
         "Wasted effort frustrates them. Outdated postings waste time.";
       mockStreamText
-        .mockReturnValueOnce({ output: Promise.resolve(paraphraseQuoted) })
-        .mockReturnValueOnce({ output: Promise.resolve(researchProfile) });
+        .mockReturnValueOnce({ output: Promise.resolve(paraphraseQuoted) });
       const llm = createMockLlmService();
       mockBackstories(llm);
       const adapter = new PersonaAdapter(llm);
@@ -143,10 +144,9 @@ describe("PersonaAdapter dual-mode generation", () => {
       });
 
       expect(personas).toHaveLength(1);
-      // The paraphrase was rejected, so the batch had to retry with real
-      // transcript fragments.
-      expect(mockStreamText).toHaveBeenCalledTimes(2);
-      expect(personas[0].valueEvidence).toEqual(researchProfile[0].valueEvidence);
+      expect(mockStreamText).toHaveBeenCalledTimes(1); // repaired, not retried
+      expect(personas[0].valueEvidence)
+        .toEqual(["Sarah scans the feed daily by first checking names and profiles."]);
     });
 
     it("falls back to the description as verbatim source when verbatimSource is absent", async () => {
@@ -470,6 +470,142 @@ describe("PersonaAdapter dual-mode generation", () => {
       expect(personas[0].fears).toEqual(["Micromanagement", "Churn spikes"]);
       expect(personas[0].interests).toEqual(["sailing", "podcasts"]);
       expect(personas[0].behavioralDimensions).toHaveLength(3);
+    })
+
+    describe("terse descriptions", () => {
+      // 64 characters, one section: the profile call cannot find ~12 distinct
+      // quotable fragments in it, which is what burned every retry in the VPS.
+      // Fixture whose evidence quotes are fragments of the short inputs below,
+      // so the profile batch still validates when no brief arrives.
+      const terseProfile = [{
+        ...strategyProfile[0],
+        values: ["Revenue stability"],
+        valueEvidence: ["They run seat-based pricing"],
+        fears: ["Runway loss"],
+        fearEvidence: ["A churn spike would end the runway"],
+        behavioralDimensions: [
+          { name: "Retention focus", score: 80, context: "pricing", description: "Protects recurring revenue", evidence: "A churn spike would end the runway" },
+        ],
+        evidenceLinks: [{ transcriptId: "user-input", excerpt: "They run seat-based pricing", attribute: "values" }],
+        attributeConfidence: [
+          { attribute: "values", confidence: 0.8, rationale: "Stated in the input" },
+          { attribute: "fears", confidence: 0.8, rationale: "Stated in the input" },
+          { attribute: "goals", confidence: 0.5, rationale: "Inferred" },
+          { attribute: "backstory", confidence: 0.4, rationale: "Thin input" },
+          { attribute: "Retention focus", confidence: 0.7, rationale: "Stated in the input" },
+        ],
+      }];
+      const SHORT_INPUT = "They run seat-based pricing and a churn spike would end the runway.";
+      // Blank-line sections with `Label:` prefixes drive the UI's per-quote
+      // question labels; expanding one would detach quotes from the labels the
+      // user actually wrote.
+      const SHORT_STRUCTURED_INPUT = "Role: pricing owners at B2B SaaS companies.\n\nThey run seat-based pricing. A churn spike would end the runway.";
+      const BRIEF = "Founders in this segment live with seat-based pricing and treat a churn spike as an existential threat to the company.";
+
+      it("expands a one-liner into a brief and generates from that", async () => {
+        stubStructuredOutput(terseProfile);
+        const llm = createMockLlmService();
+        llm.createChatCompletion.mockResolvedValueOnce(BRIEF); // the brief, before any backstory
+        mockBackstories(llm);
+        const adapter = new PersonaAdapter(llm);
+
+        const personas = await adapter.generateStrategyPersonas({
+          count: 1,
+          personaDescription: SHORT_INPUT,
+          allowSyntheticBackstory: true,
+          storytellingLevel: "rich",
+        });
+
+        expect(personas).toHaveLength(1);
+        expect(llm.createChatCompletion).toHaveBeenCalledTimes(2); // brief + backstory
+        expect(llm.createChatCompletion.mock.calls[0][1].purpose).toBe("Strategy brief expansion");
+        // The brief is a superset of the input: the user's own words stay first,
+        // so quotes from either half satisfy the verbatim contract.
+        const profilePrompt = mockStreamText.mock.calls[0][0].prompt as string;
+        expect(profilePrompt).toContain(SHORT_INPUT);
+        expect(profilePrompt).toContain(BRIEF);
+      })
+
+      it("does not spend a brief call on a description that is long enough", async () => {
+        stubStructuredOutput(strategyProfile);
+        const llm = createMockLlmService();
+        mockBackstories(llm);
+        const adapter = new PersonaAdapter(llm);
+
+        await adapter.generateStrategyPersonas({ count: 1, personaDescription: STRATEGY_INPUT });
+
+        expect(llm.createChatCompletion).toHaveBeenCalledTimes(1); // backstory only
+        expect(mockStreamText.mock.calls[0][0].prompt).toContain(STRATEGY_INPUT);
+      })
+
+      it("leaves a short structured description alone", async () => {
+        expect(SHORT_STRUCTURED_INPUT.length).toBeLessThan(150); // terse by length
+        stubStructuredOutput(terseProfile);
+        const llm = createMockLlmService();
+        mockBackstories(llm);
+        const adapter = new PersonaAdapter(llm);
+
+        await adapter.generateStrategyPersonas({ count: 1, personaDescription: SHORT_STRUCTURED_INPUT });
+
+        expect(llm.createChatCompletion).toHaveBeenCalledTimes(1); // backstory only
+        expect(mockStreamText.mock.calls[0][0].prompt).toContain("Role: pricing owners");
+      })
+
+      it("falls back to the description when the brief call fails", async () => {
+        stubStructuredOutput(terseProfile);
+        const llm = createMockLlmService();
+        llm.createChatCompletion.mockRejectedValueOnce(new Error("provider down"));
+        mockBackstories(llm);
+        const adapter = new PersonaAdapter(llm);
+
+        const personas = await adapter.generateStrategyPersonas({
+          count: 1,
+          personaDescription: SHORT_INPUT,
+        });
+
+        expect(personas).toHaveLength(1);
+        expect(personas[0].backstory).toBe("Jordan's life story.");
+        const profilePrompt = mockStreamText.mock.calls[0][0].prompt as string;
+        expect(profilePrompt).toContain(SHORT_INPUT);
+        expect(profilePrompt).not.toContain(BRIEF);
+      })
+    })
+
+    it("repairs a paraphrased quote to the source sentence instead of retrying", async () => {
+      // "They runs pricing experiments quarterly" is a one-token drift from the
+      // input's own sentence. Rejecting it cost a whole retry (and, on the
+      // third strike, the run); the stored quote must be the input's wording.
+      const paraphrased = [{
+        ...strategyProfile[0],
+        valueEvidence: ["They runs pricing experiments quarterly"],
+      }];
+      stubStructuredOutput(paraphrased);
+      const llm = createMockLlmService();
+      mockBackstories(llm);
+      const adapter = new PersonaAdapter(llm);
+
+      const personas = await adapter.generateStrategyPersonas({
+        count: 1,
+        personaDescription: STRATEGY_INPUT,
+      });
+
+      expect(mockStreamText).toHaveBeenCalledTimes(1); // no retry spent
+      expect(personas[0].valueEvidence).toEqual(["They run pricing experiments quarterly."]);
+    })
+
+    it("still rejects a quote no source sentence comes close to", async () => {
+      const invented = [{
+        ...strategyProfile[0],
+        valueEvidence: ["We need a growth engine that compounds forever"],
+      }];
+      stubStructuredOutput(invented, 3);
+      const llm = createMockLlmService();
+      const adapter = new PersonaAdapter(llm);
+
+      await expect(
+        adapter.generateStrategyPersonas({ count: 1, personaDescription: STRATEGY_INPUT }),
+      ).rejects.toThrow(/non-verbatim evidence/);
+      expect(mockStreamText).toHaveBeenCalledTimes(3); // fabrication still fails loudly
     })
 
     it("maps the evidence fields through from the profile response", async () => {
