@@ -373,13 +373,20 @@ export class PersonaAdapter {
         dynamicNamesField?: string;
       };
       /**
+       * Model override for this call. Defaults to the small-text model; the
+       * strategy-mode profile call pins its own (see
+       * `LlmServiceImpl.strategyProfileModel`) because its verbatim contract
+       * is what v4.1 regressed on.
+       */
+      model?: string;
+      /**
        * Invoked immediately before a retry attempt fires (attempt 2+), so
        * callers can surface that generation is retrying rather than stuck.
        */
       onRetry?: (attempt: number, attempts: number) => void;
     } = {},
   ): Promise<Record<string, unknown>[]> {
-    const { schema = PersonaSchema, requiredFields, distinctFields, verbatim, coverage, onRetry } = options;
+    const { schema = PersonaSchema, requiredFields, distinctFields, verbatim, coverage, model, onRetry } = options;
     // Three attempts, not two: a single run can fail twice in a row — e.g.
     // the model fabricates quotes (verbatim nudge), then over-corrects on the
     // retry and drops attributeConfidence (coverage nudge). A third attempt
@@ -402,7 +409,7 @@ export class PersonaAdapter {
           // provider() factory routes to OpenRouter's /responses endpoint,
           // which is pathologically slow for deepseek (90-240s+ for this
           // call) and unreachable by the reasoning-disable fetch hook.
-          model: this.llmService.provider.chat(this.llmService.smallTextModel),
+          model: this.llmService.provider.chat(model ?? this.llmService.smallTextModel),
           output: Output.array({ element: schema }),
           system,
           prompt: user + retryNudge,
@@ -1659,6 +1666,9 @@ ${config.contextNotes ? `Additional context: ${config.contextNotes}` : ""}`;
       "strategy-profiles",
       0.6,
       {
+        // The one call that runs the pinned snapshot: its verbatim evidence
+        // contract is what v4.1 fails on terse ICP descriptions.
+        model: this.llmService.strategyProfileModel,
         schema: PersonaProfileSchema,
         requiredFields: PersonaAdapter.STRATEGY_PROFILE_REQUIRED_FIELDS,
         distinctFields: ['valueEvidence', 'fearEvidence'],

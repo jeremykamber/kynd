@@ -9,6 +9,7 @@ function makeService(): LlmServiceImpl {
     {
       text: 'text-model',
       smallText: 'small-model',
+      strategyProfile: 'strategy-model',
       vision: 'vision-model',
       scout: 'scout-model',
       extraction: 'extraction-model',

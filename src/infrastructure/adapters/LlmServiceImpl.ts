@@ -96,6 +96,12 @@ export class LlmServiceImpl implements LlmServicePort {
     public provider: OpenAIProvider;
     public textModel: string;
     public smallTextModel: string;
+    /**
+     * Model for the strategy-mode profile call only. Pinned separately because
+     * that call's verbatim-evidence contract is the one place v4.1 regresses —
+     * see {@link OR_STRATEGY_PROFILE_MODEL}.
+     */
+    public strategyProfileModel: string;
     public visionModel: string;
     public scoutVisionModel: string;
     public extractionModel: string;
@@ -110,6 +116,17 @@ export class LlmServiceImpl implements LlmServicePort {
 
     private static readonly OR_TEXT_MODEL = "deepseek/deepseek-v4.1-flash";
     private static readonly OR_SMALL_TEXT_MODEL = "deepseek/deepseek-v4.1-flash";
+    /**
+     * The strategy-mode profile call stays on the v4 snapshot on purpose. Its
+     * verbatim contract requires every evidence quote to be a word-for-word
+     * fragment of the ICP description — which is often a single line — and
+     * v4.1 answers that by inventing quotes instead of omitting them, burning
+     * all three attempts. v4-flash fabricates on attempt 1 too, but takes the
+     * omit-rather-than-invent nudge on attempt 2. Verified against
+     * `bun scripts/verify-output.ts persona` on a terse and a rich
+     * description; revisit when a v4.1 snapshot honours the omission rule.
+     */
+    private static readonly OR_STRATEGY_PROFILE_MODEL = "deepseek/deepseek-v4-flash-0731";
     private static readonly OR_VISION_MODEL = "qwen/qwen3.7-flash";
     private static readonly OR_SCOUT_MODEL = "qwen/qwen3.7-flash";
     private static readonly OR_EXTRACTION_MODEL = "deepseek/deepseek-v4.1-flash";
@@ -122,6 +139,7 @@ export class LlmServiceImpl implements LlmServicePort {
         models: {
             text: string;
             smallText: string;
+            strategyProfile: string;
             vision: string;
             scout: string;
             extraction: string;
@@ -131,6 +149,7 @@ export class LlmServiceImpl implements LlmServicePort {
         this.provider = provider;
         this.textModel = models.text;
         this.smallTextModel = models.smallText;
+        this.strategyProfileModel = models.strategyProfile;
         this.visionModel = models.vision;
         this.scoutVisionModel = models.scout;
         this.extractionModel = models.extraction;
@@ -187,6 +206,7 @@ export class LlmServiceImpl implements LlmServicePort {
         overrides?: {
             text?: string;
             smallText?: string;
+            strategyProfile?: string;
             vision?: string;
             scout?: string;
             extraction?: string;
@@ -220,6 +240,9 @@ export class LlmServiceImpl implements LlmServicePort {
                     text: overrides?.text || LlmServiceImpl.OLLAMA_DEFAULT_MODEL,
                     smallText:
                         overrides?.smallText || LlmServiceImpl.OLLAMA_DEFAULT_MODEL,
+                    strategyProfile:
+                        overrides?.strategyProfile ||
+                        LlmServiceImpl.OLLAMA_DEFAULT_MODEL,
                     vision: overrides?.vision || LlmServiceImpl.OLLAMA_DEFAULT_MODEL,
                     scout: overrides?.scout || LlmServiceImpl.OLLAMA_DEFAULT_MODEL,
                     extraction:
@@ -229,6 +252,9 @@ export class LlmServiceImpl implements LlmServicePort {
                     text: overrides?.text || LlmServiceImpl.OR_TEXT_MODEL,
                     smallText:
                         overrides?.smallText || LlmServiceImpl.OR_SMALL_TEXT_MODEL,
+                    strategyProfile:
+                        overrides?.strategyProfile ||
+                        LlmServiceImpl.OR_STRATEGY_PROFILE_MODEL,
                     vision: overrides?.vision || LlmServiceImpl.OR_VISION_MODEL,
                     scout: overrides?.scout || LlmServiceImpl.OR_SCOUT_MODEL,
                     extraction:
