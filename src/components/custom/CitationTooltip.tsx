@@ -23,6 +23,19 @@ export interface CitationTooltipProps {
 }
 
 /**
+ * Grace given to pointer travel between the badge and the portaled card. The
+ * card sits `sideOffset={4}` away in a `document.body` portal, so the leave
+ * event fires while the pointer is still crossing the gap to reach
+ * "View full transcript". Closing on that event is what stranded the button.
+ */
+const HOVER_CLOSE_GRACE_MS = 120
+
+/** True when `node` sits inside the trigger or the card for `key`. */
+function isInsideCitation(key: string, node: EventTarget | null): boolean {
+  return node instanceof Element && node.closest(`[data-citation-key="${key}"]`) !== null
+}
+
+/**
  * The ONLY place that knows what a citation badge looks like.
  *
  * Open model: HoverCard previews on hover/focus, and pressing the badge
@@ -32,6 +45,11 @@ export interface CitationTooltipProps {
  * HoverCard is also not backed by DismissableLayer, so pinned-card dismissal
  * — outside press and Escape — is wired here, scoped by a data-citation-key
  * attribute shared between trigger and card.
+ *
+ * Hover close is deferred by HOVER_CLOSE_GRACE_MS and cancelled by the card's
+ * own pointer-enter/focus, so moving into the card to press a button keeps it
+ * open. Blur, the keyboard equivalent, skips closing when focus lands inside
+ * the same citation subtree.
  */
 export function CitationTooltip({
   citations,
@@ -40,6 +58,55 @@ export function CitationTooltip({
 }: CitationTooltipProps) {
   const [hoverKey, setHoverKey] = React.useState<string | null>(null)
   const [pinnedKey, setPinnedKey] = React.useState<string | null>(null)
+
+  // Pending hover-close, armed when the pointer/focus leaves the trigger and
+  // disarmed when either enters the card. Shared across citations: entering
+  // any badge or card cancels the close the previous one scheduled.
+  const closeTimer = React.useRef<number | null>(null)
+
+  const cancelPreviewClose = React.useCallback(() => {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }, [])
+
+  React.useEffect(() => cancelPreviewClose, [cancelPreviewClose])
+
+  const closePreview = React.useCallback(
+    (key: string) => {
+      cancelPreviewClose()
+      setHoverKey((prev) => (prev === key ? null : prev))
+    },
+    [cancelPreviewClose]
+  )
+
+  const schedulePreviewClose = React.useCallback(
+    (key: string) => {
+      cancelPreviewClose()
+      closeTimer.current = window.setTimeout(() => {
+        closeTimer.current = null
+        setHoverKey((prev) => (prev === key ? null : prev))
+      }, HOVER_CLOSE_GRACE_MS)
+    },
+    [cancelPreviewClose]
+  )
+
+  const openPreview = React.useCallback(
+    (key: string) => {
+      cancelPreviewClose()
+      setHoverKey(key)
+    },
+    [cancelPreviewClose]
+  )
+
+  // Focus leaves the preview only when it moves somewhere outside this
+  // citation's trigger+card subtree. Focus moving between the two (badge →
+  // "View full transcript") keeps the card open.
+  const blurPreview = (key: string, related: EventTarget | null) => {
+    if (pinnedKey === key || isInsideCitation(key, related)) return
+    closePreview(key)
+  }
 
   // Pinned-card dismissal. HoverCard never closes itself against outside
   // presses; listening on the document keeps the trigger press (the click's
@@ -79,17 +146,10 @@ export function CitationTooltip({
               asChild
               aria-label={`Show citation from ${citation.personaName}`}
               data-citation-key={citationKey}
-              onPointerEnter={() => setHoverKey(citationKey)}
-              onPointerLeave={() =>
-                setHoverKey((prev) => (prev === citationKey ? null : prev))
-              }
-              onFocus={() => setHoverKey(citationKey)}
-              onBlur={() => {
-                // Focus preview is transient; a pinned card stays open.
-                if (pinnedKey !== citationKey) {
-                  setHoverKey((prev) => (prev === citationKey ? null : prev))
-                }
-              }}
+              onPointerEnter={() => openPreview(citationKey)}
+              onPointerLeave={() => schedulePreviewClose(citationKey)}
+              onFocus={() => openPreview(citationKey)}
+              onBlur={(event) => blurPreview(citationKey, event.relatedTarget)}
               onPointerDown={() => {
                 setPinnedKey((prev) => (prev === citationKey ? null : citationKey))
               }}
@@ -102,7 +162,14 @@ export function CitationTooltip({
                 <span className="truncate">{citation.personaName}</span>
               </Badge>
             </HoverCardTrigger>
-            <HoverCardContent data-citation-key={citationKey} className="w-80 max-w-sm p-0">
+            <HoverCardContent
+              data-citation-key={citationKey}
+              className="w-80 max-w-sm p-0"
+              onPointerEnter={cancelPreviewClose}
+              onPointerLeave={() => schedulePreviewClose(citationKey)}
+              onFocus={cancelPreviewClose}
+              onBlur={(event) => blurPreview(citationKey, event.relatedTarget)}
+            >
               <div className="flex items-center gap-2 border-b border-border/60 p-3">
                 <PersonaAvatar name={citation.personaName} size="sm" />
                 <div className="flex min-w-0 flex-col">
