@@ -28,23 +28,7 @@ export function PersonaSkeletonCard({ className }: PersonaSkeletonCardProps) {
           </div>
         </div>
 
-        <div className="h-px w-full bg-border/40" />
-
-        <div className="flex flex-col gap-3">
-          <div className="h-3 w-1/3 rounded bg-muted animate-pulse" />
-          <div className="h-2 w-full rounded-sm bg-muted animate-pulse" />
-          <div className="h-3 w-1/3 rounded bg-muted animate-pulse" />
-          <div className="h-2 w-full rounded-sm bg-muted animate-pulse" />
-        </div>
-
-        <div className="flex gap-2">
-          <div className="h-4 w-16 rounded-sm bg-muted animate-pulse" />
-          <div className="h-4 w-20 rounded-sm bg-muted animate-pulse" />
-        </div>
-
-        <div className="h-3 w-1/2 rounded bg-muted animate-pulse" />
-
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-auto">
           <div className="flex-1 h-10 rounded-md bg-muted animate-pulse" />
           <div className="flex-1 h-10 rounded-md bg-muted animate-pulse" />
         </div>

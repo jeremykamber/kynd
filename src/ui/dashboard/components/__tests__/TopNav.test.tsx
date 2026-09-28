@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import React from "react";
 
-// Stable mocks at module level
 const mockUsePathname = vi.fn();
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -11,29 +10,17 @@ vi.mock("next/navigation", () => ({
 }));
 
 const mockSetActiveBatch = vi.fn();
-const mockPersonaState = { batches: [], activeBatchId: null, setActiveBatch: mockSetActiveBatch };
+type MockPersonaState = { setActiveBatch: typeof mockSetActiveBatch };
+const mockPersonaState: MockPersonaState = { setActiveBatch: mockSetActiveBatch };
 vi.mock("@/ui/stores/personaStore", () => ({
-  usePersonaStore: (selector?: (state: any) => any) =>
+  usePersonaStore: (selector?: (state: MockPersonaState) => unknown) =>
     selector ? selector(mockPersonaState) : mockPersonaState,
-}));
-
-vi.mock("@/components/ui/scroll-area", () => ({
-  ScrollArea: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="scroll-area">{children}</div>
-  ),
-}));
-
-vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, className, ...props }: any) => (
-    <button onClick={onClick} className={className} {...props}>{children}</button>
-  ),
 }));
 
 vi.mock("lucide-react", () => ({
   UserIcon: () => <svg data-testid="user-icon" />,
   FileTextIcon: () => <svg data-testid="file-text-icon" />,
   PlayIcon: () => <svg data-testid="play-icon" />,
-  LayersIcon: () => <svg data-testid="layers-icon" />,
 }));
 
 vi.mock("next/link", () => ({
@@ -52,7 +39,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-import { Sidebar } from "../Sidebar";
+import { TopNav } from "../TopNav";
 
 function getPersonasButton(container: HTMLElement) {
   // The Personas nav item is a <button> inside the <nav>
@@ -69,7 +56,7 @@ function getPersonasButton(container: HTMLElement) {
 // two renderings — restyle-proof, and false if the marking stops varying.
 function navItemClassName(pathname: string, selector: string): string {
   mockUsePathname.mockReturnValue(pathname);
-  const { container, unmount } = render(<Sidebar />);
+  const { container, unmount } = render(<TopNav />);
   const el = container.querySelector(selector);
   if (!el) throw new Error(`Could not find nav item ${selector} on ${pathname}`);
   const className = el.className;
@@ -79,47 +66,35 @@ function navItemClassName(pathname: string, selector: string): string {
 
 const PERSONAS_ITEM = "nav button";
 
-describe("Sidebar", () => {
+describe("TopNav", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("highlights Personas when on /dashboard", () => {
+  it("highlights Personas on /dashboard and stays on the batch list", () => {
     mockUsePathname.mockReturnValue("/dashboard");
-    const { container } = render(<Sidebar />);
+    const { container } = render(<TopNav />);
 
-    // The current section renders differently from how the same item renders
-    // on a sibling section.
     const activeClass = getPersonasButton(container).className;
     expect(activeClass).not.toBe(navItemClassName("/dashboard/interviews", PERSONAS_ITEM));
 
-    // Selecting the current section resets the batch selection and stays put.
     fireEvent.click(getPersonasButton(container));
     expect(mockSetActiveBatch).toHaveBeenCalledWith(null);
-    expect(mockPush).toHaveBeenCalledWith("/dashboard");
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("does NOT highlight Personas when on /dashboard/interviews", () => {
-    mockUsePathname.mockReturnValue("/dashboard/interviews");
-    const { container } = render(<Sidebar />);
-
-    // Renders exactly as it does on any other non-personas section...
-    const inactiveClass = getPersonasButton(container).className;
-    expect(inactiveClass).toBe(navItemClassName("/dashboard/analyses", PERSONAS_ITEM));
-    // ...and selecting it does not reset the batch selection.
-    fireEvent.click(getPersonasButton(container));
-    expect(mockSetActiveBatch).not.toHaveBeenCalled();
-    expect(mockPush).toHaveBeenCalledWith("/dashboard");
-  });
-
-  it("does NOT highlight Personas when on /dashboard/analyses", () => {
+  it("clears the active batch when Personas is selected from another section", () => {
     mockUsePathname.mockReturnValue("/dashboard/analyses");
-    const { container } = render(<Sidebar />);
+    const { container } = render(<TopNav />);
 
+    // Renders as inactive here...
     const inactiveClass = getPersonasButton(container).className;
     expect(inactiveClass).toBe(navItemClassName("/dashboard/interviews", PERSONAS_ITEM));
+
+    // ...and selecting it returns to the batch list, not into the previously
+    // active batch. This is the regression the old sidebar-on-mobile path had.
     fireEvent.click(getPersonasButton(container));
-    expect(mockSetActiveBatch).not.toHaveBeenCalled();
+    expect(mockSetActiveBatch).toHaveBeenCalledWith(null);
     expect(mockPush).toHaveBeenCalledWith("/dashboard");
   });
 

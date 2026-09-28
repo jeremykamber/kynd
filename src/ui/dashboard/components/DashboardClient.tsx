@@ -12,7 +12,7 @@ import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
 import { PersonaSkeletonCard } from '@/components/custom/PersonaSkeletonCard'
 import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
 import type { VariationFormData } from '@/components/custom/SimilarPersonaDialog'
-import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon, XIcon } from 'lucide-react'
+import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon, XIcon, ArrowLeftIcon } from 'lucide-react'
 import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
@@ -334,9 +334,17 @@ export function DashboardClient() {
                                     key={batch.id}
                                     className="group relative"
                                 >
-                                    <button
+                                    <div
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={() => setActiveBatch(batch.id)}
-                                        className="flex items-center gap-4 w-full rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault()
+                                                setActiveBatch(batch.id)
+                                            }
+                                        }}
+                                        className="flex items-center gap-4 w-full rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80 cursor-pointer"
                                     >
                                         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                                             <LayersIcon className="h-5 w-5 text-primary" />
@@ -362,7 +370,7 @@ export function DashboardClient() {
                                                 minute: '2-digit',
                                             })}
                                         </span>
-                                    </button>
+                                    </div>
                                     <button
                                         type="button"
                                         onClick={(e) => {
@@ -379,39 +387,38 @@ export function DashboardClient() {
                         </div>
                     ) : (
                         <div className="flex flex-col gap-6">
-                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/40 pb-4">
-                                <div className="flex flex-col gap-1 min-w-0">
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <h2 className="text-xl font-bold tracking-tight min-w-0">
-                                            <InlineRenamable
-                                                value={activeBatch.label}
-                                                onRename={(label) => updateBatchLabel(activeBatch.id, label)}
-                                            />
-                                        </h2>
-                                        {batchAnalysisCount > 0 && (
-                                            <Link
-                                                href="/dashboard/analyses"
-                                                className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-                                            >
-                                                <PlayIcon className="h-3 w-3" />
-                                                {batchAnalysisCount} analysis{batchAnalysisCount !== 1 ? 's' : ''}
-                                            </Link>
-                                        )}
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {activeBatch.personas.length} personas ·{' '}
-                                        {activeBatch.source === 'interviews'
-                                            ? 'from interviews'
-                                            : 'Generated from description'}
-                                        · {new Date(activeBatch.createdAt).toLocaleString()}
-                                    </p>
+                            <button
+                                onClick={() => setActiveBatch(null)}
+                                className="flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                                <ArrowLeftIcon className="h-4 w-4" />
+                                All personas
+                            </button>
+                            <div className="flex flex-col gap-1 min-w-0 border-b border-border/40 pb-4">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <h2 className="text-xl font-bold tracking-tight min-w-0">
+                                        <InlineRenamable
+                                            value={activeBatch.label}
+                                            onRename={(label) => updateBatchLabel(activeBatch.id, label)}
+                                        />
+                                    </h2>
+                                    {batchAnalysisCount > 0 && (
+                                        <Link
+                                            href="/dashboard/analyses"
+                                            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                                        >
+                                            <PlayIcon className="h-3 w-3" />
+                                            {batchAnalysisCount} analysis{batchAnalysisCount !== 1 ? 's' : ''}
+                                        </Link>
+                                    )}
                                 </div>
-                                <button
-                                    onClick={() => setActiveBatch(null)}
-                                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
-                                >
-                                    All Batches
-                                </button>
+                                <p className="text-sm text-muted-foreground">
+                                    {activeBatch.personas.length} personas ·{' '}
+                                    {activeBatch.source === 'interviews'
+                                        ? 'from interviews'
+                                        : 'Generated from description'}
+                                    · {new Date(activeBatch.createdAt).toLocaleString()}
+                                </p>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {activeBatch.personas.map((persona, idx) => {

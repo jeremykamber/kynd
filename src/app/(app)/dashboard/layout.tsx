@@ -1,9 +1,9 @@
-import { Sidebar } from '@/ui/dashboard/components/Sidebar';
-import { MobileNav } from '@/ui/dashboard/components/MobileNav';
+import { TopNav } from '@/ui/dashboard/components/TopNav';
 
 /**
- * App shell for the dashboard group: a persistent sidebar plus a mobile header,
- * with route content rendered in the centred main column.
+ * App shell for the dashboard group: a floating top navigation bar at every
+ * breakpoint (no sidebar), with route content in a centred, width-capped main
+ * column.
  */
 export default function DashboardLayout({
   children,
@@ -11,16 +11,11 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
-          <MobileNav />
-        </header>
-        <main className="flex-1 flex flex-col p-6 sm:p-8 max-w-5xl mx-auto w-full">
-          {children}
-        </main>
-      </div>
+    <div className="flex min-h-screen flex-col bg-background">
+      <TopNav />
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-16 pt-2 sm:px-6">
+        {children}
+      </main>
     </div>
   );
 }
