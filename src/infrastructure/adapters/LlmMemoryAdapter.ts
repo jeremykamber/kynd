@@ -21,12 +21,12 @@ export class LlmMemoryAdapter implements IMemoryServicePort {
   /**
    * Builds an instance from OPENROUTER_BASE_URL (default
    * https://openrouter.ai/api/v1), OPENROUTER_MODEL (default
-   * deepseek/deepseek-v4-flash), and OPENROUTER_API_KEY. Throws when the key is
+   * deepseek/deepseek-v4.1-flash), and OPENROUTER_API_KEY. Throws when the key is
    * unset.
    */
   static createFromEnv(): LlmMemoryAdapter {
     const baseURL = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
-    const model = process.env.OPENROUTER_MODEL || "deepseek/deepseek-v4-flash";
+    const model = process.env.OPENROUTER_MODEL || "deepseek/deepseek-v4.1-flash";
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {

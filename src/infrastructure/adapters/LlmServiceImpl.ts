@@ -108,11 +108,11 @@ export class LlmServiceImpl implements LlmServicePort {
     private htmlSummarizer: HtmlSummarizer;
     private interviewSignalExtractor: InterviewSignalExtractor;
 
-    private static readonly OR_TEXT_MODEL = "deepseek/deepseek-v4-flash-0731";
-    private static readonly OR_SMALL_TEXT_MODEL = "deepseek/deepseek-v4-flash-0731";
+    private static readonly OR_TEXT_MODEL = "deepseek/deepseek-v4.1-flash";
+    private static readonly OR_SMALL_TEXT_MODEL = "deepseek/deepseek-v4.1-flash";
     private static readonly OR_VISION_MODEL = "qwen/qwen3.7-flash";
     private static readonly OR_SCOUT_MODEL = "qwen/qwen3.7-flash";
-    private static readonly OR_EXTRACTION_MODEL = "deepseek/deepseek-v4-flash-0731";
+    private static readonly OR_EXTRACTION_MODEL = "deepseek/deepseek-v4.1-flash";
 
     private static readonly OLLAMA_DEFAULT_MODEL = "gemma3:1b-it-qat";
 

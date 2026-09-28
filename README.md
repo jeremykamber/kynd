@@ -100,7 +100,7 @@ All variables live in `.env` (git-ignored); `.env.example` is the committed temp
 | `OPENROUTER_API_KEY` | Yes | — | LLM access. `OPENAI_API_KEY` is accepted as a fallback. |
 | `OPENAI_API_KEY` | No | — | Fallback LLM key when `OPENROUTER_API_KEY` is unset. |
 | `OPENROUTER_BASE_URL` | No | `https://openrouter.ai/api/v1` | OpenAI-compatible gateway URL. |
-| `OPENROUTER_MODEL` | No | `deepseek/deepseek-v4-flash` | Default text/vision model. |
+| `OPENROUTER_MODEL` | No | `deepseek/deepseek-v4.1-flash` | Default text/vision model. |
 | `OPENROUTER_CHAT_MODEL` | No | `OPENROUTER_MODEL` | Model used for persona chat. |
 | `OLLAMA_BASE_URL` | No | `http://localhost:11434/v1` | Local model endpoint (`provider = "ollama"`). |
 | `OLLAMA_API_KEY` | No | `ollama` | Auth for the local model endpoint. |
