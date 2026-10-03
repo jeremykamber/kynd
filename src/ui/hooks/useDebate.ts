@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback } from "react";
+import { readStreamableValue } from "@ai-sdk/rsc";
 import { debateAction } from "@/actions/debateAction";
 import { useDebateStore } from "@/ui/stores/debateStore";
 import type { Persona } from "@/domain/entities/Persona";
-import type { DebateRoom, DebateStreamEvent, DebateMessage } from "@/domain/entities/DebateRoom";
+import type { DebateRoom, DebateMessage } from "@/domain/entities/DebateRoom";
 
 /**
  * Debate session driver.
@@ -56,7 +57,7 @@ export function useDebate() {
       try {
         const { streamData } = await debateAction(proposal, participants, totalRounds);
 
-        for await (const event of streamData) {
+        for await (const event of readStreamableValue(streamData)) {
           if (!event) continue;
 
           switch (event.type) {
