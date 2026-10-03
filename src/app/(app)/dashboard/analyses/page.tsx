@@ -458,11 +458,11 @@ export default function AnalysesPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold tracking-tight">Analyses</h1>
-          <p className="text-sm text-muted-foreground">
-            {analyses.length === 0
-              ? 'No analyses yet. Run your first analysis to get started.'
-              : `${completed.length} completed · ${inProgress.length} in progress`}
-          </p>
+          {analyses.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {`${completed.length} completed · ${inProgress.length} in progress`}
+            </p>
+          )}
         </div>
         <Button
           onClick={() => setShowNewForm(!showNewForm)}

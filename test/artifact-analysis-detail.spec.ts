@@ -149,6 +149,8 @@ describe('Artifact Analysis Detail — E2E', { timeout: TEST_TIMEOUT }, () => {
   it('shows the empty state on the analyses list for a fresh user', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.goto(`${BASE_URL}/dashboard/analyses`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+    // Exactly one empty-state message — the header subtitle must not duplicate it.
+    expect(await page.getByText(/No analyses yet/).count()).toBe(1);
     expect(await isVisible(page, 'text=No analyses yet')).toBe(true);
     await page.close();
   });
@@ -159,6 +161,8 @@ describe('Artifact Analysis Detail — E2E', { timeout: TEST_TIMEOUT }, () => {
     await page.goto(`${BASE_URL}/dashboard/analyses`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
     expect(await isVisible(page, `text=${SIM_NAME}`)).toBe(true);
+    // The header summary still renders when analyses exist.
+    expect(await isVisible(page, 'text=1 completed · 0 in progress')).toBe(true);
     await page.close();
   });
 
