@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
+import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
 
 function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
   const router = useRouter()
@@ -118,7 +119,7 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
           e.stopPropagation()
           removeAnalysis(analysis.id)
         }}
-        className="absolute -top-2 -right-2 flex items-center justify-center size-6 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-destructive focus:outline-none"
+        className={DESTRUCTIVE_CARD_CONTROL_CLASS}
         aria-label="Delete analysis"
       >
         <XIcon className="size-3.5" />
