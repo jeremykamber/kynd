@@ -1,5 +1,5 @@
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn, DESTRUCTIVE_CARD_CONTROL_CLASS } from "@/lib/utils"
 import { MinimalCard } from "./MinimalCard"
 import { PersonaAvatar } from "./PersonaAvatar"
 import { CopyIcon, GitForkIcon, XIcon, AlertTriangleIcon } from "lucide-react"
@@ -52,7 +52,7 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
               e.stopPropagation()
               setIsDeleteDialogOpen(true)
             }}
-            className="absolute -top-2 -right-2 flex items-center justify-center size-6 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-destructive focus:outline-none z-10"
+            className={DESTRUCTIVE_CARD_CONTROL_CLASS}
             aria-label="Delete persona"
           >
             <XIcon className="size-3.5" />

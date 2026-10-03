@@ -132,4 +132,25 @@ describe('PersonaTraitsSuggestionDialog', () => {
     const keepButtons = screen.getAllByText('Keep')
     expect(keepButtons.length).toBeGreaterThanOrEqual(5)
   })
+
+  it('reveals the row toggles and draws a focus ring when a toggle is focused', () => {
+    render(
+      <PersonaTraitsSuggestionDialog
+        isOpen={true}
+        onClose={vi.fn()}
+        onApply={vi.fn()}
+        suggestedTraits={mockTraits}
+        originalPersona={mockPersona}
+      />
+    )
+    const keep = screen.getAllByText('Keep')[0]
+    // The row's toggles stay hidden until the row is hovered or one of them is
+    // focused — keyboard users must see the control they are about to activate.
+    const toggleGroup = keep.parentElement as HTMLElement
+    expect(toggleGroup.className).toContain('opacity-0')
+    expect(toggleGroup.className).toContain('focus-within:opacity-100')
+    // A focused toggle draws its own ring instead of relying on the browser default.
+    expect(keep.className).toContain('focus-visible:ring-2')
+    expect(keep.className).toContain('focus-visible:ring-ring')
+  })
 })
