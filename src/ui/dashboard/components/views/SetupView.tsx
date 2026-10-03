@@ -35,6 +35,35 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
     personaFlow.handleGeneratePersonas(prompt)
   }
 
+  const personaCountField = (
+    <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
+      <label htmlFor="persona-count" className="text-sm font-medium">Number of personas</label>
+      <input
+        id="persona-count"
+        type="number"
+        min={1}
+        max={20}
+        value={personaCountInput}
+        onChange={(e) => setPersonaCountInput(e.target.value)}
+        onBlur={() => {
+          const v = parseInt(personaCountInput, 10)
+          if (isNaN(v) || v < 1) {
+            personaFlow.setPersonaCount(1)
+            setPersonaCountInput('1')
+          } else if (v > 20) {
+            personaFlow.setPersonaCount(20)
+            setPersonaCountInput('20')
+          } else {
+            personaFlow.setPersonaCount(v)
+            setPersonaCountInput(String(v))
+          }
+        }}
+        disabled={personaFlow.isPending}
+        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-24"
+      />
+    </div>
+  )
+
   return (
     <div className="flex flex-col gap-16 max-w-4xl mx-auto w-full">
       <div className="flex flex-wrap justify-between gap-2">
@@ -102,45 +131,7 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                   >
                     Use guided form instead
                   </button>
-                </>
-              ) : (
-                <PersonaSurveyForm
-                  onSubmit={handleSurveySubmit}
-                  onUseTextarea={() => setUseTextarea(true)}
-                  isPending={personaFlow.isPending}
-                  error={personaFlow.error}
-                />
-              )}
-
-              <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
-                <label htmlFor="persona-count" className="text-sm font-medium">Number of personas</label>
-                <input
-                  id="persona-count"
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={personaCountInput}
-                  onChange={(e) => setPersonaCountInput(e.target.value)}
-                  onBlur={() => {
-                    const v = parseInt(personaCountInput, 10)
-                    if (isNaN(v) || v < 1) {
-                      personaFlow.setPersonaCount(1)
-                      setPersonaCountInput('1')
-                    } else if (v > 20) {
-                      personaFlow.setPersonaCount(20)
-                      setPersonaCountInput('20')
-                    } else {
-                      personaFlow.setPersonaCount(v)
-                      setPersonaCountInput(String(v))
-                    }
-                  }}
-                  disabled={personaFlow.isPending}
-                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-24"
-                />
-              </div>
-
-              {useTextarea && (
-                <>
+                  {personaCountField}
                   <div className="flex items-center justify-between">
                     <Button variant="link" asChild className="h-auto p-0 text-muted-foreground">
                       <Link href="/dashboard/interviews" className="inline-flex items-center gap-1">
@@ -160,6 +151,14 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                     <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{personaFlow.error}</p>
                   )}
                 </>
+              ) : (
+                <PersonaSurveyForm
+                  onSubmit={handleSurveySubmit}
+                  onUseTextarea={() => setUseTextarea(true)}
+                  isPending={personaFlow.isPending}
+                  error={personaFlow.error}
+                  beforeActions={personaCountField}
+                />
               )}
             </div>
           </MinimalCard>
