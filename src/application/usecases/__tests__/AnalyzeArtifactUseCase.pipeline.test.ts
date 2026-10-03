@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AnalyzeArtifactUseCase } from '../AnalyzeArtifactUseCase'
 import type { AnalysisProgress } from '../AnalyzeArtifactUseCase'
-import type { ArtifactIntakeAdapter } from '@/infrastructure/adapters/ArtifactIntakeAdapter'
+import { ArtifactIntakeAdapter } from '@/infrastructure/adapters/ArtifactIntakeAdapter'
 import type { LlmServicePort } from '@/domain/ports/LlmServicePort'
+import type { BrowserServicePort } from '@/domain/ports/BrowserServicePort'
 import type { Persona } from '@/domain/entities/Persona'
 
 function makePersona(name: string): Persona {
@@ -153,5 +154,36 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
     expect(counted.every((event) => event.totalCount === 2)).toBe(true)
     expect(counted.at(-1)?.completedCount).toBe(2)
     expect(Math.max(...counted.map((event) => event.completedCount))).toBe(2)
+  })
+
+  it('surfaces a capture failure instead of synthesizing findings from an unloadable artifact', async () => {
+    const failingBrowser = {
+      navigateTo: vi
+        .fn()
+        .mockRejectedValue(
+          new Error('Could not load https://nonexistent.example — the page did not respond'),
+        ),
+      captureViewport: vi.fn(),
+      getCleanedHtml: vi.fn(),
+      close: vi.fn().mockResolvedValue(undefined),
+    } as unknown as BrowserServicePort
+    const intakeAdapter = new ArtifactIntakeAdapter(
+      failingBrowser,
+      { summarizeHtml: vi.fn() } as unknown as LlmServicePort,
+    )
+    const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llm)
+
+    await expect(
+      useCase.execute(
+        { type: 'url', url: 'https://nonexistent.example' },
+        [makePersona('Ada')],
+        'goal',
+        'rq',
+      ),
+    ).rejects.toThrow(/Failed to capture artifact: Could not load/)
+
+    // No persona ever runs against the blank capture, so no verdict is fabricated.
+    expect(llm.generateVisceralMonologue).not.toHaveBeenCalled()
+    expect(llm.extractPersonaResponse).not.toHaveBeenCalled()
   })
 })
