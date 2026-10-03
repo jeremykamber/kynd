@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import type { PersonaSurvey } from "@/lib/surveyToPrompt"
 import {
@@ -18,6 +18,11 @@ interface PersonaSurveyFormProps {
   onUseTextarea: () => void
   isPending: boolean
   error?: string | null
+  /**
+   * Content rendered directly above the action row (i.e. the persona-count
+   * control), so the guided mode matches the freeform mode's field order.
+   */
+  beforeActions?: ReactNode
 }
 
 function MultiSelect({
@@ -111,7 +116,7 @@ function SingleSelect({
  * consumed by the prompt compiler. Submit stays disabled until every required
  * question is answered; `onUseTextarea` switches to the freeform path instead.
  */
-export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }: PersonaSurveyFormProps) {
+export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error, beforeActions }: PersonaSurveyFormProps) {
   const [targetAudience, setTargetAudience] = useState("")
   const [goals, setGoals] = useState<string[]>([])
   const [frustration, setFrustration] = useState("")
@@ -260,6 +265,8 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
           className="min-h-[80px] resize-y"
         />
       </div>
+
+      {beforeActions}
 
       <div className="flex items-center justify-between">
         <button
