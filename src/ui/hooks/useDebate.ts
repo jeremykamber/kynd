@@ -14,8 +14,9 @@ import type { DebateRoom, DebateStreamEvent, DebateMessage } from "@/domain/enti
  * `startDebate` inserts a room in
  * `setup` status, runs `debateAction`, and folds the streamed debate events
  * into the store — one placeholder message per persona filled by `chunk`
- * events — then resolves once the stream reports `debate_end`/`error` (or ends
- * without a terminal event, which is treated as completed). The caller
+ * events` — then resolves once the stream reports `debate_end`/`error` (a
+ * stream that ends without a terminal event is recorded as `error`, since a
+ * truncated stream must not be reported as a successful completion). The caller
  * observes progress by subscribing to the store's debate status and
  * `isStreaming`; the promise resolves with the debate id only after streaming
  * has finished.
@@ -126,8 +127,13 @@ export function useDebate() {
           }
         }
 
-        // Stream ended without a terminal event — mark as completed
-        store.updateDebate(debateId, { status: "completed" });
+        // Stream ended without a terminal event — a truncated stream is a
+        // failure, not a success. Never report it as `completed`.
+        store.updateDebate(debateId, {
+          status: "error",
+          error:
+            "The debate stream ended before the debate finished (no completion signal).",
+        });
         store.setStreaming(false);
       } catch (err) {
         console.error("[useDebate] Fatal error:", err);

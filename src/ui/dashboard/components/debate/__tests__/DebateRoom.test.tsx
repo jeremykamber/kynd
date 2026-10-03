@@ -1,8 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { DebateRoom } from "../DebateRoom";
 import { useDebateStore } from "@/ui/stores/debateStore";
 import type { Persona } from "@/domain/entities/Persona";
+import type { DebateRoom as DebateRoomType } from "@/domain/entities/DebateRoom";
+
+const mockStartDebate = vi.hoisted(() => vi.fn());
+
+vi.mock("@/ui/hooks/useDebate", () => ({
+  useDebate: () => ({ startDebate: mockStartDebate }),
+}));
 
 const mockPersona: Persona = {
   id: "p1", name: "Alice Chen", age: 38,
@@ -15,7 +22,9 @@ const mockPersona: Persona = {
   pricingSensitivity: 50, typicalBudget: "",
 };
 
-function setupStore() {
+function setupStore(
+  overrides: { status?: DebateRoomType["status"]; error?: string } = {},
+) {
   useDebateStore.setState({
     debates: [{
       id: "d1",
@@ -24,7 +33,8 @@ function setupStore() {
       messages: [],
       currentRound: 1,
       totalRounds: 3,
-      status: "in_progress",
+      status: overrides.status ?? "in_progress",
+      error: overrides.error,
       createdAt: new Date().toISOString(),
     }],
     activeDebateId: "d1",
@@ -35,6 +45,7 @@ function setupStore() {
 describe("DebateRoom", () => {
   beforeEach(() => {
     localStorage.clear();
+    mockStartDebate.mockReset();
     useDebateStore.setState({
       debates: [],
       activeDebateId: null,
@@ -64,4 +75,51 @@ describe("DebateRoom", () => {
     expect(screen.getByText(/Alice Chen/)).toBeTruthy();
   });
 
+  it("renders a human-readable message and a retry control for an errored debate", () => {
+    setupStore({
+      status: "error",
+      error: "TypeError: streamData is not async iterable",
+    });
+    render(<DebateRoom />);
+
+    expect(screen.getByText(/Debate failed/)).toBeTruthy();
+    expect(screen.getByText(/stopped responding/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /retry/i })).toBeTruthy();
+  });
+
+  it("keeps the raw engine error behind a technical-details affordance", () => {
+    setupStore({
+      status: "error",
+      error: "TypeError: streamData is not async iterable",
+    });
+    render(<DebateRoom />);
+
+    const raw = screen.getByText(/streamData is not async iterable/);
+    expect(raw.closest("details")).not.toBeNull();
+    expect(screen.getByText(/Technical details/)).toBeTruthy();
+  });
+
+  it("retries with the same proposal, participants and rounds", async () => {
+    setupStore({ status: "error", error: "boom" });
+    mockStartDebate.mockResolvedValue("d2");
+    render(<DebateRoom />);
+
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+
+    await waitFor(() =>
+      expect(mockStartDebate).toHaveBeenCalledWith(
+        "Raise prices 60%",
+        [mockPersona],
+        3,
+      ),
+    );
+  });
+
+  it("does not render the interjection form for an errored debate", () => {
+    setupStore({ status: "error", error: "boom" });
+    render(<DebateRoom />);
+    expect(
+      screen.queryByPlaceholderText(/Add your perspective/),
+    ).toBeNull();
+  });
 });

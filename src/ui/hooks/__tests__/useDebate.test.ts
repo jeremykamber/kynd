@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useDebateStore } from "@/ui/stores/debateStore";
 import type { Persona } from "@/domain/entities/Persona";
+import type { DebateStreamEvent } from "@/domain/entities/DebateRoom";
 
 // Mock the server action at module level
 vi.mock("@/actions/debateAction", () => ({
@@ -101,5 +102,31 @@ describe("useDebate", () => {
     const state = useDebateStore.getState();
     expect(state.debates[0].status).toBe("error");
     expect(state.debates[0].error).toBe("LLM failed");
+  });
+
+  it("marks debate as error when the stream ends without a terminal event", async () => {
+    const mockStream = createMockStream([
+      { type: "debate_start", proposal: "Test", participants: ["Alice"] },
+      { type: "round_start", round: 1, totalRounds: 1 },
+      { type: "persona_start", personaId: "p1", personaName: "Alice" },
+      { type: "chunk", personaId: "p1", text: "partial answer" },
+    ]);
+
+    vi.mocked(debateAction).mockResolvedValue({
+      // Unchecked cast: the mock iterator deliberately yields partial event
+      // shapes to model a stream that stops mid-debate.
+      streamData: mockStream as unknown as AsyncIterable<DebateStreamEvent>,
+    });
+
+    const { result } = renderHook(() => useDebate());
+
+    await act(async () => {
+      await result.current.startDebate("Test", [mockPersona], 1);
+    });
+
+    const state = useDebateStore.getState();
+    expect(state.debates[0].status).toBe("error");
+    expect(state.debates[0].error).toBeTruthy();
+    expect(state.isStreaming).toBe(false);
   });
 });

@@ -2,8 +2,18 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useDebateStore } from "@/ui/stores/debateStore";
+import { useDebate } from "@/ui/hooks/useDebate";
 import { DebateMessageBubble } from "./DebateMessageBubble";
-import { Send, CopyIcon, CheckIcon } from "lucide-react";
+import { getDebateErrorMessage } from "./debateErrorMessage";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Send,
+  CopyIcon,
+  CheckIcon,
+  AlertTriangleIcon,
+  RotateCcwIcon,
+} from "lucide-react";
 
 /**
  * Active-debate view: messages grouped by round plus an interjection box.
@@ -18,7 +28,9 @@ export function DebateRoom() {
 
   const [input, setInput] = useState("");
   const [copied, setCopied] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { startDebate } = useDebate();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
@@ -56,6 +68,22 @@ export function DebateRoom() {
       order: activeDebate.messages.length,
     });
     setInput("");
+  };
+
+  const handleRetry = async () => {
+    if (isRetrying) return;
+    setIsRetrying(true);
+    try {
+      // A fresh room is created and becomes active, so the errored room's
+      // partial transcript is preserved without duplicating any messages.
+      await startDebate(
+        activeDebate.proposal,
+        activeDebate.participants,
+        activeDebate.totalRounds,
+      );
+    } finally {
+      setIsRetrying(false);
+    }
   };
 
   const messagesByRound = activeDebate.messages.reduce<
@@ -187,6 +215,40 @@ export function DebateRoom() {
               <Send className="h-3.5 w-3.5" />
             </button>
           </form>
+        </div>
+      )}
+
+      {activeDebate.status === "error" && (
+        <div className="shrink-0 px-6 py-4 border-t border-border/40 bg-card">
+          <Alert variant="destructive" className="max-w-2xl mx-auto">
+            <AlertTriangleIcon />
+            <AlertTitle>Debate failed</AlertTitle>
+            <AlertDescription>
+              <p>{getDebateErrorMessage(activeDebate.error)}</p>
+              <div className="mt-3 flex flex-wrap items-start gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetry}
+                  disabled={isRetrying}
+                >
+                  <RotateCcwIcon />
+                  {isRetrying ? "Retrying…" : "Retry debate"}
+                </Button>
+                {activeDebate.error && (
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer select-none hover:text-foreground">
+                      Technical details
+                    </summary>
+                    <pre className="mt-2 max-w-full whitespace-pre-wrap break-words font-mono text-[11px]">
+                      {activeDebate.error}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            </AlertDescription>
+          </Alert>
         </div>
       )}
     </div>

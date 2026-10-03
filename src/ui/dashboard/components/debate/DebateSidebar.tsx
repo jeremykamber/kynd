@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useDebateStore } from "@/ui/stores/debateStore";
+import { getDebateErrorMessage } from "./debateErrorMessage";
 import { MessageSquareIcon, PlusIcon } from "lucide-react";
 
 interface DebateSidebarProps {
@@ -65,6 +66,14 @@ export function DebateSidebar({ onNewDebate }: DebateSidebarProps) {
                     </span>
                   </div>
                   <span className="text-xs truncate pl-[14px]">{preview}</span>
+                  {debate.status === "error" && (
+                    <span
+                      className="text-[10px] text-destructive/90 truncate pl-[14px]"
+                      title={debate.error}
+                    >
+                      {getDebateErrorMessage(debate.error)}
+                    </span>
+                  )}
                 </button>
               );
             })}
