@@ -25,6 +25,12 @@ interface PersonaDetailModalProps {
   onChatClick?: (persona: Persona) => void
 }
 
+/**
+ * Read-only persona inspector: backstory (searchable), goals, Big Five and
+ * psychographic traits, with an optional export button and chat hand-off.
+ * The wider, richer twin of `PersonaDetailSheet`; returns null without a
+ * persona and does not itself mutate anything.
+ */
 export function PersonaDetailModal({
   persona,
   isOpen,
@@ -94,7 +100,6 @@ export function PersonaDetailModal({
           animate="visible"
           variants={containerVariants}
         >
-          {/* Header Section */}
           <div className="p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 items-start justify-between border-b border-border/40 bg-background">
             <div className="flex gap-4 md:gap-6 items-center">
               <PersonaAvatar name={persona.name} size="xl" className="w-16 h-16 md:w-24 md:h-24 border-2 border-background shrink-0" />
@@ -128,9 +133,7 @@ export function PersonaDetailModal({
           <ScrollArea className="flex-1">
             <div className="p-4 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 pb-12">
 
-              {/* Left Column */}
               <div className="flex flex-col gap-4 md:gap-6">
-                {/* Backstory Vault */}
                 <motion.div
                   variants={itemVariants}
                   className="flex flex-col h-[400px] p-5 md:p-6 rounded-lg bg-card border border-border overflow-hidden transition-colors duration-150 hover:border-border"
@@ -168,7 +171,6 @@ export function PersonaDetailModal({
                   </ScrollArea>
                 </motion.div>
 
-                {/* Goals */}
                 <motion.div
                   variants={itemVariants}
                   className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-6 transition-colors duration-150 hover:border-border"
@@ -185,9 +187,7 @@ export function PersonaDetailModal({
                 </motion.div>
               </div>
 
-              {/* Right Column */}
               <div className="flex flex-col gap-4 md:gap-6">
-                {/* Engine */}
                 <motion.div
                   variants={itemVariants}
                   className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-8 h-full transition-colors duration-150 hover:border-border"

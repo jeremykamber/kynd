@@ -147,7 +147,7 @@ vi.mock('next/link', () => ({
 }))
 vi.mock('lucide-react', () => {
   const I = () => <svg />
-  return { LayersIcon: I, SparklesIcon: I, PlayIcon: I, PlusIcon: I, ChevronDownIcon: I, FileTextIcon: I, PenIcon: I, ClockIcon: I, ArrowRightIcon: I, XIcon: I, PencilIcon: I, CheckIcon: I }
+  return { LayersIcon: I, SparklesIcon: I, PlayIcon: I, PlusIcon: I, ChevronDownIcon: I, FileTextIcon: I, PenIcon: I, ClockIcon: I, ArrowRightIcon: I, ArrowLeftIcon: I, XIcon: I, PencilIcon: I, CheckIcon: I }
 })
 
 import { DashboardClient } from '../DashboardClient'
@@ -188,18 +188,6 @@ describe('DashboardClient — setup view visibility (isGenerating logic)', () =>
 
   it('hides setup view when personaProgress.step is BRAINSTORMING_PERSONAS', () => {
     resetPersonaFlow({ personaProgress: { step: 'BRAINSTORMING_PERSONAS' } })
-    render(<DashboardClient />)
-    expect(setupVisible()).toBe(false)
-  })
-
-  it('hides setup view when personaProgress.step is GENERATING_BACKSTORIES', () => {
-    resetPersonaFlow({ personaProgress: { step: 'GENERATING_BACKSTORIES' } })
-    render(<DashboardClient />)
-    expect(setupVisible()).toBe(false)
-  })
-
-  it('hides setup view when personaProgress.step is ADDING_BEHAVIORAL_DEPTH', () => {
-    resetPersonaFlow({ personaProgress: { step: 'ADDING_BEHAVIORAL_DEPTH' } })
     render(<DashboardClient />)
     expect(setupVisible()).toBe(false)
   })

@@ -1,43 +1,67 @@
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# ---------------------------------------------------------------------------
+# Dependencies & build output
+# ---------------------------------------------------------------------------
 node_modules
 .next
 out
+coverage
+*.tsbuildinfo
+next-env.d.ts
+bun.lockb
+
+# ---------------------------------------------------------------------------
+# Environment (never commit secrets)
+# ---------------------------------------------------------------------------
 .env
 .env.local
-bun.lockb
-coverage
-deep_binding_of_llm_virtual_personas.*
+.env.*.local
 
-# OS
-.DS_Store
-
-# analysis logs
-logs/
-
-# Local Netlify folder
+# ---------------------------------------------------------------------------
+# Deployment
+# ---------------------------------------------------------------------------
+.vercel
 .netlify
 
-# Sisyphus test artifacts
-.sisyphus/
-
-# Impeccable design artifacts
-.impeccable/
-
-# Temp files
+# ---------------------------------------------------------------------------
+# Runtime output
+# ---------------------------------------------------------------------------
+logs/
 TEMP_*
 
-# Git worktrees (isolated dev workspaces, never committed)
+# ---------------------------------------------------------------------------
+# Personal / local-only state — reproducible elsewhere, never part of the repo
+# ---------------------------------------------------------------------------
+
+# Git worktrees (isolated dev workspaces)
 .worktrees/
 
-# Infra management (personal VPS scripts, never committed)
+# Personal VPS management scripts
 infra/
 
-# Engineering notebook durability (workflow.md convention): decisions + notes are ADRs/worklog, committed
+# Engineering notebook: plans, research, ledgers, handoffs
+thoughts/
+prs/
+
+# Agent session artifacts and tool state
+.sisyphus/
+.impeccable/
+.serena/
+.opencode/
+.omo/
+
+# Local code-search index (multi-MB, machine-generated)
+.qmd/
+.qmd-adaptive-search/
+
+# Raw research manuscript (kept locally, not source)
+deep_binding_of_llm_virtual_personas.*
+
+# ---------------------------------------------------------------------------
+# OS
+# ---------------------------------------------------------------------------
+.DS_Store
+
+# Engineering notebook: durable decisions and notes ARE committed
 !.ai/
 .ai/*
 !.ai/contexts/

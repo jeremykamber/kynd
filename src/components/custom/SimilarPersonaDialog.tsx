@@ -42,6 +42,12 @@ interface SimilarPersonaDialogProps {
   onGenerate: (referencePersona: Persona, formData: VariationFormData) => void
 }
 
+/**
+ * Dialog for generating variations of an existing persona. Collects per-trait
+ * sliders (1-5), a creative-freedom level and a count, then hands the caller
+ * the mapped 0-100 `VariationFormData` before closing. Returns null when
+ * `persona` is null.
+ */
 export function SimilarPersonaDialog({
   persona,
   isOpen,

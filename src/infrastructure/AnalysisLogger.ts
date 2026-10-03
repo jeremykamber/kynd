@@ -1,18 +1,18 @@
 /**
- * AnalysisLogger — Per-run logging for artifact analysis.
+ * AnalysisLogger — per-run logging for the artifact-analysis pipeline.
  *
- * Each run of the analysis pipeline gets a unique run ID and its own
- * log file under logs/analysis/.  Every log entry is both written to the file
- * (as JSONL) AND output to the console for real-time tracing.
+ * A logger instance is one run's log sink; callers obtain it by run ID through
+ * `forRun` and must `close()` it when the run ends. Each run writes its own
+ * file at `<LOG_DIR>/logs/analysis/analysis-<runId>-<timestamp>.log`, where
+ * LOG_DIR defaults to the process cwd. The file is JSONL — one JSON object per
+ * line ({ timestamp, level, runId, module, message, data? }) — and every entry
+ * is mirrored to the console with a `[LEVEL] [module]` prefix.
  *
- * Usage:
- *   const log = AnalysisLogger.forRun(runId);
- *   await log.init();
- *   log.info("ModuleName", "Some message", { optionalData });
- *   // ... analysis runs ...
- *   await log.close();
- *
- * Logs are auto-flushed every ~100KB to avoid large memory buffers.
+ * Entries are buffered and flushed once the buffer passes ~100KB; only `close()`
+ * guarantees the tail reaches disk, and it also writes the persona latency
+ * summary, appends the END marker, releases the file handle, and deregisters
+ * the run. `forRun` returns the same instance for a repeated run ID, so an
+ * unclosed run leaks its buffer and registry entry.
  */
 
 import { promises as fs } from "fs";
@@ -81,7 +81,6 @@ export class AnalysisLogger {
     return this._initialized;
   }
 
-  /** Initialize the logger — creates the log directory and file. */
   async init(): Promise<void> {
     if (this._initialized) return;
     await fs.mkdir(AnalysisLogger.LOG_DIR, { recursive: true });
@@ -166,7 +165,6 @@ export class AnalysisLogger {
 
   // ── Flush & Close ──────────────────────────────────────────────────
 
-  /** Flush buffered entries to disk. */
   async flush(): Promise<void> {
     if (this.entries.length === 0) return;
     const lines = this.entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
@@ -179,7 +177,6 @@ export class AnalysisLogger {
     }
   }
 
-  /** Close the logger — flush remaining entries and finalize the file. */
   async close(): Promise<void> {
     if (!this._initialized) return;
     this.logPersonaSummary();

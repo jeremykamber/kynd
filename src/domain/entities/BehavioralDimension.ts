@@ -1,10 +1,18 @@
 import { z } from "zod";
 
+/**
+ * A domain-specific behavioral axis of a persona — for example
+ * "friction-tolerance" in a job-search study. Complements the universal Big
+ * Five traits with axes that only make sense in one research context.
+ */
 export interface BehavioralDimension {
   name: string;
+  /** 0-100, matching the Big Five scale. */
   score: number;
+  /** The context that makes this axis meaningful (e.g. "job search"). */
   context: string;
   description: string;
+  /** Support from the source material, when available. */
   evidence?: string;
 }
 

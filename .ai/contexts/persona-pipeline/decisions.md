@@ -22,8 +22,28 @@ Update (2026-08-08, mid-implementation): the evidence question is resolved — s
 
 Status: accepted (2026-08-10, design approved)
 
-Decision: Strategy evidence becomes verbatim-or-honest with LLM-decided confidence. Evidence quotes must be verbatim fragments of the user's response (quoted, sourced "your response"), never fabricated persona-voice quotes; absent quotes are honest (attribute stays interpreted). Confidence per attribute (values/fears/goals/backstory/dims) is decided by the LLM in a profile-time `attributeConfidence` list, not hardcoded bands. Enforced client-side (verbatim substring + coverage + distinct checks) with failure-specific retry nudges, 2 attempts, fail-loud.
+Decision: Strategy evidence becomes verbatim-or-honest with LLM-decided confidence. Evidence quotes must be verbatim fragments of the user's response (quoted, sourced "your response"), never fabricated persona-voice quotes; absent quotes are honest (attribute stays interpreted). Confidence per attribute (values/fears/goals/backstory/dims) is decided by the LLM in a profile-time `attributeConfidence` list, not hardcoded bands. Enforced client-side (verbatim substring + coverage + distinct checks) with failure-specific retry nudges, 3 attempts, fail-loud.
 
 Reason: the deployed output fabricated first-person "evidence" the user never said — an integrity problem, not cosmetic. Hardcoded confidence bands repeated the "blanket 0.7" issue the user already rejected.
 
 Failure mode to watch: a terse input can't support verbatim quotes for every attribute — the design accepts omission (empty quote) so the run doesn't retry-loop or fail on honest gaps; coverage nudge handles LLM omission.
+
+# persona-terse-description-brief
+
+Status: accepted (2026-09-28)
+
+Decision: The strategy pipeline expands a terse description into a brief before the profile call, and repairs a paraphrased quote to the source sentence it paraphrases instead of spending a retry on it.
+
+(a) Gate: under 150 characters with no blank-line sections, `generateStrategyPersonas` spends one extra `createChatCompletion` ("Strategy brief expansion") on the default text model — not the pinned strategy snapshot, since the brief has no verbatim contract of its own — and prepends the elaboration to the user's own words, so the profile prompt and its verbatim source text are both that superset. Long descriptions, and short-but-structured (`Label:`-prefixed) ones, skip the call: `evidenceQuestionsFor` maps quotes to those labels, and an expanded copy would detach them. A failed brief call degrades to the description as-is; it never fails the run.
+
+(b) `snapQuotesToSource` runs before every check that consumes a quote. Each non-verbatim quote is matched against the source's sentences (longest common subsequence of punctuation-stripped, lowercased tokens — order-sensitive) and replaced by that sentence when ≥70% of the quote's tokens appear in it; quotes under 4 tokens are never snapped. A quote with no close sentence is left untouched and still fails validation.
+
+Context: one-line ICPs did not merely lose quotes, they failed outright. v4.1 fabricated quotes, then dropped `evidenceLinks` once nudged (3/3, twice); the pinned v4-flash-0731 died the same way in the VPS run (3/3 after 150s with "B2B SaaS founders dealing with high churn and seat-based pricing"). Copy fidelity then turned out to be stochastic and length-dependent: the same prompt produced exact fragments on one attempt and a stitched near-copy on the next ("hear churn complaints" → "hears churn complaints"), so adding material alone still left a 150s failure likely enough to land on the first production run. A near-copy is the same content with a different inflection, not fabrication — rejecting it bought nothing the user could see.
+
+Alternatives: relax the verbatim rule for short inputs (rejected — drops the integrity invariant); more attempts (rejected — probabilistic, 30-60s per attempt, and it was already 3); require longer input in the UI (rejected — pushes the problem onto the user); drop non-verbatim quotes as honest omission (rejected — discards evidence that is recoverable from the source by construction); have the model select evidence by index from prepared atoms (deferred — strongest guarantee, but changes the profile schema).
+
+Reason: the contract is about where the stored text comes from, not about the model's typing accuracy. Repaired and expanded values are both word-for-word fragments of the source text in the prompt; an invented quote still fails loudly.
+
+Failure mode to watch: quotes may now come from the generated elaboration, which the user never saw (single-section input still renders no "(Answer to …)" label, so nothing claims otherwise). Snapping can land two fields on one sentence — the distinct check runs after the repair for that reason. Surface the brief in the UI if provenance matters for a demo.
+
+Verification: adapter tests cover expand / skip-when-long / skip-when-structured / fail-open, repair-instead-of-retry, and still-rejects-fabrication; `verify-output persona --description "<one-liner>" --count 3` now passes the profile batch on attempt 1 (101s wall, brief call 1.8s) where it previously failed 3/3 at 150s, with 4-6 evidence links per persona and distinct values/fears; release gate green.

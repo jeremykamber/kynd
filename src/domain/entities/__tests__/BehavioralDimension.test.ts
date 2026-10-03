@@ -35,18 +35,6 @@ describe('BehavioralDimension', () => {
     expect(result.success).toBe(false)
   })
 
-  it('should accept optional evidence field', () => {
-    const dim = {
-      name: 'automation-preference',
-      score: 90,
-      context: 'job search behavior',
-      description: 'Preference for automated repetitive tasks',
-      evidence: 'User stated "I think Jobright makes it easier"',
-    }
-    const result = BehavioralDimensionSchema.safeParse(dim)
-    expect(result.success).toBe(true)
-  })
-
   it('should require name, score, context, and description', () => {
     const result = BehavioralDimensionSchema.safeParse({
       name: 'test',

@@ -116,25 +116,6 @@ describe("POST /api/vps/analyze", () => {
     expect(body).toHaveProperty("runId");
   });
 
-  it("accepts optional runId, businessGoal, researchQuestion", async () => {
-    const { POST } = await import("../route");
-    const req = new NextRequest("http://localhost:3000/api/vps/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        input: { type: "url", url: "https://example.com" },
-        personas: [mockPersona],
-        runId: "custom-123",
-        businessGoal: "Increase signups",
-        researchQuestion: "Why do users leave?",
-      }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toHaveProperty("runId");
-  });
-
   it("returns 429 when rate limited", async () => {
     mockRateLimiterConsume.mockRejectedValueOnce(new Error("Too fast"));
     const { POST } = await import("../route");

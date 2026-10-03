@@ -108,6 +108,16 @@ const baseAnalysis: ArtifactAnalysis = {
   synthesis: mockSynthesis,
 }
 
+/** Flattens every string the react-pdf element tree renders. */
+function renderedText(node: React.ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(renderedText).join('')
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return renderedText(node.props.children)
+  }
+  return ''
+}
+
 describe('AnalysisPdfDocument', () => {
   it('renders a full analysis with pre-computed synthesis to a PDF blob', async () => {
     const doc = <AnalysisPdfDocument analysis={baseAnalysis} />
@@ -121,48 +131,21 @@ describe('AnalysisPdfDocument', () => {
     const analysisWithoutSynthesis: ArtifactAnalysis = {
       ...baseAnalysis,
       synthesis: undefined,
+      // Deliberately inconsistent with `responses`, so a completion count that
+      // matches the responses can only have been derived from them.
+      personaCount: 7,
     }
     const doc = <AnalysisPdfDocument analysis={analysisWithoutSynthesis} />
     const blob = await pdf(doc).toBlob()
-    expect(blob).toBeDefined()
-    expect(blob.size).toBeGreaterThan(100)
-  })
+    // The document renders as a real PDF (react-pdf rejects invalid trees).
+    expect(blob.type).toBe('application/pdf')
 
-  it('handles partial / failed personas without throwing', async () => {
-    const partialAnalysis: ArtifactAnalysis = {
-      ...baseAnalysis,
-      responses: [
-        mockResponses[0],
-        {
-          id: 'resp-failed',
-          personaId: 'p-3',
-          screenshotBase64: '',
-          rawAnalysis: '',
-          overview: 'Analysis failed for this persona due to timeout.',
-          researchQuestionAnswer: '',
-          customerJourney: [],
-          majorFindings: [],
-          pointsOfFriction: [],
-          unansweredQuestions: [],
-        },
-      ],
-      synthesis: undefined,
-    }
-    const doc = <AnalysisPdfDocument analysis={partialAnalysis} />
-    const blob = await pdf(doc).toBlob()
-    expect(blob).toBeDefined()
-    expect(blob.size).toBeGreaterThan(100)
-  })
-
-  it('handles completely empty responses gracefully', async () => {
-    const emptyAnalysis: ArtifactAnalysis = {
-      ...baseAnalysis,
-      responses: [],
-      synthesis: undefined,
-    }
-    const doc = <AnalysisPdfDocument analysis={emptyAnalysis} />
-    const blob = await pdf(doc).toBlob()
-    expect(blob).toBeDefined()
-    expect(blob.size).toBeGreaterThan(100)
+    // What the reader sees: the derived synthesis advertises the supplied
+    // responses and hides its empty LLM sections instead of printing blanks.
+    const text = renderedText(AnalysisPdfDocument({ analysis: analysisWithoutSynthesis }))
+    expect(text).toContain(`${mockResponses.length} of ${mockResponses.length} personas completed`)
+    expect(text).not.toContain('Executive Overview')
+    expect(text).not.toContain('Key Findings')
+    expect(text).not.toContain('Primary Points of Friction')
   })
 })

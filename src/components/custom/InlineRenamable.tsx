@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input'
 
 /**
  * Renders a value with a hover pencil that swaps it for an inline input.
- * Used to let users rename simulations and persona batches. Plain text on the
- * outside (no nested buttons) so it can sit inside clickable cards.
+ * Used to let users rename simulations and persona batches. The trigger
+ * controls are real `<button>`s, so the wrapper must be a non-button clickable
+ * container (e.g. `div role="button"`) — never a native `<button>` or `<a>`.
  */
 export function InlineRenamable({
   value,

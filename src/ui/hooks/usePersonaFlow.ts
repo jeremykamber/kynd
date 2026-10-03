@@ -1,3 +1,22 @@
+/**
+ * Client-side driver for ICP persona generation from a written description.
+ *
+ * Owns the form inputs (the customer profile prompt and requested persona
+ * count), the live generation progress, the resulting `personas`, and the id
+ * of the batch most recently added to the store. It always requests
+ * `strategy`-mode personas — rich storytelling rather than the description
+ * pipeline — via `generatePersonasAction`.
+ *
+ * On completion it writes one `PersonaBatch` into `usePersonaStore` and calls
+ * `onSuccess(personas)`; the batch is deduplicated by run id through
+ * `batchConsumedRunIds` so a stream completion and a background poll cannot
+ * both add it. When the action returns no stream (remote/VPS) it stores the
+ * run id and a `useEffect` polls `getProgressAction` and the generation result
+ * every two seconds for up to 300 attempts. `isPending` is released as soon as
+ * the action returns, since background runs are tracked by the
+ * `PersonaProgressToaster` rather than by this hook.
+ */
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasAction } from '@/actions/generatePersonas'
@@ -56,7 +75,6 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     setIsPending(false)
   }, [])
 
-  // ── Polling helper — runs in a useEffect triggered by runId ────────────
   const [runId, setRunId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -66,7 +84,6 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     let cancelled = false
     let progressInterval: ReturnType<typeof setInterval> | null = null
 
-    // Progress polling (fires immediately, then every 2s)
     const pollProgress = async () => {
       if (controller?.signal.aborted || !mountedRef.current || cancelled) return
       try {
@@ -153,7 +170,6 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     }
   }, [runId, customerProfile, onSuccess])
 
-  // ── Generate handler ───────────────────────────────────────────────────
   const handleGeneratePersonas = useCallback((promptOverride?: string) => {
     const prompt = promptOverride ?? customerProfile
     if (!prompt.trim()) return
@@ -168,8 +184,8 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
     ;(async () => {
       try {
-        // The ICP flow always generates strategy-mode personas (rich storytelling,
-        // representative assumptions) rather than the legacy description pipeline.
+        // The ICP flow always generates strategy-mode personas — rich
+        // storytelling built on representative assumptions.
         const result: any = await generatePersonasAction(prompt, personaCount, 'strategy')
         const streamData = result.streamData
         const id = result.runId as string | undefined

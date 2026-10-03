@@ -1,5 +1,9 @@
 import Link from 'next/link';
 
+/**
+ * Chrome for the public marketing routes: a static header and footer around the
+ * page content, with no data fetching and no app-shell chrome.
+ */
 export default function MarketingLayout({
   children,
 }: {

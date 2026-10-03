@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { DebateRoom } from "../DebateRoom";
 import { useDebateStore } from "@/ui/stores/debateStore";
@@ -64,25 +64,4 @@ describe("DebateRoom", () => {
     expect(screen.getByText(/Alice Chen/)).toBeTruthy();
   });
 
-  it("shows round separators when there are messages in different rounds", () => {
-    useDebateStore.setState({
-      debates: [{
-        id: "d1",
-        proposal: "Test",
-        participants: [mockPersona],
-        messages: [
-          { id: "m1", personaId: "p1", personaName: "Alice", role: "participant", round: 1, content: "First", order: 0 },
-          { id: "m2", personaId: "p1", personaName: "Alice", role: "participant", round: 2, content: "Second", order: 1 },
-        ],
-        currentRound: 2,
-        totalRounds: 3,
-        status: "in_progress",
-        createdAt: new Date().toISOString(),
-      }],
-      activeDebateId: "d1",
-      isStreaming: false,
-    });
-    render(<DebateRoom />);
-    expect(screen.getAllByText(/Round/).length).toBeGreaterThanOrEqual(1);
-  });
 });

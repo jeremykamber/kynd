@@ -1,3 +1,20 @@
+/**
+ * Client-side driver for persona generation from uploaded interview
+ * transcripts.
+ *
+ * Owns the uploaded files (name + text content), the requested persona count,
+ * the generation mode (`individual` transcripts vs a `synthesized` group),
+ * live pipeline progress, and the resulting `personas`. It submits the files
+ * as multipart FormData to `generatePersonasFromInterviewsAction`, which
+ * returns either a stream or a run id to poll.
+ *
+ * On completion it writes one `PersonaBatch` (source `interviews`) into
+ * `usePersonaStore` and calls `onSuccess(personas)`; `batchConsumedRunIds`
+ * prevents the stream and the background poll from adding it twice. In the
+ * remote/VPS case a `useEffect` polls progress and result every two seconds
+ * for up to 300 attempts. `progress` is non-null only while a run is active.
+ */
+
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasFromInterviewsAction } from '@/actions/generatePersonasFromInterviews'
@@ -62,7 +79,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     setIsPending(false)
   }, [])
 
-  // ── Polling helper — runs in a useEffect triggered by runId ────────────
   const [runId, setRunId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -72,7 +88,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     let cancelled = false
     let progressInterval: ReturnType<typeof setInterval> | null = null
 
-    // Progress polling (fires immediately, then every 2s)
     const pollProgress = async () => {
       if (controller?.signal.aborted || !mountedRef.current || cancelled) return
       try {
@@ -92,7 +107,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     pollProgress()
     progressInterval = setInterval(pollProgress, 2000)
 
-    // Result polling (every 2s, up to 10 min)
     ;(async () => {
       for (let attempt = 0; attempt < 300; attempt++) {
         if (controller?.signal.aborted || !mountedRef.current || cancelled) break
@@ -139,7 +153,7 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
         } catch { /* retry */ }
       }
 
-      // Exhausted 300 attempts (10 min)
+      // Polling budget exhausted (300 attempts × 2 s).
       if (progressInterval) clearInterval(progressInterval)
       if (mountedRef.current) {
         setError('Persona generation timed out. Please try again.')
@@ -154,7 +168,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     }
   }, [runId, files, onSuccess])
 
-  // ── Submit handler ─────────────────────────────────────────────────────
   const handleSubmit = useCallback(() => {
     if (files.length === 0) return
 
@@ -186,7 +199,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
         }
 
         if (streamData) {
-          // ── Local dev: read streaming updates ───────────────────────
           for await (const update of readStreamableValue<any>(streamData)) {
             if (controller.signal.aborted || !mountedRef.current) {
               setProgress(null)
@@ -233,7 +245,7 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
             }
           }
         } else if (id) {
-          // ── Remote/VPS: polling handled by useEffect above ─────────
+          // No stream (remote/VPS): the runId effect above polls for the result.
           setRunId(id)
         }
       } catch (err) {
@@ -249,7 +261,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     })()
   }, [files, personaCount, onSuccess])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {

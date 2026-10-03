@@ -1,3 +1,23 @@
+/**
+ * Client-side driver for a single artifact analysis run.
+ *
+ * Owns the request inputs (artifact URL or screenshot, business goal, research
+ * question), the live progress of the in-flight run, and the settled
+ * `analyses`/`synthesis` returned to the caller. Each run is also written
+ * through to `useAnalysisStore`, which is the durable record surfaced by the
+ * dashboard and toasts; the hook's own copies are the caller's convenience.
+ *
+ * Triggers `analyzeArtifactAction` (server action) and prefers its stream via
+ * `readStreamableValue`. When the action returns no stream — the remote/VPS
+ * deployment — it falls back to polling `getProgressAction` and
+ * `getAnalysisResultAction` once per second for up to 600 attempts.
+ *
+ * The caller observes completion through `onSuccess(analyses, synthesis)` and
+ * through `useAnalysisStore` status transitions (`COMPLETED`/`ERROR`/
+ * `CANCELLED`). `analysisProgress` is non-null only while a run is active;
+ * `error` carries cancellation and timeout messages as well as failures.
+ */
+
 import { useState, useEffect, useRef } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { samplePersonas, weightedDraw } from "../sampling";
+import { InsufficientSignalError, samplePersonas, weightedDraw } from "../sampling";
 import type {
   PooledDistributionSummary,
   SampledPersonaSignal,
@@ -98,13 +98,13 @@ describe("samplePersonas", () => {
     expect(Array.isArray(p.values)).toBe(true);
     expect(Array.isArray(p.featureDesires)).toBe(true);
     expect(p.decisionPattern).toBeDefined();
-    expect(p.decisionPattern.text).toBe("decision pattern");
+    expect(p.decisionPattern?.text).toBe("decision pattern");
     expect(p.context.role).toBeDefined();
-    expect(p.context.role.text).toBe("engineer");
+    expect(p.context.role?.text).toBe("engineer");
     expect(p.context.industry).toBeDefined();
-    expect(p.context.industry.text).toBe("tech");
+    expect(p.context.industry?.text).toBe("tech");
     expect(p.communicationStyle).toBeDefined();
-    expect(p.communicationStyle.text).toBe("direct");
+    expect(p.communicationStyle?.text).toBe("direct");
 
     // Verify ExtractedSignal shape on one of the signal arrays
     if (p.painPoints.length > 0) {
@@ -114,7 +114,7 @@ describe("samplePersonas", () => {
     }
   });
 
-  it("empty distribution returns requested number of personas", async () => {
+  it("throws a clear domain error when no decision pattern can be drawn", async () => {
     const distribution = createDistribution({
       painPoints: [],
       goals: [],
@@ -125,8 +125,27 @@ describe("samplePersonas", () => {
       communicationStyles: [],
     });
 
-    const personas = await samplePersonas(distribution, 3);
-    expect(personas).toHaveLength(3);
+    // The pipeline surfaces this message to the user. It must be the domain
+    // error, never the raw TypeError that dereferencing an absent
+    // decision pattern used to cause.
+    await expect(samplePersonas(distribution, 3)).rejects.toThrow(
+      InsufficientSignalError,
+    );
+    await expect(samplePersonas(distribution, 3)).rejects.toThrow(
+      /not enough behavioral signal/i,
+    );
+  });
+
+  it("treats an all-zero-weight decision-pattern pool as undrawable", async () => {
+    const distribution = createDistribution({
+      decisionPatterns: [
+        { text: "never drawn", weight: 0, sourceExamples: [] },
+      ],
+    });
+
+    await expect(samplePersonas(distribution, 1)).rejects.toThrow(
+      InsufficientSignalError,
+    );
   });
 
   it("handles personaCount greater than available variety", async () => {
@@ -173,45 +192,76 @@ describe("samplePersonas", () => {
       ],
     });
 
+    // Seed the draws so rounds are distinguishable without depending on draw
+    // call counts: random 0 always takes the minimum number of items starting
+    // with the first available one, random 0.99 always takes the maximum
+    // starting with the last. Content sampled before the flag flips therefore
+    // differs from content sampled after it.
+    let resampling = false;
+    const randomSpy = vi
+      .spyOn(Math, "random")
+      .mockImplementation(() => (resampling ? 0.99 : 0));
+
     const capturedPersonas: SampledPersonaSignal[][] = [];
     const onValidate = vi.fn(
       async (personas: SampledPersonaSignal[]): Promise<number[]> => {
         capturedPersonas.push(structuredClone(personas));
-        if (capturedPersonas.length === 1) return [0, 2];
+        if (capturedPersonas.length === 1) {
+          resampling = true;
+          return [0, 2];
+        }
         if (capturedPersonas.length === 2) return [1];
         return [];
       },
     );
 
-    const personas = await samplePersonas(distribution, 3, onValidate);
+    try {
+      const personas = await samplePersonas(distribution, 3, onValidate);
 
-    expect(personas).toHaveLength(3);
-    // Called 3 times: initial validation + 2 resample rounds
-    expect(onValidate).toHaveBeenCalledTimes(3);
+      expect(personas).toHaveLength(3);
+      // Called 3 times: initial validation + 2 resample rounds
+      expect(onValidate).toHaveBeenCalledTimes(3);
 
-    // First validation received 3 personas with sequential ids
-    expect(capturedPersonas[0]).toHaveLength(3);
-    expect(capturedPersonas[0][0].id).toBe("sampled-0");
-    expect(capturedPersonas[0][1].id).toBe("sampled-1");
-    expect(capturedPersonas[0][2].id).toBe("sampled-2");
+      // First validation received 3 personas with sequential ids
+      expect(capturedPersonas[0].map((p) => p.id)).toEqual([
+        "sampled-0",
+        "sampled-1",
+        "sampled-2",
+      ]);
 
-    // Persona 0 and 2 were resampled (new object references), persona 1 kept original
-    // Verify by checking IDs are correct in all rounds
-    expect(capturedPersonas[1][0].id).toBe("sampled-0");
-    expect(capturedPersonas[1][1].id).toBe("sampled-1");
-    expect(capturedPersonas[1][2].id).toBe("sampled-2");
+      // Only the contradictory indices were resampled: 0 and 2 carry newly
+      // drawn content, while 1 is content-identical to the persona first
+      // sampled — resampling all three would also change index 1.
+      expect(capturedPersonas[1][1]).toEqual(capturedPersonas[0][1]);
+      expect(capturedPersonas[1][0]).not.toEqual(capturedPersonas[0][0]);
+      expect(capturedPersonas[1][2]).not.toEqual(capturedPersonas[0][2]);
 
-    // The returned personas must have correct types and structure
-    for (const p of personas) {
-      expect(Array.isArray(p.painPoints)).toBe(true);
-      expect(p.decisionPattern).toBeDefined();
-      expect(p.context.role).toBeDefined();
-      expect(p.context.industry).toBeDefined();
-      expect(p.communicationStyle).toBeDefined();
+      // Second round flagged only index 1, so 0 and 2 must now stay put.
+      expect(capturedPersonas[2][0]).toEqual(capturedPersonas[1][0]);
+      expect(capturedPersonas[2][2]).toEqual(capturedPersonas[1][2]);
+      expect(capturedPersonas[2][1]).not.toEqual(capturedPersonas[1][1]);
+
+      // Ids stay stable across resampling rounds.
+      expect(capturedPersonas[2].map((p) => p.id)).toEqual([
+        "sampled-0",
+        "sampled-1",
+        "sampled-2",
+      ]);
+
+      // The returned personas must have correct types and structure
+      for (const p of personas) {
+        expect(Array.isArray(p.painPoints)).toBe(true);
+        expect(p.decisionPattern).toBeDefined();
+        expect(p.context.role).toBeDefined();
+        expect(p.context.industry).toBeDefined();
+        expect(p.communicationStyle).toBeDefined();
+      }
+
+      // Final returned personas should be the last validated set
+      expect(personas).toEqual(capturedPersonas[2]);
+    } finally {
+      randomSpy.mockRestore();
     }
-
-    // Final returned personas should be the last validated set
-    expect(personas).toEqual(capturedPersonas[2]);
   });
 
   it("personaCount of 0 returns empty array", async () => {

@@ -105,6 +105,12 @@ function SingleSelect({
   )
 }
 
+/**
+ * Guided questionnaire (audience, goals, frustrations, decision factors) that
+ * turns free-text answers, including "Other" write-ins, into the `PersonaSurvey`
+ * consumed by the prompt compiler. Submit stays disabled until every required
+ * question is answered; `onUseTextarea` switches to the freeform path instead.
+ */
 export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }: PersonaSurveyFormProps) {
   const [targetAudience, setTargetAudience] = useState("")
   const [goals, setGoals] = useState<string[]>([])
@@ -156,7 +162,6 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Question 1: Target audience */}
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-foreground">Who are you targeting?</label>
         <p className="text-xs text-muted-foreground">Describe your audience in a few words.</p>
@@ -170,7 +175,6 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
         />
       </div>
 
-      {/* Question 2: Goals */}
       <MultiSelect
         options={GOAL_OPTIONS}
         selected={goals}
@@ -189,7 +193,6 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
         />
       )}
 
-      {/* Question 3: Frustration */}
       <SingleSelect
         options={FRUSTRATION_OPTIONS}
         selected={frustration}
@@ -207,7 +210,6 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
         />
       )}
 
-      {/* Question 4: Current solution */}
       <SingleSelect
         options={SOLUTION_OPTIONS}
         selected={currentSolution}
@@ -225,7 +227,6 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
         />
       )}
 
-      {/* Question 5: Decision factors */}
       <MultiSelect
         options={DECISION_FACTOR_OPTIONS}
         selected={decisionFactors}
@@ -234,7 +235,6 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
         label="What makes them choose a product?"
       />
 
-      {/* Question 6: Audience knowledge */}
       <SingleSelect
         options={AUDIENCE_KNOWLEDGE_OPTIONS}
         selected={audienceKnowledge}
@@ -242,7 +242,6 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
         label="How well do you know this audience?"
       />
 
-      {/* Question 7: Decision types */}
       <MultiSelect
         options={DECISION_TYPE_OPTIONS}
         selected={decisionTypes}
@@ -251,7 +250,6 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
         label="What kind of decisions do you want these personas to help you evaluate?"
       />
 
-      {/* Question 8: Additional notes (optional) */}
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-foreground">Anything else we should know? <span className="text-muted-foreground font-normal">(optional)</span></label>
         <Textarea
@@ -263,7 +261,6 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error }:
         />
       </div>
 
-      {/* Actions */}
       <div className="flex items-center justify-between">
         <button
           type="button"

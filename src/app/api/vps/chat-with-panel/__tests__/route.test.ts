@@ -2,18 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { collectStream } from "../../__tests__/test-utils";
 
-const mockChatWithPanelExecuteStream = vi.hoisted(() => vi.fn());
+const mockChatWithPanelStream = vi.hoisted(() => vi.fn());
 
-vi.mock("@/infrastructure/adapters/LlmServiceImpl", () => {
-  const LlmServiceImpl = class {
-    static createFromEnv = vi.fn(() => new LlmServiceImpl());
-  };
-  return { LlmServiceImpl };
-});
-
-vi.mock("@/application/usecases/ChatWithPanelUseCase", () => ({
-  ChatWithPanelUseCase: class {
-    executeStream = mockChatWithPanelExecuteStream;
+vi.mock("@/infrastructure/adapters/LlmServiceImpl", () => ({
+  LlmServiceImpl: {
+    createFromEnv: vi.fn(() => ({
+      chatWithPanelStream: mockChatWithPanelStream,
+    })),
   },
 }));
 
@@ -50,7 +45,7 @@ describe("POST /api/vps/chat-with-panel", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("streams a panel synthesis response", async () => {
-    mockChatWithPanelExecuteStream.mockImplementation(async function* () {
+    mockChatWithPanelStream.mockImplementation(async function* () {
       yield "A monthly plan would remove the blocker for most of your personas.";
     });
 
@@ -74,7 +69,7 @@ describe("POST /api/vps/chat-with-panel", () => {
 
     const text = await collectStream(res.body!);
     expect(text).toBe("A monthly plan would remove the blocker for most of your personas.");
-    expect(mockChatWithPanelExecuteStream).toHaveBeenCalledWith(
+    expect(mockChatWithPanelStream).toHaveBeenCalledWith(
       [expect.objectContaining({ id: "r-1" })],
       null,
       "We're thinking of adding a monthly plan — what would you all think?",
@@ -83,8 +78,19 @@ describe("POST /api/vps/chat-with-panel", () => {
   });
 
   it("defaults missing responses and synthesis to empty/null", async () => {
-    mockChatWithPanelExecuteStream.mockImplementation(async function* () {
-      yield "ok";
+    // The real stream reads the panel responses and synthesis to build its
+    // prompt, so omitting them must arrive as an empty panel and no synthesis;
+    // anything else would throw and surface as an ERROR frame to the caller.
+    mockChatWithPanelStream.mockImplementation(async function* (
+      responses: unknown,
+      synthesis: unknown,
+    ) {
+      if (!Array.isArray(responses)) {
+        throw new TypeError("responses is not iterable");
+      }
+      if (responses.length > 0) throw new Error("expected an empty panel");
+      if (synthesis) throw new Error("expected no synthesis");
+      yield "Panel reply with no personas or synthesis.";
     });
 
     const { POST } = await import("../route");
@@ -94,8 +100,10 @@ describe("POST /api/vps/chat-with-panel", () => {
       body: JSON.stringify({ message: "Hello", history: [] }),
     });
     const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/plain");
+
     const text = await collectStream(res.body!);
-    expect(text).toBe("ok");
-    expect(mockChatWithPanelExecuteStream).toHaveBeenCalledWith([], null, "Hello", []);
+    expect(text).toBe("Panel reply with no personas or synthesis.");
   });
 });

@@ -91,12 +91,22 @@ function aggregateStringItems(
 }
 
 /**
- * Pool extracted signals from multiple interviews into a single
- * distribution summary, deduplicating similar signals via trigram
- * similarity.
+ * Pools every interview's signals into one distribution summary.
  *
- * @param allExtractions - Signal extractions from each interview
- * @param threshold      - Cosine-similarity threshold for merging (default 0.7)
+ * Signals within a category are clustered greedily by trigram cosine
+ * similarity: a signal joins the first cluster whose representative text is at
+ * least `threshold` similar, otherwise it starts a new cluster. Each item's
+ * `weight` is the fraction of interviews that contributed at least one signal
+ * to its cluster (0..1), and `sourceExamples` holds up to 3 verbatim quotes
+ * from the cluster. String-valued fields (roles, industries, communication
+ * styles) are pooled by exact-match frequency instead of similarity.
+ *
+ * Deterministic for a fixed input order; every category is sorted by
+ * descending weight. An empty input returns a summary with empty categories
+ * and `totalInterviews: 0`.
+ *
+ * @param threshold Cosine-similarity cutoff in [0, 1] above which two signals
+ *   are considered the same (default 0.7).
  */
 export function poolSignals(
   allExtractions: ExtractedInterviewSignals[],

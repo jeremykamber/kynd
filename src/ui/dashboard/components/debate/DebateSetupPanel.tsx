@@ -16,8 +16,9 @@ interface DebateSetupPanelProps {
 }
 
 /**
- * Setup panel for configuring a new debate.
- * User selects personas, enters a proposal, and sets rounds.
+ * Form for starting a debate: proposal text, 2–5 participants, and 1–5 rounds.
+ * `onStart` receives the trimmed proposal, the selected personas, and the round
+ * count.
  */
 export function DebateSetupPanel({
   availablePersonas,
@@ -75,7 +76,6 @@ export function DebateSetupPanel({
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        {/* Proposal */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-foreground">
             Proposal
@@ -89,7 +89,6 @@ export function DebateSetupPanel({
           />
         </div>
 
-        {/* Persona selection */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-foreground">
             Participants ({selectedPersonas.length}/5 — select 2-5)
@@ -134,7 +133,6 @@ export function DebateSetupPanel({
           )}
         </div>
 
-        {/* Rounds */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-foreground">
             Rounds: {totalRounds}
@@ -154,7 +152,6 @@ export function DebateSetupPanel({
           </div>
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={!canSubmit}

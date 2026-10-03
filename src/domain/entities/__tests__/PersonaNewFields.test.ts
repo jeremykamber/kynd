@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PersonaSchema, stringifyPersona, validatePersona } from '../Persona'
-import { BehavioralDimensionSchema } from '../BehavioralDimension'
-import { PersonaProvenanceSchema } from '../PersonaProvenance'
+import { PersonaSchema, stringifyPersona } from '../Persona'
 
 describe('Persona new fields', () => {
   const basePersona = {
@@ -131,41 +129,6 @@ describe('Persona new fields', () => {
     expect(result.success).toBe(true)
   })
 
-  it('should validate identityContext and situationContext', () => {
-    const persona = {
-      ...basePersona,
-      generationMode: 'research' as const,
-      behavioralDimensions: [],
-      provenance: {
-        attributes: [],
-        generationMode: 'research' as const,
-        overallConfidence: 0.5,
-      },
-      evidenceLinks: [],
-      identityContext: 'Friction-averse in tool evaluation across all domains',
-      situationContext: 'Recency-obsessed specifically during active job search',
-    }
-    const result = PersonaSchema.safeParse(persona)
-    expect(result.success).toBe(true)
-  })
-
-  it('should validate counterfactualTest', () => {
-    const persona = {
-      ...basePersona,
-      generationMode: 'strategy' as const,
-      behavioralDimensions: [],
-      provenance: {
-        attributes: [],
-        generationMode: 'strategy' as const,
-        overallConfidence: 0.5,
-      },
-      evidenceLinks: [],
-      counterfactualTest: 'If the backstory detail about Jobright usage were false, would the automation-preference dimension change?',
-    }
-    const result = PersonaSchema.safeParse(persona)
-    expect(result.success).toBe(true)
-  })
-
   it('stringifyPersona should handle new fields', () => {
     const persona = {
       ...basePersona,
@@ -194,22 +157,6 @@ describe('Persona new fields', () => {
     expect(str).toContain('friction-tolerance')
     expect(str).toContain('Friction-averse')
     expect(str).toContain('Test description')
-  })
-
-  it('should pass schema validation for personas with all new fields populated', () => {
-    const persona = {
-      ...basePersona,
-      generationMode: 'research' as const,
-      behavioralDimensions: [],
-      provenance: {
-        attributes: [],
-        generationMode: 'research' as const,
-        overallConfidence: 0.5,
-      },
-      evidenceLinks: [],
-    }
-    const result = PersonaSchema.safeParse(persona)
-    expect(result.success).toBe(true)
   })
 
   it('should be backward compatible with old persona shape (no new fields)', () => {

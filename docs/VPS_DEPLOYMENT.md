@@ -1,12 +1,12 @@
-# VPS Deployment Guide: DeepBound
+# VPS Deployment Guide: Kynd
 
 ## Architecture Overview
 
-DeepBound uses a **dual-mode architecture** with two separate deployments:
+Kynd uses a **dual-mode architecture** with two separate deployments:
 
 | Component | Host | URL | Purpose |
 |-----------|------|-----|---------|
-| **Frontend + Server Actions** | Netlify | `https://deepbound.bringforthstudio.com` | UI, server actions, client-side logic |
+| **Frontend + Server Actions** | Netlify | `<netlify-site>` | UI, server actions, client-side logic |
 | **Backend API + Playwright** | VPS | `http://154.38.180.173:8080` | `/api/vps/*` routes, browser automation |
 
 ```
@@ -17,7 +17,7 @@ Browser → Netlify (Next.js) → Server Actions → runRemote() → VPS API (po
 
 ## How It Works
 
-Server actions (`src/actions/*.ts`) check `shouldRunLocally()` which **always returns `false`** (hardcoded). This forces every server action to call `runRemote()`, which POSTs to `VPS_BACKEND_URL/api/vps/<endpoint>` with an `Authorization: Bearer <token>` header.
+Server actions (`src/actions/*.ts`) check `shouldRunLocally()` from `src/infrastructure/config.ts`. It returns `true` only when `FORCE_LOCAL=true` is set — in production that variable is unset, so it returns `false`, and the long-running actions call `runRemote()`, which POSTs to `VPS_BACKEND_URL/api/vps/<endpoint>` with an `Authorization: Bearer <token>` header. (`regenPersonaTraits` and `generateBatchTitleAction` build the LLM client in-process instead, and `applyCounterfactualTest` answers locally only.)
 
 The VPS runs a Next.js standalone build that only serves `/api/vps/*` routes. A middleware (`src/middleware.ts`) guards all these routes:
 1. Checks `IS_VPS=true` — if not set, returns 404 (prevents Netlify from exposing these routes)
@@ -34,7 +34,8 @@ Client UI → Server Action (returns immediately with runId)
   ↓
 Client UI polls:
   ├── GET /api/vps/analyze-progress?runId=...   (step updates)
-  └── GET /api/vps/persona-result?runId=...      (final result)
+  └── GET /api/vps/analyze-result?runId=...     (final artifact analysis)
+      GET /api/vps/persona-result?runId=...     (final persona generation)
 ```
 
 **POST** route:
@@ -54,22 +55,26 @@ Client UI polls:
 
 ### Routes Using This Pattern
 
+Every VPS route lives in `src/app/api/vps/<name>/route.ts`. The bare `src/app/api/vps/route.ts` is a 404 index that lists the available endpoints.
+
 | Route | POST | Progress GET | Result GET |
 |-------|------|-------------|------------|
-| `analyze-pricing` | ✅ Fire-and-forget | `analyze-progress` | `analyze-result` |
-| `generate-personas-from-interviews` | ✅ Fire-and-forget | `analyze-progress` (runId prefix: `pi-`) | `persona-result` |
-| `generate-personas` | ✅ Fire-and-forget | `analyze-progress` (runId prefix: `pt-`) | `persona-result` |
+| `analyze` | ✅ Fire-and-forget (runId `analysis-<timestamp>`, or the caller-supplied `runId`) | `analyze-progress` | `analyze-result` (plus `analyze-screenshot`) |
+| `generate-personas-from-interviews` | ✅ Fire-and-forget (runId prefix `pi-`) | `analyze-progress` | `persona-result` |
+| `generate-personas` | ✅ Fire-and-forget (runId prefix `pt-`) | `analyze-progress` | `persona-result` |
+
+`analyze-result` / `persona-result` / `analyze-progress` / `analyze-screenshot` are the polling GETs the client hits; they read from `AnalysisResultStore`, `PersonaGenerationStore`, `progressStore`, and `screenshotStore` respectively.
 
 ### Routes That Don't Need It
 
 Routes that make a single fast LLM call or do quick synchronous work can stay synchronous:
 
-- `chat-with-persona` — streaming (SSE)
-- `debate` — streaming (SSE)
-- `predict-gaze` — single fast LLM call
-- `validate-analysis` — single LLM call
-- `record-step` — synchronous DB save
-- `generate-similar-personas` — single LLM call (~10-30s, tolerable)
+- `chat-with-persona` — streaming response (`ReadableStream`)
+- `chat-with-panel` — streaming response (`ReadableStream`)
+- `debate` — streaming response (`text/event-stream` SSE)
+- `generate-similar-personas` — single synchronous pipeline call
+- `record-step` — appends a step; every third step it calls the LLM to refresh the session's short-term memory
+- `requests` — `GET` lists active request IDs, `POST` cancels one
 
 ### Adding a New Long-Running Route
 
@@ -81,14 +86,13 @@ Routes that make a single fast LLM call or do quick synchronous work can stay sy
 
 ## Required Environment Variables
 
-### Netlify (`deepbound.bringforthstudio.com`)
+### Netlify (`<netlify-site>`)
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `IS_VPS` | `false` | Tells middleware this is Netlify (not the VPS) |
 | `VPS_BACKEND_URL` | `http://154.38.180.173:8080` | Where to send remote API calls |
 | `VPS_AUTH_TOKEN` | (shared secret) | Auth token sent in `Authorization` header |
-| `PLAYWRIGHT_WS_ENDPOINT` | `ws://154.38.180.173:8081/playwright-ws` | Playwright browser server on VPS |
 | `OPENROUTER_API_KEY` | (API key) | LLM provider key |
 | `OPENAI_API_KEY` | (API key) | Fallback LLM provider key |
 
@@ -101,16 +105,18 @@ Set via `ecosystem.config.js` (not `.env` — the standalone build doesn't read 
 | `IS_VPS` | `true` | Tells middleware this IS the VPS |
 | `VPS_AUTH_TOKEN` | (shared secret, matches Netlify) | Validates incoming requests |
 | `VPS_BACKEND_URL` | `http://localhost:8080` | Self-referencing for internal calls |
-| `PLAYWRIGHT_WS_ENDPOINT` | `ws://localhost:8081/playwright-ws` | Local browser server |
+| `PLAYWRIGHT_WS_ENDPOINT` | `ws://localhost:8081/playwright-ws` | Local browser server (required whenever the browser runs in-process) |
 | `OPENROUTER_API_KEY` | (API key) | LLM provider key |
 | `PORT` | `8080` | Next.js server port |
 | `NODE_ENV` | `production` | Production mode |
+
+There is no `.env.example` entry for `PORT`/`NODE_ENV`; they are standard Next.js runtime variables set by `ecosystem.config.js`. Browser-server overrides (`PLAYWRIGHT_PORT`, `PLAYWRIGHT_WS_PATH`) are documented in `.env.example`.
 
 ## VPS Setup
 
 ### PM2 Processes
 
-Two processes managed by `ecosystem.config.js`:
+Two processes managed by `ecosystem.config.js` (VPS-only, see below):
 
 1. **`kynd-browser-server`** — Playwright browser server on port 8081
    - Script: `playwright-server.js` (root of project)
@@ -139,8 +145,8 @@ npx pm2 stop kynd-backend-engine
 ### Build & Deploy
 
 ```bash
-# Pull latest
-git pull origin main
+# Pull latest (dev is the integration branch; main is release)
+git pull origin dev
 
 # Build (produces .next/standalone/)
 npm run build
@@ -149,28 +155,51 @@ npm run build
 npx pm2 restart ecosystem.config.js
 ```
 
+`bun` is not installed on the VPS: `bun run build` fails with `bun: command not found`. Use `npm run build` (node 22 / npm 10) — it runs the same `next build` + `postbuild` scripts. The build must finish before the restart; an aborted build leaves PM2 serving the previous `.next/standalone`.
+
+### Local Development (no VPS)
+
+Run the whole pipeline in-process instead of delegating to the VPS. Set in `.env`:
+
+```bash
+FORCE_LOCAL=true
+PLAYWRIGHT_WS_ENDPOINT=ws://localhost:8081/playwright-ws
+```
+
+Start the browser server in a separate terminal, then `bun dev`:
+
+```bash
+node playwright-server.js
+```
+
+With `FORCE_LOCAL=true`, `shouldRunLocally()` returns `true` and server actions execute their local path, so the browser server must be running. Without it, actions POST to `VPS_BACKEND_URL` and no local browser is needed. See `.env.example` for the full variable reference.
+
 ## Playwright Browser Server (`playwright-server.js`)
 
-A standalone Node.js script that exposes a Playwright Chromium instance via WebSocket. This allows the Next.js server to connect to a persistent browser rather than launching one per request.
+A standalone Node.js script that exposes a Playwright Chromium instance via WebSocket. This allows the Next.js server to connect to a persistent browser rather than launching one per request. The `RemotePlaywrightAdapter` connects to it via `PLAYWRIGHT_WS_ENDPOINT` and throws at startup if that variable is unset.
 
-- **Port:** 8081
-- **Endpoint:** `ws://localhost:8081/playwright-ws`
-- **Heartbeat:** 30-second interval via WebSocket ping
+- **Port:** `PLAYWRIGHT_PORT` (default 8081)
+- **Endpoint:** `ws://localhost:8081/playwright-ws` (`PLAYWRIGHT_WS_PATH`, default `playwright-ws`)
+- **Launch:** `chromium.launchServer()` with `--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu`
+- **Shutdown:** closes the browser server on `SIGINT`/`SIGTERM`
 
 ## VPS-Only Files (Not in Git Repo)
 
-The following files exist **only on the VPS** and are not tracked in the repository:
+The following exist **only on the VPS** and are not tracked in the repository:
 
 - **`ecosystem.config.js`** — PM2 process configuration (ports, env vars for both services)
-- **`playwright-server.js`** — Standalone Playwright browser server exposing a WebSocket endpoint
+- **Root-owned leftovers** — copies quarantined with a `.root-owned` (or `_zz-junk`) suffix, e.g. `src/app/api/vps/_chat-with-panel.root-owned/`, `src/application/synthesis.root-owned/`, `.qmd*.root-owned/`. They are owned by `root`, so `jeremykamber` cannot delete them (and passwordless sudo covers only `infra/vps-disk-cleanup.sh`). Because `tsconfig.json` includes `**/*.ts`, `next build` used to typecheck them too — a stale import in one (`ChatWithPanelUseCase`, inlined into the tracked route by the repo cleanup) failed every rebuild with TS2307. `tsconfig.json` now excludes `**/*.root-owned/**` and `**/_zz-junk/**`. Remove them with `sudo rm -rf <dir>` when you have a root shell.
+- **`package-lock.json`** — generated by the `npm run build` above; untracked in git as well, so `git pull` never conflicts with it.
 
-These are deployment artifacts that must be created/managed directly on the VPS. After pulling new code, rebuild and restart via:
+It is a deployment artifact that must be created/managed directly on the VPS. After pulling new code, rebuild and restart via:
 ```bash
 cd /home/jeremykamber/dev/kynd
-git pull origin main
+git pull origin dev
 npm run build
 npx pm2 restart ecosystem.config.js
 ```
+
+`playwright-server.js` (repo root) is tracked in git and deployed with the code.
 
 ## Auth Flow (Why "Unauthorized" Happens)
 
@@ -229,13 +258,10 @@ If you ever see `ENOSPC` again, run the cleanup script before rebuilding.
 
 ## Troubleshooting
 
-### "Error: Cannot read properties of undefined (reading 'toLowerCase')"
-Bug in the persona analysis validation step — the validation logic expects fields that optional personas might not have. This is a known issue.
-
 ### "browserContext.newPage: Browser closed"
 The browser server process was killed or couldn't start. Common causes:
 1. **Dual PM2 daemons** — If root's PM2 (`/root/.pm2`) and user's PM2 (`~/.pm2`) both try to manage the same ports, the second one crash-loops with `EADDRINUSE`. Check with `npx pm2 list` under both users. Only one should manage the services.
-2. **Browser close during navigation** — `RemotePlaywrightAdapter.close()` used to call `this.browser.close()` which killed the WebSocket-connected browser. Fixed — now only page + context are cleaned up.
+2. **Browser server not reachable** — `RemotePlaywrightAdapter.createFromEnv()` throws if `PLAYWRIGHT_WS_ENDPOINT` is unset, and `chromium.connect()` fails if nothing is listening on it. `close()` only closes the page and context and calls `browser.disconnect()` (the client-side WebSocket); it never shuts down the server-side browser, so a dead browser means the `kynd-browser-server` process died.
 
 ### "Headers Timeout Error"
 OpenRouter API timeout. The LLM provider is slow or unreachable. Retry the request.

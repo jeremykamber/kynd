@@ -1,16 +1,11 @@
-// ─── POST /api/vps/analyze ───────────────────────────────────────────────────
-// Fires off an artifact analysis in the background, writes progress &
-// results to the side-channel stores (shared in-memory maps on globalThis),
-// and returns the runId immediately. The client polls
-//   GET /api/vps/analyze-progress?runId=xxx
-//   GET /api/vps/analyze-screenshot?runId=xxx
-//   GET /api/vps/analyze-result?runId=xxx
-// to track progress and retrieve the final results (or error).
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Starts an artifact analysis in the background and returns { runId }
+// immediately; progress and results are read later via
+// GET /api/vps/analyze-progress, /analyze-screenshot, and /analyze-result.
 
 import { NextRequest, NextResponse } from "next/server";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
-import { SynthesizeArtifactResultsUseCase } from "@/application/usecases/synthesizeArtifactResults";
+import { SynthesizeArtifactResultsUseCase } from "@/application/usecases/SynthesizeArtifactResultsUseCase";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 
 import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUseCase";

@@ -217,6 +217,20 @@ Flat by default. This system does not use box-shadows to convey surface hierarch
 - **Shadow:** None at rest. None on hover. If hover feedback is needed, use border illumination (Panel Edge → `oklch(0.25 0.01 265)`).
 - **Internal Padding:** 24px (`spacing.5`). May be reduced to 16px in data-dense grid layouts.
 
+### Persona Card (Batch Grid)
+
+The persona card is a **browse-and-triage surface, not a profile.** It carries only what helps a user decide which persona to inspect, chat with, or run an analysis against. Psychographic detail — Big Five bars, values, fears, backstory — belongs in the detail sheet/modal, never on the card.
+
+- **Structure:** identity row (avatar, name, occupation, optional "Variant of") → hairline divider (`h-px bg-border/40`) → labeled detail groups → action row (`Create Variant`, `Chat with …`).
+- **Identity text:** name and occupation **wrap** onto as many lines as needed (`break-words`) — never truncated. The full role must stay readable; the card grows to fit rather than clipping with an ellipsis. Long unbroken tokens break rather than overflow.
+- **Detail groups:** goals (capped at 3) and the decision style. Each group is introduced by a micro-label so the values explain themselves.
+- **Goals:** a labeled **bulleted list**, one goal per row, 13px `leading-snug`, with a small accent dot marker (`size-1 rounded-full bg-primary/70`). Not chips — a list is a list. The dot is the detail block's only accent touch; the action row's Chat button remains the card's primary accent.
+- **Decision style:** labeled **"How they decide"**, 13px `leading-relaxed`, clamped to 3 lines. The pronoun is neutral because `Persona` carries no gender field; a gendered label would require a new entity field and generation output.
+- **Micro-label:** 10px, bold, uppercase, `tracking-widest`, Muted Foreground at 70% — a de-emphasized step below the Label typography.
+- **Height economy:** the card must stay scannable in a grid. Cap goals at 3, clamp the decision line, pin the action row with `mt-auto`, and rely on grid stretch so sibling cards match height.
+- **Delete affordance:** hover-reveal destructive button — see Destructive Actions.
+- **Rationale:** a narrative hook (backstory pull-quote) was evaluated for this card and rejected — quotes read as decorative and carry no decision signal. Decision-relevant facts (goals, how they decide) win on a triage surface; narrative belongs in the detail view.
+
 ### Inputs / Fields
 
 - **Style:** Transparent background, Panel Edge `1px` full border, 6px radius.
@@ -235,12 +249,17 @@ Flat by default. This system does not use box-shadows to convey surface hierarch
 - **Icons:** Muted Foreground, no color shift on hover.
 - **Separator:** Thin `1px` line using Panel Edge, inset with padding.
 
-### Navigation / Sidebar
+### Navigation / Top Bar
 
-- **Background:** Sidebar Surface (`oklch(0.1 0.01 265)`) — one step below main background for visual containment.
-- **Items:** Ghost-style (no background at rest). Hover: Panel Surface background at `oklch(0.14 0.01 265)`. Active: Panel Surface + Cerulean Blue left marker (or text color shift to foreground, no marker).
-- **Typography:** Body size (`0.9375rem`), Muted Foreground at rest, Foreground on active.
-- **Width:** `240px` expanded, `56px` collapsed (icon-only).
+The dashboard uses a **single floating top bar at every breakpoint — there is no sidebar.** The bar floats over the scrolling content so the main column can use the full window width; horizontal space is precious, vertical space is cheap (the user scrolls anyway).
+
+- **Placement:** sticky to the top (`top-0`, `z-40`), inset from the viewport edges (`px-4 pt-4 sm:px-6`) so it reads as a floating element, not a chrome strip.
+- **Surface:** Panel Surface at `bg-card/70`, `backdrop-blur-xl`, full `2px` Panel Edge border (`border-2 border-border/60`), `8px` radius. The extra pixel keeps the floating bar legible against the page — a 1px edge is too easy to miss. This translucent blur is the one sanctioned exception to the No-Glassmorphism rule — the bar is overlay chrome, not a content surface, and content scrolls beneath it.
+- **Content:** brand wordmark (left) + section links (Personas, Interviews, Analyses). Links scroll horizontally on narrow viewports rather than wrapping to a second row.
+- **Items:** `6px` radius, `px-3 py-1.5`, `text-sm`. At rest Muted Foreground; hover `bg-secondary/50` + Foreground; active `bg-primary/10` + Cerulean Blue text.
+- **Back navigation:** inside a batch, a **left-aligned** `← All personas` control sits above the title and returns to the batch list; selecting Personas in the bar does the same. Back affordances live on the left, above the content — never as a text link parked on the right.
+- **Batch reset:** selecting "Personas" clears the active batch, so the batch list is always reachable — from any section and any viewport. (The old sidebar only did this when already on `/dashboard`, which stranded mobile users inside a batch with no way back.)
+- **Width:** the bar caps at `max-w-7xl` and centres; the main column shares the same cap.
 
 ### Selection States / Toggle Groups
 
@@ -254,9 +273,17 @@ This applies to all segmented toggle groups, option rows, and count selectors ac
 
 ### Chips / Badges / Tags
 
-- **Style:** 4px radius, Panel Surface background at `oklch(0.18 0.01 265)`, Label typography (Geist Mono, uppercase, 11px).
+- **Style:** 4px radius, Panel Surface background at `oklch(0.18 0.01 265)`. Metadata badges use the Label typography (Geist Mono, uppercase, 11px); scannable tag chips use Geist Sans at 13px minimum (see the size floor below).
 - **Color Variants:** Cerulean Blue text for active/selected states. Muted Foreground for neutral. Alert Red text for warning/error.
 - **Padding:** `4px 10px`.
+
+**The Tag-Not-Content Rule.** Chips are for short, low-stakes tags (interests, filters, status). They are **never** the presentation for primary content lists — goals, values, fears, domains, expertise. Wrapping a content list in pills reads as decoration ("cards just to use cards"), not design. If the values matter, render them as a labeled list (see Labeled Value Groups).
+
+When chips are used, they must be readable and unclipped:
+
+- **Size floor:** 13px minimum. The 11px Label size is for metadata, not for scannable tag text.
+- **Sizing:** content-sized. No fixed `max-width` — a fixed cap forces mid-word truncation and awkward wrapping. Let the chip grow; let the row wrap on word boundaries.
+- **Never truncate** chip text. If a chip can't fit its content, it isn't a chip — it's a list row.
 
 ### Destructive Actions (Delete / Close)
 
@@ -278,6 +305,16 @@ Edit mode fields are inputs that appear when the user explicitly enters an editi
 - **Relation to static Inputs:** Edit mode fields differ from standard Inputs (which always have a Panel Edge border) — they only reveal their border on focus, making the rest state feel closer to the surrounding text.
 
 ## 6. Patterns
+
+### Labeled Value Groups
+
+Any set of values shown on a card or panel — goals, values, fears, interests, domains, expertise — must be introduced by a label. **Unlabeled value rows and orphan chips are prohibited:** the user cannot tell what they represent, so the data becomes noise.
+
+- **Label:** micro-label above the group — 10px, bold, uppercase, `tracking-widest`, Muted Foreground at 70%. A de-emphasized step below the Label typography; it orients without competing with the content.
+- **Content lists:** bulleted rows — a small accent dot marker, one value per row, 13px `leading-snug`. Use this for anything the user must actually read (goals, values, fears).
+- **Tag sets:** only genuinely low-stakes tags may go inline or as chips (see The Tag-Not-Content Rule).
+- **Pronouns:** labels that need a pronoun use the neutral "they" — `Persona` has no gender field, and guessing from a name risks misgendering.
+- **Rationale:** the label is the difference between a designed element and a pile of values. An unlabeled chip row reads as decoration; a labeled group reads as intent.
 
 ### Deliberate Diff
 
@@ -331,17 +368,25 @@ Actions that are secondary to the primary interaction are hidden at rest and rev
 - **Do** use borders (thin, `1px`, Panel Edge) to define surface boundaries.
 - **Do** keep transitions at 150ms with `cubic-bezier(0.16, 1, 0.3, 1)` — snappy, no bounce, no drift.
 - **Do** use backdrop dim (`rgba(0,0,0,0.4)`) as the only elevation cue for modals and dialogs.
+- **Do** label every group of values so it explains itself — an unlabeled row of values is noise.
+- **Do** keep browse cards (persona grid) to decision-relevant facts: who they are, what they want, how they decide. Detail lives one click away.
 
 ### Don't:
 
 - **Don't** use box-shadows to convey depth. Flat surfaces with tonal separation are the only elevation system.
 - **Don't** use gradient text (`background-clip: text` with a gradient) anywhere — decorative and meaningless. Emphasize with weight or size.
 - **Don't** use side-stripe borders (border-left >1px as an accent on cards or list items). Use full perimeter borders or nothing.
-- **Don't** use glassmorphism (backdrop blur + semi-transparency) as a default surface treatment.
+- **Don't** use glassmorphism (backdrop blur + semi-transparency) as a default surface treatment. The floating top bar is the sole exception — see Navigation / Top Bar.
 - **Don't** use pill-shaped buttons. Radius stays at 6px for interactive elements.
 - **Don't** use bounce easing or elastic transitions. Everything should feel mechanical and precise.
 - **Don't** use the hero-metric template (big number, small label, gradient, supporting stats) — it is the Generic AI SaaS calling card.
 - **Don't** use identical card grids where every card has the same icon + heading + text structure.
 - **Don't** reach for a modal as the first interaction pattern. Exhaust inline panels, side sheets, and progressive disclosure first.
 - **Don't** use color as the sole differentiator for any state or action — always pair with text, icon, or position.
+- **Don't** render content lists (goals, values, fears, expertise) as chips or pills — that is decoration, not design. Use a labeled list.
+- **Don't** leave value groups unlabeled, and don't truncate chip or list text mid-word.
+- **Don't** put dense psychographic controls (Big Five bars, trait sliders, value/fear lists) on browse cards — reserve them for the detail sheet/modal.
+- **Don't** truncate persona names or roles (or any identifying label) with an ellipsis — let them wrap. The user must be able to read the whole title.
+- **Don't** reintroduce a persistent sidebar — dashboard navigation lives in the floating top bar, and the main column keeps the full width.
+- **Don't** park back/navigation affordances on the right as an underlined text link — put them on the left, above the content, with an arrow.
 - **Don't** reference the old design system. This document supersedes all prior visual guidance.

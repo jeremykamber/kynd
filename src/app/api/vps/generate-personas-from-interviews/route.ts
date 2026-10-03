@@ -1,11 +1,8 @@
-// ─── POST /api/vps/generate-personas-from-interviews ────────────────────────
-// Accepts interview transcript files (multipart/form-data), kicks off background
-// persona generation, and returns a runId immediately. The client polls
-//   GET /api/vps/analyze-progress?runId=pi-<timestamp>
-//   GET /api/vps/persona-result?runId=pi-<timestamp>
-// to track progress and retrieve the final personas (or error).
+// VPS-backend endpoint: called by server actions, not the browser.
+// Accepts interview transcripts as multipart/form-data, starts background
+// generation, and returns { runId } immediately; poll
+// GET /api/vps/analyze-progress and /api/vps/persona-result with that runId.
 // Rate-limited per client IP.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
 import { RateLimiterMemory } from "rate-limiter-flexible";
@@ -16,7 +13,6 @@ import { IdRagStore } from "@/infrastructure/adapters/IdRagStore";
 import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
 import { storeProgress, storeCompleted } from "@/actions/getProgress";
 
-// ── Rate Limiter ────────────────────────────────────────────────────────────
 
 const AUDIT_RATE_LIMIT_MAX = parseInt(process.env.AUDIT_RATE_LIMIT_MAX || "5");
 const AUDIT_RATE_LIMIT_WINDOW_MS = parseInt(
@@ -29,10 +25,8 @@ const pipelineRateLimiter = new RateLimiterMemory({
     duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-    // ── Rate limit ──────────────────────────────────────────────────────────
     const clientIP =
         req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
         req.headers.get("x-real-ip") ||
@@ -49,7 +43,6 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    // ── Parse multipart form data ───────────────────────────────────────────
     const formData = await req.formData();
     const files: { filename: string; content: string }[] = [];
     let personaCount = 5;
@@ -80,7 +73,6 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    // ── Generate runId and kick off background processing ───────────────────
     const runId = `pi-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
     runPipeline(runId, files, personaCount, generationMode).catch((err) => {
@@ -90,9 +82,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ runId });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Background pipeline runner
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function runPipeline(
     runId: string,

@@ -17,10 +17,17 @@ const SIGNAL_TYPE_MAP: Record<SignalCategoryKey, string> = {
 };
 
 /**
- * Convert extracted interview signals into IdRagStore Chunks aligned to signal
- * categories. Each signal item becomes one chunk (verbatim quote as text) and
- * one summary chunk is emitted per interview. Salient quotes (untyped) are
- * emitted as `salient_quote` chunks.
+ * Converts one interview's extracted signals into IdRagStore chunks.
+ *
+ * Emits, in order: one chunk per signal item per category (pain points, goals,
+ * values, feature desires, decision patterns) whose text is that item's
+ * verbatim quote; one `salient_quote` chunk per untyped salient quote; and
+ * finally one `interview_summary` chunk holding the context, communication
+ * style, and per-category counts. Chunk ids embed `personaId` and a per-kind
+ * index, so identical arguments always produce identical ids.
+ *
+ * Empty or missing categories contribute nothing; an input with no signals
+ * still yields the single summary chunk.
  */
 export function chunkInterviewSignals(
   signals: ExtractedInterviewSignals,
@@ -28,10 +35,8 @@ export function chunkInterviewSignals(
 ): Chunk[] {
   const chunks: Chunk[] = [];
 
-  // helper to emit a chunk for a single ExtractedSignal
   function pushSignalChunk(category: SignalCategoryKey, item: ExtractedSignal, idx: number) {
     const signalType = SIGNAL_TYPE_MAP[category];
-    const topic = signalType; // topic derived from category per requirements
 
     const chunk: Chunk = {
       id: `chunk-${personaId}-interview-${signalType}-${idx}`,
@@ -42,14 +47,13 @@ export function chunkInterviewSignals(
         sourceInterviewId: signals.interviewId,
         sourceSegmentId: item.sourceSegmentId,
         signalType,
-        topic,
+        topic: signalType,
       },
     };
 
     chunks.push(chunk);
   }
 
-  // Iterate each signal category and create a chunk per item
   const categories: SignalCategoryKey[] = [
     "painPoints",
     "goals",
@@ -59,7 +63,7 @@ export function chunkInterviewSignals(
   ];
 
   for (const category of categories) {
-    const items = (signals as any)[category] as ExtractedSignal[] | undefined;
+    const items: ExtractedSignal[] | undefined = signals[category];
     if (!items || items.length === 0) continue;
 
     for (let i = 0; i < items.length; i++) {
@@ -67,7 +71,6 @@ export function chunkInterviewSignals(
     }
   }
 
-  // Salient quotes without categories: one chunk per quote
   if (Array.isArray(signals.salientQuotes)) {
     for (let i = 0; i < signals.salientQuotes.length; i++) {
       const quote = signals.salientQuotes[i];
@@ -86,7 +89,6 @@ export function chunkInterviewSignals(
     }
   }
 
-  // One structured summary chunk per interview
   const summaryText = JSON.stringify(
     {
       context: signals.context,

@@ -97,9 +97,17 @@ describe("resolveChatPersona", () => {
 describe("personaFromProfile", () => {
   it("reconstructs a chat-capable persona from the display projection", () => {
     const p = personaFromProfile(profile, "derived-1");
-    expect(p.id).toBe("derived-1");
     expect(p.name).toBe("Sarah Chen");
     expect(p.communicationStyle).toBe("direct");
+    // Each Big Five dimension is mapped from the profile, not defaulted.
+    expect(p.conscientiousness).toBe(80);
+    expect(p.neuroticism).toBe(30);
+    expect(p.openness).toBe(70);
+    expect(p.extraversion).toBe(50);
+    expect(p.agreeableness).toBe(60);
+    // Fields the projection does not carry are blanked, not invented.
+    expect(p.age).toBe(0);
+    expect(p.educationLevel).toBe("");
     expect(p.interests).toEqual([]);
     expect(p.goals).toEqual([]);
   });

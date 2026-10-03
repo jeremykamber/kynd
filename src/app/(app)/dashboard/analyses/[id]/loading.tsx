@@ -1,6 +1,6 @@
 /**
  * Loading skeleton for /dashboard/analyses/[id].
- * Shows a detail layout skeleton with back button, status, and tabs.
+ * Mirrors the detail layout: back link, title/status row, step indicator, panels.
  */
 export default function AnalysisDetailLoading() {
   return (

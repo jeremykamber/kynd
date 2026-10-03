@@ -1,7 +1,6 @@
 /**
  * Loading skeleton for /dashboard.
- * Matches the SetupView layout — the first thing users see when no personas exist.
- * Uses the existing animate-pulse / bg-muted skeleton pattern.
+ * Mirrors the SetupView layout — the first thing users see when no personas exist.
  */
 export default function DashboardLoading() {
   return (

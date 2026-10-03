@@ -1,6 +1,6 @@
 /**
  * Loading skeleton for /dashboard/debates.
- * Shows a sidebar skeleton + empty room area matching the debates layout.
+ * Mirrors the sidebar + room split of the debates layout.
  */
 export default function DebatesLoading() {
   return (

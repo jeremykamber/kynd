@@ -31,6 +31,11 @@ interface PersonaChatProps {
   analysis?: ChatAnalysisContext
 }
 
+/**
+ * Modal chat with a single persona. History persists per persona id in local
+ * storage; the optional `analysis` context anchors replies to the artifact the
+ * persona just reviewed.
+ */
 export function PersonaChat({ persona, isOpen, onClose, analysis = null }: PersonaChatProps) {
   const storageKey = `persona_chat_${persona.id}`
   const [messages, setMessages] = useLocalStorage<Message[]>(storageKey, [])

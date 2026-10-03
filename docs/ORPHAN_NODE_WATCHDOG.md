@@ -3,6 +3,10 @@
 A LaunchAgent that automatically kills orphaned Node.js processes — worker
 children whose parent died, leaking memory indefinitely.
 
+This is **machine-local tooling**, not part of the Kynd repository. Every file
+involved lives outside the repo (mostly under `~/.local/bin` and
+`~/Library/LaunchAgents`); nothing here is a Kynd source file or npm script.
+
 ## How it works
 
 Every 5 minutes, `launchd` runs `~/.local/bin/kill-orphan-nodes.sh`. The script
@@ -25,7 +29,6 @@ runtime is excluded.
 
 ```bash
 ~/.local/bin/kill-orphan-nodes.sh       # run once
-npm run cleanup                          # same, from Kynd
 ```
 
 ## Management

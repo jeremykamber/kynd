@@ -1,21 +1,19 @@
-import { ChatWithPersonaUseCase } from "@/application/usecases/ChatWithPersonaUseCase";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
-import { Persona } from "@/domain/entities/Persona";
+
+// POST /api/chat — streams a persona chat reply as incremental plain-text
+// chunks (text/plain, not JSON). The last entry of `messages` is the prompt;
+// earlier entries are history.
 export async function POST(req: Request) {
   try {
     const { messages, personaContext } = await req.json();
     const persona = typeof personaContext === 'string' ? JSON.parse(personaContext) : personaContext;
-    
-    // Last message is the prompt
+
     const lastMessage = messages[messages.length - 1];
     const history = messages.slice(0, messages.length - 1);
 
     const llmService = LlmServiceImpl.createFromEnv("openrouter");
-    const useCase = new ChatWithPersonaUseCase(llmService);
+    const stream = llmService.chatWithPersonaStream(persona, null, lastMessage.content, history);
 
-    const stream = useCase.executeStream(persona, null, lastMessage.content, history);
-
-    // Convert AsyncIterable<string> to ReadableStream
     const encoder = new TextEncoder();
     const readableStream = new ReadableStream({
       async start(controller) {
@@ -37,7 +35,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Chat API Error:", error);
-    return new Response(JSON.stringify({ error: (error as Error).message }), { 
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

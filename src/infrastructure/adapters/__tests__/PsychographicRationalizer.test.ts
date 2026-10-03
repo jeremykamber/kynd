@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { PsychographicRationalizer } from "../PsychographicRationalizer";
+import type { LlmServiceImpl } from "../LlmServiceImpl";
 import type { Persona } from "@/domain/entities/Persona";
 
 const basePersona: Persona = {
@@ -25,17 +26,28 @@ const basePersona: Persona = {
 
 describe("PsychographicRationalizer", () => {
   it("generates rationales for each scaffold in parallel", async () => {
-    const mockLlm = {
-      createChatCompletion: vi.fn().mockResolvedValue(
-        "High conscientiousness stems from early exposure to structured environments.",
-      ),
+    const rationaleByPurpose: Record<string, string> = {
+      "PB&J Big Five Scaffold": "Trait roots formed early.",
+      "PB&J Decision Scaffold": "Decisions follow their values.",
+      "PB&J Values Scaffold": "Risk shapes their trust.",
     };
-    const enhancer = new PsychographicRationalizer(mockLlm as any);
+    const mockLlm = {
+      createChatCompletion: vi
+        .fn()
+        .mockImplementation(async (_messages: unknown, options: { purpose: string }) =>
+          rationaleByPurpose[options.purpose] ?? "unknown scaffold",
+        ),
+    };
+    const enhancer = new PsychographicRationalizer(mockLlm as unknown as LlmServiceImpl);
     const rationales = await enhancer.generateAllRationales(basePersona);
 
-    expect(rationales.length).toBeGreaterThanOrEqual(1);
-    expect(rationales[0].scaffold).toBeTruthy();
-    expect(rationales[0].rationale).toBeTruthy();
+    // All three scaffolds contribute, each rationale attached to its own
+    // scaffold — dropping or cross-wiring one fails here.
+    expect(rationales).toEqual([
+      { scaffold: "Big Five Personality Roots", rationale: "Trait roots formed early." },
+      { scaffold: "Decision Style & Values Integration", rationale: "Decisions follow their values." },
+      { scaffold: "Core Values & Risk Worldview", rationale: "Risk shapes their trust." },
+    ]);
   });
 
   it("formats rationales into a backstory appendix", async () => {
@@ -72,16 +84,6 @@ describe("PsychographicRationalizer", () => {
     const enhancer = new PsychographicRationalizer(mockLlm as any);
     const text = await enhancer.rationalizeBackstory(basePersona);
     expect(text).toBe("");
-  });
-
-  it("calls createChatCompletion for each scaffold type", async () => {
-    const mockLlm = {
-      createChatCompletion: vi.fn().mockResolvedValue("Test rationale output"),
-    };
-    const enhancer = new PsychographicRationalizer(mockLlm as any);
-    await enhancer.generateAllRationales(basePersona);
-
-    expect(mockLlm.createChatCompletion).toHaveBeenCalledTimes(3);
   });
 
   it("handles partial scaffold failures with precise count", async () => {

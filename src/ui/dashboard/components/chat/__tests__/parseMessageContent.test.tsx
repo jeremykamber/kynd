@@ -13,10 +13,14 @@ describe("parseMessageContent", () => {
 
   it("renders lists and italic markdown", () => {
     const { container } = render(
-      <div>{parseMessageContent("1. show the price\n2. prove the claims")}</div>,
+      <div>{parseMessageContent("1. show the price\n2. prove the claims\n\n*skeptical of the claims*")}</div>,
     );
-    expect(container.querySelector("ol")).not.toBeNull();
-    expect(container.querySelector("li")).not.toBeNull();
+    // One ordered list, whose items keep their text and their order.
+    const items = Array.from(container.querySelectorAll("ol li")).map((li) => li.textContent);
+    expect(items).toEqual(["show the price", "prove the claims"]);
+    // The italic half of the title: emphasis renders as <em>, not raw asterisks.
+    expect(container.querySelector("em")?.textContent).toBe("skeptical of the claims");
+    expect(container.textContent).not.toContain("*");
   });
 
   it("preserves single newlines as line breaks (no whitespace collapse)", () => {

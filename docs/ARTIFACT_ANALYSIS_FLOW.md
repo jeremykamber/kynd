@@ -82,7 +82,6 @@ User Input
 | `ArtifactIntake.ts` | Normalized artifact input: screenshot, HTML, summary |
 | `ArtifactAnalysis.ts` | Container entity for a run |
 | `ArtifactSynthesis.ts` | Cross-persona synthesis: top findings, disagreements, frictions |
-| `GazePoint.ts` | Visual attention prediction (legacy) |
 | `PricingAnalysis.ts` | @deprecated Legacy pricing-specific entity |
 
 ### Ports (`src/domain/ports/`)
@@ -141,7 +140,7 @@ User Input
 
 | File | Purpose |
 |------|---------|
-| `src/ui/dashboard/utils/computeSynthesis.ts` | Fallback synthesis when LLM call fails — groups findings by word overlap |
+| `src/ui/dashboard/utils/fallbackSynthesis.ts` | Empty synthesis carrying the caller-known counts, for analyses that finished without server-side synthesis |
 
 ### VPS (`src/app/api/vps/`)
 
@@ -257,8 +256,8 @@ The VPS runs two PM2 processes:
 
 Build and deploy:
 ```bash
-git pull origin main
-npm run build
+git pull origin dev
+bun run build
 npx pm2 restart kynd-backend-engine
 ```
 

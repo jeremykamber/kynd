@@ -18,6 +18,11 @@ interface PersonaChatInlineProps {
   persona: Persona
 }
 
+/**
+ * Embedded (non-modal) chat with a single persona, for detail panels. Shares
+ * its history with PersonaChat through the same per-persona local-storage key,
+ * and sends no analysis context.
+ */
 export function PersonaChatInline({ persona }: PersonaChatInlineProps) {
   const storageKey = `persona_chat_${persona.id}`
   const [messages, setMessages] = useLocalStorage<Message[]>(storageKey, [])

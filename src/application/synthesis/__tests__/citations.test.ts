@@ -178,14 +178,46 @@ describe("groundSynthesisCitations", () => {
 
   it("keeps finding identity fields intact while grounding", () => {
     const [out] = groundSynthesisCitations(
-      [{ ...baseFinding, evidenceLocators: [] }],
+      [
+        {
+          ...baseFinding,
+          evidenceLocators: [
+            { personaId: "p-1", uniqueAnchorPhrase: "monthly option" },
+            { personaId: "p-1", uniqueAnchorPhrase: "found none" },
+            { personaId: "p-1", uniqueAnchorPhrase: "an anchor she never spoke" },
+            { personaId: "p-2", uniqueAnchorPhrase: "hides SSO" },
+          ],
+        },
+      ],
       transcripts,
     );
+
+    // Identity fields survive grounding verbatim.
     expect(out.observation).toBe(baseFinding.observation);
     expect(out.evidence).toBe(baseFinding.evidence);
     expect(out.impact).toBe(baseFinding.impact);
     expect(out.confidence).toBe("strongly supported");
     expect(out.affectedPersonaCount).toBe(2);
     expect(out.totalPersonaCount).toBe(2);
+
+    // The citations are the sentences actually located in each persona's
+    // transcript — not the anchor phrases. The fabricated anchor is dropped,
+    // and the two anchors resolving to the same p-1 sentence collapse into one.
+    expect(out.citations).toEqual([
+      {
+        personaId: "p-1",
+        personaName: "Sarah Chen",
+        quote: "I looked for a monthly option but found none.",
+      },
+      {
+        personaId: "p-2",
+        personaName: "Miguel Torres",
+        quote: "However the enterprise tier hides SSO behind a sales call.",
+      },
+    ]);
+    for (const citation of out.citations!) {
+      const transcript = transcripts.find((t) => t.personaId === citation.personaId)!;
+      expect(transcript.transcript).toContain(citation.quote);
+    }
   });
 });

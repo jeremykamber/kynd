@@ -8,9 +8,11 @@ import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
 import { ArtifactIntakeAdapter, type ArtifactInput, type IntakeProgress } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
-/** @deprecated Use AnalysisProgressStep from @/domain/entities/ArtifactAnalysis instead. */
-export type PricingAnalysisProgressStep = AnalysisProgressStep;
-
+/**
+ * Progress emitted during a run. `step` is the coarse phase; the optional
+ * counts and personaName track the per-persona analysis phase; `title` carries
+ * the AI-generated simulation name when the concurrent title call succeeds.
+ */
 export interface AnalysisProgress {
   step: AnalysisProgressStep;
   personaName?: string;
@@ -39,12 +41,37 @@ export function artifactNameFrom(url: string | undefined): string | null {
   }
 }
 
+/**
+ * Analyzes one captured artifact through the eyes of each supplied persona.
+ *
+ * The artifact is captured once by the intake adapter; each persona then runs
+ * the visceral-monologue → third-person-extraction pipeline through the LLM
+ * port, with bounded concurrency. An instance is stateless and reusable across
+ * runs.
+ *
+ * Guarantees: given at least one persona, the returned array holds one entry
+ * per persona. A persona whose pipeline fails yields a degraded
+ * "Analysis failed" response rather than rejecting the run; the call rejects
+ * only on intake failure, abort, or failure of every persona.
+ */
 export class AnalyzeArtifactUseCase {
   constructor(
     private readonly intakeAdapter: ArtifactIntakeAdapter,
     private readonly llmService: LlmServicePort,
   ) {}
 
+  /**
+   * @param onProgress Reports the coarse phase, the persona currently in a slot,
+   *   and how many personas have settled so far. `completedCount` counts both
+   *   completed and degraded-failure responses, so it reaches `totalCount` when
+   *   the last persona settles. A progress event carrying `title` arrives
+   *   asynchronously from a concurrent best-effort LLM call and never delays the
+   *   analysis.
+   * @param abortSignal Polled between pipeline stages; aborting rejects the run
+   *   instead of returning partial results.
+   * @param options.tokenLimit Per-LLM-call output ceiling (default 2000).
+   *   `options.runId` only tags log lines (default "unknown").
+   */
   async execute(
     input: ArtifactInput,
     personas: Persona[],
@@ -196,6 +223,12 @@ export class AnalyzeArtifactUseCase {
             log.info("AnalyzeArtifactUseCase", `${personaLog} COMPLETED (${finishedCount}/${totalCount})`, {
               durationMs: personaDuration,
             });
+            onProgress?.({
+              step: "ANALYZING",
+              personaName: persona.name,
+              totalCount,
+              completedCount: finishedCount,
+            });
 
 
             // Assemble full response with metadata
@@ -238,8 +271,17 @@ export class AnalyzeArtifactUseCase {
             return fullResponse;
           } catch (err) {
             const errMsg = (err as Error).message;
+            finishedCount++;
             log.error("AnalyzeArtifactUseCase", `${personaLog} Error during analysis`, {
               error: errMsg,
+              completedCount: finishedCount,
+              totalCount,
+            });
+            onProgress?.({
+              step: "ANALYZING",
+              personaName: persona.name,
+              totalCount,
+              completedCount: finishedCount,
             });
 
             return {

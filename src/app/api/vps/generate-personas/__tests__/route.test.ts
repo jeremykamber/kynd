@@ -1,5 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
+
+/**
+ * Waits for a fire-and-forget run to land in the store that the polling
+ * endpoints (persona-result / getPersonaGenerationResultAction) read.
+ */
+async function waitForRun(runId: string) {
+  return vi.waitFor(() => {
+    const run = personaGenerationStore.get(runId);
+    if (!run) throw new Error(`run ${runId} was never persisted for polling`);
+    return run;
+  });
+}
 
 const mockRateLimiterConsume = vi.hoisted(() =>
   vi.fn(() => Promise.resolve()),
@@ -48,51 +61,73 @@ describe("POST /api/vps/generate-personas", () => {
     expect(body.runId.length).toBeGreaterThan(0);
   });
 
-  it("forwards mode to the use case", async () => {
-    mockGeneratePersonasExecute.mockResolvedValue([]);
-
-    const { POST } = await import("../route");
-    const req = new NextRequest(
-      "http://localhost:3000/api/vps/generate-personas",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ personaDescription: "A tech-savvy founder", mode: "strategy" }),
-      },
-    );
-    await POST(req);
-    // Generation is fire-and-forget: wait for the background IIFE to reach the use case.
-    await new Promise((r) => setTimeout(r, 10));
-    expect(mockGeneratePersonasExecute).toHaveBeenCalledWith(
-      "A tech-savvy founder",
-      expect.any(Function),
-      5,
-      undefined,
-      "strategy",
-    );
-  });
-
   it("drops unsupported modes", async () => {
-    mockGeneratePersonasExecute.mockResolvedValue([]);
-
-    const { POST } = await import("../route");
-    const req = new NextRequest(
-      "http://localhost:3000/api/vps/generate-personas",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ personaDescription: "A tech-savvy founder", mode: "bogus" }),
+    // Mirrors GeneratePersonasUseCase: 'research'/'strategy' select the phased
+    // pipeline and stamp `generationMode` on the personas, 'cluster' is
+    // rejected (it needs interview IDs), an omitted mode runs the legacy
+    // pipeline.
+    mockGeneratePersonasExecute.mockImplementation(
+      async (
+        _description: string,
+        _onProgress: unknown,
+        _count: number,
+        _context: unknown,
+        mode?: string,
+      ) => {
+        if (mode === "cluster") {
+          throw new Error("Cluster mode requires interview IDs.");
+        }
+        return mode === undefined
+          ? [{ id: "legacy-persona", name: "Legacy persona" }]
+          : [
+              {
+                id: "phased-persona",
+                name: "Phased persona",
+                generationMode: mode,
+              },
+            ];
       },
     );
-    await POST(req);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(mockGeneratePersonasExecute).toHaveBeenCalledWith(
-      "A tech-savvy founder",
-      expect.any(Function),
-      5,
-      undefined,
-      undefined,
+
+    const { POST } = await import("../route");
+
+    // 'cluster' is unsupported here, so it must be dropped before the run —
+    // the poller must see the legacy persona, not a failed run.
+    const unsupportedRes = await POST(
+      new NextRequest(
+        "http://localhost:3000/api/vps/generate-personas",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ personaDescription: "A tech-savvy founder", mode: "cluster" }),
+        },
+      ),
     );
+    const unsupportedRun = await waitForRun((await unsupportedRes.json()).runId);
+    expect(unsupportedRun.error).toBeUndefined();
+    expect(unsupportedRun.personas).toEqual([
+      { id: "legacy-persona", name: "Legacy persona" },
+    ]);
+
+    // A supported mode is preserved verbatim into the stored run.
+    const supportedRes = await POST(
+      new NextRequest(
+        "http://localhost:3000/api/vps/generate-personas",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ personaDescription: "A tech-savvy founder", mode: "research" }),
+        },
+      ),
+    );
+    const supportedRun = await waitForRun((await supportedRes.json()).runId);
+    expect(supportedRun.personas).toEqual([
+      {
+        id: "phased-persona",
+        name: "Phased persona",
+        generationMode: "research",
+      },
+    ]);
   });
 
   it("returns 400 when personaDescription is missing", async () => {
@@ -149,5 +184,24 @@ describe("POST /api/vps/generate-personas", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveProperty("runId");
+
+    // The failure must be retrievable by the poller, otherwise a client
+    // polling this run would hang forever.
+    const run = await waitForRun(body.runId);
+    expect(run.error).toBe("Unexpected crash");
+    expect(run.personas).toEqual([]);
+
+    // Loaded per-test so the route sees the module mocks registered above.
+    const { GET } = await import("../../persona-result/route");
+    const pollRes = await GET(
+      new NextRequest(
+        `http://localhost:3000/api/vps/persona-result?runId=${body.runId}`,
+      ),
+    );
+    expect(pollRes.status).toBe(200);
+    expect(await pollRes.json()).toMatchObject({
+      found: true,
+      error: "Unexpected crash",
+    });
   });
 });

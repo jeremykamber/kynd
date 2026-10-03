@@ -1,3 +1,19 @@
+/**
+ * Persona batches produced by generation runs, and which runs are still in
+ * flight.
+ *
+ * Everything is persisted to IndexedDB under `persona-storage` with no
+ * `partialize` and no `version`, so a shape change reaches stored data
+ * unmigrated. `activeGenerationRunIds` is persisted deliberately: the
+ * `PersonaProgressToaster` polls it after a reload to resume reporting
+ * background runs, and entries are removed only when the toast settles or the
+ * user cancels.
+ *
+ * `addBatch` does not change `activeBatchId`; navigation to a new batch is an
+ * explicit user action. Mutations against an unknown batch or persona id are
+ * no-ops.
+ */
+
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { Persona } from '@/domain/entities/Persona'
@@ -50,9 +66,8 @@ export const usePersonaStore = create<PersonaStoreState>()(
       addBatch: (batch) =>
         set((state) => ({
           batches: [batch, ...state.batches],
-          // Intentionally NOT setting activeBatchId — keeps user on the batch
-          // list view after generation completes. Navigate via "View Batch"
-          // toast or by clicking the batch card.
+          // Intentionally not activating the new batch: the user stays on the
+          // batch list and navigates via the "View Batch" toast or a card.
         })),
 
       setActiveBatch: (id) => set({ activeBatchId: id }),

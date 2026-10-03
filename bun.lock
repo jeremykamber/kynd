@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "ai_user_testing_mvp",
+      "name": "kynd",
       "dependencies": {
         "@ai-sdk/openai": "^3.0.25",
         "@ai-sdk/react": "^3.0.99",

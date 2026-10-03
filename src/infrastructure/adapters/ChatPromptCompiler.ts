@@ -21,6 +21,13 @@ export interface PanelChatPromptParams {
   history: { role: "user" | "assistant"; content: string }[];
 }
 
+/**
+ * Assembles the OpenAI messages array for a chat turn: the persona system
+ * prompt (via PersonaPromptCompiler), the analysis context, retrieved ID-RAG
+ * memory, an optional re-grounding instruction, and the anchor frame around
+ * the user message. Also builds the panel-synthesis prompt over a whole cohort.
+ * Pure string assembly — no LLM calls.
+ */
 export class ChatPromptCompiler {
   private personaPromptCompiler: PersonaPromptCompiler;
 

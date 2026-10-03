@@ -5,6 +5,8 @@ import { Persona } from "@/domain/entities/Persona";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
+// POST /api/report — runs artifact analysis synchronously and returns every
+// persona's analysis in a single JSON response.
 export async function POST(req: Request) {
     const requestStart = Date.now();
     const requestId = `report-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -66,7 +68,6 @@ export async function POST(req: Request) {
 
         const id = requestId;
 
-        // Initialize logger for this API run
         const log = AnalysisLogger.forRun(id);
         await log.init();
         log.info("ReportAPI", "Processing report request", {

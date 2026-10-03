@@ -1,8 +1,10 @@
 import type { PersonaResponse } from './PersonaResponse'
 import type { ArtifactSynthesis } from './ArtifactSynthesis'
 
+/** Terminal or in-flight state of an analysis run. */
 export type AnalysisStatus = 'IN_PROGRESS' | 'COMPLETED' | 'ERROR' | 'CANCELLED'
 
+/** Fine-grained position of an in-progress analysis, used for progress UI. */
 export type AnalysisProgressStep =
   | 'STARTING'
   | 'INTAKE'
@@ -11,6 +13,12 @@ export type AnalysisProgressStep =
   | 'ERROR'
   | 'CANCELLED'
 
+/**
+ * One artifact analysis run over a persona cohort: its progress, partially
+ * streamed persona responses, and — once complete — the cross-persona
+ * synthesis. This is the resumable/observable view of the run; the per-persona
+ * results inside `responses` are the analysis output.
+ */
 export interface ArtifactAnalysis {
     id: string
     name: string
@@ -23,6 +31,7 @@ export interface ArtifactAnalysis {
     createdAt: string
     completedAt?: string
     currentStep?: AnalysisProgressStep
+    /** Personas whose response has completed so far, out of totalResponses. */
     completedResponses?: number
     totalResponses?: number
     responses?: PersonaResponse[]
@@ -32,6 +41,11 @@ export interface ArtifactAnalysis {
     synthesis?: ArtifactSynthesis
 }
 
+/**
+ * Builds the display name for an analysis from its URL, optionally qualified
+ * by the persona batch it runs over (e.g. `"Founders" on acme`). Uploaded
+ * screenshots, which have no URL, fall back to the batch name.
+ */
 export function generateAnalysisName(url: string, batchName?: string): string {
     if (url === "Screenshot Upload") {
         return batchName

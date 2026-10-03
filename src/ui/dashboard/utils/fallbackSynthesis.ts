@@ -2,11 +2,10 @@ import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 
 /**
- * Synthesis placeholder for analyses saved before server-side synthesis
- * existed (their ArtifactAnalysis carries no synthesis). Computes only the
- * caller-known counts; all LLM-produced content stays empty rather than
- * being faked from per-persona digests. Sections render as hidden when
- * empty, so such analyses show the completion header only.
+ * Placeholder ArtifactSynthesis for an analysis that has no server-side
+ * synthesis: fills the counts from `responses.length` (completed and total,
+ * zero failed) and leaves every LLM-produced field empty. Consumers render
+ * empty sections as hidden rather than as synthesized output.
  */
 export function fallbackSynthesis(responses: PersonaResponse[]): ArtifactSynthesis {
   return {

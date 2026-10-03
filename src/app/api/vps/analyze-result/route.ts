@@ -1,8 +1,6 @@
-// ─── GET /api/vps/analyze-result ───────────────────────────────────────────
-// Poll the final results (or error) of a completed artifact analysis.
-// The background analysis runner writes results to the AnalysisResultStore;
-// this endpoint reads from that store.
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Polls the final analyses, synthesis, or error of a completed analysis run
+// identified by ?runId=.
 
 import { NextRequest, NextResponse } from "next/server";
 import { analysisResultStore } from "@/infrastructure/AnalysisResultStore";

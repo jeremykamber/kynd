@@ -7,13 +7,6 @@ import { Brain } from "lucide-react"
 const REASONING_OPEN = "<<REASONING>>"
 const REASONING_CLOSE = "<</REASONING>>"
 
-/**
- * Matches a complete reasoning block (`<<REASONING>>…<</REASONING>>`) or an
- * unclosed opener running to the end of the content. The second alternative
- * covers the mid-stream state: while a block is still being streamed the
- * closing marker hasn't arrived, and we must not render the raw marker text
- * as message body.
- */
 const REASONING_REGEX = new RegExp(
   `${REASONING_OPEN}([\\s\\S]*?)(?:${REASONING_CLOSE}|$)`,
   "g",
@@ -42,6 +35,22 @@ interface MemoryFootnote {
   text: string
 }
 
+/**
+ * Splits assistant message content into renderable nodes, rendering each
+ * non-markup run as markdown.
+ *
+ * Markup accepted:
+ * - `<<REASONING>>…<</REASONING>>` → collapsed ThinkingBlock. An unclosed
+ *   opener runs to end of content, covering the mid-stream state.
+ * - `<%display|excerpt%>` → dotted-underline tooltip; without `|` the marker
+ *   is emitted verbatim.
+ * - `[Memory: text]` → superscript reference, with `text` collected into a
+ *   footnote list appended after the body.
+ * - `<I text>` → inline "memory" pill whose tooltip shows `text`.
+ *
+ * Returns nodes in source order — `[]` for empty input. Unrecognised or
+ * malformed markers fall through as plain body text.
+ */
 export function parseMessageContent(content: string): React.ReactNode[] {
   const parts: React.ReactNode[] = []
   const memories: MemoryFootnote[] = []
@@ -50,10 +59,6 @@ export function parseMessageContent(content: string): React.ReactNode[] {
 
   const reasoningSegments = extractReasoningSegments(content)
 
-  // Walk the content in order, splitting it into reasoning blocks and body
-  // segments. Order matters: post-content reasoning (appended after the
-  // answer) must render after the body, and every block must render — not
-  // just the first match.
   const segments: { type: "reasoning" | "body"; text: string }[] = []
   let cursor = 0
   for (const seg of reasoningSegments) {
@@ -125,7 +130,6 @@ export function parseMessageContent(content: string): React.ReactNode[] {
         )
       } else if (match[5]) {
         const memoryText = match[6].trim()
-        // Inline citation pill — "memory" label with full memory on hover
         parts.push(
           <Tooltip key={`memory-inline-${keyCounter++}`} delayDuration={200}>
             <TooltipTrigger asChild>
