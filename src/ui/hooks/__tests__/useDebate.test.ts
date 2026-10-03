@@ -129,4 +129,60 @@ describe("useDebate", () => {
     expect(state.debates[0].error).toBeTruthy();
     expect(state.isStreaming).toBe(false);
   });
+
+  it("retries in place, reusing the failed room and clearing its transcript", async () => {
+    useDebateStore.setState({
+      debates: [
+        {
+          id: "d1",
+          proposal: "Old proposal",
+          participants: [mockPersona],
+          messages: [
+            {
+              id: "m1",
+              personaId: "p1",
+              personaName: "Alice",
+              role: "participant",
+              round: 1,
+              content: "stale answer",
+              order: 0,
+            },
+          ],
+          currentRound: 1,
+          totalRounds: 3,
+          status: "error",
+          error: "streamData is not async iterable",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      activeDebateId: "d1",
+      isStreaming: false,
+    });
+
+    const mockStream = createMockStream([
+      { type: "debate_start", proposal: "Old proposal", participants: ["Alice"] },
+      { type: "debate_end" },
+    ]);
+
+    vi.mocked(debateAction).mockResolvedValue({
+      // Unchecked cast: the mock iterator deliberately yields partial event
+      // shapes; only `type` is read by the loop.
+      streamData: mockStream as unknown as AsyncIterable<DebateStreamEvent>,
+    });
+
+    const { result } = renderHook(() => useDebate());
+
+    await act(async () => {
+      await result.current.startDebate("Old proposal", [mockPersona], 3, "d1");
+    });
+
+    const state = useDebateStore.getState();
+    expect(state.debates).toHaveLength(1);
+    expect(state.debates[0].id).toBe("d1");
+    expect(state.debates[0].status).toBe("completed");
+    expect(state.debates[0].error).toBeUndefined();
+    expect(
+      state.debates[0].messages.some((m) => m.content === "stale answer"),
+    ).toBe(false);
+  });
 });

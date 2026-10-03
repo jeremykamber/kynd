@@ -26,27 +26,48 @@ export function useDebate() {
 
   /**
    * Runs a full debate to completion and returns its id. The promise settles
-   * when streaming ends, not when the debate is created.
+   * when streaming ends, not when the debate is created. Passing an existing
+   * debate id retries in place: that room is reset (status, messages, round)
+   * and reused instead of creating a new one.
    */
   const startDebate = useCallback(
     async (
       proposal: string,
       participants: Persona[],
       totalRounds: number,
+      existingDebateId?: string,
     ): Promise<string> => {
-      const debateId = `debate-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      let debateId: string;
 
-      const debate: DebateRoom = {
-        id: debateId,
-        proposal,
-        participants,
-        messages: [],
-        currentRound: 0,
-        totalRounds,
-        status: "setup",
-        createdAt: new Date().toISOString(),
-      };
-      store.addDebate(debate);
+      if (existingDebateId && store.getDebate(existingDebateId)) {
+        // Retry: reuse the failed room so the sidebar does not accumulate one
+        // errored entry per attempt. Discard the previous attempt's transcript.
+        debateId = existingDebateId;
+        store.updateDebate(debateId, {
+          proposal,
+          participants,
+          messages: [],
+          currentRound: 0,
+          totalRounds,
+          status: "setup",
+          error: undefined,
+        });
+        store.setActive(debateId);
+      } else {
+        debateId = `debate-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+        const debate: DebateRoom = {
+          id: debateId,
+          proposal,
+          participants,
+          messages: [],
+          currentRound: 0,
+          totalRounds,
+          status: "setup",
+          createdAt: new Date().toISOString(),
+        };
+        store.addDebate(debate);
+      }
 
       let currentPersonaId: string | null = null;
       let currentMessageId: string | null = null;

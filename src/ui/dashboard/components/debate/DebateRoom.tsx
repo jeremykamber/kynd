@@ -74,12 +74,13 @@ export function DebateRoom() {
     if (isRetrying) return;
     setIsRetrying(true);
     try {
-      // A fresh room is created and becomes active, so the errored room's
-      // partial transcript is preserved without duplicating any messages.
+      // Retry in place: the same room is reset and re-run, so the failed
+      // entry is replaced rather than duplicated in the sidebar.
       await startDebate(
         activeDebate.proposal,
         activeDebate.participants,
         activeDebate.totalRounds,
+        activeDebate.id,
       );
     } finally {
       setIsRetrying(false);

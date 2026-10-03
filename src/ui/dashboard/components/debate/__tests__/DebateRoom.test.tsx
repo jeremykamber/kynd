@@ -99,9 +99,9 @@ describe("DebateRoom", () => {
     expect(screen.getByText(/Technical details/)).toBeTruthy();
   });
 
-  it("retries with the same proposal, participants and rounds", async () => {
+  it("retries the same room with the same proposal, participants and rounds", async () => {
     setupStore({ status: "error", error: "boom" });
-    mockStartDebate.mockResolvedValue("d2");
+    mockStartDebate.mockResolvedValue("d1");
     render(<DebateRoom />);
 
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
@@ -111,6 +111,7 @@ describe("DebateRoom", () => {
         "Raise prices 60%",
         [mockPersona],
         3,
+        "d1",
       ),
     );
   });
