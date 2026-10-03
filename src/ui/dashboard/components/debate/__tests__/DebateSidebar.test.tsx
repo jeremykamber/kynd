@@ -84,4 +84,23 @@ describe("DebateSidebar", () => {
     render(<DebateSidebar onNewDebate={vi.fn()} />);
     expect(screen.getByText(/In Progress/)).toBeTruthy();
   });
+
+  it("shows the badge and a human-readable message for errored debates", () => {
+    useDebateStore.getState().addDebate({
+      id: "d1",
+      proposal: "Test",
+      participants: [mockPersona],
+      messages: [],
+      currentRound: 0,
+      totalRounds: 3,
+      status: "error",
+      error: "TypeError: streamData is not async iterable",
+      createdAt: new Date().toISOString(),
+    });
+
+    render(<DebateSidebar onNewDebate={vi.fn()} />);
+    expect(screen.getByText(/Error/)).toBeTruthy();
+    expect(screen.getByText(/stopped responding/)).toBeTruthy();
+    expect(screen.queryByText(/streamData/)).toBeNull();
+  });
 });
