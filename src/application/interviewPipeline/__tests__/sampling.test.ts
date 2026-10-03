@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { samplePersonas, weightedDraw } from "../sampling";
+import { InsufficientSignalError, samplePersonas, weightedDraw } from "../sampling";
 import type {
   PooledDistributionSummary,
   SampledPersonaSignal,
@@ -98,13 +98,13 @@ describe("samplePersonas", () => {
     expect(Array.isArray(p.values)).toBe(true);
     expect(Array.isArray(p.featureDesires)).toBe(true);
     expect(p.decisionPattern).toBeDefined();
-    expect(p.decisionPattern.text).toBe("decision pattern");
+    expect(p.decisionPattern?.text).toBe("decision pattern");
     expect(p.context.role).toBeDefined();
-    expect(p.context.role.text).toBe("engineer");
+    expect(p.context.role?.text).toBe("engineer");
     expect(p.context.industry).toBeDefined();
-    expect(p.context.industry.text).toBe("tech");
+    expect(p.context.industry?.text).toBe("tech");
     expect(p.communicationStyle).toBeDefined();
-    expect(p.communicationStyle.text).toBe("direct");
+    expect(p.communicationStyle?.text).toBe("direct");
 
     // Verify ExtractedSignal shape on one of the signal arrays
     if (p.painPoints.length > 0) {
@@ -114,7 +114,7 @@ describe("samplePersonas", () => {
     }
   });
 
-  it("empty distribution returns requested number of personas", async () => {
+  it("throws a clear domain error when no decision pattern can be drawn", async () => {
     const distribution = createDistribution({
       painPoints: [],
       goals: [],
@@ -125,24 +125,27 @@ describe("samplePersonas", () => {
       communicationStyles: [],
     });
 
-    const personas = await samplePersonas(distribution, 3);
+    // The pipeline surfaces this message to the user. It must be the domain
+    // error, never the raw TypeError that dereferencing an absent
+    // decision pattern used to cause.
+    await expect(samplePersonas(distribution, 3)).rejects.toThrow(
+      InsufficientSignalError,
+    );
+    await expect(samplePersonas(distribution, 3)).rejects.toThrow(
+      /not enough behavioral signal/i,
+    );
+  });
 
-    expect(personas).toHaveLength(3);
-    // Empty pools degrade rather than fabricate: list fields stay iterable
-    // arrays and the single-item fields are left undefined — the shape
-    // types.ts documents for an empty pool, and what the generation prompt's
-    // `?? 'Unknown'` fallbacks expect to see.
-    personas.forEach((p, idx) => {
-      expect(p.id).toBe(`sampled-${idx}`);
-      expect(p.painPoints).toEqual([]);
-      expect(p.goals).toEqual([]);
-      expect(p.values).toEqual([]);
-      expect(p.featureDesires).toEqual([]);
-      expect(p.decisionPattern).toBeUndefined();
-      expect(p.context.role).toBeUndefined();
-      expect(p.context.industry).toBeUndefined();
-      expect(p.communicationStyle).toBeUndefined();
+  it("treats an all-zero-weight decision-pattern pool as undrawable", async () => {
+    const distribution = createDistribution({
+      decisionPatterns: [
+        { text: "never drawn", weight: 0, sourceExamples: [] },
+      ],
     });
+
+    await expect(samplePersonas(distribution, 1)).rejects.toThrow(
+      InsufficientSignalError,
+    );
   });
 
   it("handles personaCount greater than available variety", async () => {

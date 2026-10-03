@@ -489,6 +489,15 @@ function samplePersonas(
 }
 ```
 
+A decision pattern is the one signal a sampled persona cannot do without: the
+generation prompt is anchored on it and the coherence check dereferences it.
+`samplePersonas` therefore rejects a distribution whose `decisionPatterns` pool
+is empty (or entirely zero-weight) with `InsufficientSignalError`
+(`src/application/interviewPipeline/sampling.ts`) rather than emitting a
+persona with no behavioral signal. The message is user-facing — the pipeline
+shows it instead of a raw runtime error. Role, industry, and communication
+style may still be absent and degrade to `'Unknown'` in prompts.
+
 ### 8.3 Coherence Validation (1 LLM Call)
 
 ```

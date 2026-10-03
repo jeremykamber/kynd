@@ -57,9 +57,12 @@ export interface PooledDistributionSummary {
 }
 
 /**
- * One sampled persona blueprint. List fields hold several drawn signals; the
- * single-item fields (context entries, communicationStyle, decisionPattern)
- * are `undefined` when the corresponding pool was empty.
+ * One sampled persona blueprint. List fields hold several drawn signals.
+ * Single-item fields (decisionPattern, context entries, communicationStyle)
+ * are absent when the corresponding pool held nothing to draw:
+ * `samplePersonas` refuses to emit a persona with no decision pattern at all
+ * (see `InsufficientSignalError`), while role, industry, and communication
+ * style may legitimately be missing and degrade to 'Unknown' in prompts.
  */
 export interface SampledPersonaSignal {
   id: string;
@@ -67,10 +70,10 @@ export interface SampledPersonaSignal {
   goals: ExtractedSignal[];
   values: ExtractedSignal[];
   featureDesires: ExtractedSignal[];
-  decisionPattern: ExtractedSignal;
+  decisionPattern?: ExtractedSignal;
   context: {
-    role: WeightedItem;
-    industry: WeightedItem;
+    role?: WeightedItem;
+    industry?: WeightedItem;
   };
-  communicationStyle: WeightedItem;
+  communicationStyle?: WeightedItem;
 }

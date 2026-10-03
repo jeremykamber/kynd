@@ -36,7 +36,7 @@ function buildCoherenceValidationPrompt(personas: SampledPersonaSignal[]): strin
             `- Goals: ${p.goals.map(s => s.text).join('; ')}`,
             `- Values: ${p.values.map(s => s.text).join('; ')}`,
             `- Feature Desires: ${p.featureDesires.map(s => s.text).join('; ')}`,
-            `- Decision Pattern: ${p.decisionPattern.text}`,
+            `- Decision Pattern: ${p.decisionPattern?.text ?? 'Unknown'}`,
         ].join('\n');
     });
 
@@ -69,7 +69,9 @@ function formatPersonaDescription(signal: SampledPersonaSignal): string {
         'Feature Desires:',
         ...signal.featureDesires.map(s => `- ${s.text} (quote: "${s.quote}")`),
         '',
-        `Decision Pattern: ${signal.decisionPattern.text} (quote: "${signal.decisionPattern.quote}")`,
+        signal.decisionPattern
+            ? `Decision Pattern: ${signal.decisionPattern.text} (quote: "${signal.decisionPattern.quote}")`
+            : 'Decision Pattern: Unknown',
     ];
 
     return lines.join('\n');
