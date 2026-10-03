@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { useDebateStore } from "../debateStore";
 import { useDebate } from "@/ui/hooks/useDebate";
-import type { DebateRoom } from "@/domain/entities/DebateRoom";
+import type { DebateRoom, DebateStreamEvent } from "@/domain/entities/DebateRoom";
 import type { Persona } from "@/domain/entities/Persona";
+import { createStreamableValue } from "../../__tests__/streamableValueTestUtils";
 
 // The store only owns the flag; the lifecycle that sets and clears it lives in
 // useDebate, so the streaming test drives that hook with a controlled stream.
@@ -110,42 +111,31 @@ describe("debateStore", () => {
   });
 
   it("tracks streaming state", async () => {
-    // A stream that parks on its terminal event lets the test observe both
-    // halves of the lifecycle: streaming while the debate runs, cleared once
-    // the debate reaches a terminal state.
-    let releaseTerminal!: () => void;
-    const terminalGate = new Promise<void>((resolve) => {
-      releaseTerminal = resolve;
-    });
-    const events = [{ type: "debate_start" }, { type: "debate_end" }];
-
-    mockDebateAction.mockResolvedValue({
-      streamData: {
-        [Symbol.asyncIterator]: () => {
-          let i = 0;
-          return {
-            next: async () => {
-              if (i === events.length - 1) await terminalGate;
-              if (i < events.length) return { value: events[i++], done: false };
-              return { value: undefined, done: true };
-            },
-          };
-        },
-      },
-    });
+    // The stream is only finished by `done`, so the test observes both halves
+    // of the lifecycle: streaming while the debate runs, cleared once the
+    // debate reaches a terminal state.
+    const stream = createStreamableValue<DebateStreamEvent>();
+    mockDebateAction.mockImplementation(async () => ({
+      streamData: stream.value,
+    }));
 
     const { result } = renderHook(() => useDebate());
 
     let finished!: Promise<string>;
     await act(async () => {
       finished = result.current.startDebate("Test proposal", [mockPersona], 1);
+      stream.update({
+        type: "debate_start",
+        proposal: "Test proposal",
+        participants: ["Alice"],
+      });
     });
 
     // While the stream is open the app reports a streaming debate.
     expect(useDebateStore.getState().isStreaming).toBe(true);
 
     await act(async () => {
-      releaseTerminal();
+      stream.done({ type: "debate_end" });
       await finished;
     });
 
