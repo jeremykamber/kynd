@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { parseMessageContent } from "../parseMessageContent";
 
 describe("parseMessageContent", () => {
@@ -86,5 +87,56 @@ describe("parseMessageContent", () => {
     );
     expect(container.querySelector("sup")).not.toBeNull();
     expect(container.textContent).toContain("my childhood dog");
+  });
+
+  it("renders a single-segment marker as plain prose, never the delimiters", () => {
+    const { container } = render(
+      <div>
+        {parseMessageContent(
+          'I lost $12k once <% "so now I read the cancellation policy first" %> — never twice',
+        )}
+      </div>,
+    );
+    // The statement stays; the prompt dialect's delimiters and quotes do not.
+    expect(container.textContent).toContain("so now I read the cancellation policy first");
+    expect(container.textContent).not.toContain("<%");
+    expect(container.textContent).not.toContain("%>");
+    expect(container.textContent).not.toContain('"');
+  });
+
+  it("keeps the two-segment marker as a tooltip", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <div>{parseMessageContent('<% "trust is earned" | "burned by a vendor in 2022" %>')}</div>
+      </TooltipProvider>,
+    );
+    // The display segment is visible; the backstory remains tooltip-only.
+    expect(container.textContent).toContain("trust is earned");
+    expect(container.textContent).not.toContain("burned by a vendor in 2022");
+    expect(container.textContent).not.toContain("<%");
+    expect(container.textContent).not.toContain("|");
+  });
+
+  it("renders an unterminated marker mid-stream without leaking delimiters", () => {
+    const { container } = render(
+      <div>{parseMessageContent('still typing <% "half a sentence')}</div>,
+    );
+    expect(container.textContent).toContain("half a sentence");
+    expect(container.textContent).not.toContain("<%");
+  });
+
+  it("separates a marker glued to surrounding text", () => {
+    const { container } = render(
+      <div>
+        {parseMessageContent(
+          'their support ghosted me.<% "That $12k disaster" %>So yeah, fine print first',
+        )}
+      </div>,
+    );
+    // Prose flows continuously instead of jamming the statement into its neighbours.
+    expect(container.textContent).toBe(
+      "their support ghosted me. That $12k disaster So yeah, fine print first",
+    );
+    expect(container.textContent).not.toContain("<%");
   });
 });
