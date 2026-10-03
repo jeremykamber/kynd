@@ -6,6 +6,22 @@ import type {
 } from './types';
 
 /**
+ * Raised by `samplePersonas` when the pooled distribution cannot supply the
+ * minimum signal a persona needs. The only hard requirement is a decision
+ * pattern — the core behavioral signal the generation prompt is built around.
+ * The message is user-facing: the pipeline surfaces it instead of a raw
+ * `TypeError` from dereferencing an absent signal.
+ */
+export class InsufficientSignalError extends Error {
+  constructor(
+    message = 'Not enough behavioral signal in the provided transcripts to generate personas.',
+  ) {
+    super(message);
+    this.name = 'InsufficientSignalError';
+  }
+}
+
+/**
  * Draws items by weighted random selection **without replacement** within a
  * single call: an item is drawn at most once, but the same item may appear in
  * draws made by separate calls (different personas). Items with larger
@@ -137,6 +153,9 @@ function createPersonaSignal(
  * checking is delegated entirely to the injected `onValidate` callback.
  *
  * @returns `personaCount` personas, or [] when `personaCount <= 0`.
+ * @throws {InsufficientSignalError} When `distribution.decisionPatterns`
+ *   cannot yield a single signal (empty, or every weight <= 0) — the run
+ *   would otherwise emit personas with no behavioral anchor.
  */
 export async function samplePersonas(
   distribution: PooledDistributionSummary,
@@ -146,6 +165,14 @@ export async function samplePersonas(
   ) => Promise<number[]>,
 ): Promise<SampledPersonaSignal[]> {
   if (personaCount <= 0) return [];
+
+  // A persona with no decision pattern cannot be generated: the generation
+  // prompt has nothing to anchor its behavior on, and the coherence prompt
+  // dereferences it. Fail here, with a message the pipeline can show, rather
+  // than emitting an incomplete sample that crashes downstream prompt building.
+  if (!distribution.decisionPatterns.some((item) => item.weight > 0)) {
+    throw new InsufficientSignalError();
+  }
 
   const personas: SampledPersonaSignal[] = [];
   for (let i = 0; i < personaCount; i++) {

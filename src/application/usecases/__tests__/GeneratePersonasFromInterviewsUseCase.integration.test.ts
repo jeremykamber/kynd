@@ -31,6 +31,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeneratePersonasFromInterviewsUseCase } from '../GeneratePersonasFromInterviewsUseCase';
 import { GeneratePersonasUseCase } from '../GeneratePersonasUseCase';
 import { IdRagStore } from '@/infrastructure/adapters/IdRagStore';
+import { InsufficientSignalError } from '@/application/interviewPipeline/sampling';
 import type { Persona } from '@/domain/entities/Persona';
 import type { ExtractedInterviewSignals } from '@/application/interviewPipeline/types';
 
@@ -292,5 +293,47 @@ describe('GeneratePersonasFromInterviewsUseCase Integration', () => {
       // The formatted output should include the source
       expect(formatted).toContain('Source:');
     }
+  });
+
+  // ------------------------------------------------------------------
+  // 5. KYND-0013 — sparse transcripts fail with a clear domain error
+  // ------------------------------------------------------------------
+  it('sparse transcripts with no decision patterns fail with a clear domain error', async () => {
+    // A short transcript yields no decision-pattern signals, so the pooled
+    // distribution has an empty decisionPatterns pool. The pipeline used to
+    // sample personas with `decisionPattern: undefined` and then crash in the
+    // coherence prompt with `TypeError: Cannot read properties of undefined
+    // (reading 'text')`.
+    const sparseSignals: ExtractedInterviewSignals = {
+      interviewId: 'interview-0',
+      painPoints: [],
+      goals: [],
+      values: [],
+      featureDesires: [],
+      decisionPatterns: [],
+      context: {},
+      communicationStyle: '',
+      salientQuotes: [],
+    };
+
+    const sparseLlmService = createMockLlmService();
+    sparseLlmService.extractInterviewSignals.mockResolvedValue(sparseSignals);
+
+    const sparseUseCase = new GeneratePersonasFromInterviewsUseCase(
+      sparseLlmService,
+      new IdRagStore(),
+      new GeneratePersonasUseCase(sparseLlmService),
+    );
+
+    const run = () =>
+      sparseUseCase.execute(
+        [{ filename: 'sparse.txt', content: 'short transcript' }],
+        undefined,
+        2,
+        'synthesized',
+      );
+
+    await expect(run()).rejects.toThrow(InsufficientSignalError);
+    await expect(run()).rejects.toThrow(/not enough behavioral signal/i);
   });
 });

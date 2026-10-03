@@ -261,16 +261,16 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
     // quote that grounds a researched persona. Asserting the values (not the
     // prompt's labels) keeps a behavior-preserving rewording green.
     for (const signal of mockSampledSignals) {
-      expect(descriptionArg).toContain(signal.context.role.text);
-      expect(descriptionArg).toContain(signal.context.industry.text);
-      expect(descriptionArg).toContain(signal.communicationStyle.text);
+      expect(descriptionArg).toContain(signal.context.role?.text);
+      expect(descriptionArg).toContain(signal.context.industry?.text);
+      expect(descriptionArg).toContain(signal.communicationStyle?.text);
 
       const extractedSignals = [
         ...signal.painPoints,
         ...signal.goals,
         ...signal.values,
         ...signal.featureDesires,
-        signal.decisionPattern,
+        ...(signal.decisionPattern ? [signal.decisionPattern] : []),
       ];
       for (const { text, quote } of extractedSignals) {
         expect(descriptionArg).toContain(text);
