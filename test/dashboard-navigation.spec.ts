@@ -150,6 +150,20 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
 
       await tabBar.locator('a[href="/dashboard/interviews"]').click();
       await page.waitForURL('**/dashboard/interviews', { timeout: 10_000 });
+
+      // The floating "Run Analysis" CTA clears the tab bar instead of sitting
+      // underneath it (it used to be pinned 24px from the bottom edge).
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+      const ctaClearsBar = await page.evaluate(() => {
+        const bar = document.querySelector('nav[aria-label="Primary"]');
+        const cta = Array.from(document.querySelectorAll('button')).find((b) =>
+          /run analysis/i.test(b.textContent ?? ''),
+        );
+        if (!bar || !cta) return null;
+        return cta.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top;
+      });
+      expect(ctaClearsBar).toBe(true);
+
       await page.screenshot({
         path: path.join(SCREENSHOT_DIR, 'dashboard-mobile-tab-bar.png'),
       });
