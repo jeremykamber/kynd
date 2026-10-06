@@ -19,19 +19,24 @@ export default function MarketingLayout({
               Kynd
             </span>
           </Link>
-          <nav className="flex items-center space-x-4 md:space-x-6 text-sm font-medium overflow-x-auto whitespace-nowrap">
+          <nav className="flex items-center gap-4 text-sm font-medium md:gap-6">
             <Link
               href="#features"
               className="transition-colors hover:text-primary text-muted-foreground"
             >
               Features
             </Link>
-            <Link
-              href="#pricing"
-              className="transition-colors hover:text-primary text-muted-foreground"
-            >
-              Pricing
-            </Link>
+            {/*
+              TODO(KYND-0009): re-enable once a pricing section or page exists —
+              `#pricing` targets an anchor that is not on the page, so the link
+              was a silent no-op. Commented out rather than deleted.
+              <Link
+                href="#pricing"
+                className="transition-colors hover:text-primary text-muted-foreground"
+              >
+                Pricing
+              </Link>
+            */}
             <Link
               href="/dashboard"
               className="transition-colors text-foreground hover:text-primary font-semibold"
@@ -55,17 +60,22 @@ export default function MarketingLayout({
               &copy; {new Date().getFullYear()} Kynd. All rights reserved.
             </p>
           </div>
-          <div className="flex space-x-6 text-sm text-muted-foreground">
-            <Link href="#" className="hover:text-primary transition-colors">
-              Privacy
-            </Link>
-            <Link href="#" className="hover:text-primary transition-colors">
-              Terms
-            </Link>
-            <Link href="#" className="hover:text-primary transition-colors">
-              Contact
-            </Link>
-          </div>
+          {/*
+            TODO(KYND-0008): re-enable once real pages exist. Privacy, Terms and
+            Contact pointed at `href="#"`, i.e. a silent jump to the top — worse
+            for trust than not offering them. Commented out rather than deleted.
+            <div className="flex gap-6 text-sm text-muted-foreground">
+              <Link href="#" className="hover:text-primary transition-colors">
+                Privacy
+              </Link>
+              <Link href="#" className="hover:text-primary transition-colors">
+                Terms
+              </Link>
+              <Link href="#" className="hover:text-primary transition-colors">
+                Contact
+              </Link>
+            </div>
+          */}
         </div>
       </footer>
     </div>
