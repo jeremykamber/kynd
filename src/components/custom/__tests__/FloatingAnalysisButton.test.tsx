@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 
-const { router, personaState } = vi.hoisted(() => ({
+const { router, personaState, pathname } = vi.hoisted(() => ({
   router: { push: vi.fn(), replace: vi.fn() },
   personaState: { batches: [] as unknown[] },
+  pathname: { current: '/dashboard' },
 }))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => router,
+  usePathname: () => pathname.current,
 }))
 
 vi.mock('@/ui/stores/personaStore', () => ({
@@ -21,6 +23,7 @@ afterEach(cleanup)
 beforeEach(() => {
   router.push.mockClear()
   personaState.batches = []
+  pathname.current = '/dashboard'
 })
 
 describe('FloatingAnalysisButton', () => {
