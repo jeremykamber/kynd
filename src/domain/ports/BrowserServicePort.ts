@@ -21,9 +21,11 @@ export interface BrowserServicePort {
 
     /**
      * Opens a session and navigates to `url`, leaving it open for the scouting
-     * methods below. Navigation timeouts are non-fatal: the method resolves
-     * with the page in whatever state it reached. Throws if the session
-     * itself cannot be established.
+     * methods below. Throws when the page cannot be loaded at all — DNS,
+     * connection, SSL, or invalid-URL failures leave the page on about:blank.
+     * A `networkidle` timeout on a page that did load stays non-fatal: the
+     * method resolves with the page in whatever state it reached. Throws if
+     * the session itself cannot be established.
      * @param onLiveScreenshot Called periodically while loading with a live
      *   viewport snapshot; rejections are ignored by the adapter.
      */
