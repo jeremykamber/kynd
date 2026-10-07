@@ -102,3 +102,36 @@ describe('AnalysesPage — ?new=1 opens the new-analysis form', () => {
     expect(router.replace).toHaveBeenCalledWith('/dashboard/analyses', { scroll: false })
   })
 })
+
+describe('AnalysesPage — failed runs are not counted as completed', () => {
+  const baseAnalysis = {
+    id: 'a1',
+    name: 'Run',
+    status: 'COMPLETED',
+    url: 'https://example.com',
+    personaCount: 1,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  }
+
+  it('groups an errored run under Failed and keeps it out of Completed', () => {
+    analysisState.analyses = [
+      { ...baseAnalysis, id: 'done', name: 'Good run' },
+      { ...baseAnalysis, id: 'bad', name: 'Bad run', status: 'ERROR', error: 'boom' },
+    ]
+
+    render(<AnalysesPage />)
+
+    expect(screen.getByRole('heading', { name: 'Completed' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Failed' })).toBeTruthy()
+    expect(screen.getByText('1 completed · 1 failed · 0 in progress')).toBeTruthy()
+  })
+
+  it('omits the failed count and section when nothing has failed', () => {
+    analysisState.analyses = [{ ...baseAnalysis }]
+
+    render(<AnalysesPage />)
+
+    expect(screen.queryByRole('heading', { name: 'Failed' })).toBeNull()
+    expect(screen.getByText('1 completed · 0 in progress')).toBeTruthy()
+  })
+})

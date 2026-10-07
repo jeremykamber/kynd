@@ -453,7 +453,8 @@ function AnalysesPageContent() {
   }, [router, searchParams])
 
   const inProgress = analyses.filter((s) => s.status === 'IN_PROGRESS')
-  const completed = analyses.filter((s) => s.status !== 'IN_PROGRESS')
+  const completed = analyses.filter((s) => s.status === 'COMPLETED')
+  const failed = analyses.filter((s) => s.status === 'ERROR' || s.status === 'CANCELLED')
 
   const handleRunAnalysis = (url: string, personas: Persona[], imageBase64?: string, businessGoal?: string, researchQuestion?: string, batchId?: string) => {
     const input = imageBase64
@@ -474,7 +475,7 @@ function AnalysesPageContent() {
           <h1 className="text-2xl font-bold tracking-tight">Analyses</h1>
           {analyses.length > 0 && (
             <p className="text-sm text-muted-foreground">
-              {`${completed.length} completed · ${inProgress.length} in progress`}
+              {`${completed.length} completed${failed.length > 0 ? ` · ${failed.length} failed` : ''} · ${inProgress.length} in progress`}
             </p>
           )}
         </div>
@@ -525,6 +526,19 @@ function AnalysesPageContent() {
           </h2>
           <div className="flex flex-col gap-3">
             {completed.map((sim) => (
+              <AnalysisCard key={sim.id} analysis={sim} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {failed.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Failed
+          </h2>
+          <div className="flex flex-col gap-3">
+            {failed.map((sim) => (
               <AnalysisCard key={sim.id} analysis={sim} />
             ))}
           </div>
