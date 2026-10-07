@@ -8,6 +8,9 @@ import { MinimalCard } from '@/components/custom/MinimalCard'
 import { Badge } from '@/components/ui/badge'
 import { FlowDialog } from '@/components/custom/FlowDialog'
 
+/** The only extension the pipeline accepts, compared case-insensitively. */
+const TRANSCRIPT_EXTENSION = '.txt'
+
 /**
  * Interview-transcript upload and persona-generation page. Owns the drag/drop
  * and file-selection UI plus the generation mode and count controls; transcript
@@ -35,6 +38,7 @@ export function InterviewUploadClient() {
   const [personaCountInput, setPersonaCountInput] = useState(String(personaCount))
 
   const [isDragging, setIsDragging] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const readFileContent = useCallback(
@@ -53,17 +57,35 @@ export function InterviewUploadClient() {
     [addFile],
   )
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files
-    if (!selectedFiles) return
+  const acceptFiles = useCallback(
+    async (incoming: FileList | null): Promise<void> => {
+      if (!incoming || incoming.length === 0) return
 
-    const filePromises: Promise<void>[] = []
-    for (let i = 0; i < selectedFiles.length; i++) {
-      if (selectedFiles[i].name.endsWith('.txt')) {
-        filePromises.push(readFileContent(selectedFiles[i]))
+      const accepted: File[] = []
+      const skipped: string[] = []
+      for (let i = 0; i < incoming.length; i++) {
+        const file = incoming[i]
+        if (file.name.toLowerCase().endsWith(TRANSCRIPT_EXTENSION)) {
+          accepted.push(file)
+        } else {
+          skipped.push(file.name)
+        }
       }
-    }
-    await Promise.all(filePromises)
+
+      // Recompute on every selection so a later valid upload clears the notice.
+      setUploadError(
+        skipped.length === 0
+          ? null
+          : `Skipped ${skipped.length} file${skipped.length === 1 ? '' : 's'}: only ${TRANSCRIPT_EXTENSION} transcripts are supported (got ${skipped.join(', ')}).`,
+      )
+
+      await Promise.all(accepted.map(readFileContent))
+    },
+    [readFileContent],
+  )
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await acceptFiles(e.target.files)
     if (e.target) e.target.value = ''
   }
 
@@ -80,15 +102,7 @@ export function InterviewUploadClient() {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-
-    const droppedFiles = e.dataTransfer.files
-    const filePromises: Promise<void>[] = []
-    for (let i = 0; i < droppedFiles.length; i++) {
-      if (droppedFiles[i].name.endsWith('.txt')) {
-        filePromises.push(readFileContent(droppedFiles[i]))
-      }
-    }
-    await Promise.all(filePromises)
+    await acceptFiles(e.dataTransfer.files)
   }
 
   const handleReset = () => {
@@ -195,6 +209,15 @@ export function InterviewUploadClient() {
                   onChange={handleFileSelect}
                 />
               </div>
+
+              {uploadError && (
+                <p
+                  role="alert"
+                  className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md"
+                >
+                  {uploadError}
+                </p>
+              )}
 
               {files.length > 0 && (
                 <div className="flex flex-col gap-2">
