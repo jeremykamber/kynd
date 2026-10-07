@@ -75,26 +75,32 @@ running_blobs() {
 cleanup_ollama() {
   [ -d "$BLOBS" ] || return 0
 
-  # 1. Aborted downloads. Skip entirely while a download/create is in flight:
-  #    a fresh -partial mtime (last 10 min) or a live `ollama pull`.
-  local active=0
-  if find "$BLOBS" -name '*-partial*' -newermt '-10 minutes' -print -quit 2>/dev/null | grep -q .; then
-    active=1
-  fi
-  pgrep -af 'ollama.*(pull|create)' >/dev/null 2>&1 && active=1
+  # 1. Aborted downloads. A download is "active" only for the digest whose
+  #    -partial files were touched in the last 10 minutes (ollama writes to them
+  #    continuously while downloading). Partials for any other digest are a
+  #    download that stopped midway, so they are deleted — even while another
+  #    download is running, since each digest is independent.
+  local active="" stale="" f digest
+  active=$(find "$BLOBS" -name '*-partial*' -newermt '-10 minutes' -printf '%f\n' 2>/dev/null \
+             | sed -E 's/-partial.*$//' | sort -u)
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    digest=$(basename "$f")
+    digest=${digest%%-partial*}
+    printf '%s\n' "$active" | grep -qx "$digest" && continue
+    stale="$stale$f"$'\n'
+  done < <(find "$BLOBS" -name '*-partial*' 2>/dev/null)
+  stale=${stale%$'\n'}
 
-  if [ "$active" -eq 1 ]; then
-    log "ollama: download in progress, skipping aborted partials"
-  else
-    local files
-    files=$(find "$BLOBS" -name '*-partial*' 2>/dev/null)
-    if [ -n "$files" ]; then
-      local n bytes
-      n=$(printf '%s\n' "$files" | wc -l)
-      bytes=$(printf '%s\n' "$files" | alloc_bytes)
-      [ "$DRY_RUN" -eq 0 ] && printf '%s\n' "$files" | xargs -r rm -f
-      log "ollama: removed $n aborted download(s), freed $(mib "$bytes")"
-    fi
+  if [ -n "$stale" ]; then
+    local n bytes
+    n=$(printf '%s\n' "$stale" | wc -l)
+    bytes=$(printf '%s\n' "$stale" | alloc_bytes)
+    [ "$DRY_RUN" -eq 0 ] && printf '%s\n' "$stale" | xargs -r rm -f
+    log "ollama: removed $n aborted download(s), freed $(mib "$bytes")"
+  fi
+  if [ -n "$active" ]; then
+    log "ollama: kept partials for $(printf '%s\n' "$active" | wc -l) active download(s)"
   fi
 
   # 2. Complete blobs no manifest references and no running runner holds open.
