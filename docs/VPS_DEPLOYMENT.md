@@ -196,8 +196,18 @@ The VPS has filled up before with `ENOSPC: no space left on device` (e.g. the bu
 - Deletes Ollama `-partial` files (aborted downloads) — skipped while a pull/create is running
 - Deletes Ollama orphaned blobs (complete blobs no manifest references and no running `ollama runner` has open) — live models and in-flight inference are never touched
 - Truncates PM2 logs over 200 MiB
+- Truncates `/var/log/syslog`, `syslog.1`, and `daemon.log` over 200 MiB
 - Vacuums the systemd journal to 100 MiB
 - Clears the npm cache when it exceeds 1 GiB
+
+The syslog cap matters because rsyslogd writes "file write error" messages into the
+very file it failed to write: once the disk fills, log spam compounds the problem.
+
+**The script is tracked in git at `infra/vps-disk-cleanup.sh` and must stay at that exact
+path.** The cron entry and the `NOPASSWD` sudoers rule both hard-code this path. In
+2026-08-13 the script disappeared from the VPS while its cron entry stayed, so every run
+failed silently (`>/dev/null 2>&1`) and Ollama partials accumulated until the disk hit
+100% again on 2026-10-08. If the disk fills, check that this file exists first.
 
 It logs to `/var/log/kynd-disk-cleanup.log` and exits non-zero if the disk is still above 95% after cleanup.
 
