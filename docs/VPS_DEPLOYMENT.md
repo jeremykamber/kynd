@@ -222,7 +222,7 @@ The VPS has filled up before with `ENOSPC: no space left on device` (e.g. the bu
 
 `infra/vps-disk-cleanup.sh` removes known-reclaimable disk usage and is safe to run repeatedly. It:
 
-- Deletes Ollama `-partial` files (aborted downloads) — skipped while a pull/create is running
+- Deletes Ollama `-partial` files for any download that stopped midway. Only the digest actually in flight — its partials written within the last 10 minutes — is kept; every other digest is independent and reclaimed
 - Deletes Ollama orphaned blobs (complete blobs no manifest references and no running `ollama runner` has open) — live models and in-flight inference are never touched
 - Truncates PM2 logs over 200 MiB
 - Truncates `/var/log/syslog`, `syslog.1`, and `daemon.log` over 200 MiB
