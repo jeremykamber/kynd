@@ -109,17 +109,67 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
   it('navigates between top nav sections', async () => {
     await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
-    // Personas → Interviews
-    await page.locator('a[href="/dashboard/interviews"]').first().click();
+    // Personas → Interviews (the pill; the bottom tab bar is display:none here)
+    await page.locator('header nav a[href="/dashboard/interviews"]').click();
     await page.waitForURL('**/dashboard/interviews', { timeout: 10_000 });
 
     // Interviews → Analyses
-    await page.locator('a[href="/dashboard/analyses"]').first().click();
+    await page.locator('header nav a[href="/dashboard/analyses"]').click();
     await page.waitForURL('**/dashboard/analyses', { timeout: 10_000 });
 
     // Analyses → back to Personas via the top nav
-    await page.locator('nav button:has-text("Personas")').click();
+    await page.locator('header nav button:has-text("Personas")').click();
     await page.waitForURL('**/dashboard', { timeout: 10_000 });
+  });
+
+  it('navigates with the bottom tab bar on mobile, with no scrolling nav', async () => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    try {
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+
+      // Below `sm` the pill's items are hidden: they used to overflow a
+      // scrollable strip that hid two of the three destinations.
+      expect(
+        await page
+          .locator('header nav')
+          .evaluate((el) => getComputedStyle(el).display),
+      ).toBe('none');
+
+      // Nothing on the page scrolls sideways.
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+
+      const tabBar = page.locator('nav[aria-label="Primary"]');
+      await tabBar.waitFor({ state: 'visible', timeout: 10_000 });
+      expect(await tabBar.locator('a, button').allInnerTexts()).toEqual([
+        'Personas',
+        'Interviews',
+        'Analyses',
+      ]);
+
+      await tabBar.locator('a[href="/dashboard/interviews"]').click();
+      await page.waitForURL('**/dashboard/interviews', { timeout: 10_000 });
+
+      // The floating "Run Analysis" CTA clears the tab bar instead of sitting
+      // underneath it (it used to be pinned 24px from the bottom edge).
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+      const ctaClearsBar = await page.evaluate(() => {
+        const bar = document.querySelector('nav[aria-label="Primary"]');
+        const cta = Array.from(document.querySelectorAll('button')).find((b) =>
+          /run analysis/i.test(b.textContent ?? ''),
+        );
+        if (!bar || !cta) return null;
+        return cta.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top;
+      });
+      expect(ctaClearsBar).toBe(true);
+
+      await page.screenshot({
+        path: path.join(SCREENSHOT_DIR, 'dashboard-mobile-tab-bar.png'),
+      });
+    } finally {
+      await page.setViewportSize({ width: 1280, height: 900 });
+    }
   });
 
   it('loads the demo persona batch into the main view', async () => {

@@ -39,7 +39,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-import { TopNav } from "../TopNav";
+import { PrimaryNav } from "../PrimaryNav";
 
 function getPersonasButton(container: HTMLElement) {
   // The Personas nav item is a <button> inside the <nav>
@@ -56,7 +56,7 @@ function getPersonasButton(container: HTMLElement) {
 // two renderings — restyle-proof, and false if the marking stops varying.
 function navItemClassName(pathname: string, selector: string): string {
   mockUsePathname.mockReturnValue(pathname);
-  const { container, unmount } = render(<TopNav />);
+  const { container, unmount } = render(<PrimaryNav />);
   const el = container.querySelector(selector);
   if (!el) throw new Error(`Could not find nav item ${selector} on ${pathname}`);
   const className = el.className;
@@ -66,14 +66,14 @@ function navItemClassName(pathname: string, selector: string): string {
 
 const PERSONAS_ITEM = "nav button";
 
-describe("TopNav", () => {
+describe("PrimaryNav", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("highlights Personas on /dashboard and stays on the batch list", () => {
     mockUsePathname.mockReturnValue("/dashboard");
-    const { container } = render(<TopNav />);
+    const { container } = render(<PrimaryNav />);
 
     const activeClass = getPersonasButton(container).className;
     expect(activeClass).not.toBe(navItemClassName("/dashboard/interviews", PERSONAS_ITEM));
@@ -85,7 +85,7 @@ describe("TopNav", () => {
 
   it("clears the active batch when Personas is selected from another section", () => {
     mockUsePathname.mockReturnValue("/dashboard/analyses");
-    const { container } = render(<TopNav />);
+    const { container } = render(<PrimaryNav />);
 
     // Renders as inactive here...
     const inactiveClass = getPersonasButton(container).className;
@@ -116,5 +116,21 @@ describe("TopNav", () => {
     expect(activeClass).not.toBe(
       navItemClassName("/dashboard", 'a[href="/dashboard/analyses"]'),
     );
+  });
+
+  // The pill (>=sm) and the bottom tab bar (<sm) are two renderings of one
+  // destination list; this fails if a destination is added to only one of them.
+  it("renders the same destinations in the pill and the bottom tab bar", () => {
+    mockUsePathname.mockReturnValue("/dashboard");
+    const { container } = render(<PrimaryNav />);
+
+    const navs = Array.from(container.querySelectorAll("nav"));
+    expect(navs).toHaveLength(2);
+    for (const nav of navs) {
+      const labels = Array.from(nav.querySelectorAll("button, a")).map(
+        (el) => el.textContent,
+      );
+      expect(labels).toEqual(["Personas", "Interviews", "Analyses"]);
+    }
   });
 });
