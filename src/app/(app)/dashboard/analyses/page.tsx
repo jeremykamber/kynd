@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon, PlusIcon, UploadIcon, ImageIcon, LinkIcon, TargetIcon, HelpCircleIcon, FlaskConicalIcon } from 'lucide-react'
 import { Persona } from '@/domain/entities/Persona'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
+import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
 
 function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
   const router = useRouter()
@@ -118,7 +119,7 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
           e.stopPropagation()
           removeAnalysis(analysis.id)
         }}
-        className="absolute -top-2 -right-2 flex items-center justify-center size-6 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-destructive focus:outline-none"
+        className={DESTRUCTIVE_CARD_CONTROL_CLASS}
         aria-label="Delete analysis"
       >
         <XIcon className="size-3.5" />
@@ -432,11 +433,24 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
  * /dashboard/analyses: the analysis list (in-progress first, then finished) plus
  * the inline "Run New Analysis" form. Analysis records come from the client
  * analysis store; starting a run is delegated to useAnalysisFlow.
+ *
+ * The form's open state lives in the URL (`?new=1`) so the global floating CTA
+ * can open it from any route, including this one.
  */
-export default function AnalysesPage() {
+function AnalysesPageContent() {
   const analyses = useAnalysisStore((s) => s.analyses)
   const analysisFlow = useAnalysisFlow()
-  const [showNewForm, setShowNewForm] = useState(false)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const showNewForm = searchParams.get('new') === '1'
+
+  const setShowNewForm = useCallback((open: boolean) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (open) params.set('new', '1')
+    else params.delete('new')
+    const query = params.toString()
+    router.replace(query ? `/dashboard/analyses?${query}` : '/dashboard/analyses', { scroll: false })
+  }, [router, searchParams])
 
   const inProgress = analyses.filter((s) => s.status === 'IN_PROGRESS')
   const completed = analyses.filter((s) => s.status !== 'IN_PROGRESS')
@@ -458,11 +472,11 @@ export default function AnalysesPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold tracking-tight">Analyses</h1>
-          <p className="text-sm text-muted-foreground">
-            {analyses.length === 0
-              ? 'No analyses yet. Run your first analysis to get started.'
-              : `${completed.length} completed · ${inProgress.length} in progress`}
-          </p>
+          {analyses.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {`${completed.length} completed · ${inProgress.length} in progress`}
+            </p>
+          )}
         </div>
         <Button
           onClick={() => setShowNewForm(!showNewForm)}
@@ -528,5 +542,29 @@ export default function AnalysesPage() {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * `useSearchParams` makes this client subtree render after hydration during
+ * prerendering, so it must sit under a Suspense boundary — see Next's
+ * useSearchParams docs. The fallback mirrors loading.tsx's header skeleton.
+ */
+function AnalysesPageFallback() {
+  return (
+    <div className="flex flex-col gap-8 w-full h-full">
+      <div className="flex flex-col gap-2">
+        <div className="h-8 w-40 rounded bg-muted animate-pulse" />
+        <div className="h-4 w-52 rounded bg-muted animate-pulse" />
+      </div>
+    </div>
+  )
+}
+
+export default function AnalysesPage() {
+  return (
+    <Suspense fallback={<AnalysesPageFallback />}>
+      <AnalysesPageContent />
+    </Suspense>
   )
 }

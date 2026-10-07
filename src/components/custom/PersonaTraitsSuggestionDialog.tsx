@@ -46,6 +46,7 @@ function DiffToggle({ selected, onSelect, label }: { selected: boolean; onSelect
       onClick={onSelect}
       className={cn(
         "text-xs font-medium px-2 py-0.5 rounded-sm transition-all duration-150",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         selected
           ? "bg-primary/10 text-primary"
           : "bg-transparent text-muted-foreground/80 hover:text-foreground hover:bg-muted/30",
@@ -91,7 +92,7 @@ function DiffRow({ label, suggested, original, apply, onToggle }: {
             {original}
           </span>
         </div>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0">
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 shrink-0">
           <DiffToggle selected={!apply} onSelect={() => onToggle(false)} label="Keep" />
           <DiffToggle selected={apply} onSelect={() => onToggle(true)} label="Apply" />
         </div>

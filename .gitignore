@@ -35,8 +35,11 @@ TEMP_*
 # Git worktrees (isolated dev workspaces)
 .worktrees/
 
-# Personal VPS management scripts
-infra/
+# Personal VPS management scripts. Ignored, except the disk-cleanup script:
+# cron and the NOPASSWD sudoers rule hard-code its path, so losing it (a repo
+# cleanup deleted it in 2026-08) let the disk refill silently. Keep it tracked.
+infra/*
+!infra/vps-disk-cleanup.sh
 
 # Engineering notebook: plans, research, ledgers, handoffs
 thoughts/

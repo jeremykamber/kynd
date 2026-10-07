@@ -7,8 +7,11 @@ import { usePersonaStore } from '@/ui/stores/personaStore'
 
 /**
  * Global floating "Run Analysis" CTA. Always visible — greyed out when the
- * user has no persona batches yet. Inside the dashboard it clears the mobile
- * bottom tab bar, which owns the bottom edge below `sm`.
+ * user has no persona batches yet. Navigating with `?new=1` tells
+ * /dashboard/analyses to open its "Run New Analysis" form, so the click has a
+ * visible effect from any route (including the analyses page itself). Inside
+ * the dashboard it also clears the mobile bottom tab bar, which owns the bottom
+ * edge below `sm`.
  */
 export function FloatingAnalysisButton() {
   const router = useRouter()
@@ -20,7 +23,7 @@ export function FloatingAnalysisButton() {
   return (
     <button
       onClick={() => {
-        if (hasBatches) router.push('/dashboard/analyses')
+        if (hasBatches) router.push('/dashboard/analyses?new=1')
       }}
       className={cn(
         'fixed right-6 z-40 inline-flex h-10 items-center gap-2 rounded-full border px-4 text-xs font-semibold shadow-lg transition-all',
