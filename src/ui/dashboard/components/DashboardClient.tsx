@@ -28,6 +28,7 @@ import { readStreamableValue } from '@ai-sdk/rsc'
 import { generateSimilarPersonasAction } from '@/actions/generateSimilarPersonas'
 import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { summarizeError } from '@/lib/errorSummary'
+import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
 
 /**
  * Persona dashboard shell: routes between the setup form and the active
@@ -377,7 +378,7 @@ export function DashboardClient() {
                                             e.stopPropagation()
                                             removeBatch(batch.id)
                                         }}
-                                        className="absolute -top-2 -right-2 flex items-center justify-center size-6 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-destructive focus:outline-none z-10"
+                                        className={DESTRUCTIVE_CARD_CONTROL_CLASS}
                                         aria-label="Delete batch"
                                     >
                                         <XIcon className="size-3.5" />
