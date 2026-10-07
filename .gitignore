@@ -34,8 +34,11 @@ TEMP_*
 # Git worktrees (isolated dev workspaces, never committed)
 .worktrees/
 
-# Infra management (personal VPS scripts, never committed)
-infra/
+# Infra management (personal VPS scripts). Ignored, except the disk-cleanup
+# script: cron and the NOPASSWD sudoers rule hard-code its path, so losing it
+# (a repo cleanup deleted it in 2026-08) let the disk refill silently.
+infra/*
+!infra/vps-disk-cleanup.sh
 
 # Engineering notebook durability (workflow.md convention): decisions + notes are ADRs/worklog, committed
 !.ai/
