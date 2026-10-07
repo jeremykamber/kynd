@@ -132,8 +132,18 @@ export function parseMessageContent(content: string): React.ReactNode[] {
     // single-segment marker reads as part of the sentence around it rather
     // than as a separate node that loses the neighbouring spaces.
     let prose = ""
+    // Set after an inline node (cited span / memory pill) is emitted. The next
+    // prose run must be separated from it by an explicit space node, because
+    // markdown strips the leading and trailing whitespace of each run it
+    // renders — a space written into `prose` on either edge would vanish.
+    let proseNeedsLeadSpace = false
     const flushProse = () => {
-      if (!prose) return
+      if (!prose.trim()) {
+        prose = ""
+        return
+      }
+      if (proseNeedsLeadSpace) parts.push(" ")
+      proseNeedsLeadSpace = false
       parts.push(<ChatMarkdown key={`md-${keyCounter++}`} content={prose} />)
       prose = ""
     }
@@ -146,9 +156,15 @@ export function parseMessageContent(content: string): React.ReactNode[] {
         const pipeIndex = inner.indexOf('|')
 
         if (pipeIndex !== -1) {
+          // The cited span is inline, but each prose run renders as its own
+          // markdown node with its edge whitespace stripped — so `video<% "a"
+          // | "b" %>` used to render glued. Emit the separating spaces as their
+          // own nodes so the citation never jams into the words around it.
+          const hadProse = prose.trim().length > 0
           flushProse()
-          const displayText = inner.slice(0, pipeIndex).trim()
-          const excerpt = inner.slice(pipeIndex + 1).trim()
+          if (hadProse) parts.push(" ")
+          const displayText = stripStatementQuotes(inner.slice(0, pipeIndex))
+          const excerpt = stripStatementQuotes(inner.slice(pipeIndex + 1))
           parts.push(
             <Tooltip key={`tooltip-${keyCounter++}`} delayDuration={200}>
               <TooltipTrigger asChild>
@@ -161,6 +177,7 @@ export function parseMessageContent(content: string): React.ReactNode[] {
               </TooltipContent>
             </Tooltip>
           )
+          proseNeedsLeadSpace = true
         } else {
           prose += inlineStatement(body, match)
         }
@@ -178,7 +195,9 @@ export function parseMessageContent(content: string): React.ReactNode[] {
           </sup>
         )
       } else if (match[5]) {
+        const hadProse = prose.trim().length > 0
         flushProse()
+        if (hadProse) parts.push(" ")
         const memoryText = match[6].trim()
         parts.push(
           <Tooltip key={`memory-inline-${keyCounter++}`} delayDuration={200}>
@@ -193,6 +212,7 @@ export function parseMessageContent(content: string): React.ReactNode[] {
             </TooltipContent>
           </Tooltip>
         )
+        proseNeedsLeadSpace = true
       }
 
       lastIndex = match.index + match[0].length

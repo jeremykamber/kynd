@@ -5,7 +5,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 import type { ChildProcess } from 'child_process';
-import { findOrStartServer, SERVER_TIMEOUT } from './helpers/server';
+import { findOrStartServer, SCREENSHOT_DIR, ensureScreenshotDir, SERVER_TIMEOUT } from './helpers/server';
+import path from 'path';
 
 const TEST_TIMEOUT = 30_000;
 let BASE_URL = '';
@@ -134,6 +135,7 @@ async function isVisible(page: Page, selector: string, timeoutMs = 10_000): Prom
 }
 
 beforeAll(async () => {
+  await ensureScreenshotDir();
   const result = await findOrStartServer({ preferredPort: 3212 });
   BASE_URL = result.url;
   serverProcess = result.process;
@@ -172,19 +174,24 @@ describe('Artifact Analysis Detail — E2E', { timeout: TEST_TIMEOUT }, () => {
     await page.goto(`${BASE_URL}/dashboard/analyses/${SIM_ID}`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
     // Executive synthesis
-    expect(await isVisible(page, 'text=Completed: 2/2')).toBe(true);
-    expect(await isVisible(page, 'text=Research Question')).toBe(true);
-    expect(await isVisible(page, 'text=Top Findings')).toBe(true);
-    expect(await isVisible(page, 'text=Disagreements — Where Personas Split')).toBe(true);
-    expect(await isVisible(page, 'text=Biggest Friction Points')).toBe(true);
+    expect(await isVisible(page, 'text=2 of 2 personas completed')).toBe(true);
+    expect(await isVisible(page, 'text=The answer')).toBe(true);
+    expect(await isVisible(page, 'text=Top findings')).toBe(true);
+    expect(await isVisible(page, 'text=Where personas split')).toBe(true);
+    expect(await isVisible(page, 'text=Biggest friction points')).toBe(true);
 
     // Per-persona reports
-    expect(await isVisible(page, 'text=Individual Persona Reports')).toBe(true);
+    expect(await isVisible(page, 'text=Individual persona reports')).toBe(true);
     expect(await isVisible(page, 'text=Sarah Chen')).toBe(true);
     expect(await isVisible(page, 'text=Marcus Lee')).toBe(true);
 
     // Chat-after-analysis affordances
     expect(await isVisible(page, 'text=Ask the whole audience')).toBe(true);
+
+    await page.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'analysis-detail-desktop.png'),
+      fullPage: true,
+    });
     await page.close();
   });
 
@@ -208,6 +215,11 @@ describe('Artifact Analysis Detail — E2E', { timeout: TEST_TIMEOUT }, () => {
     await page.locator('button:has-text("Sarah Chen")').first().click();
     expect(await isVisible(page, 'text=Sarah Chen found the page clear but hesitated on price transparency.')).toBe(true);
     expect(await isVisible(page, 'text=Ask Sarah Chen about what they saw')).toBe(true);
+
+    await page.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'analysis-detail-persona-expanded.png'),
+      fullPage: true,
+    });
     await page.close();
   });
 
@@ -221,9 +233,14 @@ describe('Artifact Analysis Detail — E2E', { timeout: TEST_TIMEOUT }, () => {
       if (!err.message.includes('Hydration failed')) pageErrors.push(err.message);
     });
 
-    expect(await isVisible(page, 'text=Completed: 2/2')).toBe(true);
+    expect(await isVisible(page, 'text=2 of 2 personas completed')).toBe(true);
     expect(await isVisible(page, 'text=Sarah Chen')).toBe(true);
     expect(pageErrors).toHaveLength(0);
+
+    await page.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'analysis-detail-mobile.png'),
+      fullPage: true,
+    });
     await page.close();
   });
 });

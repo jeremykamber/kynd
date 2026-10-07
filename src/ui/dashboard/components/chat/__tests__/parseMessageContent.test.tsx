@@ -139,4 +139,32 @@ describe("parseMessageContent", () => {
     );
     expect(container.textContent).not.toContain("<%");
   });
+
+  it("keeps a space between prose and a cited span glued to it", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <div>
+          {parseMessageContent(
+            'watch the video<% "the demo" | "why it mattered" %>and decide',
+          )}
+        </div>
+      </TooltipProvider>,
+    );
+    // The cited span is a separate node; without an explicit separator it
+    // renders as "videothe demoand".
+    expect(container.textContent).toBe("watch the video the demo and decide");
+  });
+
+  it("does not double the space when the marker already has one", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <div>
+          {parseMessageContent(
+            'watch the video <% "the demo" | "why it mattered" %> and decide',
+          )}
+        </div>
+      </TooltipProvider>,
+    );
+    expect(container.textContent).toBe("watch the video the demo and decide");
+  });
 });

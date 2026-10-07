@@ -27,7 +27,7 @@ export function FloatingAnalysisButton() {
       }}
       className={cn(
         'fixed right-6 z-40 inline-flex h-10 items-center gap-2 rounded-full border px-4 text-xs font-semibold shadow-lg transition-all',
-        inDashboard ? 'bottom-24 sm:bottom-6' : 'bottom-6',
+        inDashboard ? 'bottom-24 lg:bottom-6' : 'bottom-6',
         hasBatches
           ? 'border-border bg-background text-foreground hover:bg-accent cursor-pointer'
           : 'border-border/40 bg-muted/30 text-muted-foreground/40 cursor-not-allowed',

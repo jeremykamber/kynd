@@ -84,12 +84,15 @@ function TabItem({ destination }: { destination: PrimaryDestination }) {
  * Primary dashboard navigation, rendered in two placements from one list so
  * their labels, targets and active states cannot drift:
  *
- * - from `sm` up, a floating sticky pill beside the wordmark;
- * - below `sm`, a persistent bottom tab bar.
+ * - from `lg` up, a floating sticky pill beside the wordmark;
+ * - below `lg` (tablet and phone), a bottom tab bar only — the pill is not
+ *   rendered as well, so there is never a top and bottom nav at once.
  *
  * The pill cannot fit three labelled destinations beside the wordmark on a
- * phone (they overflowed and scrolled two of them out of sight), so the
- * destinations move to the bottom bar rather than becoming a scrolling strip.
+ * phone or tablet (they overflowed and scrolled two of them out of sight), so
+ * the destinations move to the bottom bar rather than becoming a scrolling
+ * strip. The breakpoint is `lg`, not `sm`, so a tablet does not get the
+ * crowded top bar back.
  */
 export function PrimaryNav() {
   const pathname = usePathname()
@@ -126,13 +129,13 @@ export function PrimaryNav() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 px-4 pb-2 pt-4 sm:px-6">
+      <header className="sticky top-0 z-40 hidden px-4 pb-2 pt-4 lg:block lg:px-6">
         <div className="mx-auto flex max-w-7xl items-center gap-2 rounded-lg border-2 border-border/60 bg-card/70 px-2.5 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60">
           <Link href="/" className="shrink-0 select-none px-2 text-lg font-bold tracking-tight">
             Kynd
           </Link>
-          {/* Below `sm` the bottom tab bar owns navigation. */}
-          <nav className="hidden items-center gap-1 sm:flex">
+          {/* Below `lg` the bottom tab bar owns navigation; the pill is hidden. */}
+          <nav className="hidden items-center gap-1 lg:flex">
             {destinations.map((destination) => (
               <PillItem key={destination.id} destination={destination} />
             ))}
@@ -142,7 +145,7 @@ export function PrimaryNav() {
 
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 lg:hidden"
       >
         <div className="mx-auto flex max-w-7xl items-stretch gap-1 px-2 py-1.5">
           {destinations.map((destination) => (

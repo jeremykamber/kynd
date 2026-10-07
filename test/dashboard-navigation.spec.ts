@@ -127,8 +127,8 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
     try {
       await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
-      // Below `sm` the pill's items are hidden: they used to overflow a
-      // scrollable strip that hid two of the three destinations.
+      // Below `lg` the pill is not rendered at all: its items used to
+      // overflow a scrollable strip that hid two of the three destinations.
       expect(
         await page
           .locator('header nav')
@@ -166,6 +166,30 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
 
       await page.screenshot({
         path: path.join(SCREENSHOT_DIR, 'dashboard-mobile-tab-bar.png'),
+      });
+    } finally {
+      await page.setViewportSize({ width: 1280, height: 900 });
+    }
+  });
+
+  it('shows only the bottom tab bar on tablet, never both navs', async () => {
+    await page.setViewportSize({ width: 820, height: 1180 });
+    try {
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+
+      // The top bar is hidden below `lg`, so a tablet does not get the pill
+      // back above the bottom tab bar.
+      expect(
+        await page.locator('header').evaluate((el) => getComputedStyle(el).display),
+      ).toBe('none');
+
+      await page.locator('nav[aria-label="Primary"]').waitFor({ state: 'visible', timeout: 10_000 });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+
+      await page.screenshot({
+        path: path.join(SCREENSHOT_DIR, 'dashboard-tablet-tab-bar.png'),
       });
     } finally {
       await page.setViewportSize({ width: 1280, height: 900 });

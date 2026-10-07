@@ -249,17 +249,28 @@ The persona card is a **browse-and-triage surface, not a profile.** It carries o
 - **Icons:** Muted Foreground, no color shift on hover.
 - **Separator:** Thin `1px` line using Panel Edge, inset with padding.
 
-### Navigation / Top Bar
+### Navigation / Primary Nav
 
-The dashboard uses a **single floating top bar at every breakpoint — there is no sidebar.** The bar floats over the scrolling content so the main column can use the full window width; horizontal space is precious, vertical space is cheap (the user scrolls anyway).
+The dashboard has **no sidebar.** One destination list (Personas, Interviews, Analyses) renders in two placements so their labels and active states cannot drift. A wordmark-only bar sitting above a bottom tab bar reads as a broken header, so the two placements never appear together.
 
-- **Placement:** sticky to the top (`top-0`, `z-40`), inset from the viewport edges (`px-4 pt-4 sm:px-6`) so it reads as a floating element, not a chrome strip.
-- **Surface:** Panel Surface at `bg-card/70`, `backdrop-blur-xl`, full `2px` Panel Edge border (`border-2 border-border/60`), `8px` radius. The extra pixel keeps the floating bar legible against the page — a 1px edge is too easy to miss. This translucent blur is the one sanctioned exception to the No-Glassmorphism rule — the bar is overlay chrome, not a content surface, and content scrolls beneath it.
-- **Content:** brand wordmark (left) + section links (Personas, Interviews, Analyses). Links scroll horizontally on narrow viewports rather than wrapping to a second row.
-- **Items:** `6px` radius, `px-3 py-1.5`, `text-sm`. At rest Muted Foreground; hover `bg-secondary/50` + Foreground; active `bg-primary/10` + Cerulean Blue text.
-- **Back navigation:** inside a batch, a **left-aligned** `← All personas` control sits above the title and returns to the batch list; selecting Personas in the bar does the same. Back affordances live on the left, above the content — never as a text link parked on the right.
-- **Batch reset:** selecting "Personas" clears the active batch, so the batch list is always reachable — from any section and any viewport. (The old sidebar only did this when already on `/dashboard`, which stranded mobile users inside a batch with no way back.)
-- **Width:** the bar caps at `max-w-7xl` and centres; the main column shares the same cap.
+- **`lg` and up:** a floating **top bar**, sticky to the top, with the wordmark and the three destinations.
+- **Below `lg` (tablet and phone):** a fixed **bottom tab bar** only. The top bar is not rendered at all below `lg`.
+- **Breakpoint:** the switch is `lg`, not `sm`, so a tablet keeps the bottom bar instead of regaining the crowded top bar.
+
+**Top bar (`lg` and up)**
+- **Placement:** sticky to the top (`top-0`, `z-40`), inset from the viewport edges (`px-4 pt-4 lg:px-6`).
+- **Surface:** Panel Surface at `bg-card/70`, `backdrop-blur-xl`, full `2px` Panel Edge border (`border-2 border-border/60`), `8px` radius. The extra pixel keeps the floating bar legible against the page; a 1px edge is too easy to miss. This translucent blur is the one sanctioned exception to the No-Glassmorphism rule: the bar is overlay chrome, not a content surface.
+- **Items:** `6px` radius, `px-3 py-1.5`, `text-sm`. At rest Muted Foreground; hover `bg-secondary/50` + Foreground; active `bg-primary/10` + Cerulean Blue text. No horizontal scroll: at `lg` the three fit.
+
+**Bottom tab bar (below `lg`)**
+- **Placement:** fixed to the bottom edge (`inset-x-0 bottom-0`, `z-40`), with bottom padding for the safe-area inset.
+- **Surface:** Panel Surface at `bg-card/90`, a `1px` top Panel Edge border, and the same sanctioned `backdrop-blur-xl` as the top bar.
+- **Items:** three equal-width tabs (`flex-1`), icon above label, centred.
+- **Clearance:** content carries `pb-28` below `lg` so the last row clears the bar; the floating "Run Analysis" CTA sits at `bottom-24` below `lg` to clear it too.
+
+- **Back navigation:** inside a batch, a **left-aligned** `← All personas` control sits above the title and returns to the batch list; selecting Personas in the nav does the same. Back affordances live on the left, above the content, never as a text link parked on the right.
+- **Batch reset:** selecting "Personas" clears the active batch, so the batch list is always reachable, from any section and any viewport.
+- **Width:** both placements cap at `max-w-7xl` and centre; the main column shares the same cap.
 
 ### Selection States / Toggle Groups
 
