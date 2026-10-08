@@ -65,7 +65,7 @@ export function DebateSetupPanel({
   return (
     <div className="bg-card border border-border rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold tracking-tight">New Debate</h2>
+        <h2 className="text-xl font-semibold tracking-tight">New Debate</h2>
         <button
           type="button"
           onClick={onCancel}
@@ -93,7 +93,7 @@ export function DebateSetupPanel({
           <label className="text-sm font-medium text-foreground">
             Participants ({selectedPersonas.length}/5 — select 2-5)
           </label>
-          <div className="flex flex-col gap-1 max-h-60 overflow-y-auto custom-scrollbar">
+          <div className="flex flex-col gap-2 max-h-60 overflow-y-auto custom-scrollbar">
             {availablePersonas.map((p) => {
               const isSelected = selectedIds.has(p.id);
               return (
@@ -111,7 +111,7 @@ export function DebateSetupPanel({
                     onChange={() => togglePersona(p.id)}
                     className="rounded border-input h-4 w-4 accent-primary"
                   />
-                  <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                     <span className="font-medium truncate">{p.name}</span>
                     <span className="text-xs text-muted-foreground truncate">
                       {p.occupation}

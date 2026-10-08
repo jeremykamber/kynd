@@ -28,18 +28,18 @@ export function DebateRoom({ onNewDebate }: { onNewDebate?: () => void }) {
   if (!activeDebate) {
     const isEmpty = debates.length === 0;
     return (
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-        <div className="flex w-full max-w-sm flex-col items-center gap-6">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="flex w-full max-w-md flex-col items-center gap-8">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
             <MessageSquareIcon className="h-7 w-7 text-muted-foreground" />
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {isEmpty && (
-              <h2 className="text-lg font-semibold tracking-tight leading-snug">
+              <h2 className="text-3xl font-semibold tracking-tight leading-tight">
                 No debates yet
               </h2>
             )}
-            <p className="text-sm leading-relaxed text-muted-foreground">
+            <p className="text-base leading-relaxed text-muted-foreground">
               Select a debate or start a new one
             </p>
           </div>
@@ -47,7 +47,7 @@ export function DebateRoom({ onNewDebate }: { onNewDebate?: () => void }) {
             <button
               type="button"
               onClick={onNewDebate}
-              className="inline-flex h-9 w-fit items-center gap-2 rounded-md bg-primary/10 px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+              className="inline-flex h-10 w-fit items-center gap-2 rounded-md bg-primary/10 px-5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
             >
               <PlusIcon className="h-4 w-4" />
               New Debate
@@ -95,14 +95,14 @@ export function DebateRoom({ onNewDebate }: { onNewDebate?: () => void }) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="shrink-0 px-6 py-4 border-b border-border/40">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-0.5">
-            <h2 className="text-base font-semibold tracking-tight">
+      <div className="shrink-0 px-6 py-5 border-b border-border/40">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-2 min-w-0">
+            <h2 className="text-xl font-semibold tracking-tight leading-snug">
               {activeDebate.proposal}
             </h2>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="font-mono tabular-nums">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span className="font-mono tabular-nums whitespace-nowrap">
                 Round {activeDebate.currentRound} of {activeDebate.totalRounds}
               </span>
               <span>·</span>
@@ -132,7 +132,7 @@ export function DebateRoom({ onNewDebate }: { onNewDebate?: () => void }) {
           </div>
         </div>
 
-        <div className="mt-3 flex gap-1">
+        <div className="mt-4 flex gap-1">
           {Array.from({ length: activeDebate.totalRounds }, (_, i) => {
             const roundNum = i + 1;
             const isCompleted = roundNum < activeDebate.currentRound;
@@ -153,11 +153,11 @@ export function DebateRoom({ onNewDebate }: { onNewDebate?: () => void }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 custom-scrollbar">
         {Object.entries(messagesByRound).map(([roundStr, messages]) => {
           const roundNum = Number(roundStr);
           return (
-            <div key={roundStr} className="flex flex-col gap-4">
+            <div key={roundStr} className="flex flex-col gap-6">
               <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-border" />
                 <span className="micro-label text-muted-foreground">
@@ -190,7 +190,7 @@ export function DebateRoom({ onNewDebate }: { onNewDebate?: () => void }) {
       </div>
 
       {activeDebate.status === "in_progress" && (
-        <div className="shrink-0 px-6 py-4 border-t border-border/40 bg-card">
+        <div className="shrink-0 px-6 py-5 border-t border-border/40 bg-card">
           <form
             onSubmit={handleInterject}
             className="relative flex items-center"

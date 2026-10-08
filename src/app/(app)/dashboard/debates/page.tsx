@@ -54,9 +54,9 @@ export default function DebatesPage() {
         <DebateSidebar onNewDebate={() => setShowSetup(true)} />
       )}
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {showSetup ? (
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto px-6 py-8">
             <div className="max-w-lg mx-auto">
               <DebateSetupPanel
                 availablePersonas={availablePersonas}
