@@ -16,20 +16,20 @@ export default function DebatesLoading() {
             <div key={i} className="h-14 w-full rounded-md bg-muted animate-pulse" />
           ))}
         </div>
-        <div className="p-3 border-t border-border/40">
-          <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
+        <div className="p-4 border-t border-border/40">
+          <div className="h-10 w-full rounded-md bg-muted animate-pulse" />
         </div>
       </div>
 
       {/* Room area skeleton — centred empty state */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-        <div className="flex w-full max-w-sm flex-col items-center gap-6">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="flex w-full max-w-md flex-col items-center gap-8">
           <div className="h-16 w-16 rounded-full bg-muted animate-pulse" />
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-3">
             <div className="h-5 w-40 rounded bg-muted animate-pulse" />
             <div className="h-4 w-64 rounded bg-muted animate-pulse" />
           </div>
-          <div className="h-9 w-32 rounded-md bg-muted animate-pulse" />
+          <div className="h-10 w-40 rounded-md bg-muted animate-pulse" />
         </div>
       </div>
     </div>

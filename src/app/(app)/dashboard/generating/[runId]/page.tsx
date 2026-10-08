@@ -113,7 +113,7 @@ export default function GeneratingPage() {
   }, [runId, steps])
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
+    <div className="mx-auto w-full max-w-2xl px-4 py-12">
       {/* Back link */}
       <button
         onClick={() => router.push('/dashboard')}
@@ -128,7 +128,7 @@ export default function GeneratingPage() {
           {result.error ? (
             <div className="flex flex-col items-center gap-4 text-center">
               <XCircleIcon className="h-12 w-12 text-destructive" />
-              <h2 className="text-lg font-semibold tracking-tight">Generation Failed</h2>
+              <h1 className="text-3xl font-semibold tracking-tight">Generation Failed</h1>
               <p className="text-base leading-relaxed text-muted-foreground max-w-md">{result.error}</p>
               <FeedbackButton
                 label="Report this error"
@@ -141,9 +141,9 @@ export default function GeneratingPage() {
           ) : (
             <div className="flex flex-col items-center gap-4 text-center">
               <CheckCircleIcon className="h-12 w-12 text-green-500" />
-              <h2 className="text-lg font-semibold tracking-tight">
+              <h1 className="text-3xl font-semibold tracking-tight">
                 {result.personas?.length ?? 0} Personas Ready
-              </h2>
+              </h1>
               <p className="text-base leading-relaxed text-muted-foreground">
                 Your personas have been generated and added to the dashboard.
               </p>
@@ -159,15 +159,15 @@ export default function GeneratingPage() {
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-4 sm:px-8 pt-6 pb-2 border-b border-border/40">
+          <div className="px-4 sm:px-8 pt-6 pb-4 border-b border-border/40">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold tracking-tight min-w-0">
+              <h1 className="text-3xl font-semibold tracking-tight min-w-0">
                 {flowType === 'pipeline' ? 'Processing Interview Transcripts' : 'Synthesizing Personas'}
-              </h3>
+              </h1>
             </div>
           </div>
           <div className="flex flex-col md:flex-row gap-8 px-4 sm:px-8 py-6">
-            <div className="flex-shrink-0 w-full md:w-48">
+            <div className="flex-shrink-0 w-full md:w-56">
               <StepIndicator steps={steps} currentStep={currentStep} />
             </div>
             <div className="flex-1 min-h-50 flex flex-col justify-center items-center">

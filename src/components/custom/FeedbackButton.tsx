@@ -101,9 +101,9 @@ export function FeedbackButton({
       */}
       <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader className="flex-row items-start justify-between gap-4 space-y-0">
-          <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex min-w-0 flex-col gap-2">
             <DialogTitle>Send feedback</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-base leading-relaxed">
               Tell us what went wrong or what could be better. Your report goes straight to the team.{' '}
               <a
                 href={FEEDBACK_SURVEY_URL}

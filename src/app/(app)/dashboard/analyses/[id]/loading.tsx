@@ -4,15 +4,15 @@
  */
 export default function AnalysisDetailLoading() {
   return (
-    <div className="flex flex-col gap-8 w-full h-full animate-in fade-in duration-300">
+    <div className="flex flex-col gap-10 w-full h-full animate-in fade-in duration-300">
       {/* Back button */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <div className="h-4 w-4 rounded bg-muted animate-pulse" />
         <div className="h-4 w-16 rounded bg-muted animate-pulse" />
       </div>
 
       {/* Header row: title + status */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-6">
         <div className="flex flex-col gap-2">
           <div className="h-8 w-64 rounded bg-muted animate-pulse" />
           <div className="flex items-center gap-3">
@@ -38,7 +38,7 @@ export default function AnalysisDetailLoading() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left panel */}
         <div className="rounded-lg border border-border bg-card p-6">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             <div className="h-6 w-32 rounded bg-muted animate-pulse" />
             <div className="h-40 w-full rounded-md bg-muted animate-pulse" />
           </div>
@@ -46,7 +46,7 @@ export default function AnalysisDetailLoading() {
 
         {/* Right panel */}
         <div className="rounded-lg border border-border bg-card p-6">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             <div className="h-6 w-24 rounded bg-muted animate-pulse" />
             <div className="h-40 w-full rounded-md bg-muted animate-pulse" />
           </div>

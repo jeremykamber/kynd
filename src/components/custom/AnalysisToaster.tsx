@@ -37,6 +37,9 @@ function AnalysisToastContent({
       label: analysis.completedResponses != null && analysis.totalResponses != null
         ? `${analysis.completedResponses}/${analysis.totalResponses} analyses`
         : 'Analyzing...',
+      labelClass: analysis.completedResponses != null && analysis.totalResponses != null
+        ? 'text-xs font-mono tabular-nums text-muted-foreground'
+        : 'text-sm text-muted-foreground',
       accentClass: 'bg-primary/[0.06]',
       ringClass: 'ring-primary/20',
       progressWidth: `${progress * 100}%`,
@@ -45,6 +48,7 @@ function AnalysisToastContent({
     COMPLETED: {
       icon: <CheckCircleIcon className="h-4 w-4 shrink-0 text-green-500" />,
       label: 'Analysis complete',
+      labelClass: 'text-sm text-muted-foreground',
       accentClass: 'bg-green-500/[0.06]',
       ringClass: 'ring-green-500/20',
       progressWidth: '100%',
@@ -53,6 +57,7 @@ function AnalysisToastContent({
     ERROR: {
       icon: <XCircleIcon className="h-4 w-4 shrink-0 text-destructive" />,
       label: summarizeError(analysis.error || 'Analysis failed'),
+      labelClass: 'text-sm text-muted-foreground',
       accentClass: 'bg-destructive/[0.06]',
       ringClass: 'ring-destructive/20',
       progressWidth: '100%',
@@ -61,6 +66,7 @@ function AnalysisToastContent({
     CANCELLED: {
       icon: <AlertCircleIcon className="h-4 w-4 shrink-0 text-muted-foreground" />,
       label: 'Analysis cancelled',
+      labelClass: 'text-sm text-muted-foreground',
       accentClass: 'bg-muted/30',
       ringClass: 'ring-muted-foreground/20',
       progressWidth: '100%',
@@ -77,11 +83,11 @@ function AnalysisToastContent({
         className={`absolute inset-y-0 left-0 ${statusConfig.accentClass} transition-all duration-300 ease-out`}
         style={{ width: statusConfig.progressWidth }}
       />
-      <div className="relative z-10 flex items-center gap-3 p-4">
+      <div className="relative z-10 flex items-center gap-4 p-5">
         {statusConfig.icon}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">{analysis.name}</p>
-          <p className="text-sm text-muted-foreground">{statusConfig.label}</p>
+        <div className="min-w-0 flex-1 flex flex-col gap-1">
+          <p className="truncate text-base font-semibold text-foreground leading-snug">{analysis.name}</p>
+          <p className={statusConfig.labelClass}>{statusConfig.label}</p>
         </div>
         {actionLabel && (
           <button
