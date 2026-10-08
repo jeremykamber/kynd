@@ -50,6 +50,9 @@ const ANALYSIS_STEPS = [
 /** Micro-label above a content group, per the design system. */
 const SECTION_LABEL = 'micro-label text-muted-foreground/70'
 
+/** Top-level report region heading (DESIGN.md → Typography: Section). */
+const SECTION_HEADING = 'text-xl font-semibold'
+
 function getCurrentStep(step?: string): number {
   if (!step || step === 'STARTING') return 0
   if (step === 'INTAKE') return 1
@@ -305,7 +308,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
     return (
       <div className="flex flex-col items-center justify-center py-32 text-center">
         <XCircleIcon className="h-12 w-12 text-muted-foreground mb-4" />
-        <h2 className="text-lg font-semibold tracking-tight mb-2">Analysis not found</h2>
+        <h2 className="text-xl font-semibold tracking-tight mb-2">Analysis not found</h2>
         <p className="text-base text-muted-foreground mb-6">This analysis may have been removed or never existed.</p>
         <button
           onClick={() => router.push('/dashboard/analyses')}
@@ -318,7 +321,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <div className="flex flex-col gap-8 w-full h-full animate-in fade-in duration-500">
+    <div className="flex flex-col gap-10 w-full h-full animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
@@ -337,7 +340,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
             <InlineRenamable
               value={analysis.name}
               onRename={(name) => updateAnalysis(analysis.id, { name })}
-              className="text-2xl font-semibold tracking-tight flex-1"
+              className="text-3xl font-semibold tracking-tight flex-1"
             />
             <StatusBadge status={analysis.status} />
           </div>
@@ -464,7 +467,7 @@ function InProgressView({ analysis }: { analysis: ArtifactAnalysis }) {
         </CardHeader>
         <CardContent>
           {analysis.screenshot ? (
-            <div className="overflow-hidden rounded-md border border-border bg-muted/30">
+            <div className="overflow-hidden rounded-md bg-muted/30">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`data:image/jpeg;base64,${analysis.screenshot}`}
@@ -473,7 +476,7 @@ function InProgressView({ analysis }: { analysis: ArtifactAnalysis }) {
               />
             </div>
           ) : (
-            <div className="flex aspect-video w-full items-center justify-center rounded-md border border-dashed border-border bg-muted/20">
+            <div className="flex aspect-video w-full items-center justify-center rounded-md bg-muted/20">
               <span className="text-base text-muted-foreground">Waiting for the first capture…</span>
             </div>
           )}
@@ -490,7 +493,7 @@ function PersonaIdentityCard({ profile }: { profile: PersonaProfile }) {
   ]
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {valueGroups
         .filter((group) => group.items.length > 0)
         .map((group) => (
@@ -498,7 +501,7 @@ function PersonaIdentityCard({ profile }: { profile: PersonaProfile }) {
             <span className="micro-label text-muted-foreground/70">
               {group.label}
             </span>
-            <ul className="flex flex-col gap-1.5">
+            <ul className="flex flex-col gap-2">
               {group.items.map((item) => (
                 <li key={item} className="flex items-start gap-2 text-sm leading-snug text-foreground/80">
                   <span className="mt-2 size-1 shrink-0 rounded-full bg-primary/70" />
@@ -616,12 +619,12 @@ function CompletedView({
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-10">
       {/* What Kynd is, then the one qualification the findings need — both
           before the reader forms an expectation of the numbers below. */}
-      <div className="flex flex-col gap-1.5">
-        <p className="max-w-[70ch] text-base leading-relaxed text-foreground/80">{REPORT_INTRO}</p>
-        <p className="max-w-[70ch] text-base leading-relaxed text-muted-foreground">{REPORT_DISCLAIMER}</p>
+      <div className="flex flex-col gap-3">
+        <p className="max-w-prose text-base leading-relaxed text-foreground/80">{REPORT_INTRO}</p>
+        <p className="max-w-prose text-base leading-relaxed text-muted-foreground">{REPORT_DISCLAIMER}</p>
       </div>
 
       {/* ── Executive Synthesis ─────────────────────────────── */}
@@ -652,34 +655,34 @@ function CompletedView({
 
               The cap stays on the paragraph: `ch` resolves against the
               element's own font, so the paragraph is the only node that
-              measures the answer's own 70ch limit (DESIGN.md → Typography:
-              report body text is capped at 70ch).
+              measures the answer's own limit (DESIGN.md → Typography: report
+              body text is measured in prose widths).
             */
             <div className="w-fit rounded-lg border border-primary/10 bg-primary/5 p-5">
               <span className="micro-label mb-2 block text-primary">The answer</span>
-              <p className="max-w-[70ch] text-base leading-relaxed text-foreground/90">{synthesis.researchQuestionAnswer}</p>
+              <p className="max-w-prose text-base leading-relaxed text-foreground/90">{synthesis.researchQuestionAnswer}</p>
             </div>
           )}
 
           {synthesis.topFindings.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h3 className={SECTION_LABEL}>Top findings</h3>
+            <section className="flex flex-col gap-4">
+              <h3 className={SECTION_HEADING}>Top findings</h3>
               {synthesis.topFindings.slice(0, 5).map((finding, i) => (
-                <div key={i} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+                <div key={i} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-medium leading-snug text-foreground">{finding.observation}</p>
+                    <p className="text-base font-semibold leading-snug text-foreground">{finding.observation}</p>
                     <span className="micro-label shrink-0 text-muted-foreground">
                       {finding.confidence}
                     </span>
                   </div>
-                  <p className="max-w-[70ch] text-base leading-relaxed text-muted-foreground">{finding.impact}</p>
+                  <p className="max-w-prose text-base leading-relaxed text-muted-foreground">{finding.impact}</p>
                   <details className="group/f">
                     <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
                       <ChevronRightIcon className="h-3 w-3 transition-transform group-open/f:rotate-90" />
                       Evidence and citations
                     </summary>
-                    <div className="mt-2 flex flex-col gap-2">
-                      <p className="max-w-[70ch] rounded bg-muted/40 px-2.5 py-2 text-base italic leading-relaxed text-muted-foreground">
+                    <div className="mt-3 flex flex-col gap-3">
+                      <p className="max-w-prose rounded-md bg-muted/40 px-3 py-3 text-base italic leading-loose text-muted-foreground">
                         {finding.evidence}
                       </p>
                       {citationsOf(finding).length > 0 && (
@@ -708,7 +711,7 @@ function CompletedView({
                       )}
                     </div>
                   </details>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <UsersIcon className="h-3 w-3" />
                     <span>Simulated in <span className="font-mono tabular-nums">{finding.affectedPersonaCount}/{finding.totalPersonaCount}</span> personas</span>
                   </div>
@@ -718,14 +721,14 @@ function CompletedView({
           )}
 
           {synthesis.disagreements.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h3 className={SECTION_LABEL}>Where personas split</h3>
+            <section className="flex flex-col gap-4">
+              <h3 className={SECTION_HEADING}>Where personas split</h3>
               {synthesis.disagreements.map((d, i) => {
                 const total = d.split.reduce((sum, s) => sum + s.personaCount, 0) || 1
                 return (
-                  <div key={i} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
-                    <p className="text-sm font-medium text-foreground">{d.topic}</p>
-                    <div className="flex flex-col gap-3">
+                  <div key={i} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+                    <p className="text-base font-semibold text-foreground">{d.topic}</p>
+                    <div className="flex flex-col gap-4">
                       {d.split.map((side, j) => (
                         <div key={j} className="flex flex-col gap-2">
                           <div className="flex items-center justify-between gap-3 text-xs">
@@ -750,11 +753,11 @@ function CompletedView({
           )}
 
           {synthesis.biggestFrictions.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h3 className={SECTION_LABEL}>Biggest friction points</h3>
-              <ul className="flex flex-col gap-2">
+            <section className="flex flex-col gap-4">
+              <h3 className={SECTION_HEADING}>Biggest friction points</h3>
+              <ul className="flex flex-col gap-3">
                 {synthesis.biggestFrictions.slice(0, 3).map((f, i) => (
-                  <li key={i} className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
+                  <li key={i} className="flex items-start gap-3 rounded-lg border border-border bg-card p-4">
                     <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-warning-foreground/10 font-mono text-xs tabular-nums text-warning-foreground">
                       {i + 1}
                     </span>
@@ -769,10 +772,10 @@ function CompletedView({
 
       {/* ── Per-Persona Drill-Down ──────────────────────────── */}
       <div className="border-t border-border/40 pt-6">
-        <h3 className={cn(SECTION_LABEL, 'mb-4')}>
+        <h3 className={cn(SECTION_HEADING, 'mb-4')}>
           Individual persona reports
         </h3>
-        <div className="grid gap-3">
+        <div className="grid gap-4">
           {analyses.map((analysis, index) => {
             const personaName = analysis.personaProfile?.name ?? `Persona ${index + 1}`
             const isExpanded = expandedPersonas.has(index)
@@ -789,9 +792,9 @@ function CompletedView({
             >
               <button
                 onClick={() => togglePersona(index)}
-                className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors text-left"
+                className="w-full flex items-center justify-between p-5 hover:bg-muted/30 transition-colors text-left"
               >
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-1">
                   <h4 className="text-base font-semibold">{personaName}</h4>
                   {analysis.personaProfile && (
                     <p className="text-sm text-muted-foreground">
@@ -813,7 +816,7 @@ function CompletedView({
               </button>
 
               {isExpanded && (
-                <div className="flex flex-col gap-5 border-t border-border/40 px-4 pb-5 pt-4">
+                <div className="flex flex-col gap-6 border-t border-border/40 px-5 pb-6 pt-5">
                   <div className="flex flex-wrap gap-2">
                     {chatPersona && (
                       <button
@@ -840,7 +843,7 @@ function CompletedView({
                   {analysis.overview && (
                     <div className="flex flex-col gap-2">
                       <span className={SECTION_LABEL}>In short</span>
-                      <p className="max-w-[70ch] text-base leading-relaxed text-foreground/90">
+                      <p className="max-w-prose text-base leading-relaxed text-foreground/90">
                         {analysis.overview}
                       </p>
                     </div>
@@ -854,22 +857,22 @@ function CompletedView({
                   )}
 
                   {analysis.researchQuestionAnswer && (
-                    <div className="rounded-lg border border-primary/10 bg-primary/5 p-3">
-                      <span className="micro-label mb-1 block text-primary">
+                    <div className="rounded-md bg-primary/5 p-4">
+                      <span className="micro-label mb-2 block text-primary">
                         Their answer
                       </span>
-                      <p className="max-w-[70ch] text-base leading-relaxed text-foreground/80">
+                      <p className="max-w-prose text-base leading-relaxed text-foreground/80">
                         {analysis.researchQuestionAnswer}
                       </p>
                     </div>
                   )}
 
                   {analysis.majorFindings.length > 0 && (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-3">
                       <span className={SECTION_LABEL}>Findings</span>
                       {analysis.majorFindings.map((finding: MajorFinding, i: number) => (
-                        <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-border bg-card/50 p-3">
-                          <p className="text-sm font-medium leading-snug text-foreground">{finding.observation}</p>
+                        <div key={i} className="flex flex-col gap-2 rounded-md bg-muted/20 p-4">
+                          <p className="text-base font-semibold leading-snug text-foreground">{finding.observation}</p>
                           <p className="text-base leading-relaxed text-muted-foreground">
                             <span className="font-medium text-foreground/70">Impact:</span> {finding.impact}
                           </p>
@@ -879,7 +882,7 @@ function CompletedView({
                                 <ChevronRightIcon className="h-3 w-3 transition-transform group-open/ev:rotate-90" />
                                 Evidence
                               </summary>
-                              <p className="mt-1.5 rounded bg-muted/40 px-2 py-1.5 text-base italic leading-relaxed text-muted-foreground">
+                              <p className="mt-3 rounded-md bg-muted/40 px-3 py-3 text-base italic leading-loose text-muted-foreground">
                                 {finding.evidence}
                               </p>
                             </details>
@@ -894,7 +897,7 @@ function CompletedView({
                       {analysis.pointsOfFriction.length > 0 && (
                         <div className="flex flex-col gap-2">
                           <span className={SECTION_LABEL}>Friction</span>
-                          <ul className="flex flex-col gap-1.5">
+                          <ul className="flex flex-col gap-2">
                             {analysis.pointsOfFriction.map((f: string, i: number) => (
                               <li key={i} className="flex items-start gap-2 text-sm leading-snug text-foreground/80">
                                 <AlertTriangleIcon className="mt-0.5 h-3 w-3 shrink-0 text-warning-foreground" />
@@ -907,7 +910,7 @@ function CompletedView({
                       {analysis.unansweredQuestions.length > 0 && (
                         <div className="flex flex-col gap-2">
                           <span className={SECTION_LABEL}>Still unanswered</span>
-                          <ul className="flex flex-col gap-1.5">
+                          <ul className="flex flex-col gap-2">
                             {analysis.unansweredQuestions.map((q: string, i: number) => (
                               <li key={i} className="flex items-start gap-2 text-sm leading-snug text-foreground/80">
                                 <HelpCircleIcon className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
@@ -921,12 +924,12 @@ function CompletedView({
                   )}
 
                   {analysis.personaProfile && (
-                    <details className="group rounded-lg border border-border bg-muted/20">
-                      <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                    <details className="group rounded-md bg-muted/20">
+                      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
                         Profile and psychographics
                         <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
                       </summary>
-                      <div className="px-3 pb-3 pt-1">
+                      <div className="px-4 pb-4 pt-1">
                         <PersonaIdentityCard profile={analysis.personaProfile} />
                       </div>
                     </details>

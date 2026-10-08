@@ -43,58 +43,49 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
             router.push(`/dashboard/analyses/${analysis.id}`)
           }
         }}
-        className="w-full text-left rounded-lg border border-border bg-card p-5 transition-all hover:border-border/80 hover:shadow-sm cursor-pointer"
+        className="w-full text-left rounded-lg border border-border bg-card p-6 transition-all hover:border-border/80 hover:shadow-sm cursor-pointer"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-2 min-w-0 flex-1">
-            <div className="flex items-center gap-3">
-              <InlineRenamable
-                value={analysis.name}
-                onRename={(name) => updateAnalysis(analysis.id, { name })}
-                className="min-w-0 flex-1"
-              />
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${statusConfig.class}`}>
-                <StatusIcon className="h-3 w-3" />
-                {statusConfig.label}
-                {analysis.status === 'IN_PROGRESS' && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
-                )}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1 min-w-0">
-                <GlobeIcon className="h-3 w-3 shrink-0" />
-                <span className="truncate">{analysis.url}</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <UsersIcon className="h-3 w-3" />
-                {analysis.personaCount} personas
-              </span>
-            </div>
-            {analysis.batchName && (
-              <p className="text-xs text-muted-foreground/70">Batch: {analysis.batchName}</p>
-            )}
-            {analysis.status === 'COMPLETED' && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {analysis.completedAt && (
-                  <>Completed <span className="font-mono tabular-nums">{new Date(analysis.completedAt).toLocaleDateString()}</span></>
-                )}
-              </p>
-            )}
+        <div className="flex flex-col gap-3 min-w-0">
+          <div className="flex items-center gap-3">
+            <InlineRenamable
+              value={analysis.name}
+              onRename={(name) => updateAnalysis(analysis.id, { name })}
+              className="min-w-0 flex-1 text-base font-semibold"
+            />
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${statusConfig.class}`}>
+              <StatusIcon className="h-3 w-3" />
+              {statusConfig.label}
+              {analysis.status === 'IN_PROGRESS' && (
+                <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+              )}
+            </span>
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-xs font-mono tabular-nums text-muted-foreground whitespace-nowrap">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono tabular-nums text-muted-foreground">
+            <span className="flex items-center gap-1 min-w-0">
+              <GlobeIcon className="h-3 w-3 shrink-0" />
+              <span className="truncate">{analysis.url}</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <UsersIcon className="h-3 w-3" />
+              {analysis.personaCount} personas
+            </span>
+            {analysis.batchName && (
+              <span>Batch: {analysis.batchName}</span>
+            )}
+            <span className="ml-auto flex items-center gap-1 whitespace-nowrap text-muted-foreground/70">
+              <ClockIcon className="h-3 w-3 shrink-0" />
               {new Date(analysis.createdAt).toLocaleDateString(undefined, {
                 month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
               })}
-            </p>
-            {analysis.completedAt && analysis.status !== 'IN_PROGRESS' && (
-              <p className="text-xs font-mono tabular-nums text-muted-foreground/60 mt-0.5 whitespace-nowrap">
-                {new Date(analysis.completedAt).toLocaleDateString(undefined, {
-                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-                })}
-              </p>
-            )}
+              {analysis.completedAt && analysis.status !== 'IN_PROGRESS' && (
+                <>
+                  <span className="text-muted-foreground/30">·</span>
+                  {new Date(analysis.completedAt).toLocaleDateString(undefined, {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                  })}
+                </>
+              )}
+            </span>
           </div>
         </div>
         {analysis.status === 'IN_PROGRESS' && analysis.totalResponses && (
@@ -474,7 +465,7 @@ function AnalysesPageContent() {
     <div className="flex flex-col gap-8 w-full h-full animate-in fade-in duration-500">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Analyses</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Analyses</h1>
           {analyses.length > 0 && (
             <p className="text-sm text-muted-foreground">
               {`${completed.length} completed${failed.length > 0 ? ` · ${failed.length} failed` : ''} · ${inProgress.length} in progress`}
@@ -508,12 +499,12 @@ function AnalysesPageContent() {
       )}
 
       {inProgress.length > 0 && (
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-4">
           <h2 className="micro-label text-muted-foreground flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
             In Progress
           </h2>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             {inProgress.map((sim) => (
               <AnalysisCard key={sim.id} analysis={sim} />
             ))}
@@ -522,11 +513,11 @@ function AnalysesPageContent() {
       )}
 
       {completed.length > 0 && (
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-4">
           <h2 className="micro-label text-muted-foreground">
             Completed
           </h2>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             {completed.map((sim) => (
               <AnalysisCard key={sim.id} analysis={sim} />
             ))}
@@ -535,11 +526,11 @@ function AnalysesPageContent() {
       )}
 
       {failed.length > 0 && (
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-4">
           <h2 className="micro-label text-muted-foreground">
             Failed
           </h2>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             {failed.map((sim) => (
               <AnalysisCard key={sim.id} analysis={sim} />
             ))}
@@ -570,7 +561,7 @@ function AnalysesPageFallback() {
   return (
     <div className="flex flex-col gap-8 w-full h-full">
       <div className="flex flex-col gap-2">
-        <div className="h-8 w-40 rounded bg-muted animate-pulse" />
+        <div className="h-9 w-40 rounded bg-muted animate-pulse" />
         <div className="h-5 w-52 rounded bg-muted animate-pulse" />
       </div>
     </div>
