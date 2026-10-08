@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { GeneratePersonasFromInterviewsUseCase } from '../GeneratePersonasFromInterviewsUseCase';
 import { poolSignals } from '@/application/interviewPipeline/pooling';
 import { samplePersonas } from '@/application/interviewPipeline/sampling';
@@ -213,6 +213,9 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
         personaDescription: expect.any(String),
         count: expect.any(Number),
       }),
+      undefined,
+      // The retry channel: the adapter's attempts are forwarded to progress.
+      expect.any(Function),
     );
 
     // Ingestion for each persona
@@ -468,5 +471,53 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
     expect(poolSignals).toHaveBeenCalled();
     expect(samplePersonas).toHaveBeenCalled();
     expect(mockLlmService.generateResearchPersonas).toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // 10) Retry visibility
+  // ---------------------------------------------------------------------------
+  // The adapter retries the generation call internally (three attempts before
+  // it gives up). Without forwarding that to the progress channel the run looks
+  // hung for the length of a retry, with nothing saying why.
+  type ProgressUpdate = { step?: string; message?: string; current?: number; total?: number };
+  const retryUpdates = (onProgress: Mock<[ProgressUpdate], void>) =>
+    onProgress.mock.calls
+      .map(([progress]) => progress)
+      .filter((p) => typeof p.message === 'string' && p.message.includes('retrying'));
+
+  it('should surface the attempt number while the generation call retries', async () => {
+    const onProgress = vi.fn<(progress: ProgressUpdate) => void>();
+    mockLlmService.generateResearchPersonas.mockImplementation(
+      async (_config: unknown, _onPhase: unknown, onRetry?: (attempt: number, attempts: number) => void) => {
+        onRetry?.(2, 3);
+        return mockPersonas;
+      },
+    );
+
+    await useCase.execute(transcripts, onProgress);
+
+    const retries = retryUpdates(onProgress);
+    expect(retries).toHaveLength(1);
+    expect(retries[0].step).toBe('GENERATING');
+    expect(retries[0].message).toContain('attempt 2 of 3');
+  });
+
+  it('should keep the running persona counts on a retry in individual mode', async () => {
+    const onProgress = vi.fn<(progress: ProgressUpdate) => void>();
+    mockLlmService.generateResearchPersonas.mockImplementation(
+      async (_config: unknown, _onPhase: unknown, onRetry?: (attempt: number, attempts: number) => void) => {
+        onRetry?.(2, 3);
+        return [mockPersonas[0]];
+      },
+    );
+
+    // Individual mode: 3 transcripts x 2 personas each is the denominator the
+    // bar is measured against, so a retry must not reset it.
+    await useCase.execute(transcripts, onProgress, 2, 'individual');
+
+    const retries = retryUpdates(onProgress);
+    expect(retries.length).toBeGreaterThan(0);
+    expect(retries[0].current).toBe(0);
+    expect(retries[0].total).toBe(6);
   });
 });
