@@ -58,7 +58,7 @@ describe('submitFeedback', () => {
     const outcome = await submitFeedback({ kind: 'general', message: 'The bar sticks at 60%' })
 
     expect(outcome).toEqual({ opened: true })
-    expect(href.startsWith('mailto:jkamberwork@gmail.com?')).toBe(true)
+    expect(href.startsWith('mailto:jeremy@bringforthstudio.com?')).toBe(true)
     const body = bodyOf(href)
     expect(body).toContain('The bar sticks at 60%')
     expect(body).toContain('Kynd feedback (general)')

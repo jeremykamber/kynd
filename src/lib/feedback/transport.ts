@@ -13,7 +13,7 @@ export interface FeedbackTransport {
   send(report: string): Promise<FeedbackOutcome>
 }
 
-const DEFAULT_RECIPIENT = 'jkamberwork@gmail.com'
+const DEFAULT_RECIPIENT = 'jeremy@bringforthstudio.com'
 
 /**
  * Opens the user's mail client with the report pre-filled. Returning from

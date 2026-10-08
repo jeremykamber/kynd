@@ -9,6 +9,15 @@ export type {
 } from './types'
 
 /**
+ * The longer-form survey, linked from the dialog for anyone with more to say
+ * than one box. It is a Notion form, so it cannot carry the route or the error
+ * the way the module does; it is a deliberate second channel, not a fallback
+ * destination for the in-app report.
+ */
+export const FEEDBACK_SURVEY_URL =
+  'https://cerulean-lightyear-07d.notion.site/3ab5b818c7158011954fcb7bcee28079?pvs=105'
+
+/**
  * A message shorter than this is not a report; a stray keystroke or a lone
  * period means the user changed their mind, so the module treats it as empty
  * rather than mailing the team noise.

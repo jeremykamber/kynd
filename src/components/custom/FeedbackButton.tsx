@@ -1,10 +1,11 @@
 'use client'
 
 import * as React from 'react'
-import { MessageSquareIcon } from 'lucide-react'
+import { MessageSquareIcon, XIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { isReportable, submitFeedback } from '@/lib/feedback'
+import { FEEDBACK_SURVEY_URL, isReportable, submitFeedback } from '@/lib/feedback'
 import type { FeedbackContext } from '@/lib/feedback'
 
 interface FeedbackButtonProps {
@@ -92,12 +93,32 @@ export function FeedbackButton({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Send feedback</DialogTitle>
-          <DialogDescription>
-            Tell us what went wrong or what could be better. Your report goes straight to the team.
-          </DialogDescription>
+      {/*
+        The close button is laid out in the header row rather than left to the
+        primitive's absolutely positioned one. That one sits at `right-8 top-8`
+        inside `p-6`, so any description that wraps onto a second line runs
+        underneath it.
+      */}
+      <DialogContent className="sm:max-w-md" showCloseButton={false}>
+        <DialogHeader className="flex-row items-start justify-between gap-4 space-y-0">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <DialogTitle>Send feedback</DialogTitle>
+            <DialogDescription>
+              Tell us what went wrong or what could be better. Your report goes straight to the team.{' '}
+              <a
+                href={FEEDBACK_SURVEY_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline underline-offset-4 transition-colors hover:text-primary/80"
+              >
+                Want to say more? Take the survey.
+              </a>
+            </DialogDescription>
+          </div>
+          <DialogClose className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/30 text-muted-foreground transition-colors duration-200 hover:text-foreground focus:outline-none">
+            <XIcon className="size-4" />
+            <span className="sr-only">Close</span>
+          </DialogClose>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
