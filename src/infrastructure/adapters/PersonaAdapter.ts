@@ -449,12 +449,13 @@ export class PersonaAdapter {
       /**
        * Verbatim integrity contract: dot-path fields whose non-empty values
        * should each be a word-for-word fragment of `sourceText` (the user's
-       * input). Empty/absent quotes are ACCEPTED — omitting a quote is
-       * honest, inventing one is not. Supports top-level string arrays
+       * input). Empty/absent quotes are fine (omitting a quote is honest), and
+       * so is a quote the repair could not snap: it is kept and warned about
+       * rather than failing the batch. Supports top-level string arrays
        * ('valueEvidence') and nested record-array strings
        * ('behavioralDimensions.evidence'). Paraphrases are repaired to the
-       * source sentence they came from where that is possible; a quote that
-       * survives the repair is kept and flagged in a warning, never retried.
+       * source sentence they came from where that is possible, so a stored
+       * quote is usually, not always, a fragment of the input.
        */
       verbatim?: {
         sourceText: string;

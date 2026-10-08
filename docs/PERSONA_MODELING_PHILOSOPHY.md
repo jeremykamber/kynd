@@ -24,8 +24,11 @@ Evidence-first generation from interview transcripts. Config:
 (`interviewIds`, `evidenceThreshold`, `preserveUncertainty`, `verbatimSource`).
 
 - Every value and fear carries a verbatim supporting quote (`valueEvidence`,
-  `fearEvidence`); `verbatimSource` is the raw transcript that those quotes must
-  be fragments of. Quotes that are paraphrases are rejected.
+  `fearEvidence`); `verbatimSource` is the raw transcript that those quotes
+  should be fragments of. A paraphrased quote is repaired to the source
+  sentence it paraphrases where that is possible; one with no close sentence is
+  kept and flagged in a warning rather than failing the run, so a stored quote
+  is usually, not always, a fragment of the transcript.
 - Backstory (`generateResearchBackstory` in
   `src/infrastructure/adapters/PersonaAdapter.ts`) is narrative but must not
   fabricate specific life events, purchases, or trauma unless the evidence
