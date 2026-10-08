@@ -322,7 +322,7 @@ export function PersonaDetailSheet({
                     {/* Profile Tab — Read Mode */}
                     {activeTab === "profile" && !isEditing && (
                         <ScrollArea className="flex-1 min-h-0">
-                            <div className="p-5 flex flex-col gap-6">
+                            <div className="p-6 flex flex-col gap-10">
 
                                 {/* Inline edit trigger */}
                                 {onEdit && (
@@ -369,26 +369,24 @@ export function PersonaDetailSheet({
 
 
                                 <div className="flex flex-col gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <h4 className="text-xl font-semibold tracking-tight">Decision Model</h4>
-                                    </div>
-                                    <div className="flex flex-col gap-4">
+                                    <h4 className="text-xl font-semibold tracking-tight">Decision Model</h4>
+                                    <div className="flex flex-col gap-6">
                                         {persona.decisionStyle && (
                                             <div className="flex flex-col gap-2">
                                                 <span className="micro-label text-muted-foreground/70">Style</span>
-                                                <p className="text-base text-foreground leading-relaxed">{persona.decisionStyle}</p>
+                                                <p className="text-base text-foreground leading-relaxed max-w-prose">{persona.decisionStyle}</p>
                                             </div>
                                         )}
                                         <div className="flex flex-col gap-2">
                                             <span className="micro-label text-muted-foreground/70">Budget</span>
-                                            <p className="text-base text-foreground leading-relaxed">
+                                            <p className="text-base text-foreground leading-relaxed max-w-prose">
                                                 {persona.typicalBudget || `Price sensitivity: ${persona.pricingSensitivity}/100`}
                                             </p>
                                         </div>
                                         {persona.goals.length > 0 && (
                                             <div className="flex flex-col gap-2">
-                                                <span className="micro-label text-muted-foreground/70">Adopts if helps with</span>
-                                                <ul className="flex flex-col gap-2">
+                                                <span className="micro-label text-muted-foreground/70">Goals</span>
+                                                <ul className="flex flex-col gap-3">
                                                     {persona.goals.map((g, i) => (
                                                         <li key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground">
                                                             <span className="mt-2 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
@@ -404,60 +402,68 @@ export function PersonaDetailSheet({
 
                                 {(persona.bestFor?.length || persona.lessReliableFor?.length) ? (
                                     <div className="flex flex-col gap-4">
-                                        <div className="flex flex-col gap-2">
-                                            <h4 className="text-xl font-semibold tracking-tight">How to Use This Persona</h4>
-                                            <p className="text-base text-muted-foreground/70 leading-relaxed">
-                                                This persona models a specific type of user. The lists below tell you what product decisions this persona can reliably inform, and where its perspective may be less trustworthy.
-                                            </p>
+                                        <h4 className="text-xl font-semibold tracking-tight">How to Use This Persona</h4>
+                                        <div className={cn("grid gap-x-10 gap-y-6", persona.bestFor?.length && persona.lessReliableFor?.length && "sm:grid-cols-2")}>
+                                            {persona.bestFor && persona.bestFor.length > 0 && (
+                                                <div className="flex flex-col gap-2">
+                                                    <span className="micro-label text-primary">Good for</span>
+                                                    <div className="flex flex-col gap-3">
+                                                        {persona.bestFor.map((item, i) => (
+                                                            <span key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">
+                                                                <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
+                                                                <span>{item}</span>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {persona.lessReliableFor && persona.lessReliableFor.length > 0 && (
+                                                <div className="flex flex-col gap-2">
+                                                    <span className="micro-label text-muted-foreground">Less reliable for</span>
+                                                    <div className="flex flex-col gap-3">
+                                                        {persona.lessReliableFor.map((item, i) => (
+                                                            <span key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">
+                                                                <span className="mt-1.5 size-1 rounded-full bg-warning-foreground/60 shrink-0" aria-hidden="true" />
+                                                                <span>{item}</span>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                        {persona.bestFor && persona.bestFor.length > 0 && (
-                                            <div className="flex flex-col gap-2">
-                                                <span className="micro-label text-primary">Good for</span>
-                                                <div className="flex flex-col gap-2">
-                                                    {persona.bestFor.map((item, i) => (
-                                                        <span key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">
-                                                            <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
-                                                            <span>{item}</span>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {persona.lessReliableFor && persona.lessReliableFor.length > 0 && (
-                                            <div className="flex flex-col gap-2">
-                                                <span className="micro-label text-muted-foreground">Less reliable for</span>
-                                                <div className="flex flex-col gap-2">
-                                                    {persona.lessReliableFor.map((item, i) => (
-                                                        <span key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">
-                                                            <span className="mt-1.5 size-1 rounded-full bg-warning-foreground/60 shrink-0" aria-hidden="true" />
-                                                            <span>{item}</span>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 ) : null}
 
-                                <div className="flex flex-col gap-6">
+                                <div className={cn("grid gap-x-10 gap-y-10", persona.values?.length && persona.fears?.length && "sm:grid-cols-2")}>
 
                                     {persona.values && persona.values.length > 0 && (
                                         <div className="flex flex-col gap-4">
-                                            <div className="flex items-center gap-3">
-                                                <h4 className="text-xl font-semibold tracking-tight">Motivations</h4>
-                                            </div>
-                                            <div className="flex flex-col gap-4">
+                                            <h4 className="text-xl font-semibold tracking-tight">Motivations</h4>
+                                            <div className="flex flex-col gap-3">
                                                 {persona.values.map((v, i) => {
                                                     const quote = persona.valueEvidence?.[i];
                                                     const question = quote ? persona.evidenceQuestions?.[quote] : undefined;
-                                                    return (
-                                                        <div key={i} className="flex flex-col">
-                                                            <span className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">
-                                                                <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
-                                                                <span>{v}</span>
+                                                    const row = (
+                                                        <>
+                                                            <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
+                                                            <span>
+                                                                {v}
+                                                                {quote && <>&nbsp;<span className="inline-block text-xs text-muted-foreground/50 transition-transform duration-150 group-open/disclosure:rotate-90 group-open/disclosure:text-muted-foreground/70" aria-hidden="true">▶</span></>}
                                                             </span>
-                                                            {quote && <details className="mt-1.5 group"><summary className="text-xs text-muted-foreground/80 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1.5 font-sans"><span className="text-xs text-muted-foreground/30 group-open:text-foreground/60 transition-colors">▶</span>{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</summary><p className="text-sm text-foreground/70 mt-1.5 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></details>}
-                                                        </div>
+                                                        </>
+                                                    );
+                                                    return quote ? (
+                                                        <details key={i} className="group/disclosure">
+                                                            <summary className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80 cursor-pointer list-none hover:text-foreground transition-colors">
+                                                                {row}
+                                                                <span className="sr-only">Show source</span>
+                                                            </summary>
+                                                            <p className="text-sm text-foreground/70 mt-2 ml-4 leading-relaxed border-l-2 border-border/30 pl-3">
+                                                                <span className="text-xs text-muted-foreground/60 mr-1.5">{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</span>“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}
+                                                            </p>
+                                                        </details>
+                                                    ) : (
+                                                        <span key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">{row}</span>
                                                     );
                                                 })}
                                             </div>
@@ -465,22 +471,35 @@ export function PersonaDetailSheet({
                                     )}
 
                                     {persona.fears && persona.fears.length > 0 && (
-                                        <div className="flex flex-col gap-3">
-                                            <div className="flex items-center gap-3">
-                                                <h4 className="text-xl font-semibold tracking-tight">Frictions</h4>
-                                            </div>
-                                            <ul className="space-y-4">
+                                        <div className="flex flex-col gap-4">
+                                            <h4 className="text-xl font-semibold tracking-tight">Frictions</h4>
+                                            <ul className="flex flex-col gap-4">
                                                 {persona.fears.map((f, i) => {
                                                     const quote = persona.fearEvidence?.[i];
                                                     const question = quote ? persona.evidenceQuestions?.[quote] : undefined;
-                                                    return (
-                                                        <li key={i} className="flex flex-col">
-                                                            <div className="flex items-start gap-2.5 text-sm leading-snug text-foreground/70">
-                                                                <span className="mt-1.5 size-1 rounded-full bg-destructive/50 shrink-0" aria-hidden="true" />
+                                                    const row = (
+                                                        <>
+                                                            <span className="mt-1.5 size-1 rounded-full bg-destructive/50 shrink-0" aria-hidden="true" />
+                                                            <span>
                                                                 {f}
-                                                            </div>
-                                                            {quote && <details className="mt-1.5 group ml-4"><summary className="text-xs text-muted-foreground/80 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1.5 font-sans"><span className="text-xs text-muted-foreground/30 group-open:text-foreground/60 transition-colors">▶</span>{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</summary><p className="text-sm text-foreground/70 mt-1.5 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></details>}
+                                                                {quote && <>&nbsp;<span className="inline-block text-xs text-muted-foreground/50 transition-transform duration-150 group-open/disclosure:rotate-90 group-open/disclosure:text-muted-foreground/70" aria-hidden="true">▶</span></>}
+                                                            </span>
+                                                        </>
+                                                    );
+                                                    return quote ? (
+                                                        <li key={i}>
+                                                            <details className="group/disclosure">
+                                                                <summary className="flex items-start gap-2.5 text-sm leading-snug text-foreground/70 cursor-pointer list-none hover:text-foreground transition-colors">
+                                                                    {row}
+                                                                    <span className="sr-only">Show source</span>
+                                                                </summary>
+                                                                <p className="text-sm text-foreground/70 mt-2 ml-4 leading-relaxed border-l-2 border-border/30 pl-3">
+                                                                    <span className="text-xs text-muted-foreground/60 mr-1.5">{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</span>“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}
+                                                                </p>
+                                                            </details>
                                                         </li>
+                                                    ) : (
+                                                        <li key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/70">{row}</li>
                                                     );
                                                 })}
                                             </ul>
@@ -488,7 +507,7 @@ export function PersonaDetailSheet({
                                     )}
                                 </div>
 
-                                <div className="flex flex-col gap-6 mt-6 border-t border-border/10 pt-6">
+                                <div className="flex flex-col gap-6 border-t border-border/10 pt-8">
 
                                     <div className="flex flex-col gap-4">
                                         <h4 className="text-xl font-semibold tracking-tight">Evidence &amp; Confidence</h4>
@@ -545,7 +564,7 @@ export function PersonaDetailSheet({
                                     )}
                                 </div>
 
-                                <div className="flex flex-col gap-3 mt-6 border-t border-border/10 pt-6">
+                                <div className="flex flex-col gap-3 border-t border-border/10 pt-8">
 
                                     <details className="group">
                                         <summary className="micro-label text-muted-foreground/70 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-2 py-1">
