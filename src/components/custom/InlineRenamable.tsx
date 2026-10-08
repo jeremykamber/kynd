@@ -78,8 +78,14 @@ export function InlineRenamable({
   }
 
   return (
+    /*
+      The label is deliberately not `flex-1`. The wrapper is as wide as its
+      container, so a growing label parks the pencil against the far edge and
+      the control reads as belonging to the row rather than to the title. Left
+      packed, the pencil sits after the text and only the text truncates.
+    */
     <span className={`group/title flex items-center gap-1.5 min-w-0 w-full ${className ?? ''}`}>
-      <span className="truncate min-w-0 flex-1 font-semibold">{value}</span>
+      <span className="truncate min-w-0 font-semibold">{value}</span>
       <button
         type="button"
         onClick={(e) => {
