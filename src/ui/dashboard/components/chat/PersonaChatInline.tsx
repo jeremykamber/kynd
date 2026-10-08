@@ -110,7 +110,7 @@ export function PersonaChatInline({ persona }: PersonaChatInlineProps) {
               <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center text-xl">
                 💬
               </div>
-              <p className="text-sm max-w-[250px] text-balance">
+              <p className="text-base leading-relaxed max-w-sm text-balance">
                 Start a conversation with {persona.name}. Ask them about your product, pricing, or their pain points.
               </p>
             </div>
@@ -126,13 +126,13 @@ export function PersonaChatInline({ persona }: PersonaChatInlineProps) {
                       ? 'var(--chat-user-bubble)'
                       : 'var(--chat-assistant-bubble)',
                   }}
-                  className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words min-w-0 max-w-full text-foreground ${
+                  className={`px-4 py-3 rounded-2xl text-base leading-relaxed break-words min-w-0 max-w-full text-foreground ${
                     m.role === 'user' ? 'rounded-tr-sm whitespace-pre-wrap' : 'rounded-tl-sm border border-border/40'
                   }`}
                 >
                   {parseMessageContent(m.content)}
                 </div>
-                <span className="text-[10px] text-muted-foreground mt-1.5 px-1">
+                <span className="text-xs text-muted-foreground mt-1.5 px-1">
                   {m.role === 'user' ? 'You' : persona.name}
                 </span>
               </div>

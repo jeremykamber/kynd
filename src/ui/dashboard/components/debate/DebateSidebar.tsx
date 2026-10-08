@@ -37,7 +37,7 @@ export function DebateSidebar({ onNewDebate }: DebateSidebarProps) {
         {debates.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-5 py-12 text-center">
             <MessageSquareIcon className="h-8 w-8 text-muted-foreground/40 mb-3" />
-            <p className="text-xs text-muted-foreground">No debates yet</p>
+            <p className="text-sm text-muted-foreground">No debates yet</p>
           </div>
         ) : (
           <div className="flex flex-col gap-0.5 p-3 overflow-y-auto custom-scrollbar">
@@ -52,7 +52,7 @@ export function DebateSidebar({ onNewDebate }: DebateSidebarProps) {
                 <button
                   key={debate.id}
                   onClick={() => setActive(debate.id)}
-                  className={`flex flex-col gap-1 px-3 py-2.5 rounded-md text-left transition-colors w-full ${
+                  className={`flex flex-col gap-2 px-3 py-2.5 rounded-md text-left transition-colors w-full ${
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
@@ -60,11 +60,11 @@ export function DebateSidebar({ onNewDebate }: DebateSidebarProps) {
                 >
                   <div className="flex items-center gap-2">
                     <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${config.dotClass}`} />
-                    <span className={`text-xs font-medium truncate ${isActive ? "text-primary" : ""}`}>
+                    <span className={`text-xs truncate ${isActive ? "text-primary" : ""}`}>
                       {config.label}
                     </span>
                   </div>
-                  <span className="text-xs truncate pl-[14px]">{preview}</span>
+                  <span className="text-sm font-medium truncate pl-3.5">{preview}</span>
                 </button>
               );
             })}
@@ -76,9 +76,9 @@ export function DebateSidebar({ onNewDebate }: DebateSidebarProps) {
         <button
           type="button"
           onClick={onNewDebate}
-          className="flex items-center justify-center gap-2 w-full h-9 rounded-md bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
+          className="flex items-center justify-center gap-2 w-full h-9 rounded-md bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
         >
-          <PlusIcon className="h-3.5 w-3.5" />
+          <PlusIcon className="h-4 w-4" />
           New Debate
         </button>
       </div>

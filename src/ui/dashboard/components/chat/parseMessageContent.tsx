@@ -172,7 +172,7 @@ export function parseMessageContent(content: string): React.ReactNode[] {
                   {displayText}
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[280px] text-xs">
+              <TooltipContent side="top" className="max-w-70 text-xs">
                 <p>{excerpt}</p>
               </TooltipContent>
             </Tooltip>
@@ -189,7 +189,7 @@ export function parseMessageContent(content: string): React.ReactNode[] {
         parts.push(
           <sup
             key={`memory-ref-${keyCounter++}`}
-            className="text-[10px] text-primary/60 font-medium leading-none mx-[1px] select-none"
+            className="text-xs text-primary/60 font-medium leading-none mx-px select-none"
           >
             {memoryCounter}
           </sup>
@@ -202,12 +202,12 @@ export function parseMessageContent(content: string): React.ReactNode[] {
         parts.push(
           <Tooltip key={`memory-inline-${keyCounter++}`} delayDuration={200}>
             <TooltipTrigger asChild>
-              <span className="inline-flex items-center justify-center gap-1 align-middle mx-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium bg-muted/50 border border-border/40 text-muted-foreground cursor-help hover:bg-muted/70 hover:text-foreground transition-colors">
+              <span className="inline-flex items-center justify-center gap-1 align-middle mx-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-muted/50 border border-border/40 text-muted-foreground cursor-help hover:bg-muted/70 hover:text-foreground transition-colors">
                 <Brain className="w-3 h-3 text-primary" />
                 <span>memory</span>
               </span>
             </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-[280px] text-xs leading-relaxed">
+            <TooltipContent side="top" className="max-w-70 text-xs leading-relaxed">
               <p>{memoryText}</p>
             </TooltipContent>
           </Tooltip>
@@ -228,7 +228,7 @@ export function parseMessageContent(content: string): React.ReactNode[] {
       <div key="memory-footnotes" className="mt-4 pt-3 border-t border-border/30">
         {memories.map((m) => (
           <div key={`fn-${m.index}`} className="flex items-start gap-2 text-xs text-muted-foreground/80 leading-relaxed">
-            <sup className="text-[10px] text-primary/60 font-medium leading-none mt-[3px] shrink-0">
+            <sup className="text-xs text-primary/60 font-medium leading-none mt-1 shrink-0">
               {m.index}
             </sup>
             <span>{m.text}</span>

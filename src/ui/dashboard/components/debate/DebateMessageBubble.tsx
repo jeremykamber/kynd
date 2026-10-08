@@ -28,7 +28,7 @@ export function DebateMessageBubble({
 
   if (isStreaming && !message.content) {
     return (
-      <div className="flex flex-col max-w-[85%] self-start items-start">
+      <div className="flex flex-col max-w-17/20 self-start items-start">
         <div
           data-testid="typing-indicator"
           className="px-5 py-4 rounded-2xl rounded-tl-sm text-foreground border border-border/40 flex items-center gap-1.5"
@@ -43,7 +43,7 @@ export function DebateMessageBubble({
 
   return (
     <div
-      className={`flex flex-col max-w-[85%] ${
+      className={`flex flex-col max-w-17/20 ${
         isUser ? "self-end items-end" : "self-start items-start"
       }`}
     >
@@ -53,11 +53,11 @@ export function DebateMessageBubble({
             {initials}
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold text-foreground leading-tight">
+            <span className="text-sm font-semibold text-foreground">
               {message.personaName}
             </span>
             {occupation && (
-              <span className="text-[10px] text-muted-foreground leading-tight">
+              <span className="text-xs text-muted-foreground">
                 {occupation}
               </span>
             )}
@@ -66,7 +66,7 @@ export function DebateMessageBubble({
       )}
 
       <div
-        className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap text-foreground ${
+        className={`px-4 py-3 rounded-2xl text-base leading-relaxed whitespace-pre-wrap text-foreground ${
           isUser
             ? "rounded-tr-sm bg-primary/10 border border-primary/20"
             : "rounded-tl-sm bg-card border border-border/40"
@@ -76,7 +76,7 @@ export function DebateMessageBubble({
       </div>
 
       {isUser && (
-        <span className="text-[10px] text-muted-foreground mt-1 px-1">You</span>
+        <span className="text-xs text-muted-foreground mt-1 px-1">You</span>
       )}
     </div>
   );

@@ -24,11 +24,11 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
   const selectedPersona = selectedPersonaId ? getPersona(selectedPersonaId) : null
 
   return (
-    <div className="flex flex-col gap-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between border-b border-border/40 pb-6">
         <div className="flex flex-col gap-2">
-          <h2 className="text-2xl font-bold tracking-tight">Analysis Results</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">Analysis Results</h2>
           <p className="text-muted-foreground text-sm">
             Insights and reactions from your synthesized audience.
           </p>
@@ -63,15 +63,15 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   <div className="flex items-center gap-4">
                     <PersonaAvatar name={persona.name} size="lg" />
                     <div>
-                      <h3 className="font-semibold text-lg">{persona.name}</h3>
-                      <p className="text-sm text-muted-foreground">{persona.occupation}</p>
+                      <h3 className="text-lg font-semibold tracking-tight">{persona.name}</h3>
+                      <p className="micro-label text-muted-foreground">{persona.occupation}</p>
                       {analysis.personaProfile && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {Object.entries(analysis.personaProfile.bigFive)
                             .sort(([, a], [, b]) => Math.abs(b - 50) - Math.abs(a - 50))
                             .slice(0, 2)
                             .map(([trait, value]) => (
-                              <span key={trait} className="text-xs px-2 py-0.5 rounded-full bg-muted">
+                              <span key={trait} className="text-sm tabular-nums px-2 py-0.5 rounded-full bg-muted">
                                 {value >= 60 ? "High" : value <= 40 ? "Low" : "Moderate"}{" "}
                                 {trait.charAt(0).toUpperCase() + trait.slice(1)}: {value}%
                               </span>
@@ -82,7 +82,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   </div>
 
                   <div className="flex flex-col gap-4 mt-2">
-                    <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Scoring</h4>
+                    <h4 className="micro-label text-muted-foreground/70">Scoring</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <ScoreMetric label="Clarity" value={analysis.scores.clarity} reason={analysis.scores.clarityReason} />
                       <ScoreMetric label="Value" value={analysis.scores.valuePerception} reason={analysis.scores.valuePerceptionReason} />
@@ -91,7 +91,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
 
                     <div className="h-px bg-border/20 my-2" />
 
-                    <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Intent Funnel</h4>
+                    <h4 className="micro-label text-muted-foreground/70">Intent Funnel</h4>
                     <div className="flex flex-col gap-3">
                       <FunnelStage label="Exploration" value={analysis.scores.explorationIntent} reason={analysis.scores.explorationIntentReason} color="bg-blue-500" />
                       <FunnelStage label="Analysis" value={analysis.scores.analysisIntent} reason={analysis.scores.analysisIntentReason} color="bg-indigo-500" />
@@ -112,7 +112,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
 
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                      <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Gut Reaction</h4>
+                      <h4 className="micro-label text-muted-foreground/70">Gut Reaction</h4>
                       <div
                         className={`w-2 h-2 rounded-full ${getSentimentVariant(analysis.scores.buyIntent)}`}
                         title="Tone Sentiment"
@@ -124,18 +124,18 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   </div>
 
                   <div className="flex flex-col gap-3">
-                    <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Detailed Thoughts</h4>
-                    <div className="text-sm text-foreground/80 leading-relaxed space-y-4 whitespace-pre-wrap">
+                    <h4 className="micro-label text-muted-foreground/70">Detailed Thoughts</h4>
+                    <div className="text-base text-foreground/80 leading-relaxed space-y-4 whitespace-pre-wrap">
                       {analysis.thoughts}
                     </div>
                   </div>
 
                   {analysis.risks && analysis.risks.length > 0 && (
                     <div className="flex flex-col gap-3 mt-4">
-                      <h4 className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Perceived Risks</h4>
+                      <h4 className="micro-label text-muted-foreground/70">Perceived Risks</h4>
                       <ul className="flex flex-col gap-2">
                         {analysis.risks.map((risk, i) => (
-                          <li key={`risk-${analysis.id}-${i}`} className="flex items-start gap-2 text-sm text-foreground/80 leading-[1.6]">
+                          <li key={`risk-${analysis.id}-${i}`} className="flex items-start gap-2 text-sm text-foreground/80 leading-relaxed">
                             <span className="text-destructive mt-0.5">•</span>
                             <span>{risk}</span>
                           </li>
@@ -145,11 +145,11 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   )}
 
                   <div className="mt-4 pt-6 border-t border-border/20 flex flex-col sm:flex-row sm:items-center gap-3">
-                    <span className="bg-primary/10 text-primary border border-primary/20 text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm flex items-center gap-2 w-fit">
+                    <span className="bg-primary/10 text-primary border border-primary/20 micro-label px-3 py-1.5 rounded-sm flex items-center gap-2 w-fit">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                       Suggestion
                     </span>
-                    <span className="text-sm text-foreground/80 font-medium">
+                    <span className="text-base leading-relaxed text-foreground/80">
                       {analysis.aiSuggestion || "No AI suggestion available."}
                     </span>
                   </div>
@@ -181,9 +181,9 @@ function ScoreMetric({ label, value, reason }: { label: string, value: number, r
   return (
     <div className="flex flex-col gap-1 bg-muted/20 p-3 rounded-lg">
       <span className="text-xs text-muted-foreground font-medium">{label}</span>
-      <span className={`text-xl font-bold font-variant-numeric tabular-nums ${getColorClass(value)}`}>{value}/10</span>
+      <span className={`text-lg font-semibold font-mono tabular-nums ${getColorClass(value)}`}>{value}/10</span>
       {reason && (
-        <span className="text-[10px] text-muted-foreground/70 leading-tight mt-1">{reason}</span>
+        <span className="text-base leading-relaxed text-muted-foreground/70 mt-1">{reason}</span>
       )}
     </div>
   )
@@ -194,9 +194,9 @@ function FunnelStage({ label, value, reason, color }: { label: string, value: nu
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between text-xs">
+      <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-foreground/80">{label}</span>
-        <span className={`font-bold ${value >= 6 ? 'text-emerald-500' : value >= 4 ? 'text-amber-500' : 'text-destructive'}`}>{value}/10</span>
+        <span className={`font-semibold font-mono tabular-nums ${value >= 6 ? 'text-emerald-500' : value >= 4 ? 'text-amber-500' : 'text-destructive'}`}>{value}/10</span>
       </div>
       <div className="h-4 w-full bg-muted/30 rounded-sm overflow-hidden relative">
         <div
@@ -205,7 +205,7 @@ function FunnelStage({ label, value, reason, color }: { label: string, value: nu
         />
       </div>
       {reason && (
-        <span className="text-[10px] text-muted-foreground/70 leading-tight">{reason}</span>
+        <span className="text-base leading-relaxed text-muted-foreground/70">{reason}</span>
       )}
     </div>
   )

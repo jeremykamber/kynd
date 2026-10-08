@@ -114,21 +114,15 @@ export function InterviewUploadClient() {
   if (hasResults) {
     return (
       <div className="flex flex-col gap-8 max-w-4xl mx-auto w-full animate-in fade-in duration-500">
-        <div className="flex flex-col gap-4 text-center items-center pt-8">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-balance">
-            Generate Personas from Interviews
-          </h1>
-        </div>
-
         <MinimalCard>
           <div className="flex flex-col gap-6 items-center text-center py-8">
             <CheckCircle2 className="h-16 w-16 text-primary" />
             <div className="flex flex-col gap-2">
-              <h2 className="text-2xl font-bold tracking-tight">
+              <h2 className="text-lg font-semibold tracking-tight">
                 Personas Generated!
               </h2>
-              <p className="text-lg text-muted-foreground text-balance max-w-lg">
-                Successfully created <span className="font-semibold text-foreground">{personas.length}</span>{' '}
+              <p className="text-base leading-relaxed text-muted-foreground text-balance max-w-lg">
+                Successfully created <span className="font-mono tabular-nums font-semibold text-foreground">{personas.length}</span>{' '}
                 interview-derived personas from {files.length} transcript{files.length !== 1 ? 's' : ''}.
               </p>
             </div>
@@ -154,29 +148,19 @@ export function InterviewUploadClient() {
   }
 
   return (
-    <div className="flex flex-col gap-16 max-w-4xl mx-auto w-full animate-in fade-in duration-500">
-      <div className="flex flex-col gap-4 text-center items-center">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-balance">
-          Generate Personas from Interviews
-        </h1>
-        <p className="text-lg text-muted-foreground text-balance max-w-2xl">
-          Upload interview transcripts (.txt files) to extract behavioral signals
-          and generate realistic personas grounded in real user research.
-        </p>
-      </div>
-
+    <div className="flex flex-col max-w-4xl mx-auto w-full animate-in fade-in duration-500">
       <div className="grid gap-12">
         <section className="flex flex-col gap-6 relative min-w-0">
-          <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary font-bold hidden md:flex">
+          <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary micro-label hidden md:flex">
             1
           </div>
           <MinimalCard>
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <h2 className="text-xl font-semibold tracking-tight">
+                <h2 className="text-lg font-semibold tracking-tight">
                   Upload Interview Transcripts
                 </h2>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base leading-relaxed text-muted-foreground">
                   Upload interview transcripts (.txt files) to extract behavioral
                   signals and generate realistic personas.
                 </p>
@@ -197,7 +181,7 @@ export function InterviewUploadClient() {
                 <p className="text-base font-medium">
                   Drop transcripts here or click to browse
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Supports .txt files
                 </p>
                 <input
@@ -213,7 +197,7 @@ export function InterviewUploadClient() {
               {uploadError && (
                 <p
                   role="alert"
-                  className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md"
+                  className="text-base leading-relaxed text-destructive font-medium bg-destructive/10 p-3 rounded-md"
                 >
                   {uploadError}
                 </p>
@@ -231,7 +215,7 @@ export function InterviewUploadClient() {
                         <span className="text-sm font-medium truncate">
                           {file.name}
                         </span>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                        <Badge variant="outline" className="px-1.5 py-0 shrink-0 tabular-nums">
                           {(file.content.length / 1024).toFixed(1)} KB
                         </Badge>
                       </div>
@@ -252,16 +236,16 @@ export function InterviewUploadClient() {
         </section>
 
         <section className="flex flex-col gap-6 relative min-w-0">
-          <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary font-bold hidden md:flex">
+          <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary micro-label hidden md:flex">
             2
           </div>
           <MinimalCard>
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <h2 className="text-xl font-semibold tracking-tight">
+                <h2 className="text-lg font-semibold tracking-tight">
                   Generate Personas
                 </h2>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base leading-relaxed text-muted-foreground">
                   {files.length === 0
                     ? 'Upload interview transcripts above to get started.'
                     : `${files.length} transcript${files.length !== 1 ? 's' : ''} uploaded. Ready to extract signals and generate personas.`}
@@ -281,7 +265,7 @@ export function InterviewUploadClient() {
                     }`}
                   >
                     <span className="text-sm font-medium">Individual personas</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">One persona set per interview transcript</p>
+                    <p className="text-sm leading-relaxed text-muted-foreground mt-0.5">One persona set per interview transcript</p>
                   </button>
                   <button
                     type="button"
@@ -293,7 +277,7 @@ export function InterviewUploadClient() {
                     }`}
                   >
                     <span className="text-sm font-medium">Combined archetypes</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">Merge transcripts into shared personas</p>
+                    <p className="text-sm leading-relaxed text-muted-foreground mt-0.5">Merge transcripts into shared personas</p>
                   </button>
                 </div>
               </div>
@@ -326,7 +310,7 @@ export function InterviewUploadClient() {
                   disabled={isPending}
                   className="h-10 w-24 rounded-md border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-base leading-relaxed text-muted-foreground">
                   {generationMode === 'individual'
                     ? `${files.length} transcript${files.length !== 1 ? 's' : ''} × ${personaCountInput || '?'} = ${(files.length * (parseInt(personaCountInput) || 0)) || '?'} total personas`
                     : '1–20 personas. More personas = richer behavioral coverage but longer generation time.'}
@@ -345,7 +329,7 @@ export function InterviewUploadClient() {
               </div>
 
               {error && (
-                <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">
+                <p className="text-base leading-relaxed text-destructive font-medium bg-destructive/10 p-3 rounded-md">
                   {error}
                 </p>
               )}
@@ -357,7 +341,7 @@ export function InterviewUploadClient() {
       {progress && !showExpandedFlow && (
         <button
           onClick={() => setShowExpandedFlow(true)}
-          className="fixed bottom-6 right-6 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-xs font-semibold shadow-lg transition-colors hover:bg-accent"
+          className="fixed bottom-6 right-6 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium shadow-lg transition-colors hover:bg-accent"
         >
           <LayersIcon className="h-3.5 w-3.5" />
           Show Progress

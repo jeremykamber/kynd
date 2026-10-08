@@ -3,14 +3,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useDebateStore } from "@/ui/stores/debateStore";
 import { DebateMessageBubble } from "./DebateMessageBubble";
-import { Send, CopyIcon, CheckIcon } from "lucide-react";
+import { Send, CopyIcon, CheckIcon, MessageSquareIcon, PlusIcon } from "lucide-react";
 
 /**
  * Active-debate view: messages grouped by round plus an interjection box.
  * Reads the debate matching `activeDebateId` from the debate store and appends
- * user interjections directly to it.
+ * user interjections directly to it. When no debate is active, renders the
+ * workspace empty state and offers `onNewDebate` as its call to action.
  */
-export function DebateRoom() {
+export function DebateRoom({ onNewDebate }: { onNewDebate?: () => void }) {
   const debates = useDebateStore((s) => s.debates);
   const activeDebateId = useDebateStore((s) => s.activeDebateId);
   const isStreaming = useDebateStore((s) => s.isStreaming);
@@ -25,10 +26,33 @@ export function DebateRoom() {
   }, [activeDebate?.messages]);
 
   if (!activeDebate) {
+    const isEmpty = debates.length === 0;
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
-        <div className="text-center">
-          <p className="text-sm">Select a debate or start a new one</p>
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+        <div className="flex w-full max-w-sm flex-col items-center gap-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
+            <MessageSquareIcon className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <div className="flex flex-col gap-2">
+            {isEmpty && (
+              <h2 className="text-lg font-semibold tracking-tight leading-snug">
+                No debates yet
+              </h2>
+            )}
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Select a debate or start a new one
+            </p>
+          </div>
+          {isEmpty && onNewDebate && (
+            <button
+              type="button"
+              onClick={onNewDebate}
+              className="inline-flex h-9 w-fit items-center gap-2 rounded-md bg-primary/10 px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              <PlusIcon className="h-4 w-4" />
+              New Debate
+            </button>
+          )}
         </div>
       </div>
     );
@@ -74,11 +98,11 @@ export function DebateRoom() {
       <div className="shrink-0 px-6 py-4 border-b border-border/40">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-0.5">
-            <h2 className="text-base font-bold tracking-tight">
+            <h2 className="text-base font-semibold tracking-tight">
               {activeDebate.proposal}
             </h2>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>
+              <span className="font-mono tabular-nums">
                 Round {activeDebate.currentRound} of {activeDebate.totalRounds}
               </span>
               <span>·</span>
@@ -91,7 +115,7 @@ export function DebateRoom() {
             <button
               type="button"
               onClick={handleCopyTranscript}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/40 px-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/40 px-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               {copied ? (
                 <>
@@ -136,7 +160,7 @@ export function DebateRoom() {
             <div key={roundStr} className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-border" />
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <span className="micro-label text-muted-foreground">
                   Round {roundNum}
                 </span>
                 <div className="h-px flex-1 bg-border" />

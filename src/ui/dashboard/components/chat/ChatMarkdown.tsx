@@ -42,16 +42,25 @@ export function ChatMarkdown({ content }: { content: string }) {
           </blockquote>
         ),
         code: ({ children }) => (
-          <code className="rounded bg-muted px-1.5 py-0.5 text-[0.85em] font-mono">{children}</code>
+          <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono">{children}</code>
         ),
         pre: ({ children }) => (
-          <pre className="overflow-x-auto rounded-md bg-muted p-3 my-2 text-xs font-mono leading-relaxed">
+          <pre className="overflow-x-auto rounded-md bg-muted p-3 my-2 text-sm font-mono leading-relaxed">
             {children}
           </pre>
         ),
-        h1: ({ children }) => <h1 className="text-base font-bold mt-2 mb-1">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-sm font-bold mt-2 mb-1">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>,
+        h1: ({ children }) => (
+          <h1 className="text-lg font-semibold tracking-tight leading-snug mt-2 mb-1">{children}</h1>
+        ),
+        h2: ({ children }) => (
+          <h2 className="text-base font-semibold tracking-tight leading-snug mt-2 mb-1">{children}</h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="text-sm font-semibold tracking-tight mt-2 mb-1">{children}</h3>
+        ),
+        h4: ({ children }) => (
+          <h4 className="text-sm font-semibold tracking-tight mt-2 mb-1">{children}</h4>
+        ),
         strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
       }}
     >
