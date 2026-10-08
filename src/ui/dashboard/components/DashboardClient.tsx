@@ -12,7 +12,7 @@ import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
 import { PersonaSkeletonCard } from '@/components/custom/PersonaSkeletonCard'
 import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
 import type { VariationFormData } from '@/components/custom/SimilarPersonaDialog'
-import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon, XIcon, ArrowLeftIcon } from 'lucide-react'
+import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon, XIcon, ArrowLeftIcon, AlertTriangleIcon } from 'lucide-react'
 import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
@@ -28,7 +28,18 @@ import { readStreamableValue } from '@ai-sdk/rsc'
 import { generateSimilarPersonasAction } from '@/actions/generateSimilarPersonas'
 import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { summarizeError } from '@/lib/errorSummary'
+import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
+
+/** One timestamp format for both the ready and the failed batch card. */
+function batchTimestamp(createdAt: string): string {
+    return new Date(createdAt).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    })
+}
 
 /**
  * Persona dashboard shell: routes between the setup form and the active
@@ -335,43 +346,67 @@ export function DashboardClient() {
                                     key={batch.id}
                                     className="group relative"
                                 >
-                                    <div
-                                        role="button"
-                                        tabIndex={0}
-                                        onClick={() => setActiveBatch(batch.id)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ' ') {
-                                                e.preventDefault()
-                                                setActiveBatch(batch.id)
-                                            }
-                                        }}
-                                        className="flex items-center gap-4 w-full rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80 cursor-pointer"
-                                    >
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                                            <LayersIcon className="h-5 w-5 text-primary" />
-                                        </div>
-                                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                            <InlineRenamable
-                                                value={batch.label}
-                                                onRename={(label) => updateBatchLabel(batch.id, label)}
-                                                className="min-w-0"
-                                            />
-                                            <span className="text-sm text-muted-foreground">
-                                                {batch.personas.length} personas ·{' '}
-                                                {batch.source === 'interviews'
-                                                    ? 'from interviews'
-                                                    : 'from description'}
+                                    {batch.error ? (
+                                        <div className="flex items-start gap-4 w-full rounded-lg border border-destructive/30 bg-card p-5 text-left">
+                                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                                                <AlertTriangleIcon className="h-5 w-5 text-destructive" />
+                                            </div>
+                                            <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                                <InlineRenamable
+                                                    value={batch.label}
+                                                    onRename={(label) => updateBatchLabel(batch.id, label)}
+                                                    className="min-w-0"
+                                                />
+                                                <span className="text-sm text-destructive">
+                                                    Generation failed · {summarizeError(batch.error)}
+                                                </span>
+                                                <FeedbackButton
+                                                    label="Report this error"
+                                                    defaultMessage={batch.error}
+                                                    context={{ error: batch.error }}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-1 w-fit"
+                                                />
+                                            </div>
+                                            <span className="text-xs text-muted-foreground shrink-0">
+                                                {batchTimestamp(batch.createdAt)}
                                             </span>
                                         </div>
-                                        <span className="text-xs text-muted-foreground shrink-0">
-                                            {new Date(batch.createdAt).toLocaleDateString(undefined, {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                            })}
-                                        </span>
-                                    </div>
+                                    ) : (
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => setActiveBatch(batch.id)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault()
+                                                    setActiveBatch(batch.id)
+                                                }
+                                            }}
+                                            className="flex items-center gap-4 w-full rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80 cursor-pointer"
+                                        >
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                                <LayersIcon className="h-5 w-5 text-primary" />
+                                            </div>
+                                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                                <InlineRenamable
+                                                    value={batch.label}
+                                                    onRename={(label) => updateBatchLabel(batch.id, label)}
+                                                    className="min-w-0"
+                                                />
+                                                <span className="text-sm text-muted-foreground">
+                                                    {batch.personas.length} personas ·{' '}
+                                                    {batch.source === 'interviews'
+                                                        ? 'from interviews'
+                                                        : 'from description'}
+                                                </span>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground shrink-0">
+                                                {batchTimestamp(batch.createdAt)}
+                                            </span>
+                                        </div>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={(e) => {

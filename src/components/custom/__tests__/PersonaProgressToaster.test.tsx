@@ -61,6 +61,11 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   usePersonaStore.getState().removeActiveGeneration('race-run')
+  // The failure tests now store a batch; drop anything the toaster added so
+  // the store does not leak into the next test.
+  for (const batch of usePersonaStore.getState().batches) {
+    usePersonaStore.getState().removeBatch(batch.id)
+  }
 })
 
 describe('PersonaProgressToaster', () => {
@@ -144,6 +149,43 @@ describe('PersonaProgressToaster', () => {
 
       // The run is settled: the store no longer tracks it as active.
       expect(usePersonaStore.getState().activeGenerationRunIds).not.toContain('err-run')
+
+      // The failure leaves a record. It used to leave nothing at all, so the
+      // batch vanished from the list and the user could not tell a run had
+      // died, let alone why.
+      const batch = usePersonaStore.getState().batches.find((b) => b.error?.startsWith('AAAA'))
+      expect(batch).toBeTruthy()
+      expect(batch?.personas).toEqual([])
+      expect(batch?.source).toBe('interviews')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('records a batch when the result store itself reports the failure', async () => {
+    vi.useFakeTimers()
+    try {
+      render(<PersonaProgressToaster />)
+
+      act(() => {
+        usePersonaStore.getState().addActiveGeneration('fail-run')
+      })
+
+      await act(async () => {
+        resultDeferreds[0]?.resolve({
+          found: true,
+          error: 'Persona generation blew up',
+          personas: [],
+        })
+        await Promise.resolve()
+      })
+
+      const batch = usePersonaStore
+        .getState()
+        .batches.find((b) => b.error === 'Persona generation blew up')
+      expect(batch).toBeTruthy()
+      expect(batch?.personas).toEqual([])
+      expect(usePersonaStore.getState().activeGenerationRunIds).not.toContain('fail-run')
     } finally {
       vi.useRealTimers()
     }

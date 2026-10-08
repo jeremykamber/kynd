@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, cleanup, act } from '@testing-library/react'
+import { render, screen, cleanup, act } from '@testing-library/react'
 import React from 'react'
 
 // ── Store state (reset per test) ─────────────────────────────────────────
@@ -147,8 +147,12 @@ vi.mock('next/link', () => ({
 }))
 vi.mock('lucide-react', () => {
   const I = () => <svg />
-  return { LayersIcon: I, SparklesIcon: I, PlayIcon: I, PlusIcon: I, ChevronDownIcon: I, FileTextIcon: I, PenIcon: I, ClockIcon: I, ArrowRightIcon: I, ArrowLeftIcon: I, XIcon: I, PencilIcon: I, CheckIcon: I }
+  return { LayersIcon: I, SparklesIcon: I, PlayIcon: I, PlusIcon: I, ChevronDownIcon: I, FileTextIcon: I, PenIcon: I, ClockIcon: I, ArrowRightIcon: I, ArrowLeftIcon: I, XIcon: I, PencilIcon: I, CheckIcon: I, AlertTriangleIcon: I }
 })
+
+vi.mock('@/components/custom/FeedbackButton', () => ({
+  FeedbackButton: (p: { label?: string }) => <button data-testid="feedback-button">{p.label}</button>,
+}))
 
 import { DashboardClient } from '../DashboardClient'
 
@@ -261,5 +265,41 @@ describe('DashboardClient — setup view visibility (isGenerating logic)', () =>
     // Flush all pending effects (useEffect runs after paint)
     await act(() => new Promise(r => setTimeout(r, 0)))
     expect(setupVisible()).toBe(true)
+  })
+})
+
+describe('DashboardClient — failed batches', () => {
+  beforeEach(() => {
+    resetStore()
+    resetPersonaFlow()
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  const FAILED = {
+    id: 'b1',
+    label: 'Personas from interviews',
+    source: 'interviews',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    personas: [],
+    error: '[PersonaAdapter] research-profiles non-verbatim evidence: persona #1 valueEvidence "x" is not a fragment',
+  }
+
+  it('shows a failed run as a card carrying its error, instead of dropping it', () => {
+    resetStore({ batches: [FAILED] })
+    render(<DashboardClient />)
+
+    expect(screen.getByText(/generation failed/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /report this error/i })).toBeTruthy()
+  })
+
+  it('leaves a healthy batch without the failure affordances', () => {
+    resetStore({ batches: [{ ...FAILED, error: undefined, personas: [{ id: 'p1', name: 'A' }] }] })
+    render(<DashboardClient />)
+
+    expect(screen.queryByText(/generation failed/i)).toBeNull()
+    expect(screen.getByText(/1 personas/)).toBeTruthy()
   })
 })

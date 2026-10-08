@@ -26,6 +26,13 @@ export interface PersonaBatch {
   transcriptCount?: number
   createdAt: string
   personas: Persona[]
+  /**
+   * Set when the run failed. A failed run is still stored as a batch, with an
+   * empty `personas`, so the list keeps a record of it: it used to leave
+   * nothing behind at all, and a user could not tell that a batch had ever been
+   * attempted, let alone why it died.
+   */
+  error?: string
 }
 
 export interface InProgressBatch {

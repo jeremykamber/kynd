@@ -30,6 +30,31 @@ function truncateError(message: string): string {
   return `${message.slice(0, ERROR_PREVIEW_CHARS)}…`
 }
 
+/** `pt-` runs were started from a description; everything else from transcripts. */
+const sourceOf = (runId: string) => (runId.startsWith('pt-') ? 'description' : 'interviews')
+
+/**
+ * Stores a failed run as a batch with no personas, so the batch list keeps a
+ * record of it. Without this a failure left nothing behind at all: the toast
+ * expired, the run id was dropped, and the run vanished as though it had never
+ * been started, leaving the user no way to see that something had died or why.
+ */
+function recordFailedBatch(runId: string, error: string | undefined) {
+  if (batchConsumedRunIds.has(runId)) return
+  batchConsumedRunIds.add(runId)
+  const source = sourceOf(runId)
+  usePersonaStore.getState().addBatch({
+    id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    label: source === 'interviews' ? 'Personas from interviews' : 'Generated personas',
+    source,
+    createdAt: new Date().toISOString(),
+    personas: [],
+    // A run can fail with nothing to say; the batch still stands as the record
+    // that it was attempted.
+    error: error?.trim() || 'The run failed without a message.',
+  })
+}
+
 const removedSet = new Set<string>()
 const completedSet = new Set<string>()
 
@@ -77,9 +102,11 @@ export function PersonaProgressToaster() {
           const personaCount = result.personas?.length ?? 0
           const isError = !!result.error
 
+          if (isError) recordFailedBatch(runId, result.error)
+
           if (!isError && personaCount > 0 && !batchConsumedRunIds.has(runId)) {
             batchConsumedRunIds.add(runId)
-            const source = runId.startsWith('pt-') ? 'description' : 'interviews'
+            const source = sourceOf(runId)
             const label = source === 'interviews' ? `${personaCount} Personas from Interviews` : `${personaCount} Generated Personas`
             const batch: PersonaBatch = {
               id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
@@ -131,6 +158,10 @@ export function PersonaProgressToaster() {
           completedSet.add(runId)
           removedSet.add(runId)
           usePersonaStore.getState().removeActiveGeneration(runId)
+
+          // The result store expires after 30 minutes, so a run polled only
+          // through the progress store must still leave its batch behind.
+          recordFailedBatch(runId, p.progress?.error)
 
           toast.custom(
             () => (
