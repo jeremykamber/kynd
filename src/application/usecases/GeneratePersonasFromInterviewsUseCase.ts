@@ -303,7 +303,10 @@ Communication style: ${signals.communicationStyle}`;
         );
 
         // Phase 6: Ingest — store backstory and interview chunks in ID-RAG store
-        onProgress?.({ step: 'INGESTING' });
+        // The message matters: storeProgress only merges, so a step that sends
+        // none leaves the previous one's text (e.g. a retry notice that has
+        // since succeeded) on screen for the rest of the run.
+        onProgress?.({ step: 'INGESTING', message: 'Indexing personas for chat' });
         for (const persona of personas) {
             const backstoryChunks = this.idRagStore.chunkBackstory(
                 persona.id,

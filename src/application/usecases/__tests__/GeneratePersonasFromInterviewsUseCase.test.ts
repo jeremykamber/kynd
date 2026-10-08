@@ -480,7 +480,7 @@ describe('GeneratePersonasFromInterviewsUseCase', () => {
   // it gives up). Without forwarding that to the progress channel the run looks
   // hung for the length of a retry, with nothing saying why.
   type ProgressUpdate = { step?: string; message?: string; current?: number; total?: number };
-  const retryUpdates = (onProgress: Mock<[ProgressUpdate], void>) =>
+  const retryUpdates = (onProgress: Mock<(progress: ProgressUpdate) => void>) =>
     onProgress.mock.calls
       .map(([progress]) => progress)
       .filter((p) => typeof p.message === 'string' && p.message.includes('retrying'));
