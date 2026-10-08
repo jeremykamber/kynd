@@ -37,19 +37,19 @@ typography:
     letterSpacing: -0.03em
   headline:
     fontFamily: Geist, system-ui, sans-serif
-    fontSize: 1.875rem        # 30px — text-3xl (marketing sections only)
+    fontSize: 2.25rem         # 36px — text-4xl (marketing sections only)
     fontWeight: 600
     lineHeight: 1.15
     letterSpacing: -0.02em
   page-title:
     fontFamily: Geist, system-ui, sans-serif
-    fontSize: 1.5rem          # 24px — text-2xl (one per page/view)
+    fontSize: 1.875rem        # 30px — text-3xl (one per page/view)
     fontWeight: 600
     lineHeight: 1.25
     letterSpacing: -0.02em
   section:
     fontFamily: Geist, system-ui, sans-serif
-    fontSize: 1.125rem        # 18px — text-lg (section headers, sheet/dialog titles)
+    fontSize: 1.25rem         # 20px — text-xl (section headers, sheet/dialog titles)
     fontWeight: 600
     lineHeight: 1.4
     letterSpacing: -0.01em
@@ -196,9 +196,9 @@ Nine roles. Every piece of text in the product is exactly one of them. Roles are
 | Role | Utility | Size | Weight | Line-height | Tracking | Used for |
 |---|---|---|---|---|---|---|
 | **Display** | `text-5xl` | 48px | 600 | 1.05 | `-0.03em` | Marketing hero headline only. Never inside the dashboard. |
-| **Headline** | `text-3xl` | 30px | 600 | 1.15 | `-0.02em` | Marketing section headers only. |
-| **Page title** | `text-2xl` | 24px | 600 | 1.25 | `-0.02em` | Exactly one per page/view. Every in-app screen uses this same size. |
-| **Section** | `text-lg` | 18px | 600 | 1.4 | `-0.01em` | Section headers, sheet/dialog titles, step titles. |
+| **Headline** | `text-4xl` | 36px | 600 | 1.15 | `-0.02em` | Marketing section headers only. |
+| **Page title** | `text-3xl` | 30px | 600 | 1.25 | `-0.02em` | Exactly one per page/view. Every in-app screen uses this same size. |
+| **Section** | `text-xl` | 20px | 600 | 1.4 | `-0.01em` | Section headers, sheet/dialog titles, step titles. |
 | **Title** | `text-base` + `font-semibold` | 16px | 600 | 1.4 | `-0.01em` | Card titles, persona names, dense sub-headers. |
 | **Body** | `text-base` | 16px | 400 | 1.6 | — | All prose: paragraphs, helper sentences, empty-state copy, chat messages, rationales. **Hard floor — never below 16px for anything read as a sentence.** |
 | **Secondary** | `text-sm` | 14px | 400 | 1.5 | — | Dense-UI sentences, card subtitles, list rows, form labels, control text. |
@@ -221,17 +221,26 @@ Nine roles. Every piece of text in the product is exactly one of them. Roles are
 
 **The Label-Is-A-Utility Rule.** The uppercase-mono eyebrow treatment is `micro-label`, defined once in `globals.css`. Do not hand-roll `text-[10px] uppercase tracking-widest font-mono`. One definition, applied everywhere, is what makes the labels look like a system instead of a series of one-offs.
 
+**The Step Rule.** Adjacent levels on the ladder must be a visible step apart: 30 → 20 → 16 → 14 → 12, five levels, no two the same size. Exactly one `text-3xl` per page; a screen with two elements at the same size and weight has no hierarchy, and one of them is wrong. Do not create a level by going below the floor — drop a level instead.
+
 ### Spacing & Rhythm
 
-One scale, 4px base, consumed through Tailwind's numeric step — `1`=4px, `2`=8px, `3`=12px, `4`=16px, `6`=24px, `8`=32px, `12`=48px, `16`=64px. No arbitrary values (`mt-[9px]`).
+One scale, 4px base, consumed through Tailwind's numeric step — `1`=4px, `2`=8px, `3`=12px, `4`=16px, `5`=20px, `6`=24px, `8`=32px, `10`=40px, `12`=48px, `16`=64px. No arbitrary values (`mt-[9px]`).
+
+Space must scale with semantic distance. The binding relation is **between-group space ≥ 1.5× within-group space**:
 
 - **Label → value:** 8px (`gap-2`) — a label and the thing it describes are one unit.
-- **Within a group:** 16px (`gap-4`) — sibling fields, list rows, action buttons.
+- **Within a group:** 12–16px (`gap-3`/`gap-4`) — sibling fields, list rows, action buttons.
 - **Between groups:** 24px (`gap-6`) — distinct blocks inside a card or panel.
-- **Between sections:** 32–48px (`gap-8`/`gap-12`) — top-level page regions.
-- **Page padding:** 16px on phone, 24px from `sm` up (see `DashboardLayout`).
+- **Between cards:** 16–24px (`gap-4`/`gap-6`).
+- **Between sections:** 40–48px (`gap-10`/`gap-12`) — top-level page regions.
+- **Section header → its content:** 12–16px (`mb-3`/`mb-4`), never 0.
+- **Page padding:** 16px on phone, 24px from `sm` up (see `DashboardLayout`); 32–40px at the top of a view below the nav.
+- **Card padding:** 24px (`p-6`) standard; 20px (`p-5`) only for genuinely data-dense cards.
 
-The rule behind the numbers: **whitespace does the grouping.** Related things sit close because they belong together, not because there was room; unrelated things sit apart because the gap is the only thing telling the user they are separate. When a layout feels cluttered, the fix is almost always more space, not smaller type.
+**The Two-Surface Rule.** Never more than two nested bordered surfaces on a path. A bordered card inside a bordered card is a smell: drop the inner frame (use a tonal step, a divider, or nothing) or drop the outer one. Stacked padding is how a 400px-wide panel loses half its width to frames.
+
+The rule behind the numbers: **whitespace does the grouping.** Related things sit close because they belong together, not because there was room; unrelated things sit apart because the gap is the only thing telling the user they are separate. When a layout feels cluttered, the fix is almost always more space or a deleted frame — not smaller type.
 
 ## 4. Elevation
 
