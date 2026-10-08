@@ -59,22 +59,44 @@ function getCurrentStep(step?: string): number {
 // is blocked or stopped never evaluates the later stages, so the path ends
 // where they dropped off. Sentiment (how they felt) is deliberately not drawn
 // as a second colour axis — the stop itself is the signal, and two encodings
-// at every node is what made this screen unreadable. Colour is reserved for
-// the failure (Caution for blocked, Alert Red for stopped); a passed stage
-// stays neutral, so the eye lands on the one node that matters.
-const OUTCOME_META: Record<StageOutcome, { label: string; icon: typeof CheckCircleIcon; className: string }> = {
-  succeeded: { label: 'Passed', icon: CheckCircleIcon, className: 'text-muted-foreground' },
-  blocked: { label: 'Blocked here', icon: AlertTriangleIcon, className: 'text-warning-foreground' },
-  stopped: { label: 'Stopped here', icon: XCircleIcon, className: 'text-destructive' },
+// at every node is what made this screen unreadable.
+//
+// Three states, three colours: Verified Green for a stage the persona actually
+// completed, Caution for the single node where the journey ended, neutral for
+// the stages after it that were never reached. `blocked` and `stopped` are
+// different facts — an obstacle versus the persona's own choice — but the same
+// outcome for the reader, so they share Caution and differ only in the word
+// (and in the tooltip that spells the difference out).
+const OUTCOME_META: Record<StageOutcome, { label: string; title: string; icon: typeof CheckCircleIcon; className: string }> = {
+  succeeded: {
+    label: 'Reached',
+    title: 'This stage was completed.',
+    icon: CheckCircleIcon,
+    className: 'text-success',
+  },
+  blocked: {
+    label: 'Blocked here',
+    title: 'Something outside the persona ended the journey at this stage.',
+    icon: AlertTriangleIcon,
+    className: 'text-warning-foreground',
+  },
+  stopped: {
+    label: 'Stopped here',
+    title: 'The persona stopped here, or an earlier stage had already ended the journey.',
+    icon: XCircleIcon,
+    className: 'text-warning-foreground',
+  },
 }
 
 /** One-glance verdict for the collapsed persona row. */
-function journeyVerdict(journey: StageJourney[]): { label: string; className: string } {
+function journeyVerdict(journey: StageJourney[]): { label: string; title: string; className: string } {
   const at = journey.findIndex((s) => s.outcome === 'blocked' || s.outcome === 'stopped')
-  if (at === -1) return { label: 'Reached the end', className: 'text-muted-foreground' }
+  if (at === -1) {
+    return { label: 'Reached the end', title: 'This persona completed all five stages.', className: 'text-success' }
+  }
   const stage = journey[at]
   const meta = OUTCOME_META[stage.outcome]
-  return { label: `${meta.label.replace(' here', '')} at ${stage.stage}`, className: meta.className }
+  return { label: `${meta.label.replace(' here', '')} at ${stage.stage}`, title: meta.title, className: meta.className }
 }
 
 /**
@@ -105,7 +127,7 @@ function JourneyPath({ journey }: { journey: StageJourney[] }) {
                   isTerminal
                     ? cn('border-current', meta.className)
                     : isReached
-                      ? 'border-muted-foreground/40 text-muted-foreground'
+                      ? 'border-success/40 text-success'
                       : 'border-border text-muted-foreground/30',
                 )}
               >
@@ -129,7 +151,9 @@ function JourneyPath({ journey }: { journey: StageJourney[] }) {
                 {stage.stage}
               </span>
               {isTerminal && (
-                <span className={cn('text-[11px] font-semibold', meta.className)}>{meta.label}</span>
+                <span className={cn('text-[11px] font-semibold', meta.className)} title={meta.title}>
+                  {meta.label}
+                </span>
               )}
               <span className="text-xs leading-relaxed text-muted-foreground">
                 {isReached ? stage.description : 'Not reached'}
@@ -744,7 +768,10 @@ function CompletedView({
                 </div>
                 <div className="flex items-center gap-3">
                   {verdict && (
-                    <span className={cn('hidden text-[11px] font-medium sm:inline', verdict.className)}>
+                    <span
+                      className={cn('hidden text-[11px] font-medium sm:inline', verdict.className)}
+                      title={verdict.title}
+                    >
                       {verdict.label}
                     </span>
                   )}

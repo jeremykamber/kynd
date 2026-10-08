@@ -150,6 +150,7 @@ A restrained palette built around cool charcoal neutrals and a single cerulean b
 
 - **Alert Red** (`oklch(0.58 0.2 28)`): Destructive actions, errors, critical signals.
 - **Caution** (`oklch(0.76 0.14 24)`): Negative information that isn't an error — model uncertainty, low-confidence outputs, "less reliable for" labels. Visually softer than Alert Red; reads as caution, not danger.
+- **Verified Green** (`oklch(0.72 0.15 155)`): Confirmed success — a stage the persona actually completed, a finished run. Reserved for state the system verified, never for emphasis or decoration. Deliberately absent from interactive elements, which stay Cerulean.
 - **Cerulean Blue (low opacity)** (`oklch(0.62 0.2 230 / 0.12)`): User chat bubbles, selection highlights, active filter backgrounds. The accent color applied as a tint rather than a solid.
 
 ### Named Rules
