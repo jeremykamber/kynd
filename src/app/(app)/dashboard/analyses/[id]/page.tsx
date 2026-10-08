@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { getAnalysisResultAction } from '@/actions/getAnalysisResult'
 import { getProgressAction } from '@/actions/getProgress'
 import { StepIndicator } from '@/components/custom/StepIndicator'
+import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, ChevronDownIcon, ChevronRightIcon, UsersIcon, MessageCircleIcon, DownloadIcon, Loader2Icon, FileTextIcon, HelpCircleIcon } from 'lucide-react'
@@ -381,6 +382,15 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
           >
             Run New Analysis
           </button>
+          {analysis.status === 'ERROR' && (
+            <FeedbackButton
+              label="Report this error"
+              defaultMessage={analysis.error ?? ''}
+              context={{ error: analysis.error, runId: analysis.id }}
+              variant="outline"
+              className="mt-3"
+            />
+          )}
         </div>
       )}
     </div>

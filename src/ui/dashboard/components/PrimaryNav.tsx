@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { usePersonaStore } from '@/ui/stores/personaStore'
-import { UserIcon, FileTextIcon, PlayIcon } from 'lucide-react'
+import { UserIcon, FileTextIcon, PlayIcon, MessageSquareIcon } from 'lucide-react'
 
 interface PrimaryDestination {
   id: string
@@ -81,6 +82,31 @@ function TabItem({ destination }: { destination: PrimaryDestination }) {
 }
 
 /**
+ * The feedback entry opens a dialog instead of navigating, so it cannot be a
+ * `PrimaryDestination`; it is rendered once per placement anyway so both
+ * placements keep the same label and the neighbouring item styling. In the
+ * pill it is pushed to the far right, leaving the destinations beside the
+ * wordmark.
+ */
+function FeedbackItem({ placement }: { placement: 'pill' | 'tab' }) {
+  const isPill = placement === 'pill'
+
+  return (
+    <FeedbackButton
+      trigger={
+        <button
+          type="button"
+          className={cn(isPill ? pillItemClass(false) : tabItemClass(false), isPill && 'ml-auto')}
+        >
+          <MessageSquareIcon className={cn(isPill ? 'size-4' : 'size-5', 'shrink-0')} />
+          Feedback
+        </button>
+      }
+    />
+  )
+}
+
+/**
  * Primary dashboard navigation, rendered in two placements from one list so
  * their labels, targets and active states cannot drift:
  *
@@ -135,10 +161,11 @@ export function PrimaryNav() {
             Kynd
           </Link>
           {/* Below `lg` the bottom tab bar owns navigation; the pill is hidden. */}
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden flex-1 items-center gap-1 lg:flex">
             {destinations.map((destination) => (
               <PillItem key={destination.id} destination={destination} />
             ))}
+            <FeedbackItem placement="pill" />
           </nav>
         </div>
       </header>
@@ -151,6 +178,7 @@ export function PrimaryNav() {
           {destinations.map((destination) => (
             <TabItem key={destination.id} destination={destination} />
           ))}
+          <FeedbackItem placement="tab" />
         </div>
       </nav>
     </>

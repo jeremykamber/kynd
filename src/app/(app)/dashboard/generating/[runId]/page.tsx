@@ -6,6 +6,7 @@ import { ClockIcon, CheckCircleIcon, XCircleIcon, ArrowLeftIcon } from 'lucide-r
 import { getProgressAction } from '@/actions/getProgress'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
 import { StepIndicator } from '@/components/custom/StepIndicator'
+import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { Progress } from '@/components/ui/progress'
 import type { PersonaGenerationResult } from '@/actions/getPersonaGenerationResult'
 import { personaRunProgress } from '@/ui/dashboard/utils/personaRunProgress'
@@ -129,6 +130,13 @@ export default function GeneratingPage() {
               <XCircleIcon className="h-12 w-12 text-destructive" />
               <h2 className="text-xl font-semibold tracking-tight">Generation Failed</h2>
               <p className="text-sm text-muted-foreground max-w-md">{result.error}</p>
+              <FeedbackButton
+                label="Report this error"
+                defaultMessage={result.error}
+                context={{ error: result.error, runId }}
+                variant="outline"
+                className="mt-2"
+              />
             </div>
           ) : (
             <div className="flex flex-col items-center gap-4 text-center">

@@ -21,6 +21,9 @@ vi.mock("lucide-react", () => ({
   UserIcon: () => <svg data-testid="user-icon" />,
   FileTextIcon: () => <svg data-testid="file-text-icon" />,
   PlayIcon: () => <svg data-testid="play-icon" />,
+  MessageSquareIcon: () => <svg data-testid="message-square-icon" />,
+  // Pulled in by the feedback dialog's close button.
+  XIcon: () => <svg data-testid="x-icon" />,
 }));
 
 vi.mock("next/link", () => ({
@@ -118,9 +121,10 @@ describe("PrimaryNav", () => {
     );
   });
 
-  // The pill (>=sm) and the bottom tab bar (<sm) are two renderings of one
-  // destination list; this fails if a destination is added to only one of them.
-  it("renders the same destinations in the pill and the bottom tab bar", () => {
+  // The pill (>=lg) and the bottom tab bar (<lg) are two renderings of one
+  // destination list, plus the feedback entry. This fails if an entry is added
+  // to only one of the placements.
+  it("renders the same entries in the pill and the bottom tab bar", () => {
     mockUsePathname.mockReturnValue("/dashboard");
     const { container } = render(<PrimaryNav />);
 
@@ -130,7 +134,7 @@ describe("PrimaryNav", () => {
       const labels = Array.from(nav.querySelectorAll("button, a")).map(
         (el) => el.textContent,
       );
-      expect(labels).toEqual(["Personas", "Interviews", "Analyses"]);
+      expect(labels).toEqual(["Personas", "Interviews", "Analyses", "Feedback"]);
     }
   });
 });

@@ -113,6 +113,7 @@ All variables live in `.env` (git-ignored); `.env.example` is the committed temp
 | `PERSONA_TOKEN_LIMIT` | No | `2000` | Output token budget per persona response. |
 | `AUDIT_RATE_LIMIT_MAX` | No | `5` | Requests allowed per rate-limit window, per IP. |
 | `AUDIT_RATE_LIMIT_WINDOW_MS` | No | `60000` | Rate-limit window length. |
+| `NEXT_PUBLIC_FEEDBACK_EMAIL` | No | `jkamberwork@gmail.com` | Recipient of in-app feedback reports. |
 | `PLAYWRIGHT_PORT` | No | `8081` | Port used by `playwright-server.js`. |
 | `PLAYWRIGHT_WS_PATH` | No | `playwright-ws` | WebSocket path used by `playwright-server.js`. |
 
