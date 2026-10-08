@@ -6,6 +6,13 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 const chromium = addExtra(baseChromium);
 
+/**
+ * BrowserServicePort implementation that drives a remote Chromium over a
+ * Playwright websocket endpoint (`PLAYWRIGHT_WS_ENDPOINT`, a browser server on
+ * the VPS). One instance owns one browser/context/page triple and exposes the
+ * page interactions and screenshots the artifact pipeline needs; the stealth
+ * plugin is applied to the connected browser.
+ */
 export class RemotePlaywrightAdapter implements BrowserServicePort {
     private readonly wsEndpoint: string;
     private browser: Browser | null = null;
@@ -91,6 +98,17 @@ export class RemotePlaywrightAdapter implements BrowserServicePort {
                 });
                 await this.waitPageCompletely(this.page);
             } catch (err) {
+                // `page.goto` rejects for DNS/connection/SSL failures and for
+                // invalid URLs; the page then never commits a navigation and
+                // stays on about:blank. A `networkidle` timeout on a page that
+                // did load keeps the target URL and stays best-effort — its
+                // screenshot is still meaningful. Only the former is an
+                // unloadable artifact and must be fatal to the caller.
+                if (!this.page || this.page.url() === "about:blank") {
+                    throw new Error(
+                        `Could not load ${url} — the page did not respond (${(err as Error).message})`,
+                    );
+                }
                 console.log("[BrowserAdapter] Navigation timeout, proceeding...");
             } finally {
                 isNavigating = false;

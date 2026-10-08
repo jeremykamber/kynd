@@ -1,12 +1,28 @@
+/**
+ * Client-side driver for persona generation from uploaded interview
+ * transcripts.
+ *
+ * Owns the uploaded files (name + text content), the requested persona count,
+ * the generation mode (`individual` transcripts vs a `synthesized` group),
+ * live pipeline progress, and the resulting `personas`. It submits the files
+ * as multipart FormData to `generatePersonasFromInterviewsAction`, which
+ * returns either a stream or a run id to poll.
+ *
+ * On completion it hands the run's outcome to `persistPersonaBatchForRun`
+ * (source `interviews`) and calls `onSuccess(personas)`; that call writes the
+ * batch unless the background toaster already did. In the remote/VPS case a
+ * `useEffect` polls progress and result every two seconds for up to 300
+ * attempts. `progress` is non-null only while a run is active.
+ */
+
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasFromInterviewsAction } from '@/actions/generatePersonasFromInterviews'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
 import { getProgressAction } from '@/actions/getProgress'
-import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
+import { usePersonaStore } from '@/ui/stores/personaStore'
 import { readStreamableValue } from '@ai-sdk/rsc'
-import { batchConsumedRunIds } from '@/lib/generationRunState'
-import { resolveBatchLabel } from '@/lib/resolveBatchLabel'
+import { persistPersonaBatchForRun } from '@/lib/personaRunOutcome'
 
 export type InterviewProgressStep = 'UPLOADING' | 'EXTRACTING' | 'POOLING' | 'SAMPLING' | 'GENERATING' | 'INGESTING' | 'DONE' | 'ERROR'
 
@@ -62,7 +78,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     setIsPending(false)
   }, [])
 
-  // ── Polling helper — runs in a useEffect triggered by runId ────────────
   const [runId, setRunId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -72,7 +87,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     let cancelled = false
     let progressInterval: ReturnType<typeof setInterval> | null = null
 
-    // Progress polling (fires immediately, then every 2s)
     const pollProgress = async () => {
       if (controller?.signal.aborted || !mountedRef.current || cancelled) return
       try {
@@ -92,7 +106,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     pollProgress()
     progressInterval = setInterval(pollProgress, 2000)
 
-    // Result polling (every 2s, up to 10 min)
     ;(async () => {
       for (let attempt = 0; attempt < 300; attempt++) {
         if (controller?.signal.aborted || !mountedRef.current || cancelled) break
@@ -116,18 +129,13 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
 
           if (pollResult.personas && pollResult.personas.length > 0) {
             const fallbackLabel = `${files.length} Interview${files.length !== 1 ? 's' : ''}${files.length > 0 ? ' (' + files[0].name + (files.length > 1 ? ` +${files.length - 1}` : '') + ')' : ''}`
-            const batch: PersonaBatch = {
-              id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-              label: await resolveBatchLabel(fallbackLabel, pollResult.personas!, { source: 'interviews', transcriptCount: files.length }),
+            await persistPersonaBatchForRun({
+              runId,
+              personas: pollResult.personas,
               source: 'interviews',
               transcriptCount: files.length,
-              createdAt: new Date().toISOString(),
-              personas: pollResult.personas!,
-            }
-            if (!batchConsumedRunIds.has(runId)) {
-              batchConsumedRunIds.add(runId)
-              usePersonaStore.getState().addBatch(batch)
-            }
+              fallbackLabel,
+            })
             if (mountedRef.current) {
               setPersonas(pollResult.personas)
               setProgress(null)
@@ -139,7 +147,7 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
         } catch { /* retry */ }
       }
 
-      // Exhausted 300 attempts (10 min)
+      // Polling budget exhausted (300 attempts × 2 s).
       if (progressInterval) clearInterval(progressInterval)
       if (mountedRef.current) {
         setError('Persona generation timed out. Please try again.')
@@ -154,7 +162,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     }
   }, [runId, files, onSuccess])
 
-  // ── Submit handler ─────────────────────────────────────────────────────
   const handleSubmit = useCallback(() => {
     if (files.length === 0) return
 
@@ -186,7 +193,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
         }
 
         if (streamData) {
-          // ── Local dev: read streaming updates ───────────────────────
           for await (const update of readStreamableValue<any>(streamData)) {
             if (controller.signal.aborted || !mountedRef.current) {
               setProgress(null)
@@ -206,18 +212,13 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
 
               if (update.step === 'DONE') {
                 const fallbackLabel = `${files.length} Interview${files.length !== 1 ? 's' : ''}${files.length > 0 ? ' (' + files[0].name + (files.length > 1 ? ` +${files.length - 1}` : '') + ')' : ''}`
-                const batch: PersonaBatch = {
-                  id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-                  label: await resolveBatchLabel(fallbackLabel, update.personas!, { source: 'interviews', transcriptCount: files.length }),
+                await persistPersonaBatchForRun({
+                  runId: id,
+                  personas: update.personas!,
                   source: 'interviews',
                   transcriptCount: files.length,
-                  createdAt: new Date().toISOString(),
-                  personas: update.personas!,
-                }
-                if (id && !batchConsumedRunIds.has(id)) {
-                  batchConsumedRunIds.add(id)
-                  usePersonaStore.getState().addBatch(batch)
-                }
+                  fallbackLabel,
+                })
                 if (mountedRef.current) {
                   setPersonas(update.personas)
                   setProgress(null)
@@ -233,7 +234,7 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
             }
           }
         } else if (id) {
-          // ── Remote/VPS: polling handled by useEffect above ─────────
+          // No stream (remote/VPS): the runId effect above polls for the result.
           setRunId(id)
         }
       } catch (err) {
@@ -249,7 +250,6 @@ export function useInterviewPipeline(onSuccess?: (personas: Persona[]) => void) 
     })()
   }, [files, personaCount, onSuccess])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {

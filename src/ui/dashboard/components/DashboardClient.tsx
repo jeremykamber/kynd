@@ -12,7 +12,7 @@ import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
 import { PersonaSkeletonCard } from '@/components/custom/PersonaSkeletonCard'
 import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
 import type { VariationFormData } from '@/components/custom/SimilarPersonaDialog'
-import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon, XIcon } from 'lucide-react'
+import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon, XIcon, ArrowLeftIcon, AlertTriangleIcon } from 'lucide-react'
 import Link from 'next/link'
 import { FlowDialog } from '@/components/custom/FlowDialog'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
@@ -28,7 +28,25 @@ import { readStreamableValue } from '@ai-sdk/rsc'
 import { generateSimilarPersonasAction } from '@/actions/generateSimilarPersonas'
 import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { summarizeError } from '@/lib/errorSummary'
+import { FeedbackButton } from '@/components/custom/FeedbackButton'
+import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
 
+/** One timestamp format for both the ready and the failed batch card. */
+function batchTimestamp(createdAt: string): string {
+    return new Date(createdAt).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    })
+}
+
+/**
+ * Persona dashboard shell: routes between the setup form and the active
+ * batch's persona grid. Owns the variant-generation flow (placeholders → server
+ * stream → toast) and the persona detail sheet. Reads/writes the persona store
+ * and `usePersonaFlow`; reads analysis counts from the analysis store.
+ */
 export function DashboardClient() {
     const router = useRouter()
     const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null)
@@ -111,7 +129,6 @@ export function DashboardClient() {
             const batchId = usePersonaStore.getState().activeBatchId
             if (!batchId) return
 
-            // 1. Create placeholder personas with shimmer
             const placeholderIds: string[] = []
             const placeholders: Persona[] = []
 
@@ -141,7 +158,6 @@ export function DashboardClient() {
                 })
             }
 
-            // 2. Insert placeholders right after the reference persona
             insertPersonasAfter(batchId, referencePersona.id, placeholders)
             console.log("[DashboardClient] Variation flow started - reference:", referencePersona.name, "count:", formData.count, "placeholders:", placeholderIds.length);
             setPendingPersonaIds((prev) => {
@@ -150,7 +166,6 @@ export function DashboardClient() {
                 return next
             })
 
-            // 3. Show a toast for the generation
             const count = formData.count
             toastIdRef.current = toast.loading(
                 `Generating ${count} variation${count > 1 ? 's' : ''} of ${referencePersona.name}`,
@@ -160,7 +175,6 @@ export function DashboardClient() {
                 },
             )
 
-            // 4. Call server action and stream results
             try {
                 console.log("[DashboardClient] Calling generateSimilarPersonasAction with bigFive:", formData.bigFive, "variationLevel:", formData.variationLevel);
                 const { streamData } = await generateSimilarPersonasAction(
@@ -176,7 +190,6 @@ export function DashboardClient() {
 
                     if (update.step === 'DONE' && update.personas) {
                         console.log("[DashboardClient] Stream completed - received", update.personas.length, "personas from server");
-                        // Replace each placeholder with the real persona data
                         update.personas.forEach((realPersona, idx) => {
                             const placeholderId = placeholderIds[idx]
                             if (placeholderId) {
@@ -189,7 +202,6 @@ export function DashboardClient() {
                             }
                         })
 
-                        // Clean up any extra placeholders (if LLM returned fewer than requested)
                         for (let i = update.personas.length; i < placeholderIds.length; i++) {
                             const unusedId = placeholderIds[i]
                             if (unusedId) {
@@ -201,7 +213,6 @@ export function DashboardClient() {
                             }
                         }
 
-                        // Update toast to success
                         if (toastIdRef.current) {
                             toast.success(
                                 `${completedCount} variation${completedCount > 1 ? 's' : ''} of ${referencePersona.name} generated`,
@@ -214,14 +225,12 @@ export function DashboardClient() {
                             toastIdRef.current = null
                         }
 
-                        // Mark all as done (remove from pending)
                         setPendingPersonaIds((prev) => {
                             const next = new Set(prev)
                             placeholderIds.forEach((id) => next.delete(id))
                             return next
                         })
 
-                        // Close the detail sheet now that variants are visible
                         setIsDetailSheetOpen(false)
                         setSelectedPersonaId(null)
                         return
@@ -266,7 +275,6 @@ export function DashboardClient() {
     // Skip setup view when generation is active — batch list shows skeleton cards instead
     const showSetupView = (batches.length === 0 || showSetup) && !isGenerating && !activeBatchId
 
-    // Compute an approximate overall progress percentage from the current phase
     const progressPercent = personaFlow.personaProgress
         ? personaFlow.personaProgress.step === 'BRAINSTORMING_PERSONAS'
             ? 10
@@ -283,7 +291,6 @@ export function DashboardClient() {
 
     return (
         <>
-            {/* Main content — setup view or batch view */}
             {showSetupView ? (
                 <div className="animate-in fade-in duration-500">
                     <SetupView personaFlow={personaFlow} onBack={batches.length > 0 ? () => setShowSetup(false) : undefined} />
@@ -319,7 +326,6 @@ export function DashboardClient() {
 
                     {!activeBatch ? (
                         <div className="flex flex-col gap-4">
-                            {/* Active generation entries — skeleton cards at the top */}
                             {activeRunIds.map((runId) => (
                                 <Link
                                     key={runId}
@@ -340,42 +346,74 @@ export function DashboardClient() {
                                     key={batch.id}
                                     className="group relative"
                                 >
-                                    <button
-                                        onClick={() => setActiveBatch(batch.id)}
-                                        className="flex items-center gap-4 w-full rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80"
-                                    >
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                                            <LayersIcon className="h-5 w-5 text-primary" />
-                                        </div>
-                                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                            <InlineRenamable
-                                                value={batch.label}
-                                                onRename={(label) => updateBatchLabel(batch.id, label)}
-                                                className="min-w-0"
-                                            />
-                                            <span className="text-sm text-muted-foreground">
-                                                {batch.personas.length} personas ·{' '}
-                                                {batch.source === 'interviews'
-                                                    ? 'from interviews'
-                                                    : 'from description'}
+                                    {batch.error ? (
+                                        <div className="flex items-start gap-4 w-full rounded-lg border border-destructive/30 bg-card p-5 text-left">
+                                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                                                <AlertTriangleIcon className="h-5 w-5 text-destructive" />
+                                            </div>
+                                            <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                                <InlineRenamable
+                                                    value={batch.label}
+                                                    onRename={(label) => updateBatchLabel(batch.id, label)}
+                                                    className="min-w-0"
+                                                />
+                                                <span className="text-sm text-destructive">
+                                                    Generation failed · {summarizeError(batch.error)}
+                                                </span>
+                                                <FeedbackButton
+                                                    label="Report this error"
+                                                    defaultMessage={batch.error}
+                                                    context={{ error: batch.error }}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-1 w-fit"
+                                                />
+                                            </div>
+                                            <span className="text-xs text-muted-foreground shrink-0">
+                                                {batchTimestamp(batch.createdAt)}
                                             </span>
                                         </div>
-                                        <span className="text-xs text-muted-foreground shrink-0">
-                                            {new Date(batch.createdAt).toLocaleDateString(undefined, {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                            })}
-                                        </span>
-                                    </button>
+                                    ) : (
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => setActiveBatch(batch.id)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault()
+                                                    setActiveBatch(batch.id)
+                                                }
+                                            }}
+                                            className="flex items-center gap-4 w-full rounded-lg border border-border bg-card p-5 text-left transition-colors hover:border-border/80 cursor-pointer"
+                                        >
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                                                <LayersIcon className="h-5 w-5 text-primary" />
+                                            </div>
+                                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                                <InlineRenamable
+                                                    value={batch.label}
+                                                    onRename={(label) => updateBatchLabel(batch.id, label)}
+                                                    className="min-w-0"
+                                                />
+                                                <span className="text-sm text-muted-foreground">
+                                                    {batch.personas.length} personas ·{' '}
+                                                    {batch.source === 'interviews'
+                                                        ? 'from interviews'
+                                                        : 'from description'}
+                                                </span>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground shrink-0">
+                                                {batchTimestamp(batch.createdAt)}
+                                            </span>
+                                        </div>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation()
                                             removeBatch(batch.id)
                                         }}
-                                        className="absolute -top-2 -right-2 flex items-center justify-center size-6 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-destructive focus:outline-none z-10"
+                                        className={DESTRUCTIVE_CARD_CONTROL_CLASS}
                                         aria-label="Delete batch"
                                     >
                                         <XIcon className="size-3.5" />
@@ -385,39 +423,39 @@ export function DashboardClient() {
                         </div>
                     ) : (
                         <div className="flex flex-col gap-6">
-                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/40 pb-4">
-                                <div className="flex flex-col gap-1 min-w-0">
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <h2 className="text-xl font-bold tracking-tight min-w-0">
-                                            <InlineRenamable
-                                                value={activeBatch.label}
-                                                onRename={(label) => updateBatchLabel(activeBatch.id, label)}
-                                            />
-                                        </h2>
-                                        {batchAnalysisCount > 0 && (
-                                            <Link
-                                                href="/dashboard/analyses"
-                                                className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-                                            >
-                                                <PlayIcon className="h-3 w-3" />
-                                                {batchAnalysisCount} analysis{batchAnalysisCount !== 1 ? 's' : ''}
-                                            </Link>
-                                        )}
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {activeBatch.personas.length} personas ·{' '}
-                                        {activeBatch.source === 'interviews'
-                                            ? 'from interviews'
-                                            : 'Generated from description'}
-                                        · {new Date(activeBatch.createdAt).toLocaleString()}
-                                    </p>
+                            <button
+                                onClick={() => setActiveBatch(null)}
+                                className="flex w-fit items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                                <ArrowLeftIcon className="h-4 w-4" />
+                                All personas
+                            </button>
+                            <div className="flex flex-col gap-1 min-w-0 border-b border-border/40 pb-4">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <h2 className="text-xl font-bold tracking-tight min-w-0">
+                                        <InlineRenamable
+                                            value={activeBatch.label}
+                                            onRename={(label) => updateBatchLabel(activeBatch.id, label)}
+                                        />
+                                    </h2>
+                                    {batchAnalysisCount > 0 && (
+                                        <Link
+                                            href="/dashboard/analyses"
+                                            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                                        >
+                                            <PlayIcon className="h-3 w-3" />
+                                            {batchAnalysisCount} analysis{batchAnalysisCount !== 1 ? 's' : ''}
+                                        </Link>
+                                    )}
                                 </div>
-                                <button
-                                    onClick={() => setActiveBatch(null)}
-                                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
-                                >
-                                    All Batches
-                                </button>
+                                <p className="text-sm text-muted-foreground">
+                                    {activeBatch.personas.length} personas ·{' '}
+                                    {activeBatch.source === 'interviews'
+                                        ? 'from interviews'
+                                        : 'Generated from description'}
+                                    {' · '}
+                                    {new Date(activeBatch.createdAt).toLocaleString()}
+                                </p>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {activeBatch.personas.map((persona, idx) => {
@@ -443,7 +481,6 @@ export function DashboardClient() {
                 </div>
             )}
 
-            {/* Floating "Show Details" button when generation is active (but expanded dialog is closed) */}
             {showSetupView && personaFlow.personaProgress && !showExpandedFlow && (
               <button
                 onClick={() => setShowExpandedFlow(true)}
@@ -454,7 +491,6 @@ export function DashboardClient() {
               </button>
             )}
 
-            {/* Persona Generation Streaming Dialog — expanded view (only in setup view) */}
             {showSetupView && (
                 <FlowDialog
                     open={showExpandedFlow && !!personaFlow.personaProgress}
@@ -486,9 +522,7 @@ export function DashboardClient() {
                     totalCount={personaFlow.personaProgress?.totalCount}
                 >
                     {personaFlow.personaProgress && personaFlow.personaProgress.step === 'DONE' ? (
-                        /* ── Success / Done state ─────────────────────────────────── */
                         <div className="flex flex-col items-center justify-center w-full max-w-sm mx-auto space-y-6">
-                            {/* Success checkmark */}
                             <div className="h-14 w-14 rounded-full bg-primary flex items-center justify-center animate-in zoom-in-95 fade-in duration-300">
                                 <svg
                                     className="h-7 w-7 text-primary-foreground"
@@ -507,7 +541,6 @@ export function DashboardClient() {
                                 {personaFlow.personaProgress.personas?.length ?? 0} personas created from your target profile.
                             </p>
 
-                            {/* Action buttons */}
                             <div className="flex flex-col sm:flex-row gap-3 w-full pt-2">
                                 <button
                                     onClick={() => {
@@ -538,16 +571,13 @@ export function DashboardClient() {
                             </div>
                         </div>
                     ) : personaFlow.personaProgress ? (
-                        /* ── In-progress state ────────────────────────────────────── */
                         <div className="flex flex-col items-center justify-center w-full max-w-sm mx-auto space-y-6">
-                            {/* 8px determinate progress bar with pulsing fill */}
                             <Progress
                                 value={progressPercent}
                                 className="h-2 w-full"
                                 indicatorClassName="animate-pulse"
                             />
 
-                            {/* Persona dots — visible once names are known */}
                             {personaFlow.personaProgress.personas && personaFlow.personaProgress.personas.length > 0 && (
                                 <div className="flex flex-wrap gap-3 justify-center">
                                     {personaFlow.personaProgress.personas.map((p) => {
@@ -589,7 +619,6 @@ export function DashboardClient() {
                                 </div>
                             )}
 
-              {/* Progress bar and persona dots only — counter removed per design feedback */}
                         </div>
                     ) : null}
                 </FlowDialog>

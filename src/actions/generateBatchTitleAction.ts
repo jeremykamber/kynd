@@ -5,8 +5,8 @@ import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 
 /**
  * Generates a short label for a persona batch from the personas' basic info.
- * Nice-to-have: on any failure we return { title: null } so the caller keeps
- * its default label — a missing title must never block batch creation.
+ * Resolves `{ title: null }` on any failure (including an empty batch) so a
+ * missing title never blocks batch creation.
  */
 export async function generateBatchTitleAction(
     personas: Persona[],

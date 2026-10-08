@@ -1,6 +1,14 @@
 import { LlmServiceImpl } from "./LlmServiceImpl";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
+/**
+ * Compacts a page's cleaned HTML into an objective markdown summary (topic,
+ * links, offerings, features, fine print) via a single LLM call. Summarization
+ * is off the persona pipeline's critical path — its only consumer is the
+ * artifact title; see ArtifactIntakeAdapter for why it is deferred. Prompts and
+ * parsing live here; the completion goes to LlmServiceImpl. Internal to the LLM
+ * adapter, not a port implementation.
+ */
 export class HtmlSummarizer {
   constructor(private llmService: LlmServiceImpl) { }
 

@@ -36,7 +36,7 @@ function buildCoherenceValidationPrompt(personas: SampledPersonaSignal[]): strin
             `- Goals: ${p.goals.map(s => s.text).join('; ')}`,
             `- Values: ${p.values.map(s => s.text).join('; ')}`,
             `- Feature Desires: ${p.featureDesires.map(s => s.text).join('; ')}`,
-            `- Decision Pattern: ${p.decisionPattern.text}`,
+            `- Decision Pattern: ${p.decisionPattern?.text ?? 'Unknown'}`,
         ].join('\n');
     });
 
@@ -69,7 +69,9 @@ function formatPersonaDescription(signal: SampledPersonaSignal): string {
         'Feature Desires:',
         ...signal.featureDesires.map(s => `- ${s.text} (quote: "${s.quote}")`),
         '',
-        `Decision Pattern: ${signal.decisionPattern.text} (quote: "${signal.decisionPattern.quote}")`,
+        signal.decisionPattern
+            ? `Decision Pattern: ${signal.decisionPattern.text} (quote: "${signal.decisionPattern.quote}")`
+            : 'Decision Pattern: Unknown',
     ];
 
     return lines.join('\n');
@@ -77,6 +79,20 @@ function formatPersonaDescription(signal: SampledPersonaSignal): string {
 
 export type InterviewGenerationMode = 'individual' | 'synthesized';
 
+/**
+ * Turns interview transcripts into personas.
+ *
+ * The default 'synthesized' pipeline extracts signals per transcript, pools
+ * them into a weighted distribution, samples representative signal sets (with
+ * an LLM coherence check), generates research-mode personas from them, and
+ * ingests each persona's backstory and signal chunks into the ID-RAG store so
+ * later citations can point at the source interviews. 'individual' mode instead
+ * generates personas from one interview at a time and performs no ingestion.
+ *
+ * Guarantees: rejects if no transcripts are given or every extraction fails;
+ * individually failed extractions are skipped while at least one succeeds.
+ * Extraction and generation run through the injected LlmServicePort.
+ */
 export class GeneratePersonasFromInterviewsUseCase {
     constructor(
         private llmService: LlmServicePort,
@@ -84,6 +100,13 @@ export class GeneratePersonasFromInterviewsUseCase {
         private generatePersonasUseCase: GeneratePersonasUseCase,
     ) { }
 
+    /**
+     * @param count In 'synthesized' mode, the number of personas to sample and
+     *   generate (default 5); in 'individual' mode, the per-interview persona
+     *   target.
+     * @param onProgress Emits the pipeline phase with counters; `personas` is
+     *   populated only on the final 'DONE' step.
+     */
     async execute(
         transcripts: { filename: string; content: string }[],
         onProgress?: (progress: InterviewPipelineProgress) => void,
@@ -143,6 +166,27 @@ export class GeneratePersonasFromInterviewsUseCase {
         );
     }
 
+    /**
+     * Forwards the adapter's own retry attempts to the caller's progress
+     * channel. The adapter retries the generation call up to three times before
+     * giving up; without this the user watches a frozen bar through a retry with
+     * no reason given, which reads as a hang. The message names the attempt so
+     * the wait is explained, and carries the running counts where the step has
+     * them so the bar does not move backwards.
+     */
+    private retryNotifier(
+        onProgress?: (progress: InterviewPipelineProgress) => void,
+        counts?: { current: number; total: number },
+    ) {
+        return (attempt: number, attempts: number) => {
+            onProgress?.({
+                step: 'GENERATING',
+                message: `We ran into an issue generating these personas, so we're retrying (attempt ${attempt} of ${attempts}).`,
+                ...counts,
+            });
+        };
+    }
+
     private async generateIndividual(
         successfulExtractions: { signals: ExtractedInterviewSignals; content: string }[],
         onProgress?: (progress: InterviewPipelineProgress) => void,
@@ -184,16 +228,20 @@ Communication style: ${signals.communicationStyle}`;
             // like synthesized mode (formatPersonaDescription) so the model
             // can quote them instead of paraphrasing the summaries.
 
-            const personas = await this.llmService.generateResearchPersonas({
-                count: personasPerInterview,
-                personaDescription: description,
-                interviewIds: [interviewId],
-                // The verbatim check runs against the FULL transcript, not the
-                // excerpt+summary in personaDescription — so quotes must be
-                // word-for-word transcript fragments, never paraphrases.
-                verbatimSource: content,
-                evidenceThreshold: 0.7,
-            });
+            const personas = await this.llmService.generateResearchPersonas(
+                {
+                    count: personasPerInterview,
+                    personaDescription: description,
+                    interviewIds: [interviewId],
+                    // The verbatim check runs against the FULL transcript, not the
+                    // excerpt+summary in personaDescription — so quotes must be
+                    // word-for-word transcript fragments, never paraphrases.
+                    verbatimSource: content,
+                    evidenceThreshold: 0.7,
+                },
+                undefined,
+                this.retryNotifier(onProgress, { current: completed, total: totalPersonas }),
+            );
 
             allPersonas.push(...personas);
             completed += personas.length;
@@ -238,19 +286,27 @@ Communication style: ${signals.communicationStyle}`;
         // Research mode keeps backstories minimal (2-3 evidence-based sentences)
         // and avoids Tier 4 fabricated memories (trauma, fake events, fake purchases)
         onProgress?.({ step: 'GENERATING', message: 'Generating evidence-grounded personas' });
-        const personas = await this.llmService.generateResearchPersonas({
-            count: targetCount,
-            personaDescription: combinedDescription,
-            interviewIds: successfulExtractions.map((_, i) => `interview-${i}`),
-            // Verbatim source is the raw transcripts (check-only, not in the
-            // prompt) — the model can only quote the transcript fragments it
-            // sees in the summary, and paraphrased signal texts are rejected.
-            verbatimSource: successfulExtractions.map(e => e.content).join('\n\n'),
-            evidenceThreshold: 0.7,
-        });
+        const personas = await this.llmService.generateResearchPersonas(
+            {
+                count: targetCount,
+                personaDescription: combinedDescription,
+                interviewIds: successfulExtractions.map((_, i) => `interview-${i}`),
+                // Verbatim source is the raw transcripts (check-only, not in the
+                // prompt) — the model can only quote the transcript fragments it
+                // sees in the summary, which is why the adapter repairs a
+                // paraphrased quote against the transcript before storing it.
+                verbatimSource: successfulExtractions.map(e => e.content).join('\n\n'),
+                evidenceThreshold: 0.7,
+            },
+            undefined,
+            this.retryNotifier(onProgress),
+        );
 
         // Phase 6: Ingest — store backstory and interview chunks in ID-RAG store
-        onProgress?.({ step: 'INGESTING' });
+        // The message matters: storeProgress only merges, so a step that sends
+        // none leaves the previous one's text (e.g. a retry notice that has
+        // since succeeded) on screen for the rest of the run.
+        onProgress?.({ step: 'INGESTING', message: 'Indexing personas for chat' });
         for (const persona of personas) {
             const backstoryChunks = this.idRagStore.chunkBackstory(
                 persona.id,

@@ -119,6 +119,12 @@ function parseSnapshotStatuses(snapshot: string): Map<string, string> {
   return map
 }
 
+/**
+ * App-wide toast surface for artifact analyses, mounted in the root layout.
+ * Owns one sonner toast per analysis, and polls the server for the progress of
+ * in-flight analyses, writing step counts and terminal states back into
+ * `useAnalysisStore`. Renders nothing.
+ */
 export function AnalysisToaster() {
   const lastSnapshotRef = useRef<string>('')
 

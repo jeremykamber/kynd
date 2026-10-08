@@ -8,6 +8,14 @@ import { MinimalCard } from '@/components/custom/MinimalCard'
 import { Badge } from '@/components/ui/badge'
 import { FlowDialog } from '@/components/custom/FlowDialog'
 
+/** The only extension the pipeline accepts, compared case-insensitively. */
+const TRANSCRIPT_EXTENSION = '.txt'
+
+/**
+ * Interview-transcript upload and persona-generation page. Owns the drag/drop
+ * and file-selection UI plus the generation mode and count controls; transcript
+ * reading and generation state come from `useInterviewPipeline`.
+ */
 export function InterviewUploadClient() {
   const {
     files,
@@ -30,6 +38,7 @@ export function InterviewUploadClient() {
   const [personaCountInput, setPersonaCountInput] = useState(String(personaCount))
 
   const [isDragging, setIsDragging] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const readFileContent = useCallback(
@@ -48,17 +57,35 @@ export function InterviewUploadClient() {
     [addFile],
   )
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files
-    if (!selectedFiles) return
+  const acceptFiles = useCallback(
+    async (incoming: FileList | null): Promise<void> => {
+      if (!incoming || incoming.length === 0) return
 
-    const filePromises: Promise<void>[] = []
-    for (let i = 0; i < selectedFiles.length; i++) {
-      if (selectedFiles[i].name.endsWith('.txt')) {
-        filePromises.push(readFileContent(selectedFiles[i]))
+      const accepted: File[] = []
+      const skipped: string[] = []
+      for (let i = 0; i < incoming.length; i++) {
+        const file = incoming[i]
+        if (file.name.toLowerCase().endsWith(TRANSCRIPT_EXTENSION)) {
+          accepted.push(file)
+        } else {
+          skipped.push(file.name)
+        }
       }
-    }
-    await Promise.all(filePromises)
+
+      // Recompute on every selection so a later valid upload clears the notice.
+      setUploadError(
+        skipped.length === 0
+          ? null
+          : `Skipped ${skipped.length} file${skipped.length === 1 ? '' : 's'}: only ${TRANSCRIPT_EXTENSION} transcripts are supported (got ${skipped.join(', ')}).`,
+      )
+
+      await Promise.all(accepted.map(readFileContent))
+    },
+    [readFileContent],
+  )
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await acceptFiles(e.target.files)
     if (e.target) e.target.value = ''
   }
 
@@ -75,15 +102,7 @@ export function InterviewUploadClient() {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-
-    const droppedFiles = e.dataTransfer.files
-    const filePromises: Promise<void>[] = []
-    for (let i = 0; i < droppedFiles.length; i++) {
-      if (droppedFiles[i].name.endsWith('.txt')) {
-        filePromises.push(readFileContent(droppedFiles[i]))
-      }
-    }
-    await Promise.all(filePromises)
+    await acceptFiles(e.dataTransfer.files)
   }
 
   const handleReset = () => {
@@ -92,7 +111,6 @@ export function InterviewUploadClient() {
 
   const hasResults = personas && personas.length > 0
 
-  // Show results after successful generation
   if (hasResults) {
     return (
       <div className="flex flex-col gap-8 max-w-4xl mx-auto w-full animate-in fade-in duration-500">
@@ -137,7 +155,6 @@ export function InterviewUploadClient() {
 
   return (
     <div className="flex flex-col gap-16 max-w-4xl mx-auto w-full animate-in fade-in duration-500">
-      {/* Header */}
       <div className="flex flex-col gap-4 text-center items-center">
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-balance">
           Generate Personas from Interviews
@@ -149,7 +166,6 @@ export function InterviewUploadClient() {
       </div>
 
       <div className="grid gap-12">
-        {/* Step 1: File Upload */}
         <section className="flex flex-col gap-6 relative min-w-0">
           <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary font-bold hidden md:flex">
             1
@@ -166,7 +182,6 @@ export function InterviewUploadClient() {
                 </p>
               </div>
 
-              {/* Drag-drop zone */}
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -195,7 +210,15 @@ export function InterviewUploadClient() {
                 />
               </div>
 
-              {/* File list */}
+              {uploadError && (
+                <p
+                  role="alert"
+                  className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md"
+                >
+                  {uploadError}
+                </p>
+              )}
+
               {files.length > 0 && (
                 <div className="flex flex-col gap-2">
                   {files.map((file) => (
@@ -228,7 +251,6 @@ export function InterviewUploadClient() {
           </MinimalCard>
         </section>
 
-        {/* Step 2: Generate */}
         <section className="flex flex-col gap-6 relative min-w-0">
           <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary font-bold hidden md:flex">
             2
@@ -246,7 +268,6 @@ export function InterviewUploadClient() {
                 </p>
               </div>
 
-              {/* Generation Mode Toggle */}
               <div className="flex flex-col gap-3">
                 <label className="text-sm font-medium text-foreground">How should we combine the transcripts?</label>
                 <div className="flex gap-2 min-w-0">
@@ -277,7 +298,6 @@ export function InterviewUploadClient() {
                 </div>
               </div>
 
-              {/* Persona Count */}
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium text-muted-foreground">
                   {generationMode === 'individual' ? 'Personas per interview' : 'Total personas to generate'}
@@ -334,7 +354,6 @@ export function InterviewUploadClient() {
         </section>
       </div>
 
-      {/* Floating "Show Details" button when pipeline is active */}
       {progress && !showExpandedFlow && (
         <button
           onClick={() => setShowExpandedFlow(true)}
@@ -345,7 +364,6 @@ export function InterviewUploadClient() {
         </button>
       )}
 
-      {/* Pipeline Progress Dialog — expanded view */}
       <FlowDialog
         open={showExpandedFlow && progress !== null}
         onOpenChange={(open) => {

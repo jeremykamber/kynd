@@ -77,6 +77,15 @@ const PersonaProfileSchema = z.object({
   attributeConfidence: attributeConfidenceSchema.min(1),
 });
 
+/**
+ * Persona-generation sub-adapter behind LlmServiceImpl. Turns a description,
+ * an interview-derived config, or an existing persona into Persona records:
+ * initial batches, per-persona backstories, trait inference, variations, and
+ * counterfactual probes. It builds its own prompts inline, validates model
+ * output against Zod schemas, and delegates every completion to its owning
+ * LlmServiceImpl (and through it the OpenAI-compatible provider). Not a port
+ * implementation — it is internal to the LLM adapter.
+ */
 export class PersonaAdapter {
   constructor(private llmService: LlmServiceImpl) { }
 
@@ -112,9 +121,9 @@ export class PersonaAdapter {
   }
 
   /**
-   * Deterministic, seed-stable assignment of curated gender-neutral names
-   * (see PR #27). FNV-1a hash of the seed text + mulberry32 shuffle so the
-   * same seed yields the same name order. Returns the first `count` names.
+   * Deterministic, seed-stable assignment of curated gender-neutral names:
+   * FNV-1a hash of the seed text + mulberry32 shuffle so the same seed yields
+   * the same name order. Returns the first `count` names.
    */
   private static neutralNames(seedText: string, count: number): string[] {
     let h = 2166136261 >>> 0;
@@ -144,11 +153,118 @@ export class PersonaAdapter {
    * lowercase, whitespace collapsed, surrounding quotation marks stripped.
    * The prompt asks the model to wrap fragments in quotes — the marks (and
    * any padding between them and the fragment) are formatting, not content,
-   * and must not cause a false rejection.
+   * and must not be flagged as a fabricated quote.
    */
   private static normalizeVerbatim(s: string): string {
     const collapsed = s.toLowerCase().replace(/\s+/g, ' ').trim();
     return collapsed.replace(/^["'«»“”‘’]+|["'«»“”‘’]+$/g, '').trim();
+  }
+
+  /**
+   * Minimum share of a quote's tokens that must appear, in order, inside one
+   * source sentence before the quote counts as a paraphrase of it.
+   */
+  private static readonly SNAP_MIN_TOKEN_MATCH = 0.7;
+
+  /**
+   * Tokens for paraphrase matching: lowercase, punctuation dropped, so a
+   * rewritten comma or sentence-final period does not read as a mismatch.
+   * The stored quote always keeps the source's original text.
+   */
+  private static matchTokens(text: string): string[] {
+    return PersonaAdapter.normalizeVerbatim(text)
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .split(' ')
+      .filter(Boolean);
+  }
+
+  /**
+   * Longest common subsequence length. Order-sensitive on purpose: the same
+   * words in a different order are not the fragment the model meant.
+   */
+  private static lcsLength(a: string[], b: string[]): number {
+    let previous = new Array<number>(b.length + 1).fill(0);
+    for (let i = 1; i <= a.length; i++) {
+      const current = new Array<number>(b.length + 1).fill(0);
+      for (let j = 1; j <= b.length; j++) {
+        current[j] = a[i - 1] === b[j - 1]
+          ? previous[j - 1] + 1
+          : Math.max(previous[j], current[j - 1]);
+      }
+      previous = current;
+    }
+    return previous[b.length];
+  }
+
+  /**
+   * The source sentence a paraphrased quote came from, or undefined when none
+   * matches closely enough. Returns the sentence's own text, so the result is
+   * always a fragment of the source.
+   */
+  private static snapQuoteToSource(quote: string, sourceText: string): string | undefined {
+    const quoteTokens = PersonaAdapter.matchTokens(quote);
+    // Short quotes ("high churn") carry too little signal to match on — a
+    // near-miss there is more likely coincidence than paraphrase.
+    if (quoteTokens.length < 4) return undefined;
+    const sentences = sourceText
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map((sentence) => sentence.trim())
+      .filter((sentence) => sentence.length > 0);
+    let best: { sentence: string; score: number } | undefined;
+    for (const sentence of sentences) {
+      const score =
+        PersonaAdapter.lcsLength(quoteTokens, PersonaAdapter.matchTokens(sentence)) / quoteTokens.length;
+      if (score < PersonaAdapter.SNAP_MIN_TOKEN_MATCH) continue;
+      // Ties go to the shorter sentence: less meaning the model never meant.
+      if (!best || score > best.score || (score === best.score && sentence.length < best.sentence.length)) {
+        best = { sentence, score };
+      }
+    }
+    return best?.sentence;
+  }
+
+  /**
+   * Rewrites each non-verbatim quote to the exact source sentence it
+   * paraphrases, in place. Quotes with no close source sentence are left
+   * alone: the caller keeps and warns about them rather than failing the run.
+   */
+  private static snapQuotesToSource(records: Record<string, unknown>[], fields: readonly string[], sourceText: string): void {
+    const source = PersonaAdapter.normalizeVerbatim(sourceText);
+    if (source.length === 0) return;
+    const repair = (quote: string): string => {
+      if (source.includes(PersonaAdapter.normalizeVerbatim(quote))) return quote;
+      return PersonaAdapter.snapQuoteToSource(quote, sourceText) ?? quote;
+    };
+    for (const record of records) {
+      for (const field of fields) PersonaAdapter.mapQuoteValues(record, field, repair);
+    }
+  }
+
+  /**
+   * Rewrites the strings a dot path addresses, e.g. 'valueEvidence' (a
+   * top-level string array) or 'behavioralDimensions.evidence' (a string field
+   * inside each record of an array).
+   */
+  private static mapQuoteValues(rec: Record<string, unknown>, fieldPath: string, map: (quote: string) => string): void {
+    const [head, ...rest] = fieldPath.split('.');
+    const value = rec[head];
+    if (rest.length === 0) {
+      if (typeof value === 'string') {
+        const next = map(value);
+        if (next !== value) rec[head] = next;
+        return;
+      }
+      if (Array.isArray(value)) {
+        rec[head] = value.map((item) => (typeof item === 'string' ? map(item) : item));
+      }
+      return;
+    }
+    if (!Array.isArray(value)) return;
+    for (const item of value) {
+      if (item && typeof item === 'object') {
+        PersonaAdapter.mapQuoteValues(item as Record<string, unknown>, rest.join('.'), map);
+      }
+    }
   }
 
   /**
@@ -181,11 +297,10 @@ export class PersonaAdapter {
    * applies.
    */
   private static retryNudgeFor(
-    failure: { rule: 'required' | 'distinct' | 'verbatim' | 'coverage'; detail?: string } | undefined,
+    failure: { rule: 'required' | 'distinct' | 'coverage'; detail?: string } | undefined,
     options: {
       requiredFields?: readonly string[];
       distinctFields?: readonly string[];
-      verbatim?: { sourceText: string; fields: readonly string[] };
       coverage?: {
         listField: string;
         nameField: string;
@@ -199,8 +314,6 @@ export class PersonaAdapter {
         return `\n\nThe previous generation was incomplete: every persona MUST include ALL of these fields with non-empty values: ${options.requiredFields?.join(', ') ?? ''}. A persona missing any of them is invalid.`;
       case 'distinct':
         return `\n\nThe previous generation repeated the same evidence quote: quotes (${options.distinctFields?.join(', ') ?? ''}) must be DISTINCT — never repeat the same quote for two different values or fears. If no DISTINCT verbatim fragment of the user's response fits, leave the entry empty instead of repeating or inventing.`;
-      case 'verbatim':
-        return `\n\nThe previous generation's evidence quotes were NOT verbatim and the batch was rejected: every quote in ${options.verbatim?.fields?.join(', ') ?? ''} MUST be a word-for-word fragment of the user's response, in quotation marks, NEVER the persona's invented voice. Fabricated quotes are the worst error — omit rather than invent: leave the quote empty. This applies to evidence QUOTES only — every other field, including attributeConfidence with one entry per attribute, must remain complete.`;
       case 'coverage':
         return `\n\nThe previous generation's ${options.coverage?.listField ?? ''} was incomplete: it MUST include exactly one entry for each of ${options.coverage?.requiredNames?.join(', ') ?? ''} and for every behavioral dimension, using the EXACT attribute names from the structure. Missing entries: ${failure.detail ?? ''}.`;
       default:
@@ -335,12 +448,14 @@ export class PersonaAdapter {
       distinctFields?: readonly string[];
       /**
        * Verbatim integrity contract: dot-path fields whose non-empty values
-       * must each be a word-for-word fragment of `sourceText` (the user's
-       * input). Empty/absent quotes are ACCEPTED — omitting a quote is
-       * honest, inventing one is not. Supports top-level string arrays
+       * should each be a word-for-word fragment of `sourceText` (the user's
+       * input). Empty/absent quotes are fine (omitting a quote is honest), and
+       * so is a quote the repair could not snap: it is kept and warned about
+       * rather than failing the batch. Supports top-level string arrays
        * ('valueEvidence') and nested record-array strings
-       * ('behavioralDimensions.evidence'). Violations trigger a retry with
-       * an omit-rather-than-invent nudge.
+       * ('behavioralDimensions.evidence'). Paraphrases are repaired to the
+       * source sentence they came from where that is possible, so a stored
+       * quote is usually, not always, a fragment of the input.
        */
       verbatim?: {
         sourceText: string;
@@ -364,36 +479,44 @@ export class PersonaAdapter {
         dynamicNamesField?: string;
       };
       /**
+       * Model override for this call. Defaults to the small-text model; the
+       * strategy-mode profile call pins its own (see
+       * `LlmServiceImpl.strategyProfileModel`) because its verbatim contract
+       * is what v4.1 regressed on.
+       */
+      model?: string;
+      /**
        * Invoked immediately before a retry attempt fires (attempt 2+), so
        * callers can surface that generation is retrying rather than stuck.
        */
       onRetry?: (attempt: number, attempts: number) => void;
     } = {},
   ): Promise<Record<string, unknown>[]> {
-    const { schema = PersonaSchema, requiredFields, distinctFields, verbatim, coverage, onRetry } = options;
+    const { schema = PersonaSchema, requiredFields, distinctFields, verbatim, coverage, model, onRetry } = options;
     // Three attempts, not two: a single run can fail twice in a row — e.g.
-    // the model fabricates quotes (verbatim nudge), then over-corrects on the
-    // retry and drops attributeConfidence (coverage nudge). A third attempt
-    // absorbs that chain; it only costs an extra call on failure paths.
+    // the model duplicates the same evidence quote (distinct nudge), then
+    // over-corrects on the retry and drops attributeConfidence (coverage
+    // nudge). A third attempt absorbs that chain; it only costs an extra call
+    // on failure paths. Non-verbatim wording never retries.
     const attempts = 3;
     let lastError: unknown;
     // Which client-side rule the previous attempt violated, plus the failing
     // detail; the retry nudge is built from this so it names the actual
     // failure (diagnostic-driven, not a static list).
-    let lastFailure: { rule: 'required' | 'distinct' | 'verbatim' | 'coverage'; detail?: string } | undefined;
+    let lastFailure: { rule: 'required' | 'distinct' | 'coverage'; detail?: string } | undefined;
     for (let attempt = 1; attempt <= attempts; attempt++) {
       console.log(`[PersonaAdapter] [${context}] Generating ${expectedCount} personas (attempt ${attempt}/${attempts})...`);
       if (attempt > 1) onRetry?.(attempt, attempts);
       try {
         const retryNudge = attempt > 1
-          ? PersonaAdapter.retryNudgeFor(lastFailure, { requiredFields, distinctFields, verbatim, coverage })
+          ? PersonaAdapter.retryNudgeFor(lastFailure, { requiredFields, distinctFields, coverage })
           : '';
         const { output } = streamText({
           // provider.chat() → Chat Completions endpoint. The default
           // provider() factory routes to OpenRouter's /responses endpoint,
           // which is pathologically slow for deepseek (90-240s+ for this
           // call) and unreachable by the reasoning-disable fetch hook.
-          model: this.llmService.provider.chat(this.llmService.smallTextModel),
+          model: this.llmService.provider.chat(model ?? this.llmService.smallTextModel),
           output: Output.array({ element: schema }),
           system,
           prompt: user + retryNudge,
@@ -409,6 +532,15 @@ export class PersonaAdapter {
           console.warn(`[PersonaAdapter] ${context} returned ${records.length} personas, truncating to ${expectedCount}`);
         }
         const slice = records.slice(0, expectedCount);
+        if (verbatim && verbatim.fields.length > 0) {
+          // Repair paraphrases before the checks consume the quotes. Copy
+          // fidelity is stochastic — the same prompt yields exact fragments on
+          // one attempt and a stitched near-copy on the next ("hear churn
+          // complaints" → "hears churn complaints") — and the stored quote must
+          // be a fragment of the input either way. Running it first also lets a
+          // repair that lands two fields on one sentence trip the distinct check.
+          PersonaAdapter.snapQuotesToSource(slice, verbatim.fields, verbatim.sourceText);
+        }
         if (requiredFields && requiredFields.length > 0) {
           const incomplete = slice.flatMap((rec, i) => {
             const absent = requiredFields.filter((k) => {
@@ -440,19 +572,23 @@ export class PersonaAdapter {
         }
         if (verbatim) {
           const source = PersonaAdapter.normalizeVerbatim(verbatim.sourceText);
-          // An empty input cannot be quoted; skip the check rather than
-          // retry-looping over something the model had no text to quote.
+          // A quote that is still not a fragment after the deterministic
+          // repair is kept and flagged, never fatal: a near-miss quote is
+          // worth more than a failed batch, and restarting a whole run over
+          // wording is a worse outcome than the wording. An empty input cannot
+          // be quoted, so skip rather than flagging every quote.
           if (source.length > 0) {
             const nonVerbatim = slice.flatMap((rec, i) =>
               verbatim.fields.flatMap((field) =>
                 PersonaAdapter.collectQuoteValues(rec, field)
                   .filter((q) => !source.includes(PersonaAdapter.normalizeVerbatim(q)))
-                  .map((q) => `persona #${i + 1} ${field} "${q}" is not a verbatim fragment of the input`),
+                  .map((q) => `persona #${i + 1} ${field} "${q}"`),
               ),
             );
             if (nonVerbatim.length > 0) {
-              lastFailure = { rule: 'verbatim' };
-              throw new Error(`[PersonaAdapter] ${context} non-verbatim evidence: ${nonVerbatim.join('; ')}`);
+              console.warn(
+                `[PersonaAdapter] ${context} kept ${nonVerbatim.length} non-verbatim evidence quote(s): ${nonVerbatim.join('; ')}`,
+              );
             }
           }
         }
@@ -1435,6 +1571,71 @@ Return plain text only. No labels, no markdown, no headers.`;
   }
 
   /**
+   * Below this length a strategy description is a one-liner, and the profile
+   * call's verbatim contract cannot be met from it: valueEvidence,
+   * fearEvidence, behavioralDimensions[].evidence and evidenceLinks[].excerpt
+   * need ~12 DISTINCT fragments that actually support their slot. The model
+   * fabricates quotes instead: with few sentences to snap to, the repair keeps
+   * them as flagged near-copies (weak evidence), and the distinct/coverage
+   * checks can still burn attempts — observed on both `deepseek-v4.1-flash`
+   * and the pinned `deepseek-v4-flash-0731`, in the product's own VPS
+   * pipeline.
+   *
+   * Measured: a 64-character one-liner failed 3/3 attempts; a 337-character
+   * four-sentence description passes first try. 150 sits below every
+   * description known to work and above the one-liners that fail; the retry
+   * loop stays as the net for the borderline cases in between.
+   */
+  private static readonly MIN_STRATEGY_DESCRIPTION_CHARS = 150;
+
+  /**
+   * True for a one-liner the verbatim contract cannot be satisfied from.
+   * Multi-section input is left alone even when short: its blank-line
+   * structure feeds the UI's per-quote question labels (see
+   * {@link evidenceQuestionsFor}), and a `Label:` prefix already carries the
+   * per-quote meaning the profile call needs.
+   */
+  private static isTerseStrategyDescription(description: string): boolean {
+    const trimmed = description.trim();
+    if (trimmed.length >= PersonaAdapter.MIN_STRATEGY_DESCRIPTION_CHARS) return false;
+    return trimmed.split(/\n\s*\n/).filter((section) => section.trim()).length < 2;
+  }
+
+  /**
+   * Turns a terse description into a brief the profile call can quote from.
+   * The user's own words stay as the first paragraph and the elaboration is
+   * appended, so the brief is a superset of the input: a quote from either
+   * half is still a fragment of the text in the prompt. Returns the
+   * description unchanged when it is long enough, and on failure — a missing
+   * brief is a worse prompt, never a failed run.
+   *
+   * Runs on the default text model, not the pinned strategy snapshot: the
+   * brief has no verbatim contract of its own.
+   */
+  private async expandTerseStrategyDescription(description: string, contextNotes?: string): Promise<string> {
+    if (!PersonaAdapter.isTerseStrategyDescription(description)) return description;
+    const system = `You expand a terse audience description into a brief that persona generation can quote from.
+RULES:
+- Stay strictly within what the description implies. Elaborate on the audience it already names; never invent markets, products, or events it does not support.
+- Write about the audience in the third person, in the voice of the person who wrote the description.
+- Write 6-10 plain sentences, no headings, no bullet points, no markdown.
+- Every sentence must stand alone as a quote and must add a distinct, decision-relevant detail: role and seniority, company stage and size, what success and failure look like, the pressures they are under, what they have already tried, how they talk about the problem.
+- English only.`;
+    const user = `Audience description: "${description.trim()}"${contextNotes ? `\n\nAdditional context from the user: ${contextNotes}` : ""}`;
+    try {
+      const brief = (await this.llmService.createChatCompletion(
+        [{ role: "system", content: system }, { role: "user", content: user }],
+        { temperature: 0.4, max_tokens: 900, purpose: "Strategy brief expansion" },
+      ))?.trim();
+      if (!brief) return description;
+      return `${description.trim()}\n\n${brief}`;
+    } catch (err) {
+      console.warn(`[PersonaAdapter] Brief expansion failed; generating from the description as-is: ${(err as Error).message}`);
+      return description;
+    }
+  }
+
+  /**
    * Strategy Mode: richer storytelling persona generation.
    * Allows representative assumptions and controlled synthetic details.
    *
@@ -1451,8 +1652,13 @@ Return plain text only. No labels, no markdown, no headers.`;
     onPhase?: PersonaPhaseCallback,
     onRetry?: (attempt: number, attempts: number) => void,
   ): Promise<Persona[]> {
+    const description = await this.expandTerseStrategyDescription(config.personaDescription, config.contextNotes);
+    const profileConfig = description === config.personaDescription
+      ? config
+      : { ...config, personaDescription: description };
+
     onPhase?.("profiles", { completed: 0, total: 1 });
-    const records = await this.generateStrategyProfiles(config, onRetry);
+    const records = await this.generateStrategyProfiles(profileConfig, onRetry);
     onPhase?.("profiles", { completed: 1, total: 1 });
 
     // Names are assigned between the phases, so the backstory call knows the
@@ -1650,6 +1856,9 @@ ${config.contextNotes ? `Additional context: ${config.contextNotes}` : ""}`;
       "strategy-profiles",
       0.6,
       {
+        // The one call that runs the pinned snapshot: its verbatim evidence
+        // contract is what v4.1 fails on terse ICP descriptions.
+        model: this.llmService.strategyProfileModel,
         schema: PersonaProfileSchema,
         requiredFields: PersonaAdapter.STRATEGY_PROFILE_REQUIRED_FIELDS,
         distinctFields: ['valueEvidence', 'fearEvidence'],

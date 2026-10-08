@@ -6,8 +6,10 @@ import { ClockIcon, CheckCircleIcon, XCircleIcon, ArrowLeftIcon } from 'lucide-r
 import { getProgressAction } from '@/actions/getProgress'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
 import { StepIndicator } from '@/components/custom/StepIndicator'
+import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { Progress } from '@/components/ui/progress'
 import type { PersonaGenerationResult } from '@/actions/getPersonaGenerationResult'
+import { personaRunProgress } from '@/ui/dashboard/utils/personaRunProgress'
 
 type FlowStep = { title: string; description?: string }
 
@@ -52,6 +54,11 @@ function stepToIndex(step: string | undefined, steps: FlowStep[]): number {
   return 0
 }
 
+/**
+ * /dashboard/generating/[runId]: progress screen for a background persona run.
+ * The runId prefix ("persona-" / "pipeline-") selects which pipeline's step
+ * labels apply; the page polls every second for progress and for completion.
+ */
 export default function GeneratingPage() {
   const params = useParams()
   const router = useRouter()
@@ -78,14 +85,12 @@ export default function GeneratingPage() {
     const poll = async () => {
       if (!mountedRef.current) return
 
-      // Check for completion first
       const res = await getPersonaGenerationResultAction(runId)
       if (res.found) {
         if (mountedRef.current) setResult(res)
         return
       }
 
-      // Poll progress
       const p = await getProgressAction(runId)
       if (!p.found || !p.progress || !mountedRef.current) return
 
@@ -98,9 +103,8 @@ export default function GeneratingPage() {
       setCompletedCount(completed)
       setTotalCount(total)
 
-      if (total && total > 0 && completed != null) {
-        setProgress(Math.min(completed / total, 1) * 100)
-      }
+      // Same helper the toast uses, so the two bars always agree.
+      setProgress(personaRunProgress(p.progress.step, completed, total) * 100)
     }
 
     poll()
@@ -120,13 +124,19 @@ export default function GeneratingPage() {
       </button>
 
       {result ? (
-        /* ── Completion / Error state ── */
         <div className="rounded-xl border border-border bg-card p-8 md:p-12">
           {result.error ? (
             <div className="flex flex-col items-center gap-4 text-center">
               <XCircleIcon className="h-12 w-12 text-destructive" />
               <h2 className="text-xl font-semibold tracking-tight">Generation Failed</h2>
               <p className="text-sm text-muted-foreground max-w-md">{result.error}</p>
+              <FeedbackButton
+                label="Report this error"
+                defaultMessage={result.error}
+                context={{ error: result.error, runId }}
+                variant="outline"
+                className="mt-2"
+              />
             </div>
           ) : (
             <div className="flex flex-col items-center gap-4 text-center">
@@ -148,7 +158,6 @@ export default function GeneratingPage() {
           )}
         </div>
       ) : (
-        /* ── Progress view ── */
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 sm:px-8 pt-6 pb-2 border-b border-border/40">
             <div className="flex items-center justify-between">

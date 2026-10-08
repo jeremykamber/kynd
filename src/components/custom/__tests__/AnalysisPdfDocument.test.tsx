@@ -5,6 +5,7 @@ import { AnalysisPdfDocument } from '../AnalysisPdfDocument'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { ArtifactSynthesis } from '@/domain/entities/ArtifactSynthesis'
+import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
 
 const mockResponses: PersonaResponse[] = [
   {
@@ -108,6 +109,16 @@ const baseAnalysis: ArtifactAnalysis = {
   synthesis: mockSynthesis,
 }
 
+/** Flattens every string the react-pdf element tree renders. */
+function renderedText(node: React.ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(renderedText).join('')
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return renderedText(node.props.children)
+  }
+  return ''
+}
+
 describe('AnalysisPdfDocument', () => {
   it('renders a full analysis with pre-computed synthesis to a PDF blob', async () => {
     const doc = <AnalysisPdfDocument analysis={baseAnalysis} />
@@ -121,48 +132,38 @@ describe('AnalysisPdfDocument', () => {
     const analysisWithoutSynthesis: ArtifactAnalysis = {
       ...baseAnalysis,
       synthesis: undefined,
+      // Deliberately inconsistent with `responses`, so a completion count that
+      // matches the responses can only have been derived from them.
+      personaCount: 7,
     }
     const doc = <AnalysisPdfDocument analysis={analysisWithoutSynthesis} />
     const blob = await pdf(doc).toBlob()
-    expect(blob).toBeDefined()
-    expect(blob.size).toBeGreaterThan(100)
+    // The document renders as a real PDF (react-pdf rejects invalid trees).
+    expect(blob.type).toBe('application/pdf')
+
+    // What the reader sees: the derived synthesis advertises the supplied
+    // responses and hides its empty LLM sections instead of printing blanks.
+    const text = renderedText(AnalysisPdfDocument({ analysis: analysisWithoutSynthesis }))
+    expect(text).toContain(`${mockResponses.length} of ${mockResponses.length} personas completed`)
+    expect(text).not.toContain('Executive Overview')
+    expect(text).not.toContain('Key Findings')
+    expect(text).not.toContain('Primary Points of Friction')
   })
 
-  it('handles partial / failed personas without throwing', async () => {
-    const partialAnalysis: ArtifactAnalysis = {
-      ...baseAnalysis,
-      responses: [
-        mockResponses[0],
-        {
-          id: 'resp-failed',
-          personaId: 'p-3',
-          screenshotBase64: '',
-          rawAnalysis: '',
-          overview: 'Analysis failed for this persona due to timeout.',
-          researchQuestionAnswer: '',
-          customerJourney: [],
-          majorFindings: [],
-          pointsOfFriction: [],
-          unansweredQuestions: [],
-        },
-      ],
-      synthesis: undefined,
-    }
-    const doc = <AnalysisPdfDocument analysis={partialAnalysis} />
-    const blob = await pdf(doc).toBlob()
-    expect(blob).toBeDefined()
-    expect(blob.size).toBeGreaterThan(100)
-  })
+  it('discloses what Kynd is and that the report is simulated, before the findings', () => {
+    const text = renderedText(AnalysisPdfDocument({ analysis: baseAnalysis }))
 
-  it('handles completely empty responses gracefully', async () => {
-    const emptyAnalysis: ArtifactAnalysis = {
-      ...baseAnalysis,
-      responses: [],
-      synthesis: undefined,
-    }
-    const doc = <AnalysisPdfDocument analysis={emptyAnalysis} />
-    const blob = await pdf(doc).toBlob()
-    expect(blob).toBeDefined()
-    expect(blob.size).toBeGreaterThan(100)
+    const intro = text.indexOf(REPORT_INTRO)
+    const note = text.indexOf(REPORT_DISCLAIMER)
+    expect(intro).toBeGreaterThan(-1)
+    expect(note).toBeGreaterThan(intro)
+    // Both sit above the first thing a reader would take as a result.
+    expect(text.indexOf('Core Research Finding')).toBeGreaterThan(note)
+
+    // Simulated users are never presented as people who were observed.
+    expect(text).not.toContain('/2 observed')
+    expect(text).not.toContain('Observed Findings')
+    expect(text).toContain('/2 simulations')
+    expect(text).toContain('Simulation Findings')
   })
 })

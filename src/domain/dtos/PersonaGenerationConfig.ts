@@ -26,6 +26,23 @@ export const ClusterPersonaConfigSchema = BasePersonaConfigSchema.extend({
   minClusterSize: z.number().int().min(1).describe("Minimum interview subjects required to form a cluster"),
 });
 
+/**
+ * Research mode: evidence-first generation from interview transcripts.
+ * `verbatimSource` is the raw text evidence quotes must be copied from; it is
+ * deliberately separate from `personaDescription`, which only steers the
+ * prompt.
+ */
 export type ResearchPersonaConfig = z.infer<typeof ResearchPersonaConfigSchema>;
+
+/**
+ * Strategy mode: richer storytelling from an ICP or market description.
+ * `allowSyntheticBackstory` and `storytellingLevel` trade invention for
+ * narrative depth.
+ */
 export type StrategyPersonaConfig = z.infer<typeof StrategyPersonaConfigSchema>;
+
+/**
+ * Cluster mode: one synthetic representative persona per cluster of interview
+ * subjects, labeled with its source cluster.
+ */
 export type ClusterPersonaConfig = z.infer<typeof ClusterPersonaConfigSchema>;

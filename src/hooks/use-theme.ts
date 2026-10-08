@@ -1,7 +1,12 @@
 "use client"
 
-// Theme is dark-only for now. Light values are stashed in globals.css :root comment.
-// To re-enable toggling, uncomment the light block, restore @custom-variant dark, and expand this hook.
+/**
+ * Theme accessor for components.
+ *
+ * The app is dark-only, so `theme` is always `"dark"` and `toggleTheme` is a
+ * no-op; the light values are present but commented out in `globals.css`.
+ * No component consumes this hook yet.
+ */
 
 function useTheme() {
   return { theme: "dark" as const, toggleTheme: () => {} }

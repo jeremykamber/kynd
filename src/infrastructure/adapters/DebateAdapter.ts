@@ -6,9 +6,12 @@ import { DebatePromptCompiler } from "./DebatePromptCompiler";
 import OpenAI from "openai";
 
 /**
- * Orchestrates a single multi-round, multi-persona debate.
- * Stateless — call executeDebate() per debate session.
- * Implements IDebateServicePort (DIP).
+ * Drives a single multi-round, multi-persona debate over the LLM: each round,
+ * every participant streams a turn that sees the proposal and the transcript so
+ * far. Stateless — call executeDebate() per debate session.
+ * Implements IDebateServicePort; prompt assembly belongs to
+ * DebatePromptCompiler and every completion goes to LlmServiceImpl (and through
+ * it the OpenAI-compatible provider).
  */
 export class DebateAdapter implements IDebateServicePort {
   private promptCompiler: DebatePromptCompiler;

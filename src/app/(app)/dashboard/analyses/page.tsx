@@ -1,21 +1,23 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon, PlusIcon, UploadIcon, ImageIcon, LinkIcon, TargetIcon, HelpCircleIcon, FlaskConicalIcon } from 'lucide-react'
 import { Persona } from '@/domain/entities/Persona'
+import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
+import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
 
-function AnalysisCard({ analysis }: { analysis: import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis }) {
+function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
   const router = useRouter()
   const removeAnalysis = useAnalysisStore((s) => s.removeAnalysis)
   const updateAnalysis = useAnalysisStore((s) => s.updateAnalysis)
@@ -117,7 +119,7 @@ function AnalysisCard({ analysis }: { analysis: import('@/domain/entities/Artifa
           e.stopPropagation()
           removeAnalysis(analysis.id)
         }}
-        className="absolute -top-2 -right-2 flex items-center justify-center size-6 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-destructive focus:outline-none"
+        className={DESTRUCTIVE_CARD_CONTROL_CLASS}
         aria-label="Delete analysis"
       >
         <XIcon className="size-3.5" />
@@ -149,9 +151,8 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
   }, [batches, selectedBatchId])
   const selectedBatch = batches.find((b) => b.id === selectedBatchId)
 
-  // One-click smoke test: fill the form with the verified preset, then run
-  // immediately if a batch is already selected. Without a batch the prefill
-  // still lands and the user just picks one and presses Run.
+  // Fills the form from the preset, then runs it when a batch is available;
+  // without a batch the prefill still lands and the user submits manually.
   const prefillTestAnalysis = () => {
     setUrl(TEST_ANALYSIS_PRESET.url)
     setBusinessGoal(TEST_ANALYSIS_PRESET.businessGoal)
@@ -289,7 +290,6 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
             Run test analysis
           </Button>
         </div>
-        {/* ── Input mode toggle ──────────────────────────────────── */}
         <div className="flex flex-col gap-2">
           <div className="flex gap-1 rounded-lg bg-muted p-1">
             <button
@@ -319,7 +319,6 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
           </div>
 
           {inputMode === 'url' ? (
-            /* ── URL mode ──────────────────────────────────────── */
             <div className="flex flex-col gap-2">
               <label htmlFor="artifact-url" className="text-sm font-medium">Artifact URL</label>
               <Input
@@ -331,7 +330,6 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
               />
             </div>
           ) : (
-            /* ── Screenshot mode ──────────────────────────────── */
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">Artifact Screenshot</label>
               {!screenshotFile ? (
@@ -431,13 +429,32 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
   )
 }
 
-export default function AnalysesPage() {
+/**
+ * /dashboard/analyses: the analysis list (in-progress first, then finished) plus
+ * the inline "Run New Analysis" form. Analysis records come from the client
+ * analysis store; starting a run is delegated to useAnalysisFlow.
+ *
+ * The form's open state lives in the URL (`?new=1`) so the global floating CTA
+ * can open it from any route, including this one.
+ */
+function AnalysesPageContent() {
   const analyses = useAnalysisStore((s) => s.analyses)
   const analysisFlow = useAnalysisFlow()
-  const [showNewForm, setShowNewForm] = useState(false)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const showNewForm = searchParams.get('new') === '1'
+
+  const setShowNewForm = useCallback((open: boolean) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (open) params.set('new', '1')
+    else params.delete('new')
+    const query = params.toString()
+    router.replace(query ? `/dashboard/analyses?${query}` : '/dashboard/analyses', { scroll: false })
+  }, [router, searchParams])
 
   const inProgress = analyses.filter((s) => s.status === 'IN_PROGRESS')
-  const completed = analyses.filter((s) => s.status !== 'IN_PROGRESS')
+  const completed = analyses.filter((s) => s.status === 'COMPLETED')
+  const failed = analyses.filter((s) => s.status === 'ERROR' || s.status === 'CANCELLED')
 
   const handleRunAnalysis = (url: string, personas: Persona[], imageBase64?: string, businessGoal?: string, researchQuestion?: string, batchId?: string) => {
     const input = imageBase64
@@ -456,11 +473,11 @@ export default function AnalysesPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold tracking-tight">Analyses</h1>
-          <p className="text-sm text-muted-foreground">
-            {analyses.length === 0
-              ? 'No analyses yet. Run your first analysis to get started.'
-              : `${completed.length} completed · ${inProgress.length} in progress`}
-          </p>
+          {analyses.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {`${completed.length} completed${failed.length > 0 ? ` · ${failed.length} failed` : ''} · ${inProgress.length} in progress`}
+            </p>
+          )}
         </div>
         <Button
           onClick={() => setShowNewForm(!showNewForm)}
@@ -515,6 +532,19 @@ export default function AnalysesPage() {
         </section>
       )}
 
+      {failed.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Failed
+          </h2>
+          <div className="flex flex-col gap-3">
+            {failed.map((sim) => (
+              <AnalysisCard key={sim.id} analysis={sim} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {analyses.length === 0 && !showNewForm && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-4">
@@ -526,5 +556,29 @@ export default function AnalysesPage() {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * `useSearchParams` makes this client subtree render after hydration during
+ * prerendering, so it must sit under a Suspense boundary — see Next's
+ * useSearchParams docs. The fallback mirrors loading.tsx's header skeleton.
+ */
+function AnalysesPageFallback() {
+  return (
+    <div className="flex flex-col gap-8 w-full h-full">
+      <div className="flex flex-col gap-2">
+        <div className="h-8 w-40 rounded bg-muted animate-pulse" />
+        <div className="h-4 w-52 rounded bg-muted animate-pulse" />
+      </div>
+    </div>
+  )
+}
+
+export default function AnalysesPage() {
+  return (
+    <Suspense fallback={<AnalysesPageFallback />}>
+      <AnalysesPageContent />
+    </Suspense>
   )
 }

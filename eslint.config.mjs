@@ -15,6 +15,20 @@ const eslintConfig = defineConfig([
     // Generated / vendor code:
     ".netlify/**",
     ".agents/**",
+    // Local-only workspace and tool state (see .gitignore). Linting worktrees or
+    // agent artifacts buries real problems under tens of thousands of warnings.
+    ".worktrees/**",
+    ".opencode/**",
+    ".sisyphus/**",
+    ".impeccable/**",
+    ".serena/**",
+    ".qmd/**",
+    ".qmd-adaptive-search/**",
+    "thoughts/**",
+    "prs/**",
+    "infra/**",
+    "coverage/**",
+    "logs/**",
   ]),
 ]);
 

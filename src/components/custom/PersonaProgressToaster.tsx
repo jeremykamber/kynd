@@ -3,39 +3,17 @@
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { ClockIcon, CheckCircleIcon, XCircleIcon, XIcon } from 'lucide-react'
-import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
+import { usePersonaStore } from '@/ui/stores/personaStore'
 import { getProgressAction } from '@/actions/getProgress'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
-import { batchConsumedRunIds } from '@/lib/generationRunState'
+import {
+  persistPersonaBatchForRun,
+  recordFailedPersonaBatch,
+  sourceOf,
+} from '@/lib/personaRunOutcome'
+import { personaRunProgress } from '@/ui/dashboard/utils/personaRunProgress'
 
 const POLL_INTERVAL_MS = 1000
-
-/**
- * Progress per step as a 0-1 ratio, mirroring the full progress page
- * (DashboardClient). Based on position in the flow, not granular counts.
- */
-const STEP_PROGRESS: Record<string, number> = {
-  BRAINSTORMING_PERSONAS: 0.1,
-  GENERATING_BACKSTORIES: 0.2,
-  // ENHANCING_WITH_PBJ kept as a retrofitting measure — progress store entries
-  // from before the rename (cached on globalThis) still carry the old value
-  // until the server process is restarted.
-  ENHANCING_WITH_PBJ: 0.5,
-  ADDING_BEHAVIORAL_DEPTH: 0.5,
-  GENERATING_INSIGHTS: 0.75,
-  DONE: 1,
-  // Long-form keys (ICP pipeline)
-  EXTRACTING_SIGNALS: 0.15,
-  POOLING_SIGNALS: 0.35,
-  SAMPLING_PERSONAS: 0.5,
-  INGESTING_TO_MEMORY: 0.8,
-  // Short-form keys (interview pipeline — server emits these)
-  EXTRACTING: 0.15,
-  POOLING: 0.35,
-  SAMPLING: 0.5,
-  GENERATING: 0.65,
-  INGESTING: 0.8,
-}
 
 /**
  * Deterministic toast id per run. poll() can overlap itself (async interval,
@@ -59,6 +37,16 @@ function truncateError(message: string): string {
 const removedSet = new Set<string>()
 const completedSet = new Set<string>()
 
+/**
+ * App-wide toast surface for persona-generation runs, mounted in the root
+ * layout. Polls each active runId's progress and result, and renders one sonner
+ * toast per run (in-progress, completed, or failed).
+ *
+ * It observes runs rather than owning them: a run that finishes while the user
+ * is on another page still has to reach the batch list, so the outcome is
+ * handed to `persistPersonaBatchForRun`, the same call the starting hook makes.
+ * Either may arrive first, and only one of them writes the batch.
+ */
 export function PersonaProgressToaster() {
   const activeRunIds = usePersonaStore((s) => s.activeGenerationRunIds)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -85,7 +73,6 @@ export function PersonaProgressToaster() {
       for (const runId of runIds) {
         if (removedSet.has(runId)) continue
 
-        // 1. Check for a final result (completed/error)
         const result = await getPersonaGenerationResultAction(runId)
         if (result.found) {
           // A concurrent poll may have settled this run while we were awaiting.
@@ -98,19 +85,19 @@ export function PersonaProgressToaster() {
           const personaCount = result.personas?.length ?? 0
           const isError = !!result.error
 
-          if (!isError && personaCount > 0 && !batchConsumedRunIds.has(runId)) {
-            batchConsumedRunIds.add(runId)
-            const source = runId.startsWith('pt-') ? 'description' : 'interviews'
-            const label = source === 'interviews' ? `${personaCount} Personas from Interviews` : `${personaCount} Generated Personas`
-            const batch: PersonaBatch = {
-              id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-              label,
-              source,
-              transcriptCount: undefined,
-              createdAt: new Date().toISOString(),
+          if (isError) recordFailedPersonaBatch(runId, result.error)
+
+          if (!isError && personaCount > 0) {
+            const source = sourceOf(runId)
+            await persistPersonaBatchForRun({
+              runId,
               personas: result.personas!,
-            }
-            usePersonaStore.getState().addBatch(batch)
+              source,
+              fallbackLabel:
+                source === 'interviews'
+                  ? `${personaCount} Personas from Interviews`
+                  : `${personaCount} Generated Personas`,
+            })
           }
 
           const content = (
@@ -137,7 +124,6 @@ export function PersonaProgressToaster() {
           continue
         }
 
-        // 2. Still in progress — poll progress details
         const p = await getProgressAction(runId)
         if (!p.found) continue
 
@@ -153,6 +139,10 @@ export function PersonaProgressToaster() {
           completedSet.add(runId)
           removedSet.add(runId)
           usePersonaStore.getState().removeActiveGeneration(runId)
+
+          // The result store expires after 30 minutes, so a run polled only
+          // through the progress store must still leave its batch behind.
+          recordFailedPersonaBatch(runId, p.progress?.error)
 
           toast.custom(
             () => (
@@ -183,7 +173,15 @@ export function PersonaProgressToaster() {
         if (removedSet.has(runId)) continue
 
         const step = p.progress?.step
-        const progress = STEP_PROGRESS[step ?? ''] ?? 0
+        // The same counts the progress page renders, through the same helper,
+        // so the toast's bar and the page's bar are the same number. The bar
+        // used to be step-position only, which is what made it jump to 60%
+        // while the page still read "0 of 9".
+        const progress = personaRunProgress(
+          step,
+          p.progress?.completedCount ?? p.progress?.completedResponses,
+          p.progress?.totalCount ?? p.progress?.totalResponses,
+        )
         // Live streamingText (e.g. a retry status) wins over the step name so
         // the toast surfaces what is actually happening.
         const subtext = p.progress?.streamingText || formatStepName(step)
@@ -296,7 +294,8 @@ function PersonaToastContent({
 const STEP_DISPLAY: Record<string, string> = {
   BRAINSTORMING_PERSONAS: 'Brainstorming personas',
   GENERATING_BACKSTORIES: 'Generating backstories',
-  ENHANCING_WITH_PBJ: 'Adding behavioral depth', // retrofitting — same reason as STEP_PROGRESS above
+  // Same old-name alias as STEP_PROGRESS.
+  ENHANCING_WITH_PBJ: 'Adding behavioral depth',
   ADDING_BEHAVIORAL_DEPTH: 'Adding behavioral depth',
   GENERATING_INSIGHTS: 'Generating insights',
   // Long-form keys (ICP pipeline)

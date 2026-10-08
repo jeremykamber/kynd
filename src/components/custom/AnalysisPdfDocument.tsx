@@ -3,6 +3,7 @@ import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactSynthesis, SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
+import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
 
 // ── Typography & Palette ───────────────────────────────────────────────────
 // Simple, clean, editorial design with high legibility and quiet accents.
@@ -56,6 +57,20 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     color: colors.muted,
     lineHeight: 1.2,
+  },
+  disclosureBox: {
+    marginBottom: 14,
+  },
+  disclosureIntro: {
+    fontSize: 8.5,
+    color: colors.primaryLight,
+    lineHeight: 1.45,
+    marginBottom: 4,
+  },
+  disclosureNote: {
+    fontSize: 7.5,
+    color: colors.muted,
+    lineHeight: 1.35,
   },
   reportTitle: {
     fontSize: 14,
@@ -293,9 +308,11 @@ export interface AnalysisPdfDocumentProps {
   analysis: ArtifactAnalysis
 }
 
-// Slice B owns SynthesizedFinding.citations; narrow it structurally here so
-// this file compiles before Slice B's type lands. Replace with the typed
-// field on merge.
+/**
+ * Evidence text for a finding, annotated with the distinct persona names that
+ * cited it. Falls back to the bare evidence when the finding carries no
+ * citations.
+ */
 function citationNames(finding: SynthesizedFinding): string {
   if (!finding || typeof finding !== 'object' || !('citations' in finding)) return finding.evidence
   const citations: unknown = finding.citations
@@ -307,6 +324,11 @@ function citationNames(finding: SynthesizedFinding): string {
   return unique.length > 0 ? `${finding.evidence} (${unique.join(', ')})` : finding.evidence
 }
 
+/**
+ * Renders one artifact analysis as a downloadable PDF (react-pdf `Document`):
+ * an executive briefing page followed by a card per persona response. When the
+ * analysis has no synthesis, one is derived from the responses.
+ */
 export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
   const responses = analysis.responses ?? []
   const synthesis: ArtifactSynthesis =
@@ -328,7 +350,6 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
     >
       {/* ── Page 1: Executive Briefing ─────────────────────────────────── */}
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.brandName}>Kynd</Text>
@@ -342,7 +363,13 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
           </View>
         </View>
 
-        {/* Title & Metadata */}
+        {/* What Kynd is, then the one qualification the findings need — both
+            before the reader forms an expectation of the numbers below. */}
+        <View style={styles.disclosureBox} wrap={false}>
+          <Text style={styles.disclosureIntro}>{REPORT_INTRO}</Text>
+          <Text style={styles.disclosureNote}>{REPORT_DISCLAIMER}</Text>
+        </View>
+
         <Text style={styles.reportTitle}>{analysis.name || 'Artifact Analysis'}</Text>
         <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
@@ -390,7 +417,7 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
                   <Text style={styles.findingObservation}>{finding.observation}</Text>
                   <View style={[styles.badgeContainer, styles.badgePrimaryBg]}>
                     <Text style={[styles.badgeText, styles.badgePrimaryText]}>
-                      {finding.affectedPersonaCount}/{finding.totalPersonaCount} observed
+                      {finding.affectedPersonaCount}/{finding.totalPersonaCount} simulations
                     </Text>
                   </View>
                 </View>
@@ -425,7 +452,6 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
           </View>
         )}
 
-        {/* Footer */}
         <View style={styles.footer} fixed>
           <Text>Kynd AI · Behavioral User Simulation Report</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
@@ -444,7 +470,6 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
 
             return (
               <View key={resp.id || pIdx} style={styles.personaCard} wrap={false}>
-                {/* Persona Header */}
                 <View style={styles.personaHeader}>
                   <View style={{ flex: 1, marginRight: 8 }}>
                     <Text style={styles.personaName}>{name}</Text>
@@ -459,7 +484,6 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
                   ) : null}
                 </View>
 
-                {/* Persona Summary */}
                 {resp.overview && (
                   <View style={{ marginBottom: 6 }}>
                     <Text style={{ fontSize: 8.5, color: colors.primaryLight, fontStyle: 'italic', lineHeight: 1.35 }}>
@@ -509,10 +533,9 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
                   </View>
                 )}
 
-                {/* Persona Specific Findings */}
                 {resp.majorFindings && resp.majorFindings.length > 0 && (
                   <View style={{ marginTop: 8 }}>
-                    <Text style={styles.findingLabel}>Observed Findings</Text>
+                    <Text style={styles.findingLabel}>Simulation Findings</Text>
                     <View style={{ marginTop: 4 }}>
                       {resp.majorFindings.slice(0, 2).map((f, fIdx) => (
                         <View key={fIdx} style={{ flexDirection: 'row', marginBottom: 4 }}>
@@ -530,7 +553,6 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
             )
           })}
 
-          {/* Footer */}
           <View style={styles.footer} fixed>
             <Text>Kynd AI · Behavioral User Simulation Report</Text>
             <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />

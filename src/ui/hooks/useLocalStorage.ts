@@ -1,5 +1,18 @@
 'use client'
 
+/**
+ * `useState`-shaped state mirrored into `window.localStorage` under `key`.
+ *
+ * The first render always returns `initialValue` so server and client markup
+ * agree; after mount the stored JSON is read and, when `key` is absent from
+ * storage, the value resets to `initialValue`. Because the value is not
+ * available before mount, treat the returned value as pre-hydration
+ * `initialValue` and never branch on it during SSR.
+ *
+ * `T` must be JSON-serializable; a failed read or write logs a warning and
+ * leaves the in-memory value unchanged rather than throwing.
+ */
+
 import { useState, useEffect, Dispatch, SetStateAction } from 'react'
 
 export function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>] {
@@ -8,8 +21,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<S
   const [storedValue, setStoredValue] = useState<T>(initialValue)
   const [isInitialized, setIsInitialized] = useState(false)
 
-  // Load from localStorage after mount, or reset to initialValue when
-  // the key changes and no value exists for the new key.
   useEffect(() => {
     try {
       const item = window.localStorage.getItem(key)
@@ -24,7 +35,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<S
     setIsInitialized(true)
   }, [key])
 
-  // Save to localStorage whenever storedValue changes
   useEffect(() => {
     if (!isInitialized) return
 

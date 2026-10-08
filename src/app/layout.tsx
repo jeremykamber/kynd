@@ -24,6 +24,10 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Root layout: every route renders inside it. Owns the font variables, the
+ * forced dark theme, and the global toast / floating-analysis-button overlays.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

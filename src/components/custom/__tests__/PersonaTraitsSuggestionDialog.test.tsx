@@ -30,7 +30,9 @@ const mockTraits = {
   conscientiousness: 90,
   neuroticism: 30,
   openness: 70,
-  extraversion: 55,
+  // Equal to mockPersona.extraversion: an unchanged trait, which must default
+  // to "Keep" while every changed trait defaults to "Apply".
+  extraversion: 60,
   agreeableness: 50,
   values: ['Quality', 'Precision'],
   fears: ['Bugs', 'Downtime'],
@@ -81,9 +83,20 @@ describe('PersonaTraitsSuggestionDialog', () => {
     fireEvent.click(screen.getByText('Apply selections'))
     expect(onApply).toHaveBeenCalled()
     const decisions = onApply.mock.calls[0][0]
+    // Changed traits default to apply...
     expect(decisions.conscientiousness).toBe(true)
     expect(decisions.neuroticism).toBe(true)
     expect(decisions.values).toBe(true)
+    // ...an unchanged trait defaults to keep.
+    expect(decisions.extraversion).toBe(false)
+
+    // Per-row wiring: hovering the conscientiousness row and choosing Keep
+    // flips only that decision.
+    fireEvent.click(screen.getAllByText('Keep')[0])
+    fireEvent.click(screen.getByText('Apply selections'))
+    const secondPass = onApply.mock.calls[1][0]
+    expect(secondPass.conscientiousness).toBe(false)
+    expect(secondPass.neuroticism).toBe(true)
   })
 
   it('calls onApply with all false on Keep originals', () => {
@@ -118,5 +131,26 @@ describe('PersonaTraitsSuggestionDialog', () => {
     expect(applyButtons.length).toBeGreaterThanOrEqual(5)
     const keepButtons = screen.getAllByText('Keep')
     expect(keepButtons.length).toBeGreaterThanOrEqual(5)
+  })
+
+  it('reveals the row toggles and draws a focus ring when a toggle is focused', () => {
+    render(
+      <PersonaTraitsSuggestionDialog
+        isOpen={true}
+        onClose={vi.fn()}
+        onApply={vi.fn()}
+        suggestedTraits={mockTraits}
+        originalPersona={mockPersona}
+      />
+    )
+    const keep = screen.getAllByText('Keep')[0]
+    // The row's toggles stay hidden until the row is hovered or one of them is
+    // focused — keyboard users must see the control they are about to activate.
+    const toggleGroup = keep.parentElement as HTMLElement
+    expect(toggleGroup.className).toContain('opacity-0')
+    expect(toggleGroup.className).toContain('focus-within:opacity-100')
+    // A focused toggle draws its own ring instead of relying on the browser default.
+    expect(keep.className).toContain('focus-visible:ring-2')
+    expect(keep.className).toContain('focus-visible:ring-ring')
   })
 })

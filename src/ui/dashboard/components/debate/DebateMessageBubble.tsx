@@ -10,9 +10,8 @@ interface DebateMessageBubbleProps {
 }
 
 /**
- * A single message bubble in the debate room.
- * Participant messages show avatar initials + name + occupation.
- * User messages show "You" label with right-alignment.
+ * Renders one debate message. `isStreaming` swaps in a typing indicator while
+ * the message's content is still empty.
  */
 export function DebateMessageBubble({
   message,
@@ -27,7 +26,6 @@ export function DebateMessageBubble({
     .toUpperCase()
     .slice(0, 2);
 
-  // Streaming placeholder — show typing dots
   if (isStreaming && !message.content) {
     return (
       <div className="flex flex-col max-w-[85%] self-start items-start">
@@ -49,7 +47,6 @@ export function DebateMessageBubble({
         isUser ? "self-end items-end" : "self-start items-start"
       }`}
     >
-      {/* Speaker label */}
       {!isUser && (
         <div className="flex items-center gap-2 mb-1.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary font-semibold text-xs text-secondary-foreground">
@@ -68,7 +65,6 @@ export function DebateMessageBubble({
         </div>
       )}
 
-      {/* Bubble */}
       <div
         className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap text-foreground ${
           isUser
@@ -79,7 +75,6 @@ export function DebateMessageBubble({
         {message.content || (isStreaming ? "…" : "")}
       </div>
 
-      {/* Label for user messages */}
       {isUser && (
         <span className="text-[10px] text-muted-foreground mt-1 px-1">You</span>
       )}

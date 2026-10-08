@@ -7,13 +7,6 @@ import { Brain } from "lucide-react"
 const REASONING_OPEN = "<<REASONING>>"
 const REASONING_CLOSE = "<</REASONING>>"
 
-/**
- * Matches a complete reasoning block (`<<REASONING>>…<</REASONING>>`) or an
- * unclosed opener running to the end of the content. The second alternative
- * covers the mid-stream state: while a block is still being streamed the
- * closing marker hasn't arrived, and we must not render the raw marker text
- * as message body.
- */
 const REASONING_REGEX = new RegExp(
   `${REASONING_OPEN}([\\s\\S]*?)(?:${REASONING_CLOSE}|$)`,
   "g",
@@ -42,6 +35,62 @@ interface MemoryFootnote {
   text: string
 }
 
+/**
+ * Strips the quote pair the prompt dialect wraps a statement in
+ * (`<% "statement" | … %>`). The quotes are markup, not prose. A lone quote is
+ * dropped too, covering a marker that is still streaming (`<% "statement`).
+ */
+function stripStatementQuotes(inner: string): string {
+  const trimmed = inner.trim()
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return trimmed.slice(1, -1).trim()
+  }
+  if (trimmed.startsWith('"') && !trimmed.slice(1).includes('"')) {
+    return trimmed.slice(1).trim()
+  }
+  return trimmed
+}
+
+/**
+ * Renders a single-segment marker as the statement it wraps.
+ *
+ * `ChatPromptCompiler` asks for `<% "statement" | "backstory" %>`, where the
+ * first segment is the text the user is meant to read; the model frequently
+ * drops the second half. Emitting the marker verbatim leaks the prompt dialect
+ * into the reply, while deleting it erases words the model authored — so the
+ * statement is kept and rendered plainly. A space is added on either side when
+ * the model glued the marker to neighbouring prose, so `me.<% "x" %>So` reads
+ * as `me. x So` rather than `me.xSo`.
+ */
+function inlineStatement(body: string, match: RegExpExecArray): string {
+  const statement = stripStatementQuotes(match[2])
+  const start = match.index
+  const before = start > 0 ? body[start - 1] : undefined
+  const after = body[start + match[0].length]
+  const lead = before !== undefined && !/\s/.test(before) ? " " : ""
+  const trail = after !== undefined && !/\s/.test(after) ? " " : ""
+  return statement ? `${lead}${statement}${trail}` : lead || trail
+}
+
+/**
+ * Splits assistant message content into renderable nodes, rendering each
+ * non-markup run as markdown.
+ *
+ * Markup accepted:
+ * - `<<REASONING>>…<</REASONING>>` → collapsed ThinkingBlock. An unclosed
+ *   opener runs to end of content, covering the mid-stream state.
+ * - `<% "statement" %>` — a single-segment marker, or one still streaming with
+ *   no closing `%>` — renders `statement` as plain prose. The model often
+ *   drops the `|` half of the documented two-part form; the delimiters must
+ *   never reach the user.
+ * - `<%display|excerpt%>` → dotted-underline tooltip.
+ * - `[Memory: text]` → superscript reference, with `text` collected into a
+ *   footnote list appended after the body.
+ * - `<I text>` → inline "memory" pill whose tooltip shows `text`.
+ *
+ * Returns nodes in source order — `[]` for empty input. Unrecognised or
+ * malformed markers fall through as plain body text.
+ */
 export function parseMessageContent(content: string): React.ReactNode[] {
   const parts: React.ReactNode[] = []
   const memories: MemoryFootnote[] = []
@@ -50,10 +99,6 @@ export function parseMessageContent(content: string): React.ReactNode[] {
 
   const reasoningSegments = extractReasoningSegments(content)
 
-  // Walk the content in order, splitting it into reasoning blocks and body
-  // segments. Order matters: post-content reasoning (appended after the
-  // answer) must render after the body, and every block must render — not
-  // just the first match.
   const segments: { type: "reasoning" | "body"; text: string }[] = []
   let cursor = 0
   for (const seg of reasoningSegments) {
@@ -78,24 +123,48 @@ export function parseMessageContent(content: string): React.ReactNode[] {
     const body = segment.text.trim()
     if (!body) continue
 
-    const combinedRegex = /(<%(.*?)%>)|(\[Memory:\s*(.*?)\])|(<I\s(.*?)>)/g
+    const combinedRegex =
+      /(<%([\s\S]*?)(?:%>|$))|(\[Memory:\s*(.*?)\])|(<I\s(.*?)>)/g
     let match = combinedRegex.exec(body)
     let lastIndex = 0
 
-    while (match !== null) {
-      if (match.index > lastIndex) {
-        parts.push(
-          <ChatMarkdown key={`md-${keyCounter++}`} content={body.slice(lastIndex, match.index)} />
-        )
+    // Plain prose accumulates in one markdown node, so an inlined
+    // single-segment marker reads as part of the sentence around it rather
+    // than as a separate node that loses the neighbouring spaces.
+    let prose = ""
+    // Set after an inline node (cited span / memory pill) is emitted. The next
+    // prose run must be separated from it by an explicit space node, because
+    // markdown strips the leading and trailing whitespace of each run it
+    // renders — a space written into `prose` on either edge would vanish.
+    let proseNeedsLeadSpace = false
+    const flushProse = () => {
+      if (!prose.trim()) {
+        prose = ""
+        return
       }
+      if (proseNeedsLeadSpace) parts.push(" ")
+      proseNeedsLeadSpace = false
+      parts.push(<ChatMarkdown key={`md-${keyCounter++}`} content={prose} />)
+      prose = ""
+    }
+
+    while (match !== null) {
+      prose += body.slice(lastIndex, match.index)
 
       if (match[1]) {
         const inner = match[2]
         const pipeIndex = inner.indexOf('|')
 
         if (pipeIndex !== -1) {
-          const displayText = inner.slice(0, pipeIndex).trim()
-          const excerpt = inner.slice(pipeIndex + 1).trim()
+          // The cited span is inline, but each prose run renders as its own
+          // markdown node with its edge whitespace stripped — so `video<% "a"
+          // | "b" %>` used to render glued. Emit the separating spaces as their
+          // own nodes so the citation never jams into the words around it.
+          const hadProse = prose.trim().length > 0
+          flushProse()
+          if (hadProse) parts.push(" ")
+          const displayText = stripStatementQuotes(inner.slice(0, pipeIndex))
+          const excerpt = stripStatementQuotes(inner.slice(pipeIndex + 1))
           parts.push(
             <Tooltip key={`tooltip-${keyCounter++}`} delayDuration={200}>
               <TooltipTrigger asChild>
@@ -108,10 +177,12 @@ export function parseMessageContent(content: string): React.ReactNode[] {
               </TooltipContent>
             </Tooltip>
           )
+          proseNeedsLeadSpace = true
         } else {
-          parts.push(match[0])
+          prose += inlineStatement(body, match)
         }
       } else if (match[3]) {
+        flushProse()
         memoryCounter++
         const memoryText = match[4].trim()
         memories.push({ index: memoryCounter, text: memoryText })
@@ -124,8 +195,10 @@ export function parseMessageContent(content: string): React.ReactNode[] {
           </sup>
         )
       } else if (match[5]) {
+        const hadProse = prose.trim().length > 0
+        flushProse()
+        if (hadProse) parts.push(" ")
         const memoryText = match[6].trim()
-        // Inline citation pill — "memory" label with full memory on hover
         parts.push(
           <Tooltip key={`memory-inline-${keyCounter++}`} delayDuration={200}>
             <TooltipTrigger asChild>
@@ -139,17 +212,15 @@ export function parseMessageContent(content: string): React.ReactNode[] {
             </TooltipContent>
           </Tooltip>
         )
+        proseNeedsLeadSpace = true
       }
 
       lastIndex = match.index + match[0].length
       match = combinedRegex.exec(body)
     }
 
-    if (lastIndex < body.length) {
-      parts.push(
-        <ChatMarkdown key={`md-${keyCounter++}`} content={body.slice(lastIndex)} />
-      )
-    }
+    prose += body.slice(lastIndex)
+    flushProse()
   }
 
   if (memories.length > 0) {

@@ -6,15 +6,35 @@ import type {
 } from './types';
 
 /**
- * Weighted random selection **without replacement** within a single draw.
- * Duplicates of the same item MAY occur across separate draws (different personas),
- * but not within one call (one persona's category).
+ * Raised by `samplePersonas` when the pooled distribution cannot supply the
+ * minimum signal a persona needs. The only hard requirement is a decision
+ * pattern — the core behavioral signal the generation prompt is built around.
+ * The message is user-facing: the pipeline surfaces it instead of a raw
+ * `TypeError` from dereferencing an absent signal.
+ */
+export class InsufficientSignalError extends Error {
+  constructor(
+    message = 'Not enough behavioral signal in the provided transcripts to generate personas.',
+  ) {
+    super(message);
+    this.name = 'InsufficientSignalError';
+  }
+}
+
+/**
+ * Draws items by weighted random selection **without replacement** within a
+ * single call: an item is drawn at most once, but the same item may appear in
+ * draws made by separate calls (different personas). Items with larger
+ * `weight` are more likely to be drawn first.
  *
- * The draw count is randomised uniformly between `min` and `max` (inclusive),
- * then capped to the number of distinct items available.
- * Items with higher `weight` values are more likely to be selected.
+ * The number of draws is chosen uniformly from `min`..`max` inclusive, then
+ * capped at the number of available items.
  *
- * @returns An array of drawn items (length between 0 and `Math.min(count, items.length)`).
+ * Non-deterministic (uses Math.random). Weights are assumed non-negative, as
+ * WeightedItem specifies.
+ *
+ * @returns Between 0 and `Math.min(items.length, max)` items; empty when the
+ *   input is empty, `min > max`, or every weight is <= 0.
  */
 export function weightedDraw(
   items: WeightedItem[],
@@ -124,11 +144,18 @@ function createPersonaSignal(
  * | communicationStyle| 1   | 1   |
  *
  * After the initial sample, if `onValidate` is provided it receives all
- * N personas and returns the indices of any that are contradictory.
- * Contradictory personas are resampled (up to 3 batch-level retries).
+ * `personaCount` personas and returns the indices of any that are
+ * contradictory; those are resampled, up to 3 batch-level retries. If
+ * contradictions remain after the retries, the latest sample is returned
+ * as-is.
  *
- * This is a pure application-layer function – it makes NO LLM calls directly.
- * Coherence validation is injected via the optional `onValidate` callback.
+ * Non-deterministic (uses Math.random). No LLM or I/O calls: coherence
+ * checking is delegated entirely to the injected `onValidate` callback.
+ *
+ * @returns `personaCount` personas, or [] when `personaCount <= 0`.
+ * @throws {InsufficientSignalError} When `distribution.decisionPatterns`
+ *   cannot yield a single signal (empty, or every weight <= 0) — the run
+ *   would otherwise emit personas with no behavioral anchor.
  */
 export async function samplePersonas(
   distribution: PooledDistributionSummary,
@@ -138,6 +165,14 @@ export async function samplePersonas(
   ) => Promise<number[]>,
 ): Promise<SampledPersonaSignal[]> {
   if (personaCount <= 0) return [];
+
+  // A persona with no decision pattern cannot be generated: the generation
+  // prompt has nothing to anchor its behavior on, and the coherence prompt
+  // dereferences it. Fail here, with a message the pipeline can show, rather
+  // than emitting an incomplete sample that crashes downstream prompt building.
+  if (!distribution.decisionPatterns.some((item) => item.weight > 0)) {
+    throw new InsufficientSignalError();
+  }
 
   const personas: SampledPersonaSignal[] = [];
   for (let i = 0; i < personaCount; i++) {

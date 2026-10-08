@@ -1,13 +1,23 @@
+/**
+ * A quality-control verdict on one persona's analysis: how coherent it was,
+ * whether it hallucinated, and what to fix. Produced by an evaluator pass
+ * over an analysis response.
+ */
 export interface CriticEvaluation {
   id: string;
   analysisId: string;
   personaId: string;
-  coherenceScore: number; // 1-10
+  /** 1-10; 1 is incoherent, 10 is fully coherent. */
+  coherenceScore: number;
   isHallucinating: boolean;
   critique: string;
   suggestedFix?: string;
 }
 
+/**
+ * Checks required identifiers are non-empty, the score is within 1-10, and
+ * `suggestedFix` is a string when present.
+ */
 export function validateCriticEvaluation(entity: CriticEvaluation): boolean {
   if (!entity || typeof entity !== 'object') return false;
 

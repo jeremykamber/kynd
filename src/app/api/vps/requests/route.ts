@@ -1,13 +1,9 @@
-// ─── POST /api/vps/requests (cancel) + GET (list active) ───────────────────
-// Manages active analysis/debate/chat request lifecycle.
-//   POST: Cancel a running request by requestId.
-//   GET : List all currently active/in-flight request IDs.
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+//   POST: cancel a running analysis/debate/chat request by requestId.
+//   GET : list currently active/in-flight request IDs.
 
 import { NextRequest, NextResponse } from "next/server";
 import { cancellationManager } from "@/infrastructure/RequestCancellationManager";
-
-// ─── Cancel a running request ───────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const { requestId } = await req.json();
@@ -33,8 +29,6 @@ export async function POST(req: NextRequest) {
     message: `No active request found with ID ${requestId}.`,
   });
 }
-
-// ─── List active request IDs ────────────────────────────────────────────────
 
 export async function GET() {
   return NextResponse.json({

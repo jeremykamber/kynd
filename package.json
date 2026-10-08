@@ -1,6 +1,6 @@
 {
-  "name": "ai_user_testing_mvp",
-  "version": "0.1.0",
+  "name": "kynd",
+  "version": "0.2.0-beta.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,7 +8,7 @@
     "postbuild": "cp node_modules/playwright-core/browsers.json .next/standalone/node_modules/playwright-core/browsers.json",
     "start": "next start",
     "lint": "eslint",
-    "release": "next build && vitest run --config vitest.release.config.ts",
+    "release": "next build && vitest run",
     "benchmark": "tsx scripts/benchmark.ts",
     "test": "vitest run",
     "vitest": "vitest"

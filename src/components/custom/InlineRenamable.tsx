@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input'
 
 /**
  * Renders a value with a hover pencil that swaps it for an inline input.
- * Used to let users rename simulations and persona batches. Plain text on the
- * outside (no nested buttons) so it can sit inside clickable cards.
+ * Used to let users rename simulations and persona batches. The trigger
+ * controls are real `<button>`s, so the wrapper must be a non-button clickable
+ * container (e.g. `div role="button"`) — never a native `<button>` or `<a>`.
  */
 export function InlineRenamable({
   value,
@@ -77,8 +78,14 @@ export function InlineRenamable({
   }
 
   return (
+    /*
+      The label is deliberately not `flex-1`. The wrapper is as wide as its
+      container, so a growing label parks the pencil against the far edge and
+      the control reads as belonging to the row rather than to the title. Left
+      packed, the pencil sits after the text and only the text truncates.
+    */
     <span className={`group/title flex items-center gap-1.5 min-w-0 w-full ${className ?? ''}`}>
-      <span className="truncate min-w-0 flex-1 font-semibold">{value}</span>
+      <span className="truncate min-w-0 font-semibold">{value}</span>
       <button
         type="button"
         onClick={(e) => {

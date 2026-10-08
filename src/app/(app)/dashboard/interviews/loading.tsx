@@ -1,6 +1,6 @@
 /**
  * Loading skeleton for /dashboard/interviews.
- * Matches the InterviewUploadClient layout with upload zone + generate card.
+ * Mirrors the two-step InterviewUploadClient layout: upload zone, then generate card.
  */
 export default function InterviewsLoading() {
   return (

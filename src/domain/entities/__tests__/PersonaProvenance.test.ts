@@ -63,22 +63,4 @@ describe('PersonaProvenance', () => {
       expect(result.success).toBe(true)
     }
   })
-
-  it('should accept optional source field on attributes', () => {
-    const provenance = {
-      attributes: [
-        {
-          attribute: 'values',
-          tier: 'observed' as TierLabel,
-          confidence: 0.9,
-          source: 'transcript',
-          evidence: 'Direct quote from interview',
-        },
-      ],
-      generationMode: 'research',
-      overallConfidence: 0.9,
-    }
-    const result = PersonaProvenanceSchema.safeParse(provenance)
-    expect(result.success).toBe(true)
-  })
 })

@@ -53,22 +53,26 @@ describe("DebateSetupPanel", () => {
     const input = screen.getByPlaceholderText(/What proposal/);
     fireEvent.change(input, { target: { value: "Raise prices 60%" } });
 
-    // Select two personas (need at least 2)
+    // Select two personas (need at least 2) — Alice and Casey, in the
+    // available-personas order the component filters to.
     const checkboxes = screen.getAllByRole("checkbox");
     fireEvent.click(checkboxes[0]);
-    fireEvent.click(checkboxes[1]);
+    fireEvent.click(checkboxes[2]);
 
     // Submit
     const submitBtn = screen.getByText(/Start Debate/);
     fireEvent.click(submitBtn);
 
     expect(onStart).toHaveBeenCalledTimes(1);
-    expect(onStart).toHaveBeenCalledWith(
+    const config = onStart.mock.calls[0][0];
+    expect(config).toEqual(
       expect.objectContaining({
         proposal: "Raise prices 60%",
         totalRounds: 3,
       }),
     );
+    // A wrong selection (empty, wrong pair, or extra) must fail here.
+    expect(config.participants.map((p: { id: string }) => p.id)).toEqual(["p1", "p3"]);
   });
 
   it("disables submit without proposal or personas", () => {

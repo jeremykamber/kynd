@@ -340,7 +340,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
   const { ArtifactIntakeAdapter } = await import('@/infrastructure/adapters/ArtifactIntakeAdapter');
   const { RemotePlaywrightAdapter } = await import('@/infrastructure/adapters/RemotePlaywrightAdapter');
   const { LlmServiceImpl } = await import('@/infrastructure/adapters/LlmServiceImpl');
-  const { SynthesizeArtifactResultsUseCase } = await import('@/application/usecases/synthesizeArtifactResults');
+  const { SynthesizeArtifactResultsUseCase } = await import('@/application/usecases/SynthesizeArtifactResultsUseCase');
 
   const llm = LlmServiceImpl.createFromEnv('openrouter');
   const browserService = RemotePlaywrightAdapter.createFromEnv();

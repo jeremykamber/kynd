@@ -9,8 +9,8 @@ interface DebateSidebarProps {
 }
 
 /**
- * Sidebar listing all debates with status badges.
- * Clicking a debate sets it as the active view.
+ * Desktop-only list of debates (hidden below `md`). Selecting an entry sets it
+ * active in the debate store; `onNewDebate` opens the setup panel.
  */
 export function DebateSidebar({ onNewDebate }: DebateSidebarProps) {
   const debates = useDebateStore((s) => s.debates);

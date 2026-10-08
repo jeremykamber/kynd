@@ -1,11 +1,7 @@
-// ─── POST /api/vps/generate-personas ────────────────────────────────────────
-// Accepts a free-text persona description, kicks off background persona
-// generation, and returns a runId immediately. The client polls
-//   GET /api/vps/analyze-progress?runId=pt-<timestamp>
-//   GET /api/vps/persona-result?runId=pt-<timestamp>
-// to track progress and retrieve the final personas (or error).
-// Rate-limited per client IP.
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Accepts a free-text persona description, starts background generation, and
+// returns { runId } immediately; poll GET /api/vps/analyze-progress and
+// /api/vps/persona-result with that runId. Rate-limited per client IP.
 
 import { NextRequest, NextResponse } from "next/server";
 import { RateLimiterMemory } from "rate-limiter-flexible";
@@ -14,7 +10,6 @@ import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
 import { storeProgress, storeCompleted } from "@/actions/getProgress";
 
-// ── Rate Limiter ────────────────────────────────────────────────────────────
 
 const AUDIT_RATE_LIMIT_MAX = parseInt(process.env.AUDIT_RATE_LIMIT_MAX || "5");
 const AUDIT_RATE_LIMIT_WINDOW_MS = parseInt(
@@ -27,12 +22,10 @@ const personasRateLimiter = new RateLimiterMemory({
   duration: Math.floor(AUDIT_RATE_LIMIT_WINDOW_MS / 1000),
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const { personaDescription, count, mode } = await req.json();
 
-  // ── Validate input ──────────────────────────────────────────────────────
   if (!personaDescription || typeof personaDescription !== "string" || personaDescription.trim().length === 0) {
     return NextResponse.json(
       { error: "Missing required field: personaDescription must be a non-empty string." },
@@ -42,12 +35,8 @@ export async function POST(req: NextRequest) {
 
   const personaCount = typeof count === "number" && count >= 1 && count <= 20 ? count : 5;
 
-  // Mode is forwarded to the use case so the deployed backend can run
-  // strategy/research generation (previously it was silently dropped,
-  // making strategy mode impossible over the VPS).
   const generationMode = mode === "research" || mode === "strategy" ? mode : undefined;
 
-  // ── Rate limit ──────────────────────────────────────────────────────────
   const clientIP =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
@@ -64,7 +53,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Generate runId and kick off background generation ───────────────────
   const runId = `pt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
   runGeneration(runId, personaDescription, personaCount, generationMode).catch((err) => {
@@ -74,9 +62,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ runId });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Background generation runner
-// ─────────────────────────────────────────────────────────────────────────────
 
 async function runGeneration(runId: string, personaDescription: string, count: number, generationMode?: 'research' | 'strategy') {
   try {

@@ -1,8 +1,6 @@
-// ─── POST /api/vps/record-step ──────────────────────────────────────────────
-// Records a new InteractionStep in a TestingSession. Returns the updated
-// session with the step appended. Used to capture user interactions during
-// a persona-based testing session.
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Appends an InteractionStep to a TestingSession and returns the updated
+// session.
 
 import { NextRequest, NextResponse } from "next/server";
 import { RecordStepUseCase } from "@/application/usecases/RecordStepUseCase";

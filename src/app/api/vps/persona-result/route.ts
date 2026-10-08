@@ -1,8 +1,6 @@
-// ─── GET /api/vps/persona-result ─────────────────────────────────────────────
-// Poll the final results (or error) of a completed persona generation.
-// The background runner writes results to PersonaGenerationStore;
-// this endpoint reads from that store.
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Polls the final personas or error of a completed persona generation
+// identified by ?runId=.
 
 import { NextRequest, NextResponse } from "next/server";
 import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";

@@ -1,3 +1,8 @@
+/**
+ * The ICP onboarding survey: its option lists, its validation schema, and the
+ * translation of a submitted survey into a persona-generation prompt.
+ */
+
 import { z } from "zod";
 
 export const GOAL_OPTIONS = [
@@ -80,6 +85,15 @@ const CONFIDENCE_MAP: Record<string, string> = {
   "Mostly assumptions": "LOWER - more assumptions than direct evidence",
 };
 
+/**
+ * Renders a validated survey as the prompt consumed by persona generation.
+ *
+ * Sections are separated by a blank line — `evidenceQuestionsFor` splits the
+ * prompt on blank lines to attribute questions to survey answers, so the
+ * separation is load-bearing. List answers are comma-joined; `additionalNotes`
+ * is omitted when empty; an `audienceKnowledge` value outside
+ * `AUDIENCE_KNOWLEDGE_OPTIONS` is reported as "MEDIUM".
+ */
 export function surveyToPrompt(survey: PersonaSurvey): string {
   const confidence = CONFIDENCE_MAP[survey.audienceKnowledge] ?? "MEDIUM";
 

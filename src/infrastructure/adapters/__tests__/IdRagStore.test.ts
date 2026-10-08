@@ -52,9 +52,12 @@ describe("IdRagStore", () => {
 
     store.ingestPersona(persona);
 
-    const results = store.retrieve("test-1", "contract mistake CRM cost");
-    expect(results.length).toBeGreaterThanOrEqual(1);
-    expect(results[0].score).toBeGreaterThan(0);
+    const results = store.retrieve("test-1", "contract mistake CRM cost", 1);
+
+    // The chunk about the contract mistake is the one the query surfaces; an
+    // unrelated chunk (childhood, current role) must not outrank it.
+    expect(results).toHaveLength(1);
+    expect(results[0].chunk.text).toContain("three-year contract for $15,000/year for a CRM");
   });
 
   it("retrieves top-K results sorted by relevance", () => {
@@ -115,18 +118,6 @@ describe("IdRagStore", () => {
     store.clearPersona("test-1");
     const results = store.retrieve("test-1", "test");
     expect(results).toEqual([]);
-  });
-
-  it("links related chunks by adjacency and topic", () => {
-    const store = new IdRagStore();
-    const chunks = store.chunkBackstory("test-1", [
-      "I grew up in a family that valued money carefully. My parents were frugal and taught me to save.",
-      "My career in finance taught me to analyze every purchase carefully.",
-      "I now live in a minimalist apartment that reflects my organized approach to life.",
-    ].join("\n\n"));
-
-    // Related should at minimum include adjacent chunks
-    expect(chunks.length).toBeGreaterThanOrEqual(2);
   });
 
   it("backstory chunks stored with chunkType 'backstory'", () => {

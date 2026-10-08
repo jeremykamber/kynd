@@ -1,3 +1,13 @@
+/**
+ * Debate rooms and their transcripts.
+ *
+ * `debates` and `activeDebateId` are persisted to IndexedDB under
+ * `debate-storage`; `isStreaming` and the `MAX_CONCURRENT` constant are
+ * ephemeral and stripped by `partialize`. There is no `version`, so a shape
+ * change reaches stored debates unmigrated. `addDebate` silently refuses to
+ * add a room while `MAX_CONCURRENT` debates are in `setup` or `in_progress`.
+ */
+
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { DebateRoom, DebateMessage } from "@/domain/entities/DebateRoom";

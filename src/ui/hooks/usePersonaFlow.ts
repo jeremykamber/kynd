@@ -1,12 +1,30 @@
+/**
+ * Client-side driver for ICP persona generation from a written description.
+ *
+ * Owns the form inputs (the customer profile prompt and requested persona
+ * count), the live generation progress, the resulting `personas`, and the id
+ * of the batch most recently added to the store. It always requests
+ * `strategy`-mode personas — rich storytelling rather than the description
+ * pipeline — via `generatePersonasAction`.
+ *
+ * On completion it hands the run's outcome to `persistPersonaBatchForRun`,
+ * which writes the batch unless another observer (the background toaster) got
+ * there first, and calls `onSuccess(personas)`. When the action returns no
+ * stream (remote/VPS) it stores the run id and a `useEffect` polls
+ * `getProgressAction` and the generation result every two seconds for up to 300
+ * attempts. `isPending` is released as soon as the action returns, since
+ * background runs are tracked by the `PersonaProgressToaster` rather than by
+ * this hook.
+ */
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import { generatePersonasAction } from '@/actions/generatePersonas'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
 import { getProgressAction } from '@/actions/getProgress'
-import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
+import { usePersonaStore } from '@/ui/stores/personaStore'
 import { readStreamableValue } from '@ai-sdk/rsc'
-import { batchConsumedRunIds } from '@/lib/generationRunState'
-import { resolveBatchLabel } from '@/lib/resolveBatchLabel'
+import { persistPersonaBatchForRun } from '@/lib/personaRunOutcome'
 
 export type PersonaProgressStep = 'BRAINSTORMING_PERSONAS' | 'GENERATING_BACKSTORIES' | 'ADDING_BEHAVIORAL_DEPTH' | 'GENERATING_INSIGHTS' | 'DONE' | 'ERROR'
 
@@ -56,7 +74,6 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     setIsPending(false)
   }, [])
 
-  // ── Polling helper — runs in a useEffect triggered by runId ────────────
   const [runId, setRunId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -66,7 +83,6 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     let cancelled = false
     let progressInterval: ReturnType<typeof setInterval> | null = null
 
-    // Progress polling (fires immediately, then every 2s)
     const pollProgress = async () => {
       if (controller?.signal.aborted || !mountedRef.current || cancelled) return
       try {
@@ -112,20 +128,17 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
           }
 
           if (pollResult.personas && pollResult.personas.length > 0) {
-            const fallbackLabel = `"${customerProfile.slice(0, 40)}${customerProfile.length > 40 ? '...' : ''}"`
-            const batch: PersonaBatch = {
-              id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-              label: await resolveBatchLabel(fallbackLabel, pollResult.personas, { source: 'description', description: customerProfile }),
-              source: 'description',
-              createdAt: new Date().toISOString(),
+            const batch = await persistPersonaBatchForRun({
+              runId,
               personas: pollResult.personas,
-            }
-            if (!batchConsumedRunIds.has(runId)) {
-              batchConsumedRunIds.add(runId)
-              usePersonaStore.getState().addBatch(batch)
-            }
+              source: 'description',
+              description: customerProfile,
+              fallbackLabel: `"${customerProfile.slice(0, 40)}${customerProfile.length > 40 ? '...' : ''}"`,
+            })
             if (mountedRef.current) {
-              setLastCompletedBatchId(batch.id)
+              // Null means another observer already wrote this run's batch, so
+              // its id is not ours to remember.
+              if (batch) setLastCompletedBatchId(batch.id)
               setPersonas(pollResult.personas)
               setPersonaProgress({ step: 'DONE', personas: pollResult.personas, completedCount: pollResult.personas.length, totalCount: pollResult.personas.length })
               abortControllerRef.current = null
@@ -153,7 +166,6 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
     }
   }, [runId, customerProfile, onSuccess])
 
-  // ── Generate handler ───────────────────────────────────────────────────
   const handleGeneratePersonas = useCallback((promptOverride?: string) => {
     const prompt = promptOverride ?? customerProfile
     if (!prompt.trim()) return
@@ -168,8 +180,8 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
 
     ;(async () => {
       try {
-        // The ICP flow always generates strategy-mode personas (rich storytelling,
-        // representative assumptions) rather than the legacy description pipeline.
+        // The ICP flow always generates strategy-mode personas — rich
+        // storytelling built on representative assumptions.
         const result: any = await generatePersonasAction(prompt, personaCount, 'strategy')
         const streamData = result.streamData
         const id = result.runId as string | undefined
@@ -197,19 +209,15 @@ export function usePersonaFlow(onSuccess?: (personas: Persona[]) => void) {
                 ? promptOverride.slice(0, 60)
                 : customerProfile.slice(0, 40)
               const fallbackLabel = `"${label}${label.length >= 60 ? '...' : ''}"`
-              const batch: PersonaBatch = {
-                id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-                label: await resolveBatchLabel(fallbackLabel, update.personas!, { source: 'description', description: promptOverride || customerProfile }),
-                source: 'description',
-                createdAt: new Date().toISOString(),
+              const batch = await persistPersonaBatchForRun({
+                runId: id,
                 personas: update.personas!,
-              }
-              if (id && !batchConsumedRunIds.has(id)) {
-                batchConsumedRunIds.add(id)
-                usePersonaStore.getState().addBatch(batch)
-              }
+                source: 'description',
+                description: promptOverride || customerProfile,
+                fallbackLabel,
+              })
               if (mountedRef.current) {
-                setLastCompletedBatchId(batch.id)
+                if (batch) setLastCompletedBatchId(batch.id)
                 setPersonas(update.personas)
                 setPersonaProgress({ step: 'DONE', personas: update.personas, completedCount: update.personas!.length, totalCount: update.personas!.length })
                 abortControllerRef.current = null

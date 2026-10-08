@@ -2,6 +2,11 @@
  * Shared in-memory progress store for long-running VPS tasks.
  * Separated from getProgress.ts (a "use server" file) so that VPS API routes
  * can import it directly — "use server" modules can only export async functions.
+ *
+ * Entries are keyed by run ID and have no expiry: a run's state lives until it
+ * is overwritten or the process restarts. Written by storeProgress/storeCompleted
+ * (`src/actions/getProgress.ts`) and read by getProgressAction and the
+ * analyze-progress polling route.
  */
 
 export interface ProgressState {

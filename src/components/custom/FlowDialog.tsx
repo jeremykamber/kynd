@@ -34,6 +34,13 @@ export interface FlowDialogProps {
   totalCount?: number
 }
 
+/**
+ * Multi-step progress dialog for long-running generation flows (personas,
+ * interviews, analyses). Renders the step list, the active step's caption
+ * (streaming text or the step's cycling copy), and either caller-provided
+ * content or a default progress bar. With `transparentOverlay` it renders as a
+ * non-blocking panel instead of a modal.
+ */
 export function FlowDialog({
   open,
   onOpenChange,
@@ -63,7 +70,6 @@ export function FlowDialog({
   const showSubLine = !!currentStepTexts?.length
   const hasTelemetry = showSubLine && (streamingText || personaName)
 
-  // Reset index when step changes; start cycling interval if texts available
   React.useEffect(() => {
     setTextIndex(0)
     setIsFading(false)
@@ -108,7 +114,6 @@ export function FlowDialog({
                 <StepIndicator steps={steps} currentStep={currentStep} />
               </div>
               <div className="flex-1 min-h-[200px] flex flex-col justify-center items-center">
-                {/* Status text — rendered by dialog (separate from children) */}
                 {displayText && (
                   <div className="mb-4 text-center">
                     <p
@@ -117,7 +122,6 @@ export function FlowDialog({
                     >
                       {displayText}
                     </p>
-                    {/* Sub-line telemetry — only when main caption is from cyclingTexts */}
                     {hasTelemetry && (
                       <div className="mt-1.5 space-y-0.5">
                         {streamingText && (
@@ -134,7 +138,6 @@ export function FlowDialog({
                     )}
                   </div>
                 )}
-                {/* Content — children or defaults */}
                 {children ? (
                   <div className="w-full">
                     {children}
@@ -181,7 +184,6 @@ export function FlowDialog({
           </div>
           
           <div className="flex-1 min-h-[300px] flex flex-col justify-center items-center">
-            {/* Status text — rendered by dialog (separate from children) */}
             {displayText && (
               <div className="mb-6 text-center">
                 <p
@@ -190,7 +192,6 @@ export function FlowDialog({
                 >
                   {displayText}
                 </p>
-                {/* Sub-line telemetry — only when main caption is from cyclingTexts */}
                 {hasTelemetry && (
                   <div className="mt-1.5 space-y-0.5">
                     {streamingText && (
@@ -207,7 +208,6 @@ export function FlowDialog({
                 )}
               </div>
             )}
-            {/* Content — children or defaults */}
             {children ? (
               <div className="w-full h-full animate-in fade-in zoom-in-95 duration-500">
                 {children}

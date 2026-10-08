@@ -28,6 +28,12 @@ interface AnalysisContextValue {
 
 const AnalysisContext = createContext<AnalysisContextValue | null>(null)
 
+/**
+ * Provides the artifact-analysis flow (artifact URL/image, goal, research
+ * question, results, progress) to the subtree. The value is `useAnalysisFlow`;
+ * consumers must read it through `useAnalysis`, which throws outside the
+ * provider.
+ */
 export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const analysisFlow = useAnalysisFlow()
 

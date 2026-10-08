@@ -1,8 +1,7 @@
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn, DESTRUCTIVE_CARD_CONTROL_CLASS } from "@/lib/utils"
 import { MinimalCard } from "./MinimalCard"
 import { PersonaAvatar } from "./PersonaAvatar"
-import { StatusBadge } from "./StatusBadge"
 import { CopyIcon, GitForkIcon, XIcon, AlertTriangleIcon } from "lucide-react"
 import {
   Dialog,
@@ -23,6 +22,13 @@ export interface PersonaProfilePanelProps extends React.HTMLAttributes<HTMLDivEl
   onDelete?: (personaId: string) => void
 }
 
+/**
+ * Compact persona card for the batch grid: identity, a labeled goals list and
+ * a labeled decision-style line, plus optional delete, create-variant and chat
+ * actions. Psychographic detail lives in the persona detail modal/sheet, not
+ * here. The delete confirmation reads `useAnalysisStore` to warn when the
+ * persona has already been used in analyses; it owns no persistence itself.
+ */
 export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onDelete, className, ...props }: PersonaProfilePanelProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
 
@@ -46,7 +52,7 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
               e.stopPropagation()
               setIsDeleteDialogOpen(true)
             }}
-            className="absolute -top-2 -right-2 flex items-center justify-center size-6 rounded-full bg-destructive/90 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-destructive focus:outline-none z-10"
+            className={DESTRUCTIVE_CARD_CONTROL_CLASS}
             aria-label="Delete persona"
           >
             <XIcon className="size-3.5" />
@@ -60,13 +66,13 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
           />
           <div className="flex flex-col gap-1.5 flex-1 min-w-0">
             <div className="flex items-center justify-between gap-4">
-              <h3 className="font-semibold text-xl tracking-tight text-foreground truncate">{persona.name}</h3>
+              <h3 className="font-semibold text-xl tracking-tight text-foreground break-words">{persona.name}</h3>
             </div>
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest truncate">{persona.occupation}</p>
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest leading-snug break-words">{persona.occupation}</p>
             {persona.variantOf && (
               <div className="flex items-center gap-1.5 mt-1">
                 <GitForkIcon className="w-3 h-3 text-muted-foreground/80 shrink-0" />
-                <span className="text-xs font-medium text-muted-foreground/80 truncate">
+                <span className="text-xs font-medium text-muted-foreground/80 break-words">
                   Variant of {persona.variantOf.name}
                 </span>
               </div>
@@ -74,55 +80,38 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="h-px w-full bg-border/40" />
+        {(persona.goals?.length || persona.decisionStyle) && (
+          <div className="flex flex-col gap-5">
+            <div className="h-px w-full bg-border/40" />
 
-          <div className="flex flex-col gap-3">
-            {/* Big Five: show the two most distinctive traits */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-end gap-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest min-w-0 truncate">Conscientiousness</span>
-                <span className="text-xs font-bold font-variant-numeric tabular-nums shrink-0">{persona.conscientiousness}%</span>
-              </div>
-              <div className="h-1.5 w-full bg-muted rounded-sm overflow-hidden">
-                <div className="h-full bg-primary rounded-sm" style={{ width: `${persona.conscientiousness}%` }} />
-              </div>
-              <div className="flex justify-between text-[11px] text-muted-foreground/80 font-medium uppercase">
-                <span>Chaotic</span>
-                <span>Meticulous</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-end gap-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest min-w-0 truncate">Neuroticism</span>
-                <span className="text-xs font-bold font-variant-numeric tabular-nums shrink-0">{persona.neuroticism}%</span>
-              </div>
-              <div className="h-1.5 w-full bg-muted rounded-sm overflow-hidden">
-                <div className="h-full bg-primary rounded-sm" style={{ width: `${persona.neuroticism}%` }} />
-              </div>
-              <div className="flex justify-between text-[11px] text-muted-foreground/80 font-medium uppercase">
-                <span>Stable</span>
-                <span>Anxious</span>
-              </div>
-            </div>
-
-            {/* Psychographic snapshot */}
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {persona.values?.slice(0, 2).map((v, i) => (
-                <span key={i} className="text-[11px] font-medium text-primary/80 bg-primary/10 px-2 py-0.5 rounded-sm truncate max-w-[100px]">
-                  {v}
+            {persona.goals?.length ? (
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                  Goals
                 </span>
-              ))}
-            </div>
-            {persona.decisionStyle && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Decides:</span>
-                <span className="text-xs font-semibold text-foreground/80 truncate">{persona.decisionStyle}</span>
+                <ul className="flex flex-col gap-1.5">
+                  {persona.goals.slice(0, 3).map((goal, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-[13px] leading-snug text-foreground/85">
+                      <span className="mt-[6px] size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
+                      <span>{goal}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            )}
+            ) : null}
+
+            {persona.decisionStyle ? (
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                  How they decide
+                </span>
+                <p className="text-[13px] leading-relaxed text-foreground/85 line-clamp-3">
+                  {persona.decisionStyle}
+                </p>
+              </div>
+            ) : null}
           </div>
-        </div>
+        )}
 
         <div className="mt-auto flex flex-wrap gap-2">
           {onCreateVariant && (

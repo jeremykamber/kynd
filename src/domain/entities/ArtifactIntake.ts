@@ -1,3 +1,8 @@
+/**
+ * The artifact as captured for analysis. The screenshot is the artifact the
+ * persona actually "sees"; the page HTML and its summary are optional
+ * supporting material.
+ */
 export interface ArtifactIntake {
   screenshotBase64: string;
   pageHtml?: string;

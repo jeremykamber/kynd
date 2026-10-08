@@ -11,6 +11,13 @@ export type IntakeProgress = "NAVIGATING" | "CAPTURING" | "PROCESSING" | "COMPLE
 
 export type IntakeProgressCallback = (progress: IntakeProgress) => void;
 
+/**
+ * Front door of the artifact pipeline: normalizes a URL or an uploaded
+ * screenshot into an ArtifactIntake the rest of the run consumes. Talks to the
+ * BrowserServicePort (Playwright) for URL capture and to LlmServicePort for the
+ * page summary, which it kicks off without blocking capture. Reports coarse
+ * progress to the caller and optionally traces through AnalysisLogger.
+ */
 export class ArtifactIntakeAdapter {
   constructor(
     private readonly browserService: BrowserServicePort,

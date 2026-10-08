@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { parseMessageContent } from "../parseMessageContent";
 
 describe("parseMessageContent", () => {
@@ -13,10 +14,14 @@ describe("parseMessageContent", () => {
 
   it("renders lists and italic markdown", () => {
     const { container } = render(
-      <div>{parseMessageContent("1. show the price\n2. prove the claims")}</div>,
+      <div>{parseMessageContent("1. show the price\n2. prove the claims\n\n*skeptical of the claims*")}</div>,
     );
-    expect(container.querySelector("ol")).not.toBeNull();
-    expect(container.querySelector("li")).not.toBeNull();
+    // One ordered list, whose items keep their text and their order.
+    const items = Array.from(container.querySelectorAll("ol li")).map((li) => li.textContent);
+    expect(items).toEqual(["show the price", "prove the claims"]);
+    // The italic half of the title: emphasis renders as <em>, not raw asterisks.
+    expect(container.querySelector("em")?.textContent).toBe("skeptical of the claims");
+    expect(container.textContent).not.toContain("*");
   });
 
   it("preserves single newlines as line breaks (no whitespace collapse)", () => {
@@ -82,5 +87,84 @@ describe("parseMessageContent", () => {
     );
     expect(container.querySelector("sup")).not.toBeNull();
     expect(container.textContent).toContain("my childhood dog");
+  });
+
+  it("renders a single-segment marker as plain prose, never the delimiters", () => {
+    const { container } = render(
+      <div>
+        {parseMessageContent(
+          'I lost $12k once <% "so now I read the cancellation policy first" %> — never twice',
+        )}
+      </div>,
+    );
+    // The statement stays; the prompt dialect's delimiters and quotes do not.
+    expect(container.textContent).toContain("so now I read the cancellation policy first");
+    expect(container.textContent).not.toContain("<%");
+    expect(container.textContent).not.toContain("%>");
+    expect(container.textContent).not.toContain('"');
+  });
+
+  it("keeps the two-segment marker as a tooltip", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <div>{parseMessageContent('<% "trust is earned" | "burned by a vendor in 2022" %>')}</div>
+      </TooltipProvider>,
+    );
+    // The display segment is visible; the backstory remains tooltip-only.
+    expect(container.textContent).toContain("trust is earned");
+    expect(container.textContent).not.toContain("burned by a vendor in 2022");
+    expect(container.textContent).not.toContain("<%");
+    expect(container.textContent).not.toContain("|");
+  });
+
+  it("renders an unterminated marker mid-stream without leaking delimiters", () => {
+    const { container } = render(
+      <div>{parseMessageContent('still typing <% "half a sentence')}</div>,
+    );
+    expect(container.textContent).toContain("half a sentence");
+    expect(container.textContent).not.toContain("<%");
+  });
+
+  it("separates a marker glued to surrounding text", () => {
+    const { container } = render(
+      <div>
+        {parseMessageContent(
+          'their support ghosted me.<% "That $12k disaster" %>So yeah, fine print first',
+        )}
+      </div>,
+    );
+    // Prose flows continuously instead of jamming the statement into its neighbours.
+    expect(container.textContent).toBe(
+      "their support ghosted me. That $12k disaster So yeah, fine print first",
+    );
+    expect(container.textContent).not.toContain("<%");
+  });
+
+  it("keeps a space between prose and a cited span glued to it", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <div>
+          {parseMessageContent(
+            'watch the video<% "the demo" | "why it mattered" %>and decide',
+          )}
+        </div>
+      </TooltipProvider>,
+    );
+    // The cited span is a separate node; without an explicit separator it
+    // renders as "videothe demoand".
+    expect(container.textContent).toBe("watch the video the demo and decide");
+  });
+
+  it("does not double the space when the marker already has one", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <div>
+          {parseMessageContent(
+            'watch the video <% "the demo" | "why it mattered" %> and decide',
+          )}
+        </div>
+      </TooltipProvider>,
+    );
+    expect(container.textContent).toBe("watch the video the demo and decide");
   });
 });

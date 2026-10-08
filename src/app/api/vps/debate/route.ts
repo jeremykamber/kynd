@@ -1,9 +1,6 @@
-// ─── POST /api/vps/debate (SSE streaming) ──────────────────────────────────
-// Runs a multi-persona debate about a proposal and streams each round as a
-// Server-Sent Event. The client receives structured DebateStreamEvent objects
-// (argument, rebuttal, debate_end, or error) and can render each round as it
-// arrives.
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Runs a multi-persona debate and streams DebateStreamEvent objects as
+// Server-Sent Events; the stream always ends with debate_end or error.
 
 import { NextRequest } from "next/server";
 import { DebateAdapter } from "@/infrastructure/adapters/DebateAdapter";

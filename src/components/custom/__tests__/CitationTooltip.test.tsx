@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { CitationTooltip, type EvidenceCitation } from '../CitationTooltip'
 import { RawThinkAloudSheet } from '../RawThinkAloudSheet'
 
@@ -54,11 +54,9 @@ describe('CitationTooltip', () => {
     // binds the pointer variant only, so the tests send what the browser sends.
     fireEvent.pointerDown(badge)
     expect(screen.getByText('VP of Engineering')).toBeTruthy()
+    // The quote card renders the citation verbatim, character for character.
     const shown = screen.getByText(QUOTE).textContent
     expect(shown).toBe(QUOTE)
-    // The quote card may never paraphrase: it must be a substring of the
-    // transcript the drawer would open.
-    expect(TRANSCRIPT).toContain(shown ?? '')
   })
 
   it('hover opens the popover (pointer-enter path)', () => {
@@ -67,6 +65,60 @@ describe('CitationTooltip', () => {
     // that is what the test dispatches — same path a real hover takes.
     fireEvent.pointerOver(screen.getByLabelText('Show citation from Sarah Miller'))
     expect(screen.getByText(QUOTE)).toBeTruthy()
+  })
+
+  it('keeps the popover open while the pointer travels from the badge into the card', () => {
+    vi.useFakeTimers()
+    try {
+      render(<CitationTooltip citations={[citation]} onOpenTranscript={vi.fn()} />)
+      const badge = screen.getByLabelText('Show citation from Sarah Miller')
+      fireEvent.pointerOver(badge)
+      const quote = screen.getByText(QUOTE)
+      // Leaving the badge for the portaled card, then entering it, is the
+      // gesture that must survive long enough to press "View full transcript".
+      fireEvent.pointerOut(badge, { relatedTarget: quote })
+      fireEvent.pointerOver(quote)
+      act(() => { vi.advanceTimersByTime(1000) })
+      expect(screen.getByText(QUOTE)).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('closes the hover preview when the pointer leaves for unrelated content', () => {
+    vi.useFakeTimers()
+    try {
+      render(<CitationTooltip citations={[citation]} onOpenTranscript={vi.fn()} />)
+      const badge = screen.getByLabelText('Show citation from Sarah Miller')
+      fireEvent.pointerOver(badge)
+      expect(screen.getByText(QUOTE)).toBeTruthy()
+      fireEvent.pointerOut(badge, { relatedTarget: document.body })
+      act(() => { vi.advanceTimersByTime(1000) })
+      expect(screen.queryByText(QUOTE)).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps the popover open when focus moves from the badge into the card', () => {
+    // Pressing the card's button focuses it (mousedown), which blurs the badge
+    // and must not tear the card down before the click lands.
+    render(<CitationTooltip citations={[citation]} onOpenTranscript={vi.fn()} />)
+    const badge = screen.getByLabelText('Show citation from Sarah Miller')
+    fireEvent.focus(badge)
+    const transcriptButton = screen.getByRole('button', { name: 'View full transcript' })
+    fireEvent.blur(badge, { relatedTarget: transcriptButton })
+    fireEvent.focus(transcriptButton)
+    expect(screen.getByText(QUOTE)).toBeTruthy()
+  })
+
+  it('closes the popover when focus leaves the citation entirely', () => {
+    render(<CitationTooltip citations={[citation]} onOpenTranscript={vi.fn()} />)
+    const badge = screen.getByLabelText('Show citation from Sarah Miller')
+    fireEvent.focus(badge)
+    expect(screen.getByText(QUOTE)).toBeTruthy()
+    fireEvent.blur(badge, { relatedTarget: document.body })
+    expect(screen.queryByText(QUOTE)).toBeNull()
   })
 
   it('View full transcript calls onOpenTranscript with the citation and closes the popover', () => {

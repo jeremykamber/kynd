@@ -1,21 +1,15 @@
-// ─── POST /api/vps/chat-with-panel (text streaming) ────────────────────────
-// Streams a panel-synthesis chat response token by token via a ReadableStream.
-// The client receives progressively longer plain-text chunks — each chunk is
-// the entire response accumulated so far, so the UI can show the growing
-// reply in real time. Grounded in the full cohort's analysis responses plus
-// the cross-persona synthesis.
-// ─────────────────────────────────────────────────────────────────────────────
+// VPS-backend endpoint: called by server actions, not the browser.
+// Streams a panel chat reply as plain text; each chunk is the full text
+// accumulated so far, not a delta.
 
 import { NextRequest } from "next/server";
-import { ChatWithPanelUseCase } from "@/application/usecases/ChatWithPanelUseCase";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 
 export async function POST(req: NextRequest) {
   const { responses, synthesis, message, history } = await req.json();
 
   const llmService = LlmServiceImpl.createFromEnv("openrouter");
-  const useCase = new ChatWithPanelUseCase(llmService);
-  const responseStream = useCase.executeStream(
+  const responseStream = llmService.chatWithPanelStream(
     responses ?? [],
     synthesis || null,
     message,

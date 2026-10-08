@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Dashboard navigation smoke tests against the CURRENT UI (survey form default,
-// freeform textarea toggle, demo batch, sidebar nav). Seeded with fresh state —
-// no live LLM calls.
+// freeform textarea toggle, demo batch, floating top nav). Seeded with fresh
+// state — no live LLM calls.
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
@@ -106,31 +106,107 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
     await page.waitForURL('**/dashboard/interviews', { timeout: 10_000 });
   });
 
-  it('navigates between sidebar sections', async () => {
+  it('navigates between top nav sections', async () => {
     await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
-    // Personas → Interviews
-    await page.locator('a[href="/dashboard/interviews"]').first().click();
+    // Personas → Interviews (the pill; the bottom tab bar is display:none here)
+    await page.locator('header nav a[href="/dashboard/interviews"]').click();
     await page.waitForURL('**/dashboard/interviews', { timeout: 10_000 });
 
     // Interviews → Analyses
-    await page.locator('a[href="/dashboard/analyses"]').first().click();
+    await page.locator('header nav a[href="/dashboard/analyses"]').click();
     await page.waitForURL('**/dashboard/analyses', { timeout: 10_000 });
 
-    // Analyses → back to Personas via sidebar button
-    await page.locator('nav button:has-text("Personas")').click();
+    // Analyses → back to Personas via the top nav
+    await page.locator('header nav button:has-text("Personas")').click();
     await page.waitForURL('**/dashboard', { timeout: 10_000 });
   });
 
-  it('loads the demo persona batch into the sidebar', async () => {
+  it('navigates with the bottom tab bar on mobile, with no scrolling nav', async () => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    try {
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+
+      // Below `lg` the pill is not rendered at all: its items used to
+      // overflow a scrollable strip that hid two of the three destinations.
+      expect(
+        await page
+          .locator('header nav')
+          .evaluate((el) => getComputedStyle(el).display),
+      ).toBe('none');
+
+      // Nothing on the page scrolls sideways.
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+
+      const tabBar = page.locator('nav[aria-label="Primary"]');
+      await tabBar.waitFor({ state: 'visible', timeout: 10_000 });
+      expect(await tabBar.locator('a, button').allInnerTexts()).toEqual([
+        'Personas',
+        'Interviews',
+        'Analyses',
+        'Feedback',
+      ]);
+
+      await tabBar.locator('a[href="/dashboard/interviews"]').click();
+      await page.waitForURL('**/dashboard/interviews', { timeout: 10_000 });
+
+      // The floating "Run Analysis" CTA clears the tab bar instead of sitting
+      // underneath it (it used to be pinned 24px from the bottom edge).
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+      const ctaClearsBar = await page.evaluate(() => {
+        const bar = document.querySelector('nav[aria-label="Primary"]');
+        const cta = Array.from(document.querySelectorAll('button')).find((b) =>
+          /run analysis/i.test(b.textContent ?? ''),
+        );
+        if (!bar || !cta) return null;
+        return cta.getBoundingClientRect().bottom <= bar.getBoundingClientRect().top;
+      });
+      expect(ctaClearsBar).toBe(true);
+
+      await page.screenshot({
+        path: path.join(SCREENSHOT_DIR, 'dashboard-mobile-tab-bar.png'),
+      });
+    } finally {
+      await page.setViewportSize({ width: 1280, height: 900 });
+    }
+  });
+
+  it('shows only the bottom tab bar on tablet, never both navs', async () => {
+    await page.setViewportSize({ width: 820, height: 1180 });
+    try {
+      await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+
+      // The top bar is hidden below `lg`, so a tablet does not get the pill
+      // back above the bottom tab bar.
+      expect(
+        await page.locator('header').evaluate((el) => getComputedStyle(el).display),
+      ).toBe('none');
+
+      await page.locator('nav[aria-label="Primary"]').waitFor({ state: 'visible', timeout: 10_000 });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+
+      await page.screenshot({
+        path: path.join(SCREENSHOT_DIR, 'dashboard-tablet-tab-bar.png'),
+      });
+    } finally {
+      await page.setViewportSize({ width: 1280, height: 900 });
+    }
+  });
+
+  it('loads the demo persona batch into the main view', async () => {
     await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
     const demoBtn = page.locator('button:has-text("Load Demo Persona Batch")').first();
     await demoBtn.waitFor({ state: 'visible', timeout: 10_000 });
     await demoBtn.click();
 
-    // Batch appears in the sidebar's Recent Batches section
-    expect(await isVisible('aside:has-text("B2B SaaS Founders & Developers")')).toBe(true);
+    // The demo batch opens in the main content area (there is no sidebar).
+    expect(await isVisible('main:has-text("B2B SaaS Founders & Developers")')).toBe(true);
+    expect(await isVisible('main:has-text("Sarah Miller")')).toBe(true);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'dashboard-demo-batch.png'),
       fullPage: true,

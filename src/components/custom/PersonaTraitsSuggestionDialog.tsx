@@ -46,6 +46,7 @@ function DiffToggle({ selected, onSelect, label }: { selected: boolean; onSelect
       onClick={onSelect}
       className={cn(
         "text-xs font-medium px-2 py-0.5 rounded-sm transition-all duration-150",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         selected
           ? "bg-primary/10 text-primary"
           : "bg-transparent text-muted-foreground/80 hover:text-foreground hover:bg-muted/30",
@@ -91,7 +92,7 @@ function DiffRow({ label, suggested, original, apply, onToggle }: {
             {original}
           </span>
         </div>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0">
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150 shrink-0">
           <DiffToggle selected={!apply} onSelect={() => onToggle(false)} label="Keep" />
           <DiffToggle selected={apply} onSelect={() => onToggle(true)} label="Apply" />
         </div>
@@ -100,6 +101,12 @@ function DiffRow({ label, suggested, original, apply, onToggle }: {
   )
 }
 
+/**
+ * Review dialog for traits inferred from an edited backstory: each field is
+ * shown suggested-vs-original with per-field Apply/Keep toggles. While
+ * `suggestedTraits` is null it renders a loading state. On confirm it hands the
+ * parent a `{ field: shouldApply }` decision map and closes.
+ */
 export function PersonaTraitsSuggestionDialog({
   isOpen,
   onClose,
@@ -227,7 +234,6 @@ export function PersonaTraitsSuggestionDialog({
             </button>
           </div>
 
-          {/* OCEAN */}
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-card border border-border">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-2">Personality Traits (OCEAN)</h3>
             {oceanRows.map((row) => (
@@ -242,7 +248,6 @@ export function PersonaTraitsSuggestionDialog({
             ))}
           </div>
 
-          {/* Psychographics */}
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-card border border-border">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-2">Psychographics</h3>
             {psychoRows.map((row) => (

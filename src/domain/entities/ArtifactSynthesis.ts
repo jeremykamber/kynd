@@ -1,21 +1,32 @@
+/**
+ * Cross-persona synthesis of one completed artifact analysis: the cohort-level
+ * answer to the research question plus the counts that make the findings
+ * interpretable.
+ */
 export interface ArtifactSynthesis {
-  overview: string
-  researchQuestionAnswer: string
-  topFindings: SynthesizedFinding[]
-  disagreements: Disagreement[]
-  biggestFrictions: string[]
-  completedCount: number
-  failedCount: number
-  totalPersonaCount: number
+  overview: string;
+  researchQuestionAnswer: string;
+  topFindings: SynthesizedFinding[];
+  disagreements: Disagreement[];
+  biggestFrictions: string[];
+  /** Personas that produced a response and contributed to this synthesis. */
+  completedCount: number;
+  /** Personas whose analysis failed; excluded from the synthesis. */
+  failedCount: number;
+  /** Size of the cohort the analysis targeted. */
+  totalPersonaCount: number;
 }
 
+/** A synthesis finding that has been grounded against persona transcripts. */
 export interface SynthesizedFinding {
-  observation: string
-  evidence: string
-  impact: string
-  confidence: 'strongly supported' | 'some support' | 'weakly supported'
-  affectedPersonaCount: number
-  totalPersonaCount: number
+  observation: string;
+  evidence: string;
+  impact: string;
+  confidence: 'strongly supported' | 'some support' | 'weakly supported';
+  /** How many personas this finding is drawn from. */
+  affectedPersonaCount: number;
+  /** Cohort size the count is out of. */
+  totalPersonaCount: number;
   /**
    * Verbatim quotes from persona transcripts backing this finding. Absent
    * when no locator resolved — never padded with placeholder text.
@@ -23,6 +34,7 @@ export interface SynthesizedFinding {
   citations?: EvidenceCitation[]
 }
 
+/** A verbatim quote resolved to the persona transcript it came from. */
 export interface EvidenceCitation {
   /** Matches PersonaResponse.personaId */
   personaId: string
@@ -64,8 +76,10 @@ export type CohortSynthesisContent = Omit<
   topFindings: UnresolvedFinding[]
 }
 
+/** A topic where the cohort split into opposing views. */
 export interface Disagreement {
-  topic: string
+  topic: string;
+  /** Each view with how many personas held it. */
   split: { view: string; personaCount: number }[]
   significance: 'High' | 'Medium' | 'Low'
 }

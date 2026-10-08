@@ -23,6 +23,10 @@ export interface PbjRationale {
  *
  * Reference: Joshi et al. (2025) "Improving LLM Personas via Rationalization
  * with Psychological Scaffolds" — Findings of EMNLP 2025.
+ *
+ * Prompts live here; completions run on LlmServiceImpl (and through it the
+ * OpenAI-compatible provider). Internal to the LLM adapter, not a port
+ * implementation.
  */
 export class PsychographicRationalizer {
   private scaffolds: PsychologicalScaffold[];

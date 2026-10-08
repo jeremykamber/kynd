@@ -22,6 +22,9 @@ export interface InterviewQuestion {
  *
  * Reference: Wang et al. (2024a) "InCharacter: Evaluating Personality Fidelity
  * in Role-Playing Agents through Psychological Interviews" — ACL 2024.
+ *
+ * Prompts and score parsing live here; completions run on LlmServiceImpl.
+ * Internal to the LLM adapter, not a port implementation.
  */
 export class InCharacterEvaluator {
   private interviewQuestions: InterviewQuestion[];

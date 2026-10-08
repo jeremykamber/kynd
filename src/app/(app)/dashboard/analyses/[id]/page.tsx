@@ -7,13 +7,21 @@ import { useRouter } from 'next/navigation'
 import { getAnalysisResultAction } from '@/actions/getAnalysisResult'
 import { getProgressAction } from '@/actions/getProgress'
 import { StepIndicator } from '@/components/custom/StepIndicator'
-import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, ChevronDownIcon, ChevronRightIcon, UsersIcon, MessageCircleIcon, DownloadIcon, Loader2Icon, FileTextIcon } from 'lucide-react'
+import { FeedbackButton } from '@/components/custom/FeedbackButton'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
+import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, ChevronDownIcon, ChevronRightIcon, UsersIcon, MessageCircleIcon, DownloadIcon, Loader2Icon, FileTextIcon, HelpCircleIcon } from 'lucide-react'
+import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
 import { toast } from 'sonner'
 import { exportAnalysisAsPdf } from '@/lib/exportPdf'
 import type { Persona } from '@/domain/entities/Persona'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { MajorFinding } from '@/domain/entities/MajorFinding'
-import type { StageSentiment, StageOutcome } from '@/domain/entities/StageJourney'
+import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
+import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
+import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
+import type { StageJourney, StageOutcome } from '@/domain/entities/StageJourney'
+import { cn } from '@/lib/utils'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
 import { PersonaChat } from '@/ui/dashboard/components/chat/PersonaChat'
@@ -21,10 +29,8 @@ import { PanelChat } from '@/ui/dashboard/components/chat/PanelChat'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
 import { CitationTooltip, type EvidenceCitation } from '@/components/custom/CitationTooltip'
 import { RawThinkAloudSheet } from '@/components/custom/RawThinkAloudSheet'
-// Slice B owns SynthesizedFinding.citations; narrow it structurally here so
-// this page compiles before Slice B's type lands. Replace with the typed
-// field on merge.
-function citationsOf(finding: import('@/domain/entities/ArtifactSynthesis').SynthesizedFinding): EvidenceCitation[] {
+/** Citations on a finding, dropping any entry that lacks the fields the UI reads. */
+function citationsOf(finding: SynthesizedFinding): EvidenceCitation[] {
   if (!finding || typeof finding !== 'object' || !('citations' in finding)) return []
   const citations: unknown = finding.citations
   if (!Array.isArray(citations)) return []
@@ -41,6 +47,9 @@ const ANALYSIS_STEPS = [
   { title: 'Analyzing', description: 'Simulating persona responses' },
 ]
 
+/** Micro-label above a content group, per the design system. */
+const SECTION_LABEL = 'text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70'
+
 function getCurrentStep(step?: string): number {
   if (!step || step === 'STARTING') return 0
   if (step === 'INTAKE') return 1
@@ -48,32 +57,123 @@ function getCurrentStep(step?: string): number {
   return 0
 }
 
-// Journey dots encode how the persona FELT at each stage; the outcome badge
-// encodes whether they progressed. Two separate axes — a persona can stop with
-// positive feelings, so color alone would mislead.
-const SENTIMENT_DOT: Record<StageSentiment, string> = {
-  positive: 'bg-green-500',
-  neutral: 'bg-amber-500',
-  negative: 'bg-red-500',
+// The cognitive journey is ONE axis: how far the persona got. A persona that
+// is blocked or stopped never evaluates the later stages, so the path ends
+// where they dropped off. Sentiment (how they felt) is deliberately not drawn
+// as a second colour axis — the stop itself is the signal, and two encodings
+// at every node is what made this screen unreadable.
+//
+// Three states, three colours: Verified Green for a stage the persona actually
+// completed, Caution for the single node where the journey ended, neutral for
+// the stages after it that were never reached. `blocked` and `stopped` are
+// different facts — an obstacle versus the persona's own choice — but the same
+// outcome for the reader, so they share Caution and differ only in the word
+// (and in the tooltip that spells the difference out).
+const OUTCOME_META: Record<StageOutcome, { label: string; title: string; icon: typeof CheckCircleIcon; className: string }> = {
+  succeeded: {
+    label: 'Reached',
+    title: 'This stage was completed.',
+    icon: CheckCircleIcon,
+    className: 'text-success',
+  },
+  blocked: {
+    label: 'Blocked here',
+    title: 'Something outside the persona ended the journey at this stage.',
+    icon: AlertTriangleIcon,
+    className: 'text-warning-foreground',
+  },
+  stopped: {
+    label: 'Stopped here',
+    title: 'The persona stopped here, or an earlier stage had already ended the journey.',
+    icon: XCircleIcon,
+    className: 'text-warning-foreground',
+  },
 }
 
-const OUTCOME_META: Record<StageOutcome, { label: string; icon: typeof CheckCircleIcon; className: string }> = {
-  succeeded: { label: 'Passed', icon: CheckCircleIcon, className: 'text-green-600 bg-green-500/10 border-green-500/20' },
-  blocked: { label: 'Blocked', icon: AlertTriangleIcon, className: 'text-amber-600 bg-amber-500/10 border-amber-500/20' },
-  stopped: { label: 'Stopped', icon: XCircleIcon, className: 'text-red-600 bg-red-500/10 border-red-500/20' },
+/** One-glance verdict for the collapsed persona row. */
+function journeyVerdict(journey: StageJourney[]): { label: string; title: string; className: string } {
+  const at = journey.findIndex((s) => s.outcome === 'blocked' || s.outcome === 'stopped')
+  if (at === -1) {
+    return { label: 'Reached the end', title: 'This persona completed all five stages.', className: 'text-success' }
+  }
+  const stage = journey[at]
+  const meta = OUTCOME_META[stage.outcome]
+  return { label: `${meta.label.replace(' here', '')} at ${stage.stage}`, title: meta.title, className: meta.className }
 }
 
-function StageOutcomeBadge({ outcome }: { outcome: StageOutcome }) {
-  const meta = OUTCOME_META[outcome]
-  const Icon = meta.icon
+/**
+ * The persona's path through the five stages, ending where they stopped.
+ * Reached stages carry their description; the abandonment node is named; the
+ * stages after it are quiet "not reached" rows, so the path visibly ends
+ * instead of implying the model evaluated them.
+ */
+function JourneyPath({ journey }: { journey: StageJourney[] }) {
+  const abandonedAt = journey.findIndex((s) => s.outcome === 'blocked' || s.outcome === 'stopped')
+  const reached = abandonedAt === -1 ? journey.length : abandonedAt + 1
+
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] font-semibold border ${meta.className}`}>
-      <Icon className="h-2.5 w-2.5" />
-      {meta.label}
-    </span>
+    <ol className="flex flex-col">
+      {journey.map((stage, i) => {
+        const isReached = i < reached
+        const isTerminal = i === abandonedAt
+        const meta = OUTCOME_META[stage.outcome]
+        const Icon = meta.icon
+        const isLast = i === journey.length - 1
+
+        return (
+          <li key={stage.stage} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <span
+                className={cn(
+                  'flex size-5 shrink-0 items-center justify-center rounded-full border bg-background',
+                  isTerminal
+                    ? cn('border-current', meta.className)
+                    : isReached
+                      ? 'border-success/40 text-success'
+                      : 'border-border text-muted-foreground/30',
+                )}
+              >
+                {isTerminal ? (
+                  <Icon className="size-3" />
+                ) : (
+                  <span className={cn('size-1.5 rounded-full bg-current', !isReached && 'opacity-50')} />
+                )}
+              </span>
+              {!isLast && (
+                <span
+                  className={cn(
+                    'w-px flex-1',
+                    isReached && !isTerminal ? 'bg-muted-foreground/30' : 'bg-border',
+                  )}
+                />
+              )}
+            </div>
+            <div className={cn('flex flex-col gap-0.5', !isLast && 'pb-4')}>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
+                {stage.stage}
+              </span>
+              {isTerminal && (
+                <span className={cn('text-[11px] font-semibold', meta.className)} title={meta.title}>
+                  {meta.label}
+                </span>
+              )}
+              <span className="text-xs leading-relaxed text-muted-foreground">
+                {isReached ? stage.description : 'Not reached'}
+              </span>
+            </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
+/**
+ * /dashboard/analyses/[id]: the full report for one analysis, read from the
+ * client analysis store. While the analysis is IN_PROGRESS the page polls the
+ * server result/progress stores, both to keep the view current and to recover
+ * runs whose RSC stream was cut off by a reload or navigation.
+ */
 export default function AnalysisDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -158,7 +258,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
         if (!result.found || !result.progress) return;
 
         const p = result.progress;
-        const updates: Partial<import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis> = {};
+        const updates: Partial<ArtifactAnalysis> = {};
 
         if (p.step) updates.currentStep = p.step as any;
         if (p.completedResponses !== undefined) updates.completedResponses = p.completedResponses;
@@ -271,10 +371,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
 
       {/* Content */}
       {analysis.status === 'IN_PROGRESS' ? (
-        <InProgressView
-          analysis={analysis}
-          onUpdate={(updates) => updateAnalysis(id, updates)}
-        />
+        <InProgressView analysis={analysis} />
       ) : analysis.status === 'COMPLETED' ? (
         <CompletedView analysis={analysis} onRemove={() => removeAnalysis(id)} />
       ) : (
@@ -286,6 +383,15 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
           >
             Run New Analysis
           </button>
+          {analysis.status === 'ERROR' && (
+            <FeedbackButton
+              label="Report this error"
+              defaultMessage={analysis.error ?? ''}
+              context={{ error: analysis.error, runId: analysis.id }}
+              variant="outline"
+              className="mt-3"
+            />
+          )}
         </div>
       )}
     </div>
@@ -310,106 +416,107 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function InProgressView({
-  analysis,
-  onUpdate,
-}: {
-  analysis: import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis
-  onUpdate: (updates: Partial<import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis>) => void
-}) {
+function InProgressView({ analysis }: { analysis: ArtifactAnalysis }) {
   const currentStep = getCurrentStep(analysis.currentStep)
+  const total = analysis.totalResponses ?? analysis.personaCount
+  const completed = analysis.completedResponses ?? 0
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0
+
+  const statusText =
+    analysis.currentStep === 'INTAKE'
+      ? 'Loading the artifact'
+      : analysis.currentStep === 'ANALYZING'
+        ? 'Simulating persona responses'
+        : 'Initializing'
 
   return (
-    <div className="flex flex-col md:flex-row gap-12 py-4">
-      <div className="flex-shrink-0 w-full md:w-56 border-r-0 md:border-r border-border/40 pr-0 md:pr-8">
-        <StepIndicator steps={ANALYSIS_STEPS} currentStep={currentStep} />
-      </div>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <Card>
+        <CardHeader>
+          <CardTitle>Run progress</CardTitle>
+          <CardDescription>{statusText}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-6">
+          <StepIndicator steps={ANALYSIS_STEPS} currentStep={currentStep} />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Responses
+              </span>
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                {completed}/{total}
+              </span>
+            </div>
+            <Progress value={percent} className="h-1.5" />
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="flex-1 min-h-[300px] flex flex-col items-center justify-center">
-        <div className="flex flex-col items-center justify-center space-y-4 w-full max-w-lg">
-          <p className="text-sm font-medium text-muted-foreground animate-pulse">
-            {analysis.currentStep === 'INTAKE' && 'Loading artifact...'}
-            {analysis.currentStep === 'ANALYZING' &&
-              `Gathering responses (${analysis.completedResponses ?? 0}/${analysis.totalResponses ?? analysis.personaCount})`}
-            {(!analysis.currentStep || analysis.currentStep === 'STARTING') && 'Initializing...'}
-          </p>
-
-          {analysis.screenshot && (
-            <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted/30">
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b">
+          <CardTitle>Agent view</CardTitle>
+          <CardDescription>What the simulated user sees right now</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {analysis.screenshot ? (
+            <div className="overflow-hidden rounded-md border border-border bg-muted/30">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`data:image/jpeg;base64,${analysis.screenshot}`}
-                alt="AI Agent View"
-                className="w-full h-full object-cover object-top opacity-80"
+                alt="Live agent view"
+                className="aspect-video w-full object-cover object-top"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end justify-center pb-2 pointer-events-none">
-                <span className="text-[10px] font-mono text-muted-foreground px-2 py-1 rounded-md bg-muted/80 border border-border">
-                  LIVE AGENT VISION
-                </span>
-              </div>
+            </div>
+          ) : (
+            <div className="flex aspect-video w-full items-center justify-center rounded-md border border-dashed border-border bg-muted/20">
+              <span className="text-xs text-muted-foreground">Waiting for the first capture…</span>
             </div>
           )}
-
-          {!analysis.screenshot && (
-            <div className="w-full max-w-sm">
-              <div className="w-full h-1 bg-muted rounded-sm overflow-hidden">
-                <div className="h-full bg-primary rounded-sm w-1/3 animate-[loading-bar_2s_ease-in-out_infinite]" />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
-function PersonaIdentityCard({
-  profile,
-}: {
-  profile: import('@/domain/entities/PersonaProfile').PersonaProfile
-}) {
-  const sections = [
-    {
-      label: 'Values',
-      content: (
-        <div className="flex flex-wrap gap-1.5">
-          {profile.values.map((v, i) => (
-            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/20">{v}</span>
-          ))}
-        </div>
-      ),
-    },
-    {
-      label: 'Fears',
-      content: (
-        <div className="flex flex-wrap gap-1.5">
-          {profile.fears.map((f, i) => (
-            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-destructive/10 text-destructive border border-destructive/20">{f}</span>
-          ))}
-        </div>
-      ),
-    },
-    {
-      label: 'Communication',
-      content: <span className="text-xs text-foreground/80 uppercase">{profile.communicationStyle}</span>,
-    },
-    {
-      label: 'Decision Style',
-      content: <span className="text-xs text-foreground/80 uppercase">{profile.decisionStyle}</span>,
-    },
-  ];
+function PersonaIdentityCard({ profile }: { profile: PersonaProfile }) {
+  const valueGroups: { label: string; items: string[] }[] = [
+    { label: 'Values', items: profile.values },
+    { label: 'Fears', items: profile.fears },
+  ]
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border/40 pt-4">
-      {sections.map((s, i) => (
-        <div key={s.label}>
-          {i > 0 && <hr className="border-border/20 mb-3" />}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-white/80">{s.label}</span>
-            {s.content}
+    <div className="flex flex-col gap-4">
+      {valueGroups
+        .filter((group) => group.items.length > 0)
+        .map((group) => (
+          <div key={group.label} className="flex flex-col gap-2">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
+              {group.label}
+            </span>
+            <ul className="flex flex-col gap-1.5">
+              {group.items.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-[13px] leading-snug text-foreground/80">
+                  <span className="mt-[7px] size-1 shrink-0 rounded-full bg-primary/70" />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-      ))}
+        ))}
+
+      <div className="flex flex-col gap-2">
+        <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
+          Communication
+        </span>
+        <span className="text-[13px] text-foreground/80">{profile.communicationStyle}</span>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
+          Decision style
+        </span>
+        <span className="text-[13px] text-foreground/80">{profile.decisionStyle}</span>
+      </div>
     </div>
   )
 }
@@ -453,7 +560,7 @@ function CompletedView({
   analysis,
   onRemove,
 }: {
-  analysis: import('@/domain/entities/ArtifactAnalysis').ArtifactAnalysis
+  analysis: ArtifactAnalysis
   onRemove: () => void
 }) {
   const analyses = analysis.responses as PersonaResponse[] | undefined
@@ -505,132 +612,170 @@ function CompletedView({
 
   return (
     <div className="flex flex-col gap-8">
+      {/* What Kynd is, then the one qualification the findings need — both
+          before the reader forms an expectation of the numbers below. */}
+      <div className="flex flex-col gap-1.5">
+        <p className="max-w-[70ch] text-[13px] leading-relaxed text-foreground/80">{REPORT_INTRO}</p>
+        <p className="max-w-[70ch] text-[11px] leading-relaxed text-muted-foreground">{REPORT_DISCLAIMER}</p>
+      </div>
+
       {/* ── Executive Synthesis ─────────────────────────────── */}
       {synthesis && (
         <div className="flex flex-col gap-6">
-          {/* Persona completion status */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>Completed: {synthesis.completedCount}/{synthesis.totalPersonaCount}</span>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              <span className="font-mono tabular-nums text-foreground/80">{synthesis.completedCount}</span> of{' '}
+              <span className="font-mono tabular-nums text-foreground/80">{synthesis.totalPersonaCount}</span> personas completed
               {synthesis.failedCount > 0 && (
-                <span className="text-destructive">Failed: {synthesis.failedCount}</span>
+                <span className="text-destructive"> · {synthesis.failedCount} failed</span>
               )}
-            </div>
+            </p>
             <button
               onClick={() => setIsPanelChatOpen(true)}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 w-fit"
+              className="inline-flex h-9 w-fit items-center justify-center gap-2 rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <UsersIcon className="h-3.5 w-3.5" />
               Ask the whole audience
             </button>
           </div>
 
-          {/* Research Question Answer */}
           {synthesis.researchQuestionAnswer && (
-            <div className="rounded-lg border border-primary/10 bg-primary/5 p-5">
-              <span className="text-xs font-semibold text-primary uppercase tracking-wider mb-2 block">Research Question</span>
-              <p className="text-sm text-foreground/90 leading-relaxed">{synthesis.researchQuestionAnswer}</p>
+            /*
+              The panel shrinks to the answer rather than the answer filling the
+              panel. Capping only the paragraph left the panel full width with
+              the text in half of it.
+
+              The cap stays on the paragraph: `ch` resolves against the
+              element's own font, so a cap on this div measures 70ch at the
+              panel's inherited size (~20px here) and lets the 15px answer run
+              past the 70ch limit DESIGN.md sets for report body text.
+            */
+            <div className="w-fit rounded-lg border border-primary/10 bg-primary/5 p-5">
+              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-primary">The answer</span>
+              <p className="max-w-[70ch] text-[15px] leading-relaxed text-foreground/90">{synthesis.researchQuestionAnswer}</p>
             </div>
           )}
 
-          {/* Top Findings with Observed Counts */}
           {synthesis.topFindings.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Top Findings
-              </h3>
+            <section className="flex flex-col gap-3">
+              <h3 className={SECTION_LABEL}>Top findings</h3>
               {synthesis.topFindings.slice(0, 5).map((finding, i) => (
-                <div key={i} className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-foreground">{finding.observation}</p>
-                    <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${
-                      finding.confidence === 'strongly supported' ? 'bg-green-500/10 text-green-600 border border-green-500/20' :
-                      finding.confidence === 'some support' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
-                      'bg-red-500/10 text-red-600 border border-red-500/20'
-                    }`}>
+                <div key={i} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-medium leading-snug text-foreground">{finding.observation}</p>
+                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                       {finding.confidence}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground"><span className="font-medium">Evidence:</span> {finding.evidence}</p>
-                  <p className="text-xs text-muted-foreground"><span className="font-medium">Impact:</span> {finding.impact}</p>
-                  {citationsOf(finding).length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <CitationTooltip
-                        citations={citationsOf(finding)}
-                        onOpenTranscript={(citation) => {
-                          const response = analyses?.find(
-                            (a) => a.personaProfile?.name === citation.personaName || a.personaId === citation.personaId
-                          )
-                          if (!response) return
-                          setTranscriptTarget({
-                            personaName: citation.personaName,
-                            transcript: response.rawAnalysis,
-                            highlight: citation.quote,
-                          })
-                        }}
-                        getPersonaRole={(citation) => {
-                          const response = analyses?.find(
-                            (a) => a.personaProfile?.name === citation.personaName || a.personaId === citation.personaId
-                          )
-                          return response?.personaProfile?.occupation
-                        }}
-                      />
+                  <p className="max-w-[70ch] text-[13px] leading-relaxed text-muted-foreground">{finding.impact}</p>
+                  <details className="group/f">
+                    <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                      <ChevronRightIcon className="h-3 w-3 transition-transform group-open/f:rotate-90" />
+                      Evidence and citations
+                    </summary>
+                    <div className="mt-2 flex flex-col gap-2">
+                      <p className="max-w-[70ch] rounded bg-muted/40 px-2.5 py-2 text-xs italic leading-relaxed text-muted-foreground">
+                        {finding.evidence}
+                      </p>
+                      {citationsOf(finding).length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <CitationTooltip
+                            citations={citationsOf(finding)}
+                            onOpenTranscript={(citation) => {
+                              const response = analyses?.find(
+                                (a) => a.personaProfile?.name === citation.personaName || a.personaId === citation.personaId
+                              )
+                              if (!response) return
+                              setTranscriptTarget({
+                                personaName: citation.personaName,
+                                transcript: response.rawAnalysis,
+                                highlight: citation.quote,
+                              })
+                            }}
+                            getPersonaRole={(citation) => {
+                              const response = analyses?.find(
+                                (a) => a.personaProfile?.name === citation.personaName || a.personaId === citation.personaId
+                              )
+                              return response?.personaProfile?.occupation
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  </details>
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <UsersIcon className="h-3 w-3" />
-                    <span>Observed in {finding.affectedPersonaCount}/{finding.totalPersonaCount} personas</span>
+                    <span>Simulated in {finding.affectedPersonaCount}/{finding.totalPersonaCount} personas</span>
                   </div>
                 </div>
               ))}
-            </div>
+            </section>
           )}
 
-          {/* Disagreements */}
           {synthesis.disagreements.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Disagreements — Where Personas Split
-              </h3>
-              {synthesis.disagreements.map((d, i) => (
-                <div key={i} className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 flex flex-col gap-2">
-                  <p className="text-sm font-medium text-foreground">{d.topic}</p>
-                  <div className="flex flex-col gap-1.5">
-                    {d.split.map((side, j) => (
-                      <div key={j} className="text-xs text-muted-foreground">
-                        <span className="font-medium">{side.view}:</span> {side.personaCount} {side.personaCount === 1 ? 'persona' : 'personas'}
-                      </div>
-                    ))}
+            <section className="flex flex-col gap-3">
+              <h3 className={SECTION_LABEL}>Where personas split</h3>
+              {synthesis.disagreements.map((d, i) => {
+                const total = d.split.reduce((sum, s) => sum + s.personaCount, 0) || 1
+                return (
+                  <div key={i} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+                    <p className="text-sm font-medium text-foreground">{d.topic}</p>
+                    <div className="flex flex-col gap-2.5">
+                      {d.split.map((side, j) => (
+                        <div key={j} className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <span className="text-foreground/80">{side.view}</span>
+                            <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
+                              {side.personaCount} {side.personaCount === 1 ? 'persona' : 'personas'}
+                            </span>
+                          </div>
+                          <div className="h-1 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full rounded-full bg-muted-foreground/40"
+                              style={{ width: `${Math.round((side.personaCount / total) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                )
+              })}
+            </section>
           )}
 
-          {/* Biggest Frictions */}
           {synthesis.biggestFrictions.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Biggest Friction Points
-              </h3>
-              <ul className="list-disc list-inside text-sm text-foreground/80 space-y-1">
-                {synthesis.biggestFrictions.slice(0, 3).map((f, i) => <li key={i}>{f}</li>)}
+            <section className="flex flex-col gap-3">
+              <h3 className={SECTION_LABEL}>Biggest friction points</h3>
+              <ul className="flex flex-col gap-2">
+                {synthesis.biggestFrictions.slice(0, 3).map((f, i) => (
+                  <li key={i} className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-warning-foreground/10 font-mono text-[10px] text-warning-foreground">
+                      {i + 1}
+                    </span>
+                    <span className="text-[13px] leading-relaxed text-foreground/80">{f}</span>
+                  </li>
+                ))}
               </ul>
-            </div>
+            </section>
           )}
         </div>
       )}
 
       {/* ── Per-Persona Drill-Down ──────────────────────────── */}
       <div className="border-t border-border/40 pt-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-          Individual Persona Reports
+        <h3 className={cn(SECTION_LABEL, 'mb-4')}>
+          Individual persona reports
         </h3>
         <div className="grid gap-3">
           {analyses.map((analysis, index) => {
             const personaName = analysis.personaProfile?.name ?? `Persona ${index + 1}`
             const isExpanded = expandedPersonas.has(index)
             const chatPersona = resolvedPersonas[index]
+            const verdict =
+              analysis.customerJourney && analysis.customerJourney.length > 0
+                ? journeyVerdict(analysis.customerJourney)
+                : null
 
             return (
             <div
@@ -649,112 +794,137 @@ function CompletedView({
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  {analysis.customerJourney && (
-                    <div className="flex gap-1">
-                      {analysis.customerJourney.map((s) => (
-                        <span key={s.stage} className={`h-2 w-2 rounded-full ${SENTIMENT_DOT[s.sentiment]}`} title={`${s.stage} — ${s.outcome}`} />
-                      ))}
-                    </div>
+                <div className="flex items-center gap-3">
+                  {verdict && (
+                    <span
+                      className={cn('hidden text-[11px] font-medium sm:inline', verdict.className)}
+                      title={verdict.title}
+                    >
+                      {verdict.label}
+                    </span>
                   )}
                   {isExpanded ? <ChevronDownIcon className="h-4 w-4 text-muted-foreground" /> : <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />}
                 </div>
               </button>
 
               {isExpanded && (
-                <div className="px-4 pb-4 flex flex-col gap-4">
-                  {chatPersona && (
-                    <button
-                      onClick={() => setChatTarget({ persona: chatPersona, analysis })}
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted/40 w-fit"
-                    >
-                      <MessageCircleIcon className="h-3.5 w-3.5" />
-                      Ask {personaName} about what they saw
-                    </button>
-                  )}
-                  {analysis.rawAnalysis && (
-                    <button
-                      onClick={() =>
-                        setTranscriptTarget({ personaName, transcript: analysis.rawAnalysis })
-                      }
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted/40 w-fit"
-                    >
-                      <FileTextIcon className="h-3.5 w-3.5" />
-                      Raw think-aloud
-                    </button>
-                  )}
-                  {analysis.personaProfile && <PersonaIdentityCard profile={analysis.personaProfile} />}
+                <div className="flex flex-col gap-5 border-t border-border/40 px-4 pb-5 pt-4">
+                  <div className="flex flex-wrap gap-2">
+                    {chatPersona && (
+                      <button
+                        onClick={() => setChatTarget({ persona: chatPersona, analysis })}
+                        className="inline-flex h-9 w-fit items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted/40"
+                      >
+                        <MessageCircleIcon className="h-3.5 w-3.5" />
+                        Ask {personaName} about what they saw
+                      </button>
+                    )}
+                    {analysis.rawAnalysis && (
+                      <button
+                        onClick={() =>
+                          setTranscriptTarget({ personaName, transcript: analysis.rawAnalysis })
+                        }
+                        className="inline-flex h-9 w-fit items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-xs font-semibold text-foreground transition-colors hover:bg-muted/40"
+                      >
+                        <FileTextIcon className="h-3.5 w-3.5" />
+                        Raw think-aloud
+                      </button>
+                    )}
+                  </div>
 
                   {analysis.overview && (
-                    <div className="rounded-lg border border-border bg-muted/20 p-3">
-                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Overview</span>
-                      <p className="text-sm text-foreground/80 leading-relaxed">{analysis.overview}</p>
+                    <div className="flex flex-col gap-2">
+                      <span className={SECTION_LABEL}>In short</span>
+                      <p className="max-w-[70ch] text-sm leading-relaxed text-foreground/90">
+                        {analysis.overview}
+                      </p>
                     </div>
                   )}
 
                   {analysis.customerJourney?.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Journey</p>
-                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" /> Felt positive</span>
-                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> Neutral</span>
-                        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> Felt negative</span>
-                        <span className="text-muted-foreground/60">· badge = whether they progressed</span>
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        {analysis.customerJourney.map((stage) => (
-                          <div key={stage.stage} className="rounded-lg border border-border bg-card/50 p-2.5">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <span className={`h-2 w-2 rounded-full ${SENTIMENT_DOT[stage.sentiment]}`} />
-                              <span className="text-xs font-semibold uppercase tracking-wider">
-                                {stage.stage}
-                              </span>
-                              <StageOutcomeBadge outcome={stage.outcome} />
-                            </div>
-                            <p className="text-xs text-foreground/80">{stage.description}</p>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="flex flex-col gap-3">
+                      <span className={SECTION_LABEL}>Journey</span>
+                      <JourneyPath journey={analysis.customerJourney} />
                     </div>
                   )}
 
                   {analysis.researchQuestionAnswer && (
                     <div className="rounded-lg border border-primary/10 bg-primary/5 p-3">
-                      <span className="text-xs font-semibold text-primary uppercase tracking-wider mb-1 block">Research Question</span>
-                      <p className="text-sm text-foreground/80">{analysis.researchQuestionAnswer}</p>
+                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-primary">
+                        Their answer
+                      </span>
+                      <p className="text-sm leading-relaxed text-foreground/80">
+                        {analysis.researchQuestionAnswer}
+                      </p>
                     </div>
                   )}
 
                   {analysis.majorFindings.length > 0 && (
                     <div className="flex flex-col gap-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Findings</p>
+                      <span className={SECTION_LABEL}>Findings</span>
                       {analysis.majorFindings.map((finding: MajorFinding, i: number) => (
-                        <div key={i} className="rounded-lg border border-border bg-card/50 p-3 flex flex-col gap-1.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-xs font-medium text-foreground">{finding.observation}</p>
-                          </div>
-                          <p className="text-xs text-muted-foreground"><span className="font-medium">Evidence:</span> {finding.evidence}</p>
+                        <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-border bg-card/50 p-3">
+                          <p className="text-[13px] font-medium text-foreground">{finding.observation}</p>
+                          <p className="text-xs leading-relaxed text-muted-foreground">
+                            <span className="font-medium text-foreground/70">Impact:</span> {finding.impact}
+                          </p>
+                          {finding.evidence && (
+                            <details className="group/ev">
+                              <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                                <ChevronRightIcon className="h-3 w-3 transition-transform group-open/ev:rotate-90" />
+                                Evidence
+                              </summary>
+                              <p className="mt-1.5 rounded bg-muted/40 px-2 py-1.5 text-xs italic leading-relaxed text-muted-foreground">
+                                {finding.evidence}
+                              </p>
+                            </details>
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {analysis.pointsOfFriction.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Friction</p>
-                      <ul className="list-disc list-inside text-xs text-foreground/80">
-                        {analysis.pointsOfFriction.map((f: string, i: number) => <li key={i}>{f}</li>)}
-                      </ul>
+                  {(analysis.pointsOfFriction.length > 0 || analysis.unansweredQuestions.length > 0) && (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {analysis.pointsOfFriction.length > 0 && (
+                        <div className="flex flex-col gap-2">
+                          <span className={SECTION_LABEL}>Friction</span>
+                          <ul className="flex flex-col gap-1.5">
+                            {analysis.pointsOfFriction.map((f: string, i: number) => (
+                              <li key={i} className="flex items-start gap-2 text-[13px] leading-snug text-foreground/80">
+                                <AlertTriangleIcon className="mt-0.5 h-3 w-3 shrink-0 text-warning-foreground" />
+                                {f}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {analysis.unansweredQuestions.length > 0 && (
+                        <div className="flex flex-col gap-2">
+                          <span className={SECTION_LABEL}>Still unanswered</span>
+                          <ul className="flex flex-col gap-1.5">
+                            {analysis.unansweredQuestions.map((q: string, i: number) => (
+                              <li key={i} className="flex items-start gap-2 text-[13px] leading-snug text-foreground/80">
+                                <HelpCircleIcon className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+                                {q}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {analysis.unansweredQuestions.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Questions</p>
-                      <ul className="list-disc list-inside text-xs text-foreground/80">
-                        {analysis.unansweredQuestions.map((q: string, i: number) => <li key={i}>{q}</li>)}
-                      </ul>
-                    </div>
+                  {analysis.personaProfile && (
+                    <details className="group rounded-lg border border-border bg-muted/20">
+                      <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                        Profile and psychographics
+                        <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+                      </summary>
+                      <div className="px-3 pb-3 pt-1">
+                        <PersonaIdentityCard profile={analysis.personaProfile} />
+                      </div>
+                    </details>
                   )}
                 </div>
               )}

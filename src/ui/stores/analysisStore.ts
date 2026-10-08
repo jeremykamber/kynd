@@ -1,3 +1,20 @@
+/**
+ * Durable record of artifact analyses shown on the dashboard.
+ *
+ * Persisted under the IndexedDB key `analysis-storage` at `version: 3`;
+ * state written by any older version is discarded by `migrate` rather than
+ * upgraded, and the list starts empty. Only metadata is persisted —
+ * `partialize` drops `streamingTexts`, each analysis's `screenshot`, and the
+ * base64 screenshots inside `responses`, since those are large or short-lived
+ * and are re-fetched from the server-side store on demand. `responses` and
+ * `synthesis` are persisted.
+ *
+ * Status transitions are owned by the analysis flow: `markComplete`,
+ * `markError` and `markCancelled` set a terminal status and `completedAt`,
+ * while `updateAnalysis` carries in-flight progress. Every mutation is a no-op
+ * for an unknown id.
+ */
+
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { ArtifactAnalysis, AnalysisStatus } from '@/domain/entities/ArtifactAnalysis'
@@ -67,8 +84,7 @@ export const useAnalysisStore = create<AnalysisStoreState>()(
                   completedAt: new Date().toISOString(),
                   completedResponses: responses.length,
                   responses,
-                  // Synthesis rides along when the poller fetched it; absent
-                  // for legacy callers (undefined leaves any existing value).
+                  // `undefined` leaves any existing synthesis untouched.
                   ...(synthesis !== undefined ? { synthesis: synthesis ?? undefined } : {}),
                 }
               : a
@@ -112,7 +128,6 @@ export const useAnalysisStore = create<AnalysisStoreState>()(
         return persistedState as AnalysisPersistedState;
       },
       storage: createJSONStorage(() => indexedDBStorage),
-      // Only persist metadata, not streaming data or large screenshots
       partialize: (state) => ({
         analyses: state.analyses.map(({ streamingTexts, screenshot, responses, ...rest }) => ({
           ...rest,
