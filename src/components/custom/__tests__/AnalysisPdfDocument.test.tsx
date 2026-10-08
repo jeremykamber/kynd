@@ -5,6 +5,7 @@ import { AnalysisPdfDocument } from '../AnalysisPdfDocument'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { ArtifactSynthesis } from '@/domain/entities/ArtifactSynthesis'
+import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
 
 const mockResponses: PersonaResponse[] = [
   {
@@ -147,5 +148,22 @@ describe('AnalysisPdfDocument', () => {
     expect(text).not.toContain('Executive Overview')
     expect(text).not.toContain('Key Findings')
     expect(text).not.toContain('Primary Points of Friction')
+  })
+
+  it('discloses what Kynd is and that the report is simulated, before the findings', () => {
+    const text = renderedText(AnalysisPdfDocument({ analysis: baseAnalysis }))
+
+    const intro = text.indexOf(REPORT_INTRO)
+    const note = text.indexOf(REPORT_DISCLAIMER)
+    expect(intro).toBeGreaterThan(-1)
+    expect(note).toBeGreaterThan(intro)
+    // Both sit above the first thing a reader would take as a result.
+    expect(text.indexOf('Core Research Finding')).toBeGreaterThan(note)
+
+    // Simulated users are never presented as people who were observed.
+    expect(text).not.toContain('/2 observed')
+    expect(text).not.toContain('Observed Findings')
+    expect(text).toContain('/2 simulations')
+    expect(text).toContain('Simulation Findings')
   })
 })

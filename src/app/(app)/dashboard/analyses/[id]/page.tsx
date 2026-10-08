@@ -11,6 +11,7 @@ import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, ChevronDownIcon, ChevronRightIcon, UsersIcon, MessageCircleIcon, DownloadIcon, Loader2Icon, FileTextIcon, HelpCircleIcon } from 'lucide-react'
+import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
 import { toast } from 'sonner'
 import { exportAnalysisAsPdf } from '@/lib/exportPdf'
 import type { Persona } from '@/domain/entities/Persona'
@@ -611,6 +612,13 @@ function CompletedView({
 
   return (
     <div className="flex flex-col gap-8">
+      {/* What Kynd is, then the one qualification the findings need — both
+          before the reader forms an expectation of the numbers below. */}
+      <div className="flex flex-col gap-1.5">
+        <p className="max-w-[70ch] text-[13px] leading-relaxed text-foreground/80">{REPORT_INTRO}</p>
+        <p className="max-w-[70ch] text-[11px] leading-relaxed text-muted-foreground">{REPORT_DISCLAIMER}</p>
+      </div>
+
       {/* ── Executive Synthesis ─────────────────────────────── */}
       {synthesis && (
         <div className="flex flex-col gap-6">
@@ -687,7 +695,7 @@ function CompletedView({
                   </details>
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <UsersIcon className="h-3 w-3" />
-                    <span>Observed in {finding.affectedPersonaCount}/{finding.totalPersonaCount} personas</span>
+                    <span>Simulated in {finding.affectedPersonaCount}/{finding.totalPersonaCount} personas</span>
                   </div>
                 </div>
               ))}
