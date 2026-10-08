@@ -80,13 +80,13 @@ function AnalysisToastContent({
       <div className="relative z-10 flex items-center gap-3 p-4">
         {statusConfig.icon}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{analysis.name}</p>
-          <p className="text-xs text-muted-foreground">{statusConfig.label}</p>
+          <p className="truncate text-sm font-medium text-foreground">{analysis.name}</p>
+          <p className="text-sm text-muted-foreground">{statusConfig.label}</p>
         </div>
         {actionLabel && (
           <button
             onClick={onView}
-            className={`shrink-0 text-xs font-semibold underline underline-offset-4 transition-colors ${statusConfig.buttonClass}`}
+            className={`shrink-0 text-sm font-semibold underline underline-offset-4 transition-colors ${statusConfig.buttonClass}`}
           >
             {actionLabel}
           </button>

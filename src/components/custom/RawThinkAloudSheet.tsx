@@ -80,8 +80,8 @@ export function RawThinkAloudSheet({
           <div className="flex items-center gap-3">
             <PersonaAvatar name={personaName} size="sm" />
             <div className="flex min-w-0 flex-col">
-              <SheetTitle className="truncate text-base">{personaName}</SheetTitle>
-              <SheetDescription className="text-xs">
+              <SheetTitle className="break-words text-base">{personaName}</SheetTitle>
+              <SheetDescription className="text-sm leading-relaxed">
                 Raw think-aloud transcript
               </SheetDescription>
               <span className="sr-only" aria-live="polite">

@@ -134,7 +134,7 @@ export function SimilarPersonaDialog({
               <h2 className="text-sm font-semibold tracking-tight truncate">
                 Create Variation
               </h2>
-              <p className="text-[11px] text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 Based on {persona.name}
               </p>
             </div>
@@ -160,10 +160,10 @@ export function SimilarPersonaDialog({
         <div className="p-5 flex flex-col gap-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+              <h3 className="micro-label text-muted-foreground/70">
                 Big Five Personality Traits
               </h3>
-              <span className="text-[10px] text-muted-foreground/60">
+              <span className="text-xs text-muted-foreground/60">
                 Adjust the personality profile
               </span>
             </div>
@@ -203,10 +203,10 @@ export function SimilarPersonaDialog({
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+              <h3 className="micro-label text-muted-foreground/70">
                 How Many?
               </h3>
-              <span className="text-[10px] text-muted-foreground/60">
+              <span className="text-xs text-muted-foreground/60">
                 Number of variations to generate
               </span>
             </div>

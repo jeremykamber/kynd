@@ -184,8 +184,8 @@ export function PersonaDetailSheet({
     const renderScalar = (label: string, value: number, leftLabel: string, rightLabel: string) => (
         <div className="flex flex-col gap-2">
             <div className="flex justify-between items-end">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-                <span className="text-sm font-bold font-mono">{value}</span>
+                <span className="micro-label text-muted-foreground/70">{label}</span>
+                <span className="text-sm font-semibold font-mono tabular-nums">{value}</span>
             </div>
             <Progress value={value} className="h-1.5" />
             <div className="flex justify-between text-xs text-muted-foreground/60 font-medium">
@@ -254,10 +254,10 @@ export function PersonaDetailSheet({
                         <div className="flex items-center gap-3">
                             <PersonaAvatar name={persona.name} size="md" className="w-10 h-10 shrink-0" />
                             <div className="flex flex-col min-w-0 flex-1">
-                                <h2 className="text-base font-semibold tracking-tight truncate">{persona.name}</h2>
-                                <p className="text-xs text-muted-foreground leading-tight">{persona.occupation}</p>
+                                <h2 className="text-2xl font-semibold tracking-tight break-words">{persona.name}</h2>
+                                <p className="micro-label text-muted-foreground">{persona.occupation}</p>
                                 {persona.generationMode && (
-                                    <span className="inline-flex mt-1.5 self-start text-[10px] font-medium text-primary/70 bg-primary/5 rounded px-1.5 py-0.5 whitespace-nowrap">
+                                    <span className="inline-flex mt-1.5 self-start text-xs font-medium text-primary/70 bg-primary/5 rounded px-1.5 py-0.5 whitespace-nowrap">
                                         {persona.generationMode === 'research' ? 'Transcript-based' : persona.generationMode === 'cluster' ? 'Synthesized from interviews' : 'Description-based'}
                                     </span>
                                 )}
@@ -267,7 +267,7 @@ export function PersonaDetailSheet({
                                     onClick={() => setActiveTab("profile")}
                                     aria-label="Profile"
                                     className={cn(
-                                        "inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                                        "inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
                                         activeTab === "profile"
                                             ? "bg-primary/10 text-primary"
                                             : "text-muted-foreground hover:text-foreground"
@@ -280,7 +280,7 @@ export function PersonaDetailSheet({
                                     onClick={() => setActiveTab("chat")}
                                     aria-label="Chat"
                                     className={cn(
-                                        "inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                                        "inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
                                         activeTab === "chat"
                                             ? "bg-primary/10 text-primary"
                                             : "text-muted-foreground hover:text-foreground"
@@ -294,7 +294,7 @@ export function PersonaDetailSheet({
                                         onClick={() => setActiveTab("variant")}
                                         aria-label="Variant"
                                         className={cn(
-                                            "inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                                            "inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
                                             activeTab === "variant"
                                                 ? "bg-primary/10 text-primary"
                                                 : "text-muted-foreground hover:text-foreground"
@@ -307,7 +307,7 @@ export function PersonaDetailSheet({
                                 {isEditing && onEdit && (
                                     <button
                                         onClick={handleCancelEdit}
-                                        className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-colors bg-primary/10 text-primary"
+                                        className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm font-medium rounded-md transition-colors bg-primary/10 text-primary"
                                         aria-label="Cancel editing"
                                     >
                                         <XIcon className="w-3.5 h-3.5" />
@@ -329,7 +329,7 @@ export function PersonaDetailSheet({
                                     <div className="flex justify-end">
                                         <button
                                             onClick={handleStartEdit}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground rounded-md border border-border/60 hover:bg-muted/30 hover:text-foreground transition-colors"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground rounded-md border border-border/60 hover:bg-muted/30 hover:text-foreground transition-colors"
                                         >
                                             <PenIcon className="w-3.5 h-3.5" />
                                             Edit Profile
@@ -338,9 +338,11 @@ export function PersonaDetailSheet({
                                 )}
 
                                 <div className="flex flex-col gap-3">
-                                    <div className="flex items-center gap-3">
-                                        <h4 className="text-lg font-medium text-foreground tracking-tight">Behavior Patterns</h4>
-                                    </div>
+                                    {persona.behavioralDimensions && persona.behavioralDimensions.length > 0 && (
+                                        <div className="flex items-center gap-3">
+                                            <h4 className="text-lg font-semibold tracking-tight">Behavior Patterns</h4>
+                                        </div>
+                                    )}
                                     {persona.behavioralDimensions && persona.behavioralDimensions.length > 0 ? (
                                         <div className="flex flex-col">
                                             {[...persona.behavioralDimensions].sort((a, b) => {
@@ -353,11 +355,11 @@ export function PersonaDetailSheet({
                                                 return (
                                                     <div key={i} className="flex flex-col py-5 border-b border-border/10 last:border-0">
                                                         <div className="flex items-center gap-2.5">
-                                                            <span className="text-xs font-medium text-foreground">{dim.name}</span>
-                                                            <span className={'text-[10px] font-medium ' + lc}>{label}</span>
+                                                            <span className="text-sm font-medium text-foreground">{dim.name}</span>
+                                                            <span className={'text-xs font-medium ' + lc}>{label}</span>
                                                         </div>
-                                                        <p className="text-[11px] text-muted-foreground/80 mt-1 leading-relaxed">{dim.description}</p>
-                                                        {dim.evidence && (() => { const question = persona.evidenceQuestions?.[dim.evidence]; return <details className="mt-2 group"><summary className="text-xs text-muted-foreground/80 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1.5 font-sans"><span className="text-xs text-muted-foreground/30 group-open:text-foreground/60 transition-colors">▶</span>{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</summary><p className="text-xs text-foreground/70 mt-1.5 leading-relaxed border-l-2 border-border/30 pl-3">“{dim.evidence}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></details>; })()}
+                                                        <p className="text-base text-muted-foreground/80 mt-1 leading-relaxed">{dim.description}</p>
+                                                        {dim.evidence && (() => { const question = persona.evidenceQuestions?.[dim.evidence]; return <details className="mt-2 group"><summary className="text-xs text-muted-foreground/80 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1.5 font-sans"><span className="text-xs text-muted-foreground/30 group-open:text-foreground/60 transition-colors">▶</span>{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</summary><p className="text-sm text-foreground/70 mt-1.5 leading-relaxed border-l-2 border-border/30 pl-3">“{dim.evidence}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></details>; })()}
                                                     </div>
                                                 );
                                             })}
@@ -368,28 +370,28 @@ export function PersonaDetailSheet({
 
                                 <div className="flex flex-col gap-5">
                                     <div className="flex items-center gap-3">
-                                        <h4 className="text-lg font-medium text-foreground tracking-tight">Decision Model</h4>
+                                        <h4 className="text-lg font-semibold tracking-tight">Decision Model</h4>
                                     </div>
                                     <div className="flex flex-col gap-4">
                                         {persona.decisionStyle && (
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Style</span>
-                                                <p className="text-sm text-foreground leading-relaxed">{persona.decisionStyle}</p>
+                                                <span className="micro-label text-muted-foreground/70">Style</span>
+                                                <p className="text-base text-foreground leading-relaxed">{persona.decisionStyle}</p>
                                             </div>
                                         )}
                                         <div className="flex flex-col gap-1">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget</span>
-                                            <p className="text-sm text-foreground leading-relaxed">
+                                            <span className="micro-label text-muted-foreground/70">Budget</span>
+                                            <p className="text-base text-foreground leading-relaxed">
                                                 {persona.typicalBudget || `Price sensitivity: ${persona.pricingSensitivity}/100`}
                                             </p>
                                         </div>
                                         {persona.goals.length > 0 && (
                                             <div className="flex flex-col gap-2">
-                                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Adopts if helps with</span>
+                                                <span className="micro-label text-muted-foreground/70">Adopts if helps with</span>
                                                 <ul className="flex flex-col gap-1.5">
                                                     {persona.goals.map((g, i) => (
-                                                        <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed text-foreground">
-                                                            <span className="mt-[9px] size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
+                                                        <li key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground">
+                                                            <span className="mt-2 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
                                                             <span>{g}</span>
                                                         </li>
                                                     ))}
@@ -403,27 +405,33 @@ export function PersonaDetailSheet({
                                 {(persona.bestFor?.length || persona.lessReliableFor?.length) ? (
                                     <div className="flex flex-col gap-4">
                                         <div className="flex flex-col gap-1">
-                                            <h4 className="text-lg font-medium text-foreground tracking-tight">How to Use This Persona</h4>
-                                            <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                                            <h4 className="text-lg font-semibold tracking-tight">How to Use This Persona</h4>
+                                            <p className="text-base text-muted-foreground/70 leading-relaxed">
                                                 This persona models a specific type of user. The lists below tell you what product decisions this persona can reliably inform, and where its perspective may be less trustworthy.
                                             </p>
                                         </div>
                                         {persona.bestFor && persona.bestFor.length > 0 && (
                                             <div className="flex flex-col gap-2.5">
-                                                <span className="text-sm font-semibold text-primary">Good for</span>
+                                                <span className="micro-label text-primary">Good for</span>
                                                 <div className="flex flex-col gap-1.5">
                                                     {persona.bestFor.map((item, i) => (
-                                                        <span key={i} className="text-sm text-foreground/80 leading-relaxed">{item}</span>
+                                                        <span key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">
+                                                            <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
+                                                            <span>{item}</span>
+                                                        </span>
                                                     ))}
                                                 </div>
                                             </div>
                                         )}
                                         {persona.lessReliableFor && persona.lessReliableFor.length > 0 && (
                                             <div className="flex flex-col gap-2.5">
-                                                <span className="text-sm font-semibold text-muted-foreground">Less reliable for</span>
+                                                <span className="micro-label text-muted-foreground">Less reliable for</span>
                                                 <div className="flex flex-col gap-1.5">
                                                     {persona.lessReliableFor.map((item, i) => (
-                                                        <span key={i} className="text-sm text-foreground/80 leading-relaxed">{item}</span>
+                                                        <span key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">
+                                                            <span className="mt-1.5 size-1 rounded-full bg-warning-foreground/60 shrink-0" aria-hidden="true" />
+                                                            <span>{item}</span>
+                                                        </span>
                                                     ))}
                                                 </div>
                                             </div>
@@ -436,7 +444,7 @@ export function PersonaDetailSheet({
                                     {persona.values && persona.values.length > 0 && (
                                         <div className="flex flex-col gap-4">
                                             <div className="flex items-center gap-3">
-                                                <h4 className="text-lg font-medium text-foreground tracking-tight">Motivations</h4>
+                                                <h4 className="text-lg font-semibold tracking-tight">Motivations</h4>
                                             </div>
                                             <div className="flex flex-col gap-5">
                                                 {persona.values.map((v, i) => {
@@ -444,8 +452,11 @@ export function PersonaDetailSheet({
                                                     const question = quote ? persona.evidenceQuestions?.[quote] : undefined;
                                                     return (
                                                         <div key={i} className="flex flex-col">
-                                                            <span className="text-sm text-foreground/80">{v}</span>
-                                                            {quote && <details className="mt-1.5 group"><summary className="text-xs text-muted-foreground/80 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1.5 font-sans"><span className="text-xs text-muted-foreground/30 group-open:text-foreground/60 transition-colors">▶</span>{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</summary><p className="text-xs text-foreground/70 mt-1.5 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></details>}
+                                                            <span className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">
+                                                                <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
+                                                                <span>{v}</span>
+                                                            </span>
+                                                            {quote && <details className="mt-1.5 group"><summary className="text-xs text-muted-foreground/80 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1.5 font-sans"><span className="text-xs text-muted-foreground/30 group-open:text-foreground/60 transition-colors">▶</span>{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</summary><p className="text-sm text-foreground/70 mt-1.5 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></details>}
                                                         </div>
                                                     );
                                                 })}
@@ -456,7 +467,7 @@ export function PersonaDetailSheet({
                                     {persona.fears && persona.fears.length > 0 && (
                                         <div className="flex flex-col gap-3">
                                             <div className="flex items-center gap-3">
-                                                <h4 className="text-lg font-medium text-foreground tracking-tight">Frictions</h4>
+                                                <h4 className="text-lg font-semibold tracking-tight">Frictions</h4>
                                             </div>
                                             <ul className="space-y-5">
                                                 {persona.fears.map((f, i) => {
@@ -464,11 +475,11 @@ export function PersonaDetailSheet({
                                                     const question = quote ? persona.evidenceQuestions?.[quote] : undefined;
                                                     return (
                                                         <li key={i} className="flex flex-col">
-                                                            <div className="flex items-center gap-2.5 text-xs text-foreground/70 leading-relaxed">
-                                                                <span className="text-destructive/60 shrink-0 mt-0.5">/</span>
+                                                            <div className="flex items-start gap-2.5 text-sm leading-snug text-foreground/70">
+                                                                <span className="mt-1.5 size-1 rounded-full bg-destructive/50 shrink-0" aria-hidden="true" />
                                                                 {f}
                                                             </div>
-                                                            {quote && <details className="mt-1.5 group ml-4"><summary className="text-xs text-muted-foreground/80 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1.5 font-sans"><span className="text-xs text-muted-foreground/30 group-open:text-foreground/60 transition-colors">▶</span>{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</summary><p className="text-xs text-foreground/70 mt-1.5 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></details>}
+                                                            {quote && <details className="mt-1.5 group ml-4"><summary className="text-xs text-muted-foreground/80 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1.5 font-sans"><span className="text-xs text-muted-foreground/30 group-open:text-foreground/60 transition-colors">▶</span>{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</summary><p className="text-sm text-foreground/70 mt-1.5 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></details>}
                                                         </li>
                                                     );
                                                 })}
@@ -480,7 +491,7 @@ export function PersonaDetailSheet({
                                 <div className="flex flex-col gap-5 mt-6 border-t border-border/10 pt-6">
 
                                     <div className="flex flex-col gap-4">
-                                        <h4 className="text-lg font-medium text-foreground tracking-tight">Evidence &amp; Confidence</h4>
+                                        <h4 className="text-lg font-semibold tracking-tight">Evidence &amp; Confidence</h4>
                                         {persona.provenance ? (
                                             <>
                                                 {persona.provenance.attributes.length > 0 && (
@@ -491,11 +502,11 @@ export function PersonaDetailSheet({
                                                                 <div key={i} className="group relative flex items-center gap-3 text-sm">
                                                                     <span className={'w-2 h-2 rounded-full shrink-0 ' + tc} />
                                                                     <div className="flex-1 min-w-0 flex items-center gap-2">
-                                                                        <span className="text-foreground/80 truncate">{attr.attribute}</span>
+                                                                        <span className="text-foreground/80 break-words">{attr.attribute}</span>
                                                                         <span className="text-muted-foreground/80 text-xs font-mono">{attr.confidence >= 0.8 ? 'High' : attr.confidence >= 0.6 ? 'Moderate' : 'Low'}</span>
                                                                     </div>
                                                                     {(attr.rationale || attr.evidence) && (
-                                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-lg border border-border bg-card text-xs text-foreground/80 leading-relaxed opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none shadow-lg">
+                                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-lg border border-border bg-card text-sm text-foreground/80 leading-relaxed opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none shadow-lg">
                                                                             {attr.rationale && <p>{attr.rationale}</p>}
                                                                             {attr.evidence && <p className={attr.rationale ? 'mt-1 text-muted-foreground/70' : ''}>“{attr.evidence}”</p>}
                                                                         </div>
@@ -507,7 +518,7 @@ export function PersonaDetailSheet({
                                                 )}
                                             </>
                                         ) : (
-                                            <p className="text-sm text-muted-foreground/60">
+                                            <p className="text-base text-muted-foreground/60 leading-relaxed">
                                                 {persona.generationMode === 'research' ? "No provenance data available" : "Generated from a description."}
                                             </p>
                                         )}
@@ -515,17 +526,17 @@ export function PersonaDetailSheet({
 
                                     {persona.evidenceLinks && persona.evidenceLinks.length > 0 && (
                                         <div className="flex flex-col gap-4">
-                                            <h4 className="text-lg font-medium text-foreground tracking-tight">Sources</h4>
+                                            <h4 className="text-lg font-semibold tracking-tight">Sources</h4>
                                             <div className="flex flex-col gap-5">
                                                 {persona.evidenceLinks.map((link, i) => {
                                                     const question = persona.evidenceQuestions?.[link.excerpt];
                                                     return (
                                                         <div key={i} className="relative pl-4 border-l-2 border-border/40">
                                                             <div className="flex items-center gap-2 mb-1.5">
-                                                                <span className="text-xs font-medium text-primary/70 uppercase tracking-wider">{link.attribute}</span>
+                                                                <span className="micro-label text-primary/70">{link.attribute}</span>
                                                                 <span className="text-xs text-muted-foreground/70">{persona.generationMode === 'strategy' ? 'Your response' : link.transcriptId}</span>
                                                             </div>
-                                                            <p className="text-sm text-foreground/70 leading-relaxed">“{link.excerpt}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p>
+                                                            <p className="text-base text-foreground/70 leading-relaxed">“{link.excerpt}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p>
                                                         </div>
                                                     );
                                                 })}
@@ -537,26 +548,26 @@ export function PersonaDetailSheet({
                                 <div className="flex flex-col gap-3 mt-6 border-t border-border/10 pt-6">
 
                                     <details className="group">
-                                        <summary className="text-sm font-semibold text-foreground uppercase tracking-wide cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-2 py-1">
-                                            <span className="text-[10px] text-muted-foreground/30 group-open:rotate-90 transition-transform duration-150">{'▶'}</span>
+                                        <summary className="micro-label text-muted-foreground/70 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-2 py-1">
+                                            <span className="text-xs text-muted-foreground/30 group-open:rotate-90 transition-transform duration-150">{'▶'}</span>
                                             ADDITIONAL CONTEXT
                                         </summary>
                                         <div className="flex flex-col gap-4 pt-4 pb-2">
-                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 micro-label text-muted-foreground">
                                                 {persona.age && <span>{persona.age} years old</span>}
                                                 {persona.educationLevel && <><span className="w-1 h-1 rounded-full bg-border" /><span>{persona.educationLevel}</span></>}
                                                 {persona.occupation && <><span className="w-1 h-1 rounded-full bg-border" /><span>{persona.occupation}</span></>}
                                             </div>
                                             {persona.backstory && (
                                                 <div className="flex flex-col gap-2">
-                                                    <h4 className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">BACKSTORY</h4>
+                                                    <h4 className="micro-label text-muted-foreground/70">BACKSTORY</h4>
                                                     <div className="relative">
                                                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/70" />
-                                                        <Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-8 text-xs pl-8 rounded-md bg-muted/30 border-none" />
+                                                        <Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-8 text-sm pl-8 rounded-md bg-muted/30 border-none" />
                                                     </div>
                                                     <div className="flex flex-col gap-3 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
                                                         {filteredBackstory.map((paragraph, i) => (
-                                                            <p key={persona.id + '-para-' + i} className={cn("text-sm leading-relaxed text-foreground/70",
+                                                            <p key={persona.id + '-para-' + i} className={cn("text-base leading-relaxed text-foreground/70",
                                                                 searchTerm && paragraph.toLowerCase().includes(searchTerm.toLowerCase()) ? "bg-primary/5 rounded-lg p-2" : ""
                                                             )}>{paragraph}</p>
                                                         ))}
@@ -565,12 +576,12 @@ export function PersonaDetailSheet({
                                             )}
                                             {(persona.identityContext || persona.situationContext) && (
                                                 <div className="flex flex-col gap-2">
-                                                    {persona.identityContext && <p className="text-xs text-foreground/70"><span className="text-muted-foreground">Stable</span> {persona.identityContext}</p>}
-                                                    {persona.situationContext && <p className="text-xs text-foreground/70"><span className="text-muted-foreground">Context</span> {persona.situationContext}</p>}
+                                                    {persona.identityContext && <p className="text-sm leading-relaxed text-foreground/70"><span className="text-muted-foreground">Stable</span> {persona.identityContext}</p>}
+                                                    {persona.situationContext && <p className="text-sm leading-relaxed text-foreground/70"><span className="text-muted-foreground">Context</span> {persona.situationContext}</p>}
                                                 </div>
                                             )}
                                             {persona.clusterInfo && (
-                                                <div className="text-xs text-muted-foreground/70">
+                                                <div className="text-sm leading-relaxed text-muted-foreground/70">
                                                     Represents {persona.clusterInfo.representedCount} interview subjects
                                                     {persona.clusterInfo.sourceIds.length > 0 && (' (' + persona.clusterInfo.sourceIds.join(', ') + ')')}
                                                 </div>
@@ -579,8 +590,8 @@ export function PersonaDetailSheet({
                                     </details>
 
                                     <details className="group">
-                                        <summary className="text-sm font-semibold text-foreground uppercase tracking-wide cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-2 py-1">
-                                            <span className="text-[10px] text-muted-foreground/30 group-open:rotate-90 transition-transform duration-150">{'▶'}</span>
+                                        <summary className="micro-label text-muted-foreground/70 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-2 py-1">
+                                            <span className="text-xs text-muted-foreground/30 group-open:rotate-90 transition-transform duration-150">{'▶'}</span>
                                             ADVANCED MODEL DETAILS
                                         </summary>
                                         <div className="flex flex-col gap-5 pt-4 pb-2">
@@ -591,18 +602,18 @@ export function PersonaDetailSheet({
                                                 {renderScalar("Extraversion", persona.extraversion, "Introvert", "Extrovert")}
                                                 {renderScalar("Agreeableness", persona.agreeableness, "Competitive", "Compassionate")}
                                             </div>
-                                            {persona.communicationStyle && <p className="text-xs text-foreground/70">Communication: {persona.communicationStyle}</p>}
+                                            {persona.communicationStyle && <p className="text-sm leading-relaxed text-foreground/70">Communication: {persona.communicationStyle}</p>}
                                             {persona.interests && persona.interests.length > 0 && (
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {persona.interests.map((v, i) => (
-                                                        <span key={i} className="text-[11px] text-muted-foreground bg-secondary/30 px-2 py-0.5 rounded-sm">{v}</span>
+                                                        <span key={i} className="text-sm text-muted-foreground bg-secondary/30 px-2 py-0.5 rounded-sm">{v}</span>
                                                     ))}
                                                 </div>
                                             )}
                                             {persona.pbjRationales && (
                                                 <div className="flex flex-col gap-2 pt-2 border-t border-border/10">
-                                                    <h4 className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">PSYCHOLOGICAL RATIONALES (PB&amp;J)</h4>
-                                                    <div className="text-xs text-foreground/70 leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto custom-scrollbar">{persona.pbjRationales}</div>
+                                                    <h4 className="micro-label text-muted-foreground/70">PSYCHOLOGICAL RATIONALES (PB&amp;J)</h4>
+                                                    <div className="text-base text-foreground/70 leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-y-auto custom-scrollbar">{persona.pbjRationales}</div>
                                                 </div>
                                             )}
                                         </div>
@@ -616,10 +627,10 @@ export function PersonaDetailSheet({
                         <ScrollArea className="flex-1 min-h-0">
                             <div className="p-5 flex flex-col gap-5">
                                 <div className="flex flex-col gap-3">
-                                    <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">IDENTITY</h4>
+                                    <h4 className="micro-label text-muted-foreground/70">IDENTITY</h4>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</span>
+                                            <span className="micro-label text-muted-foreground/70">Name</span>
                                             <Input
                                                 value={draftPersona.name}
                                                 onChange={(e) => updateDraft({ name: e.target.value })}
@@ -627,7 +638,7 @@ export function PersonaDetailSheet({
                                             />
                                         </div>
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Age</span>
+                                            <span className="micro-label text-muted-foreground/70">Age</span>
                                             <Input
                                                 type="number"
                                                 value={draftPersona.age}
@@ -636,7 +647,7 @@ export function PersonaDetailSheet({
                                             />
                                         </div>
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Occupation</span>
+                                            <span className="micro-label text-muted-foreground/70">Occupation</span>
                                             <Input
                                                 value={draftPersona.occupation}
                                                 onChange={(e) => updateDraft({ occupation: e.target.value })}
@@ -644,7 +655,7 @@ export function PersonaDetailSheet({
                                             />
                                         </div>
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Education</span>
+                                            <span className="micro-label text-muted-foreground/70">Education</span>
                                             <Input
                                                 value={draftPersona.educationLevel}
                                                 onChange={(e) => updateDraft({ educationLevel: e.target.value })}
@@ -655,7 +666,7 @@ export function PersonaDetailSheet({
                                 </div>
 
                                 <div className="flex flex-col gap-3">
-                                    <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">BACKSTORY</h4>
+                                    <h4 className="micro-label text-muted-foreground/70">BACKSTORY</h4>
                                     <Textarea
                                         value={draftPersona.backstory ?? ""}
                                         onChange={(e) => updateDraft({ backstory: e.target.value })}
@@ -664,7 +675,7 @@ export function PersonaDetailSheet({
                                 </div>
 
                                 <div className="flex flex-col gap-3">
-                                    <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">GOALS</h4>
+                                    <h4 className="micro-label text-muted-foreground/70">GOALS</h4>
                                     <Textarea
                                         value={draftPersona.goals.join("\n")}
                                         onChange={(e) => updateDraft({ goals: e.target.value.split("\n").filter(Boolean) })}
@@ -674,7 +685,7 @@ export function PersonaDetailSheet({
                                 </div>
 
                                 <div className="flex flex-col gap-3">
-                                    <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">INTERESTS</h4>
+                                    <h4 className="micro-label text-muted-foreground/70">INTERESTS</h4>
                                     <Textarea
                                         value={draftPersona.interests.join("\n")}
                                         onChange={(e) => updateDraft({ interests: e.target.value.split("\n").filter(Boolean) })}
@@ -684,10 +695,10 @@ export function PersonaDetailSheet({
                                 </div>
 
                                 <div className="flex flex-col gap-4">
-                                    <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">PSYCHOGRAPHIC SPECIFICATION</h4>
+                                    <h4 className="micro-label text-muted-foreground/70">PSYCHOGRAPHIC SPECIFICATION</h4>
                                     <div className="flex flex-col gap-3">
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Values</span>
+                                            <span className="micro-label text-muted-foreground/70">Values</span>
                                             <Textarea
                                                 value={draftPersona.values.join("\n")}
                                                 onChange={(e) => updateDraft({ values: e.target.value.split("\n").filter(Boolean) })}
@@ -696,7 +707,7 @@ export function PersonaDetailSheet({
                                             />
                                         </div>
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fears</span>
+                                            <span className="micro-label text-muted-foreground/70">Fears</span>
                                             <Textarea
                                                 value={draftPersona.fears.join("\n")}
                                                 onChange={(e) => updateDraft({ fears: e.target.value.split("\n").filter(Boolean) })}
@@ -706,7 +717,7 @@ export function PersonaDetailSheet({
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="flex flex-col gap-1.5">
-                                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Communication</span>
+                                                <span className="micro-label text-muted-foreground/70">Communication</span>
                                                 <Input
                                                     value={draftPersona.communicationStyle}
                                                     onChange={(e) => updateDraft({ communicationStyle: e.target.value })}
@@ -714,7 +725,7 @@ export function PersonaDetailSheet({
                                                 />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
-                                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Decision Style</span>
+                                                <span className="micro-label text-muted-foreground/70">Decision Style</span>
                                                 <Input
                                                     value={draftPersona.decisionStyle}
                                                     onChange={(e) => updateDraft({ decisionStyle: e.target.value })}
@@ -726,10 +737,10 @@ export function PersonaDetailSheet({
                                 </div>
 
                                 <div className="flex flex-col gap-3">
-                                    <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">PRICING</h4>
+                                    <h4 className="micro-label text-muted-foreground/70">PRICING</h4>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sensitivity (1-100)</span>
+                                            <span className="micro-label text-muted-foreground/70">Sensitivity (1-100)</span>
                                             <Input
                                                 type="number"
                                                 min={0}
@@ -738,10 +749,10 @@ export function PersonaDetailSheet({
                                                 onChange={(e) => updateDraft({ pricingSensitivity: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
                                                 className="h-9 text-sm bg-muted/30 border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
                                             />
-                                            <span className="text-[11px] text-muted-foreground/70">1 = low sensitivity, 100 = high sensitivity</span>
+                                            <span className="text-sm text-muted-foreground/70">1 = low sensitivity, 100 = high sensitivity</span>
                                         </div>
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Typical Budget</span>
+                                            <span className="micro-label text-muted-foreground/70">Typical Budget</span>
                                             <Input
                                                 value={draftPersona.typicalBudget}
                                                 onChange={(e) => updateDraft({ typicalBudget: e.target.value })}
@@ -754,8 +765,8 @@ export function PersonaDetailSheet({
                                 {/* Big Five — read only */}
                                 <div className="flex flex-col gap-4">
                                     <div className="flex items-center gap-2">
-                                        <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">BIG FIVE TRAITS</h4>
-                                        <span className="text-[11px] font-medium text-primary/60 bg-primary/10 px-1.5 py-0.5 rounded-sm">Inferred from backstory</span>
+                                        <h4 className="micro-label text-muted-foreground/70">BIG FIVE TRAITS</h4>
+                                        <span className="text-xs font-medium text-primary/60 bg-primary/10 px-1.5 py-0.5 rounded-sm">Inferred from backstory</span>
                                     </div>
                                     <div className="space-y-4">
                                         {renderScalar("Conscientiousness", draftPersona.conscientiousness, "Chaotic", "Meticulous")}
@@ -771,7 +782,7 @@ export function PersonaDetailSheet({
                                         type="button"
                                         onClick={handleSaveEdit}
                                         disabled={isSaving}
-                                        className="flex-1 inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90 ring-1 ring-primary/20 disabled:opacity-50 gap-2"
+                                        className="flex-1 inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 ring-1 ring-primary/20 disabled:opacity-50 gap-2"
                                     >
                                         {isSaving && <LoaderIcon className="w-3.5 h-3.5 animate-spin" />}
                                         {isSaving ? "Analyzing backstory..." : "Save Changes"}
@@ -795,7 +806,7 @@ export function PersonaDetailSheet({
                                 <div className="flex flex-col gap-4">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                                            <h3 className="micro-label text-muted-foreground/70">
                                                 Big Five Personality Traits
                                             </h3>
                                             <button
@@ -807,7 +818,7 @@ export function PersonaDetailSheet({
                                                 <ShuffleIcon className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
-                                        <span className="text-xs text-muted-foreground/80">
+                                        <span className="text-sm text-muted-foreground/80">
                                             Adjust the personality profile
                                         </span>
                                     </div>
@@ -847,10 +858,10 @@ export function PersonaDetailSheet({
 
                                 <div className="flex flex-col gap-3">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                                        <h3 className="micro-label text-muted-foreground/70">
                                             How Many?
                                         </h3>
-                                        <span className="text-xs text-muted-foreground/80">
+                                        <span className="text-sm text-muted-foreground/80">
                                             Number of variations to generate
                                         </span>
                                     </div>
@@ -877,7 +888,7 @@ export function PersonaDetailSheet({
                                     type="button"
                                     onClick={handleGenerateVariation}
                                     disabled={!onGenerateVariation}
-                                    className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                                    className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring gap-2 disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     <SparklesIcon className="w-4 h-4" />
                                     Generate {selectedCount} Variation{selectedCount > 1 ? "s" : ""}

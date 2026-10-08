@@ -47,7 +47,7 @@ function MultiSelect({
   }
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="text-sm font-medium text-foreground mb-1">{label} (choose up to {max})</legend>
+      <legend className="text-sm font-semibold text-foreground mb-1">{label} (choose up to {max})</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => {
           const isSelected = selected.includes(opt)
@@ -56,7 +56,7 @@ function MultiSelect({
               key={opt}
               type="button"
               onClick={() => toggle(opt)}
-              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                 isSelected
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -85,7 +85,7 @@ function SingleSelect({
 }) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="text-sm font-medium text-foreground mb-1">{label}</legend>
+      <legend className="text-sm font-semibold text-foreground mb-1">{label}</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => {
           const isSelected = selected === opt
@@ -94,7 +94,7 @@ function SingleSelect({
               key={opt}
               type="button"
               onClick={() => onChange(opt)}
-              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                 isSelected
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -169,7 +169,7 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error, b
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-foreground">Who are you targeting?</label>
-        <p className="text-xs text-muted-foreground">Describe your audience in a few words.</p>
+        <p className="text-sm text-muted-foreground">Describe your audience in a few words.</p>
         <input
           type="text"
           value={targetAudience}
@@ -272,7 +272,7 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error, b
         <button
           type="button"
           onClick={onUseTextarea}
-          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
+          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
         >
           Use freeform description instead
         </button>

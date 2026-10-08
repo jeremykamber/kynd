@@ -26,7 +26,7 @@ export function FloatingAnalysisButton() {
         if (hasBatches) router.push('/dashboard/analyses?new=1')
       }}
       className={cn(
-        'fixed right-6 z-40 inline-flex h-10 items-center gap-2 rounded-full border px-4 text-xs font-semibold shadow-lg transition-all',
+        'fixed right-6 z-40 inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold shadow-lg transition-all',
         inDashboard ? 'bottom-24 lg:bottom-6' : 'bottom-6',
         hasBatches
           ? 'border-border bg-background text-foreground hover:bg-accent cursor-pointer'

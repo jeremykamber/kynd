@@ -100,13 +100,13 @@ export function FlowDialog({
                 <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
                 <button
                   onClick={() => onOpenChange(false)}
-                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+                  className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4"
                 >
                   Cancel
                 </button>
               </div>
               {description && (
-                <p className="text-sm text-muted-foreground mt-1">{description}</p>
+                <p className="text-base text-muted-foreground mt-1">{description}</p>
               )}
             </div>
             <div className="flex flex-col md:flex-row gap-8 px-8 pb-6 pt-2">
@@ -165,7 +165,7 @@ export function FlowDialog({
       <DialogContent className="sm:max-w-2xl gap-8 p-8 md:p-12 border-border rounded-xl bg-background overflow-hidden">
         
         <DialogHeader className="gap-3">
-          <DialogTitle className="text-3xl font-semibold tracking-tight text-center">
+          <DialogTitle className="text-2xl font-semibold tracking-tight text-center">
             {title}
           </DialogTitle>
           {description && (

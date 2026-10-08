@@ -47,7 +47,7 @@ export function PersonaAvatar({
           className="aspect-square h-full w-full object-cover"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center font-medium text-secondary-foreground tracking-widest">
+        <div className="flex h-full w-full items-center justify-center font-medium text-secondary-foreground">
           {getInitials(name)}
         </div>
       )}

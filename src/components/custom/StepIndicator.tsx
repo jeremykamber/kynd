@@ -57,7 +57,7 @@ export function StepIndicator({ steps, currentStep, className, ...props }: StepI
             </div>
             <div className="pt-1.5 pb-6 flex flex-col gap-1">
               <span className={cn(
-                "text-sm font-medium leading-none tracking-tight transition-colors duration-300",
+                "text-sm font-medium transition-colors duration-300",
                 (isCompleted || isCurrent) ? "text-foreground" : "text-muted-foreground"
               )}>
                 {step.title}
