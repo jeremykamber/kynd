@@ -47,16 +47,16 @@ export default function MarketingLayout({
         </div>
       </header>
       <main className="flex-1 flex flex-col">{children}</main>
-      <footer className="border-t border-border/40 py-12 bg-background">
-        <div className="container mx-auto max-w-screen-xl px-6 md:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex flex-col items-center md:items-start">
+      <footer className="border-t border-border/40 py-16 bg-background">
+        <div className="container mx-auto max-w-screen-xl px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex flex-col items-center md:items-start gap-3">
             <div className="flex items-center gap-2">
               <img src="/kynd_logo.svg" alt="Kynd" className="h-6 w-6" />
               <span className="font-semibold tracking-tight text-lg select-none">
                 Kynd
               </span>
             </div>
-            <p className="text-sm text-muted-foreground mt-2 text-center md:text-left">
+            <p className="text-xs text-muted-foreground text-center md:text-left">
               &copy; {new Date().getFullYear()} Kynd. All rights reserved.
             </p>
           </div>
