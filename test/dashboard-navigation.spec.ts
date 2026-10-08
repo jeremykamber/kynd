@@ -146,6 +146,7 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
         'Personas',
         'Interviews',
         'Analyses',
+        'Feedback',
       ]);
 
       await tabBar.locator('a[href="/dashboard/interviews"]').click();

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { submitFeedback } from '@/lib/feedback'
+import { isReportable, submitFeedback } from '@/lib/feedback'
 import type { FeedbackContext } from '@/lib/feedback'
 
 interface FeedbackButtonProps {
@@ -57,9 +57,13 @@ export function FeedbackButton({
   const messageId = React.useId()
   const emailId = React.useId()
 
-  // The module also drops empty reports; skipping the call here keeps the UI
-  // from firing a request that has nothing in it.
-  const hasSomethingToReport = message.trim().length > 0 || Boolean(context?.error)
+  // The module's own predicate: Send is never available for a report the
+  // module would silently drop, and the dialog closes only when one was sent.
+  const hasSomethingToReport = isReportable({
+    kind: context?.error ? 'error' : 'general',
+    message,
+    context,
+  })
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()

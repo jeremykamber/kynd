@@ -16,6 +16,27 @@ export type {
 const MIN_MESSAGE_CHARS = 4
 
 /**
+ * Whether a request carries anything worth sending. The dialog uses this to
+ * decide whether Send is available and `submitFeedback` uses it to decide
+ * whether to send, so the button can never promise more than the module does
+ * (a one-word message the module would drop must not close the dialog as if it
+ * had gone out).
+ */
+export function isReportable(request: FeedbackRequest): boolean {
+  const message = request.message?.trim() ?? ''
+  const error = request.context?.error?.trim() ?? ''
+  return message.length >= MIN_MESSAGE_CHARS || error.length > 0
+}
+
+/**
+ * The `mailto:` hand-off travels through a URL, and browsers and mail clients
+ * truncate a long one (commonly around 2000 characters). A pipeline failure
+ * reason can be several KB, so the report is capped and the cut is stated
+ * rather than left to look like the end of the message.
+ */
+const MAX_REPORT_CHARS = 1800
+
+/**
  * Turns the user's words plus whatever the caller knows into one plain-text
  * report. Absent facts are omitted rather than written as blanks, so a short
  * report stays readable in a mail client.
@@ -34,7 +55,10 @@ function buildReport(request: FeedbackRequest, message: string): string {
   if (context.runId) lines.push(`Run id: ${context.runId}`)
   if (context.summary) lines.push(`Summary: ${context.summary}`)
 
-  return lines.join('\n').trim()
+  const report = lines.join('\n').trim()
+  if (report.length <= MAX_REPORT_CHARS) return report
+  const dropped = report.length - MAX_REPORT_CHARS
+  return `${report.slice(0, MAX_REPORT_CHARS)}\n\n[truncated: ${dropped} more characters]`
 }
 
 /**
@@ -44,10 +68,9 @@ function buildReport(request: FeedbackRequest, message: string): string {
  * open returns `{ opened: false }`.
  */
 export async function submitFeedback(request: FeedbackRequest): Promise<FeedbackOutcome> {
-  const message = request.message?.trim() ?? ''
-  const error = request.context?.error?.trim() ?? ''
+  if (!isReportable(request)) return { opened: false }
 
-  if (message.length < MIN_MESSAGE_CHARS && !error) return { opened: false }
+  const message = request.message?.trim() ?? ''
 
   try {
     return await transport.send(buildReport(request, message))

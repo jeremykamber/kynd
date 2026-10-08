@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import React from 'react'
+import type * as FeedbackModule from '@/lib/feedback'
 
 const { submitFeedback } = vi.hoisted(() => ({
   submitFeedback: vi.fn(async () => ({ opened: true })),
 }))
 
-vi.mock('@/lib/feedback', () => ({ submitFeedback }))
+// Only the send is stubbed: the real `isReportable` decides whether Send is
+// available, so the empty-message case exercises the rule the app runs.
+vi.mock('@/lib/feedback', async (importOriginal) => {
+  const actual = await importOriginal<typeof FeedbackModule>()
+  return { ...actual, submitFeedback }
+})
 
 import { FeedbackButton } from '../FeedbackButton'
 
