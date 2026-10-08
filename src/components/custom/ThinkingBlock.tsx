@@ -21,7 +21,7 @@ export function ThinkingBlock({ content, className }: ThinkingBlockProps) {
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-sm text-muted-foreground/70 hover:text-muted-foreground/90 transition-colors py-1 px-0 w-fit"
+        className="flex items-center gap-2 text-sm text-muted-foreground/70 hover:text-muted-foreground/90 transition-colors py-2 px-0 w-fit"
       >
         <ChevronRight
           className={cn(
@@ -35,8 +35,8 @@ export function ThinkingBlock({ content, className }: ThinkingBlockProps) {
       </button>
 
       {expanded && (
-        <div className="ml-5 pl-3 border-l-2 border-muted-foreground/20 py-2">
-          <p className="text-sm leading-relaxed text-muted-foreground/60 whitespace-pre-wrap font-mono">
+        <div className="mt-2 ml-5 border-l-2 border-muted-foreground/20 py-2 pl-4">
+          <p className="max-w-prose text-base leading-relaxed text-muted-foreground/70 whitespace-pre-wrap font-mono">
             {content}
           </p>
         </div>

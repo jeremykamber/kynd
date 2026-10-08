@@ -80,7 +80,7 @@ export function RawThinkAloudSheet({
           <div className="flex items-center gap-3">
             <PersonaAvatar name={personaName} size="sm" />
             <div className="flex min-w-0 flex-col">
-              <SheetTitle className="break-words text-base">{personaName}</SheetTitle>
+              <SheetTitle className="break-words text-xl">{personaName}</SheetTitle>
               <SheetDescription className="text-sm leading-relaxed">
                 Raw think-aloud transcript
               </SheetDescription>
@@ -93,7 +93,7 @@ export function RawThinkAloudSheet({
         <ScrollArea className="min-h-0 flex-1">
           <p
             className={cn(
-              "whitespace-pre-wrap px-4 py-4 text-sm leading-relaxed text-foreground/90",
+              "whitespace-pre-wrap px-6 py-6 text-base leading-relaxed text-foreground/90",
               highlight && "text-foreground"
             )}
           >

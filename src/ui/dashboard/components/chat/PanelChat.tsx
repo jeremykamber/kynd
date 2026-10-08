@@ -171,7 +171,7 @@ export function PanelChat({ responses, synthesis, personaNames, isOpen, onClose 
               messages.map((m, i) => (
                 <div
                   key={`${m.role}-${i}`}
-                  className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'self-end items-end' : 'self-start items-start'}`}
+                  className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'self-end items-end' : 'mt-2 self-start items-start'}`}
                 >
                   <div
                     style={{
@@ -179,13 +179,13 @@ export function PanelChat({ responses, synthesis, personaNames, isOpen, onClose 
                         ? 'var(--chat-user-bubble)'
                         : 'var(--chat-assistant-bubble)',
                     }}
-                    className={`px-4 py-3 rounded-2xl text-base leading-relaxed break-words min-w-0 max-w-full text-foreground ${
+                    className={`px-5 py-4 rounded-2xl text-base leading-relaxed break-words min-w-0 max-w-prose text-foreground ${
                       m.role === 'user' ? 'rounded-tr-sm whitespace-pre-wrap' : 'rounded-tl-sm border border-border/40'
                     }`}
                   >
                     {parseMessageContent(m.content)}
                   </div>
-                  <span className="text-xs text-muted-foreground mt-1.5 px-1">
+                  <span className="text-xs text-muted-foreground mt-2 px-1">
                     {m.role === 'user' ? 'You' : 'Synthesis'}
                   </span>
                 </div>
@@ -205,7 +205,7 @@ export function PanelChat({ responses, synthesis, personaNames, isOpen, onClose 
             )}
           </div>
 
-          <div className="p-4 bg-card border-t border-border/40 shrink-0">
+          <div className="px-6 py-4 bg-card border-t border-border/40 shrink-0">
             <form
               onSubmit={(e) => {
                 e.preventDefault()

@@ -170,7 +170,7 @@ export function CitationTooltip({
               onFocus={cancelPreviewClose}
               onBlur={(event) => blurPreview(citationKey, event.relatedTarget)}
             >
-              <div className="flex items-center gap-2 border-b border-border/60 p-3">
+              <div className="flex items-center gap-2 border-b border-border/60 p-4">
                 <PersonaAvatar name={citation.personaName} size="sm" />
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate text-sm font-semibold">{citation.personaName}</span>
@@ -181,10 +181,10 @@ export function CitationTooltip({
                   )}
                 </div>
               </div>
-              <blockquote className="border-l-2 border-primary/40 bg-muted/30 px-3 py-2 text-sm italic leading-relaxed text-foreground/90">
+              <blockquote className="border-l-2 border-primary/40 bg-muted/30 px-4 py-3 text-sm italic leading-relaxed text-foreground/90">
                 {citation.quote}
               </blockquote>
-              <div className="p-3 pt-2">
+              <div className="px-4 pb-4 pt-2">
                 <Button
                   variant="ghost"
                   size="sm"
