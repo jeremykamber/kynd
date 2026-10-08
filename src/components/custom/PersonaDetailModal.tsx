@@ -104,7 +104,7 @@ export function PersonaDetailModal({
             <div className="flex gap-4 md:gap-6 items-center">
               <PersonaAvatar name={persona.name} size="xl" className="w-16 h-16 md:w-24 md:h-24 border-2 border-background shrink-0" />
               <div className="flex flex-col gap-1 min-w-0">
-                <DialogTitle className="text-2xl font-semibold tracking-tight break-words">{persona.name}</DialogTitle>
+                <DialogTitle className="text-xl font-semibold tracking-tight break-words">{persona.name}</DialogTitle>
                 <div className="flex flex-wrap items-center gap-x-2 md:gap-x-3 gap-y-1 micro-label text-muted-foreground/80">
                   <span>{persona.age} years old</span>
                   <span className="w-1 h-1 rounded-full bg-border" />
@@ -173,9 +173,9 @@ export function PersonaDetailModal({
 
                 <motion.div
                   variants={itemVariants}
-                  className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-6 transition-colors duration-150 hover:border-border"
+                  className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-3 transition-colors duration-150 hover:border-border"
                 >
-                  <h4 className="micro-label text-muted-foreground/70 mb-2">GOALS</h4>
+                  <h4 className="micro-label text-muted-foreground/70">GOALS</h4>
                   <ul className="space-y-3">
                     {persona.goals.map((goal, i) => (
                       <li key={`${persona.id}-goal-${i}`} className="text-sm flex gap-2 leading-snug">
@@ -190,13 +190,13 @@ export function PersonaDetailModal({
               <div className="flex flex-col gap-4 md:gap-6">
                 <motion.div
                   variants={itemVariants}
-                  className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-8 h-full transition-colors duration-150 hover:border-border"
+                  className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-4 h-full transition-colors duration-150 hover:border-border"
                 >
                   <h4 className="micro-label text-muted-foreground/70">THE ENGINE</h4>
 
-                  <div className="space-y-5">
-                    <h4 className="micro-label text-muted-foreground/70 mb-2">Big Five (OCEAN) — Joshi et al. (2025)</h4>
-                    <div className="space-y-5">
+                  <div className="space-y-2">
+                    <h4 className="micro-label text-muted-foreground/70">Big Five (OCEAN) — Joshi et al. (2025)</h4>
+                    <div className="space-y-4">
                       {renderScalar("Conscientiousness", persona.conscientiousness, "Chaotic", "Meticulous")}
                       {renderScalar("Neuroticism", persona.neuroticism, "Stable", "Anxious")}
                       {renderScalar("Openness", persona.openness, "Traditional", "Curious")}
@@ -212,7 +212,7 @@ export function PersonaDetailModal({
                   className="p-5 md:p-6 rounded-lg bg-card border border-border transition-colors duration-150 hover:border-border"
                 >
                   <h4 className="micro-label text-muted-foreground/70 mb-4">PSYCHOGRAPHIC SPECIFICATION</h4>
-                  <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-4">
                     {persona.values && persona.values.length > 0 && (
                       <div className="flex flex-col gap-2">
                         <span className="micro-label text-muted-foreground/70">Values</span>

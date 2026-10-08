@@ -24,11 +24,11 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
   const selectedPersona = selectedPersonaId ? getPersona(selectedPersonaId) : null
 
   return (
-    <div className="flex flex-col gap-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col gap-10 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between border-b border-border/40 pb-6">
         <div className="flex flex-col gap-2">
-          <h2 className="text-2xl font-semibold tracking-tight">Analysis Results</h2>
+          <h2 className="text-3xl font-semibold tracking-tight">Analysis Results</h2>
           <p className="text-muted-foreground text-sm">
             Insights and reactions from your synthesized audience.
           </p>
@@ -42,7 +42,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 gap-6">
         {analyses.map(analysis => {
           const index = analyses.indexOf(analysis);
           // Match by personaProfile?.name or personaId first; fall back to index
@@ -63,7 +63,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   <div className="flex items-center gap-4">
                     <PersonaAvatar name={persona.name} size="lg" />
                     <div>
-                      <h3 className="text-lg font-semibold tracking-tight">{persona.name}</h3>
+                      <h3 className="text-base font-semibold tracking-tight">{persona.name}</h3>
                       <p className="micro-label text-muted-foreground">{persona.occupation}</p>
                       {analysis.personaProfile && (
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -179,9 +179,9 @@ function ScoreMetric({ label, value, reason }: { label: string, value: number, r
   }
 
   return (
-    <div className="flex flex-col gap-1 bg-muted/20 p-3 rounded-lg">
+    <div className="flex flex-col gap-2 bg-muted/20 p-3 rounded-lg">
       <span className="text-xs text-muted-foreground font-medium">{label}</span>
-      <span className={`text-lg font-semibold font-mono tabular-nums ${getColorClass(value)}`}>{value}/10</span>
+      <span className={`text-base font-semibold font-mono tabular-nums ${getColorClass(value)}`}>{value}/10</span>
       {reason && (
         <span className="text-base leading-relaxed text-muted-foreground/70 mt-1">{reason}</span>
       )}
@@ -193,7 +193,7 @@ function FunnelStage({ label, value, reason, color }: { label: string, value: nu
   const getWidthPercent = (val: number) => Math.max(val * 10, 5)
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-foreground/80">{label}</span>
         <span className={`font-semibold font-mono tabular-nums ${value >= 6 ? 'text-emerald-500' : value >= 4 ? 'text-amber-500' : 'text-destructive'}`}>{value}/10</span>

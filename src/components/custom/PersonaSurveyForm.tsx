@@ -166,7 +166,7 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error, b
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-foreground">Who are you targeting?</label>
         <p className="text-sm text-muted-foreground">Describe your audience in a few words.</p>

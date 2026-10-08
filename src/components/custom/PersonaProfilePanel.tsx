@@ -64,9 +64,9 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
             name={persona.name}
             size="lg"
           />
-          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
             <div className="flex items-center justify-between gap-4">
-              <h3 className="text-lg font-semibold tracking-tight break-words">{persona.name}</h3>
+              <h3 className="text-base font-semibold tracking-tight break-words">{persona.name}</h3>
             </div>
             <p className="micro-label text-muted-foreground break-words">{persona.occupation}</p>
             {persona.variantOf && (
@@ -81,7 +81,7 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
         </div>
 
         {(persona.goals?.length || persona.decisionStyle) && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-6">
             <div className="h-px w-full bg-border/40" />
 
             {persona.goals?.length ? (
@@ -89,7 +89,7 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
                 <span className="micro-label text-muted-foreground/70">
                   Goals
                 </span>
-                <ul className="flex flex-col gap-1.5">
+                <ul className="flex flex-col gap-3">
                   {persona.goals.slice(0, 3).map((goal, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/85">
                       <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
@@ -113,7 +113,7 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
           </div>
         )}
 
-        <div className="mt-auto flex flex-wrap gap-2">
+        <div className="mt-auto flex flex-wrap gap-3">
           {onCreateVariant && (
             <button
               type="button"

@@ -65,7 +65,7 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
   )
 
   return (
-    <div className="flex flex-col gap-8 max-w-4xl mx-auto w-full">
+    <div className="flex flex-col gap-10 max-w-4xl mx-auto w-full">
       {onBack && (
         <Button variant="ghost" size="sm" onClick={onBack} className="w-fit text-muted-foreground hover:text-foreground">
           ← Back to batches
@@ -73,7 +73,7 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
       )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Define your target market
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -105,13 +105,13 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
           <MinimalCard>
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <h2 className="text-lg font-semibold tracking-tight">
+                <h2 className="text-xl font-semibold tracking-tight">
                   {useTextarea ? "Audience Description" : "Describe Your Audience"}
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   {useTextarea
                     ? "Describe your ideal customer, their pain points, and demographics."
-                    : "Answer a few quick questions so Kynd can build better personas."}
+                    : "Answer a few quick questions."}
                 </p>
               </div>
 

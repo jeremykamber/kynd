@@ -168,7 +168,7 @@ export function PersonaTraitsSuggestionDialog({
               <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
                 <LoaderIcon className="w-4 h-4 text-primary animate-spin" />
               </div>
-              <h2 className="text-sm font-semibold tracking-tight">Analyzing backstory...</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Analyzing backstory...</h2>
             </div>
           </div>
           <div className="p-10 flex flex-col items-center gap-4">
@@ -208,11 +208,11 @@ export function PersonaTraitsSuggestionDialog({
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
               <SparklesIcon className="w-4 h-4 text-primary" />
             </div>
-            <h2 className="text-sm font-semibold tracking-tight">Traits Inferred from Backstory</h2>
+            <h2 className="text-xl font-semibold tracking-tight">Traits Inferred from Backstory</h2>
           </div>
         </div>
 
-        <div className="p-5 flex flex-col gap-5">
+        <div className="p-5 flex flex-col gap-6">
           <p className="text-base text-muted-foreground leading-relaxed">
             We analyzed the updated backstory and inferred new values. Hover each row to choose Apply or Keep original.
           </p>

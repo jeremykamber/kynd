@@ -131,7 +131,7 @@ export function SimilarPersonaDialog({
           <div className="flex items-center gap-3 min-w-0">
             <PersonaAvatar name={persona.name} size="sm" className="w-8 h-8 shrink-0" />
             <div className="flex flex-col min-w-0">
-              <h2 className="text-sm font-semibold tracking-tight truncate">
+              <h2 className="text-xl font-semibold tracking-tight truncate">
                 Create Variation
               </h2>
               <p className="text-xs text-muted-foreground truncate">

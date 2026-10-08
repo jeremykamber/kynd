@@ -298,7 +298,7 @@ export function DashboardClient() {
             ) : (
                 <div className="flex flex-col gap-8 animate-in fade-in duration-500">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                        <h1 className="text-2xl font-semibold tracking-tight">Personas</h1>
+                        <h1 className="text-3xl font-semibold tracking-tight">Personas</h1>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
@@ -430,9 +430,9 @@ export function DashboardClient() {
                                 <ArrowLeftIcon className="h-4 w-4" />
                                 All personas
                             </button>
-                            <div className="flex flex-col gap-1 min-w-0 border-b border-border/40 pb-4">
+                            <div className="flex flex-col gap-2 min-w-0 border-b border-border/40 pb-4">
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <h2 className="text-lg font-semibold tracking-tight min-w-0">
+                                    <h2 className="text-xl font-semibold tracking-tight min-w-0">
                                         <InlineRenamable
                                             value={activeBatch.label}
                                             onRename={(label) => updateBatchLabel(activeBatch.id, label)}
@@ -535,7 +535,7 @@ export function DashboardClient() {
                                 </svg>
                             </div>
 
-                            <h3 className="text-lg font-semibold tracking-tight">Generation Complete</h3>
+                            <h3 className="text-xl font-semibold tracking-tight">Generation Complete</h3>
 
                             <p className="text-sm text-muted-foreground text-center text-balance">
                                 {personaFlow.personaProgress.personas?.length ?? 0} personas created from your target profile.
