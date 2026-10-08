@@ -153,7 +153,7 @@ export class PersonaAdapter {
    * lowercase, whitespace collapsed, surrounding quotation marks stripped.
    * The prompt asks the model to wrap fragments in quotes — the marks (and
    * any padding between them and the fragment) are formatting, not content,
-   * and must not cause a false rejection.
+   * and must not be flagged as a fabricated quote.
    */
   private static normalizeVerbatim(s: string): string {
     const collapsed = s.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -226,7 +226,7 @@ export class PersonaAdapter {
   /**
    * Rewrites each non-verbatim quote to the exact source sentence it
    * paraphrases, in place. Quotes with no close source sentence are left
-   * alone, so the caller's verbatim check still rejects fabrication.
+   * alone: the caller keeps and warns about them rather than failing the run.
    */
   private static snapQuotesToSource(records: Record<string, unknown>[], fields: readonly string[], sourceText: string): void {
     const source = PersonaAdapter.normalizeVerbatim(sourceText);
@@ -297,11 +297,10 @@ export class PersonaAdapter {
    * applies.
    */
   private static retryNudgeFor(
-    failure: { rule: 'required' | 'distinct' | 'verbatim' | 'coverage'; detail?: string } | undefined,
+    failure: { rule: 'required' | 'distinct' | 'coverage'; detail?: string } | undefined,
     options: {
       requiredFields?: readonly string[];
       distinctFields?: readonly string[];
-      verbatim?: { sourceText: string; fields: readonly string[] };
       coverage?: {
         listField: string;
         nameField: string;
@@ -315,8 +314,6 @@ export class PersonaAdapter {
         return `\n\nThe previous generation was incomplete: every persona MUST include ALL of these fields with non-empty values: ${options.requiredFields?.join(', ') ?? ''}. A persona missing any of them is invalid.`;
       case 'distinct':
         return `\n\nThe previous generation repeated the same evidence quote: quotes (${options.distinctFields?.join(', ') ?? ''}) must be DISTINCT — never repeat the same quote for two different values or fears. If no DISTINCT verbatim fragment of the user's response fits, leave the entry empty instead of repeating or inventing.`;
-      case 'verbatim':
-        return `\n\nThe previous generation's evidence quotes were NOT verbatim and the batch was rejected: every quote in ${options.verbatim?.fields?.join(', ') ?? ''} MUST be a word-for-word fragment of the user's response, in quotation marks, NEVER the persona's invented voice. Fabricated quotes are the worst error — omit rather than invent: leave the quote empty. This applies to evidence QUOTES only — every other field, including attributeConfidence with one entry per attribute, must remain complete.`;
       case 'coverage':
         return `\n\nThe previous generation's ${options.coverage?.listField ?? ''} was incomplete: it MUST include exactly one entry for each of ${options.coverage?.requiredNames?.join(', ') ?? ''} and for every behavioral dimension, using the EXACT attribute names from the structure. Missing entries: ${failure.detail ?? ''}.`;
       default:
@@ -451,12 +448,13 @@ export class PersonaAdapter {
       distinctFields?: readonly string[];
       /**
        * Verbatim integrity contract: dot-path fields whose non-empty values
-       * must each be a word-for-word fragment of `sourceText` (the user's
+       * should each be a word-for-word fragment of `sourceText` (the user's
        * input). Empty/absent quotes are ACCEPTED — omitting a quote is
        * honest, inventing one is not. Supports top-level string arrays
        * ('valueEvidence') and nested record-array strings
-       * ('behavioralDimensions.evidence'). Violations trigger a retry with
-       * an omit-rather-than-invent nudge.
+       * ('behavioralDimensions.evidence'). Paraphrases are repaired to the
+       * source sentence they came from where that is possible; a quote that
+       * survives the repair is kept and flagged in a warning, never retried.
        */
       verbatim?: {
         sourceText: string;
@@ -495,21 +493,22 @@ export class PersonaAdapter {
   ): Promise<Record<string, unknown>[]> {
     const { schema = PersonaSchema, requiredFields, distinctFields, verbatim, coverage, model, onRetry } = options;
     // Three attempts, not two: a single run can fail twice in a row — e.g.
-    // the model fabricates quotes (verbatim nudge), then over-corrects on the
-    // retry and drops attributeConfidence (coverage nudge). A third attempt
-    // absorbs that chain; it only costs an extra call on failure paths.
+    // the model duplicates the same evidence quote (distinct nudge), then
+    // over-corrects on the retry and drops attributeConfidence (coverage
+    // nudge). A third attempt absorbs that chain; it only costs an extra call
+    // on failure paths. Non-verbatim wording never retries.
     const attempts = 3;
     let lastError: unknown;
     // Which client-side rule the previous attempt violated, plus the failing
     // detail; the retry nudge is built from this so it names the actual
     // failure (diagnostic-driven, not a static list).
-    let lastFailure: { rule: 'required' | 'distinct' | 'verbatim' | 'coverage'; detail?: string } | undefined;
+    let lastFailure: { rule: 'required' | 'distinct' | 'coverage'; detail?: string } | undefined;
     for (let attempt = 1; attempt <= attempts; attempt++) {
       console.log(`[PersonaAdapter] [${context}] Generating ${expectedCount} personas (attempt ${attempt}/${attempts})...`);
       if (attempt > 1) onRetry?.(attempt, attempts);
       try {
         const retryNudge = attempt > 1
-          ? PersonaAdapter.retryNudgeFor(lastFailure, { requiredFields, distinctFields, verbatim, coverage })
+          ? PersonaAdapter.retryNudgeFor(lastFailure, { requiredFields, distinctFields, coverage })
           : '';
         const { output } = streamText({
           // provider.chat() → Chat Completions endpoint. The default
@@ -572,19 +571,23 @@ export class PersonaAdapter {
         }
         if (verbatim) {
           const source = PersonaAdapter.normalizeVerbatim(verbatim.sourceText);
-          // An empty input cannot be quoted; skip the check rather than
-          // retry-looping over something the model had no text to quote.
+          // A quote that is still not a fragment after the deterministic
+          // repair is kept and flagged, never fatal: a near-miss quote is
+          // worth more than a failed batch, and restarting a whole run over
+          // wording is a worse outcome than the wording. An empty input cannot
+          // be quoted, so skip rather than flagging every quote.
           if (source.length > 0) {
             const nonVerbatim = slice.flatMap((rec, i) =>
               verbatim.fields.flatMap((field) =>
                 PersonaAdapter.collectQuoteValues(rec, field)
                   .filter((q) => !source.includes(PersonaAdapter.normalizeVerbatim(q)))
-                  .map((q) => `persona #${i + 1} ${field} "${q}" is not a verbatim fragment of the input`),
+                  .map((q) => `persona #${i + 1} ${field} "${q}"`),
               ),
             );
             if (nonVerbatim.length > 0) {
-              lastFailure = { rule: 'verbatim' };
-              throw new Error(`[PersonaAdapter] ${context} non-verbatim evidence: ${nonVerbatim.join('; ')}`);
+              console.warn(
+                `[PersonaAdapter] ${context} kept ${nonVerbatim.length} non-verbatim evidence quote(s): ${nonVerbatim.join('; ')}`,
+              );
             }
           }
         }
@@ -1571,10 +1574,11 @@ Return plain text only. No labels, no markdown, no headers.`;
    * call's verbatim contract cannot be met from it: valueEvidence,
    * fearEvidence, behavioralDimensions[].evidence and evidenceLinks[].excerpt
    * need ~12 DISTINCT fragments that actually support their slot. The model
-   * fabricates quotes instead, then over-corrects and drops the evidence links
-   * when nudged, burning all three attempts — observed on both
-   * `deepseek-v4.1-flash` and the pinned `deepseek-v4-flash-0731`, in the
-   * product's own VPS pipeline.
+   * fabricates quotes instead: with few sentences to snap to, the repair keeps
+   * them as flagged near-copies (weak evidence), and the distinct/coverage
+   * checks can still burn attempts — observed on both `deepseek-v4.1-flash`
+   * and the pinned `deepseek-v4-flash-0731`, in the product's own VPS
+   * pipeline.
    *
    * Measured: a 64-character one-liner failed 3/3 attempts; a 337-character
    * four-sentence description passes first try. 150 sits below every

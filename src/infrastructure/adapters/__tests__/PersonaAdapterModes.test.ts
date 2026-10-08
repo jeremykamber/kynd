@@ -275,14 +275,13 @@ describe("PersonaAdapter dual-mode generation", () => {
       expect(personas[0].evidenceLinks?.map((l) => l.transcriptId)).toEqual(["int-1", "int-2"]);
     })
 
-    it("retries the profile batch when research quotes are not verbatim", async () => {
+    it("keeps non-verbatim research quotes and warns instead of retrying", async () => {
       const fabricated = [{
         ...researchProfile[0],
         valueEvidence: ["Efficiency is core to their workflow", "The persona invented this value"],
       }];
-      mockStreamText
-        .mockReturnValueOnce({ output: Promise.resolve(fabricated) })
-        .mockReturnValueOnce({ output: Promise.resolve(researchProfile) });
+      stubStructuredOutput(fabricated);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const llm = createMockLlmService();
       mockBackstories(llm);
       const adapter = new PersonaAdapter(llm);
@@ -294,8 +293,11 @@ describe("PersonaAdapter dual-mode generation", () => {
       });
 
       expect(personas).toHaveLength(1);
-      expect(mockStreamText).toHaveBeenCalledTimes(2);
-      expect(mockStreamText.mock.calls[1][0].prompt).toContain("omit rather than invent");
+      expect(mockStreamText).toHaveBeenCalledTimes(1); // wording never burns a retry
+      // The verbatim quote is kept as-is; the invented one is kept too, flagged.
+      expect(personas[0].valueEvidence).toEqual(["Efficiency is core to their workflow", "The persona invented this value"]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('persona #1 valueEvidence "The persona invented this value"'));
+      warn.mockRestore();
     })
 
     it("cleans literal quotation marks out of stored evidence quotes", async () => {
@@ -593,19 +595,27 @@ describe("PersonaAdapter dual-mode generation", () => {
       expect(personas[0].valueEvidence).toEqual(["They run pricing experiments quarterly."]);
     })
 
-    it("still rejects a quote no source sentence comes close to", async () => {
+    it("keeps a quote no source sentence comes close to, instead of failing the batch", async () => {
       const invented = [{
         ...strategyProfile[0],
         valueEvidence: ["We need a growth engine that compounds forever"],
       }];
-      stubStructuredOutput(invented, 3);
+      stubStructuredOutput(invented);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const llm = createMockLlmService();
+      mockBackstories(llm);
       const adapter = new PersonaAdapter(llm);
 
-      await expect(
-        adapter.generateStrategyPersonas({ count: 1, personaDescription: STRATEGY_INPUT }),
-      ).rejects.toThrow(/non-verbatim evidence/);
-      expect(mockStreamText).toHaveBeenCalledTimes(3); // fabrication still fails loudly
+      const personas = await adapter.generateStrategyPersonas({
+        count: 1,
+        personaDescription: STRATEGY_INPUT,
+      });
+
+      expect(personas).toHaveLength(1);
+      expect(mockStreamText).toHaveBeenCalledTimes(1); // no retry burned on wording
+      expect(personas[0].valueEvidence).toEqual(["We need a growth engine that compounds forever"]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('persona #1 valueEvidence "We need a growth engine that compounds forever"'));
+      warn.mockRestore();
     })
 
     it("maps the evidence fields through from the profile response", async () => {
@@ -917,14 +927,13 @@ describe("PersonaAdapter dual-mode generation", () => {
       expect(personas[0].evidenceQuestions?.["They asked for full autonomy over the roadmap"]).toBe("Goals they are trying to accomplish");
     })
 
-    it("retries the profile batch when evidence quotes are not verbatim fragments of the input", async () => {
+    it("keeps non-verbatim strategy quotes and warns instead of retrying", async () => {
       const fabricated = [{
         ...strategyProfile[0],
         valueEvidence: ["They value total autonomy above all else", "Decisions must cite numbers"],
       }];
-      mockStreamText
-        .mockReturnValueOnce({ output: Promise.resolve(fabricated) })
-        .mockReturnValueOnce({ output: Promise.resolve(strategyProfile) });
+      stubStructuredOutput(fabricated);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const llm = createMockLlmService();
       mockBackstories(llm);
       const adapter = new PersonaAdapter(llm);
@@ -935,12 +944,13 @@ describe("PersonaAdapter dual-mode generation", () => {
       });
 
       expect(personas).toHaveLength(1);
-      expect(mockStreamText).toHaveBeenCalledTimes(2);
-      // The retry nudge tells the model to quote the input verbatim, not invent voice
-      expect(mockStreamText.mock.calls[1][0].prompt).toContain("omit rather than invent");
+      expect(mockStreamText).toHaveBeenCalledTimes(1); // no retry burned on wording
+      expect(personas[0].valueEvidence).toEqual(["They value total autonomy above all else", "Decisions must cite numbers"]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('persona #1 valueEvidence "They value total autonomy above all else"'));
+      warn.mockRestore();
     })
 
-    it("retries the profile batch when a behavioral dimension quote is not verbatim", async () => {
+    it("keeps a non-verbatim behavioral dimension quote and warns", async () => {
       const fabricatedDim = [{
         ...strategyProfile[0],
         behavioralDimensions: [
@@ -949,9 +959,8 @@ describe("PersonaAdapter dual-mode generation", () => {
           { name: "speed-bias", score: 75, context: "ship velocity", description: "Prefers shipping fast over perfect", evidence: "favor quick experiments" },
         ],
       }];
-      mockStreamText
-        .mockReturnValueOnce({ output: Promise.resolve(fabricatedDim) })
-        .mockReturnValueOnce({ output: Promise.resolve(strategyProfile) });
+      stubStructuredOutput(fabricatedDim);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const llm = createMockLlmService();
       mockBackstories(llm);
       const adapter = new PersonaAdapter(llm);
@@ -962,14 +971,16 @@ describe("PersonaAdapter dual-mode generation", () => {
       });
 
       expect(personas).toHaveLength(1);
-      expect(mockStreamText).toHaveBeenCalledTimes(2);
-      expect(mockStreamText.mock.calls[1][0].prompt).toContain("omit rather than invent");
+      expect(mockStreamText).toHaveBeenCalledTimes(1); // no retry burned on wording
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('persona #1 behavioralDimensions.evidence "they love experimenting with every new pricing idea"'));
+      warn.mockRestore();
     })
 
-    it("recovers when a retry over-corrects and drops attributeConfidence", async () => {
-      // Attempt 1 fabricates persona-voice quotes; attempt 2 over-corrects to
-      // the verbatim nudge and drops the whole confidence block; attempt 3
-      // lands complete. This is the exact chain observed on the deployed VPS.
+    it("returns fabricated-quote output on the first attempt, so the over-correction chain cannot start", async () => {
+      // Previously attempt 1's fabricated quotes tripped the verbatim rule,
+      // attempt 2 over-corrected and dropped the confidence block, and attempt
+      // 3 landed complete. Wording no longer retries, so attempt 1 is returned
+      // and the later mocks stay unconsumed.
       const fabricated = [{
         ...strategyProfile[0],
         valueEvidence: ["They value total autonomy above all else", "Decisions must cite numbers"],
@@ -982,6 +993,7 @@ describe("PersonaAdapter dual-mode generation", () => {
         .mockReturnValueOnce({ output: Promise.resolve(fabricated) })
         .mockReturnValueOnce({ output: Promise.resolve(overCorrected) })
         .mockReturnValueOnce({ output: Promise.resolve(strategyProfile) });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const llm = createMockLlmService();
       mockBackstories(llm);
       const adapter = new PersonaAdapter(llm);
@@ -992,10 +1004,11 @@ describe("PersonaAdapter dual-mode generation", () => {
       });
 
       expect(personas).toHaveLength(1);
-      expect(mockStreamText).toHaveBeenCalledTimes(3);
+      expect(mockStreamText).toHaveBeenCalledTimes(1); // no retry burned on wording
+      warn.mockRestore();
     })
 
-    it("retries the profile batch when an evidenceLinks excerpt is not verbatim", async () => {
+    it("keeps a non-verbatim evidenceLinks excerpt and warns", async () => {
       const fabricatedLink = [{
         ...strategyProfile[0],
         evidenceLinks: [
@@ -1003,9 +1016,8 @@ describe("PersonaAdapter dual-mode generation", () => {
           { transcriptId: "user-input", excerpt: "the persona invented this line entirely", attribute: "fears" },
         ],
       }];
-      mockStreamText
-        .mockReturnValueOnce({ output: Promise.resolve(fabricatedLink) })
-        .mockReturnValueOnce({ output: Promise.resolve(strategyProfile) });
+      stubStructuredOutput(fabricatedLink);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const llm = createMockLlmService();
       mockBackstories(llm);
       const adapter = new PersonaAdapter(llm);
@@ -1016,8 +1028,10 @@ describe("PersonaAdapter dual-mode generation", () => {
       });
 
       expect(personas).toHaveLength(1);
-      expect(mockStreamText).toHaveBeenCalledTimes(2);
-      expect(mockStreamText.mock.calls[1][0].prompt).toContain("omit rather than invent");
+      expect(mockStreamText).toHaveBeenCalledTimes(1); // no retry burned on wording
+      expect(personas[0].evidenceLinks?.[1]?.excerpt).toBe("the persona invented this line entirely");
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('persona #1 evidenceLinks.excerpt "the persona invented this line entirely"'));
+      warn.mockRestore();
     })
 
     it("accepts quotes wrapped with padding inside the quotation marks", async () => {
