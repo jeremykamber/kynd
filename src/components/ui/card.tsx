@@ -5,11 +5,11 @@ import { cn } from "@/lib/utils"
 import { cva, type VariantProps } from "class-variance-authority"
 
 const cardVariants = cva(
-  "flex flex-col gap-4 rounded-lg transition-all duration-300",
+  "flex flex-col gap-6 rounded-lg transition-all duration-300",
   {
     variants: {
       variant: {
-        default: "bg-card text-card-foreground border border-border py-4",
+        default: "bg-card text-card-foreground border border-border py-6",
         premium: "bg-card/10 text-card-foreground border border-border rounded-lg py-8",
         glass: "bg-muted/20 border border-border/60 backdrop-blur-md rounded-lg py-6",
         outline: "bg-transparent border border-border/60 hover:bg-muted/20 transition-colors",
@@ -40,7 +40,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-header"
       className={cn(
-        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-3 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
         className
       )}
       {...props}

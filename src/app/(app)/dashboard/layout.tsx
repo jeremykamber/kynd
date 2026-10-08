@@ -14,7 +14,7 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <PrimaryNav />
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-28 pt-6 sm:px-6 lg:pb-16 lg:pt-2">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-28 pt-8 sm:px-6 lg:pb-16 lg:pt-10">
         {children}
       </main>
     </div>
