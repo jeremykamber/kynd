@@ -114,9 +114,33 @@
 }
 */
 
+/*
+ * Display line-height. Tailwind's tightest step (1.25) is too loose for the
+ * 48px marketing hero; this is the one leading value outside the default scale.
+ */
+@theme {
+    --leading-display: 1.05;
+}
+
+/*
+ * Micro-label type — the only type role smaller than 12px. Reserved for
+ * uppercase mono eyebrows that label a group of data (see DESIGN.md →
+ * Typography). Anything a user reads as a sentence uses the body role.
+ */
+@utility micro-label {
+    font-family: var(--font-geist-mono);
+    font-size: 0.6875rem; /* 11px */
+    line-height: 1;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
 @layer base {
+    /* Root stays at the browser default so the type scale honours the user's
+     * own text-size setting. The scale lives in DESIGN.md → Typography. */
     html {
-        font-size: 20px;
+        font-size: 100%;
     }
 
     * {
