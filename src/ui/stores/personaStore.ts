@@ -9,6 +9,11 @@
  * background runs, and entries are removed only when the toast settles or the
  * user cancels.
  *
+ * Nothing here decides what a batch should contain. A settled run becomes a
+ * batch through `persistPersonaBatchForRun` (see `@/lib/personaRunOutcome`),
+ * which all the observation sites call instead of writing batches themselves;
+ * `PersonaBatch.runId` is what keeps that to one write per run.
+ *
  * `addBatch` does not change `activeBatchId`; navigation to a new batch is an
  * explicit user action. Mutations against an unknown batch or persona id are
  * no-ops.
@@ -27,20 +32,19 @@ export interface PersonaBatch {
   createdAt: string
   personas: Persona[]
   /**
+   * The generation run this batch is the outcome of. A run settles into exactly
+   * one batch, so its presence is what stops a second observer (a stale poll, a
+   * reloaded tab) from writing the same run again. Absent for batches that were
+   * not produced by a run, such as the demo batch.
+   */
+  runId?: string
+  /**
    * Set when the run failed. A failed run is still stored as a batch, with an
    * empty `personas`, so the list keeps a record of it: it used to leave
    * nothing behind at all, and a user could not tell that a batch had ever been
    * attempted, let alone why it died.
    */
   error?: string
-}
-
-export interface InProgressBatch {
-  id: string
-  runId: string
-  label: string
-  source: 'description' | 'interviews'
-  createdAt: number
 }
 
 interface PersonaStoreState {

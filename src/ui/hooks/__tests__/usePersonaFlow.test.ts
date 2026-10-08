@@ -22,7 +22,6 @@ vi.mock("@ai-sdk/rsc", () => ({
 
 import { usePersonaFlow } from "../usePersonaFlow";
 import { usePersonaStore } from "@/ui/stores/personaStore";
-import { batchConsumedRunIds } from "@/lib/generationRunState";
 import type { Persona } from "@/domain/entities/Persona";
 
 const strategyPersona: Persona = {
@@ -50,7 +49,6 @@ const strategyPersona: Persona = {
 describe("usePersonaFlow (ICP screen)", () => {
   beforeEach(() => {
     mockGeneratePersonasAction.mockReset();
-    batchConsumedRunIds.clear();
     usePersonaStore.setState({
       batches: [],
       activeBatchId: null,

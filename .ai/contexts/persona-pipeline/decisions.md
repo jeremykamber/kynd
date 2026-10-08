@@ -49,3 +49,23 @@ Reason: the contract is about where the stored text comes from, not about the mo
 Failure mode to watch: quotes may now come from the generated elaboration, which the user never saw (single-section input still renders no "(Answer to …)" label, so nothing claims otherwise). Snapping can land two fields on one sentence — the distinct check runs after the repair for that reason. Surface the brief in the UI if provenance matters for a demo.
 
 Verification: adapter tests cover expand / skip-when-long / skip-when-structured / fail-open, repair-instead-of-retry, and keep-and-warn-on-non-verbatim; `verify-output persona --description "<one-liner>" --count 3` now passes the profile batch on attempt 1 (101s wall, brief call 1.8s) where it previously failed 3/3 at 150s, with 4-6 evidence links per persona and distinct values/fears; release gate green.
+
+# persona-batch-ownership
+
+Status: accepted (2026-10-08)
+
+Decision: A settled persona run becomes a batch through one function, `persistPersonaBatchForRun` (`src/lib/personaRunOutcome.ts`), called by every observation site. `PersonaBatch.runId` records which run produced the batch, and that field is what makes the write idempotent: an observer that finds a batch already carrying the run id writes nothing and gets `null` back.
+
+Context: batch creation had drifted into `PersonaProgressToaster`, a notification component. It polls every active run, so it is the observer that survives the user navigating away from the page that started the run — but it was also building the `PersonaBatch` entity, and the two hooks built their own copies at four more sites (a stream path and a poll path each). Five sites constructing one entity, arbitrated by a module-level `Set` exported to all of them (`batchConsumedRunIds`), meant naming had to be wired five times (it was, in this session) and the shape five times.
+
+Alternatives:
+- **Store owns the claim** (`claimRun(runId): boolean` beside `activeGenerationRunIds`): keeps the atomic claim, but adds a second piece of run state to persist and keep in sync with the batch list, when the batch itself can answer the question.
+- **Keep the never-cleared `Set`** (status quo): invisible in the persisted data, forgotten on reload, and duplicated at each call site.
+- **Toaster stops creating batches; only the starting hook does**: removes coordination but breaks the case the toaster exists for — the hook unmounts when the user navigates away, and the run's personas would never reach the list.
+- **Server owns the run registry** (the VPS result store already holds personas by runId): the structural fix, but it moves client-persisted batch data behind an API the dashboard reads from IndexedDB today. Deferred, not rejected.
+
+Reason: the invariant was "a run settles into exactly one batch, whatever page the user is on". That is a property of the data, so it lives on the data (`runId`), not in a `Set` shared between five callers. The claim is still taken synchronously before the naming call, so two observers that resolve in the same second pay for one title rather than two.
+
+Failure mode to watch: `persistPersonaBatchForRun` returns `null` when another observer owns the run, and callers must not read that as "no personas". `usePersonaFlow` now remembers a batch id only when it wrote the batch; the old code remembered the id of a locally built batch that had lost the race, so `DashboardClient` would navigate to a batch that does not exist. Covered by test, not observed live.
+
+Verification: `src/lib/__tests__/personaRunOutcome.test.ts` covers fallback naming, model naming, two observers settling concurrently (one batch, one naming call, one non-null return), a late second observer, a caller with no run id, and failure records. Release gate green (546 tests, build clean). No live generation was run for this refactor; the hooks' existing tests exercise the wiring end to end.

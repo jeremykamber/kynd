@@ -3,11 +3,14 @@
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { ClockIcon, CheckCircleIcon, XCircleIcon, XIcon } from 'lucide-react'
-import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
+import { usePersonaStore } from '@/ui/stores/personaStore'
 import { getProgressAction } from '@/actions/getProgress'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
-import { batchConsumedRunIds } from '@/lib/generationRunState'
-import { resolveBatchLabel } from '@/lib/resolveBatchLabel'
+import {
+  persistPersonaBatchForRun,
+  recordFailedPersonaBatch,
+  sourceOf,
+} from '@/lib/personaRunOutcome'
 import { personaRunProgress } from '@/ui/dashboard/utils/personaRunProgress'
 
 const POLL_INTERVAL_MS = 1000
@@ -31,39 +34,18 @@ function truncateError(message: string): string {
   return `${message.slice(0, ERROR_PREVIEW_CHARS)}…`
 }
 
-/** `pt-` runs were started from a description; everything else from transcripts. */
-const sourceOf = (runId: string) => (runId.startsWith('pt-') ? 'description' : 'interviews')
-
-/**
- * Stores a failed run as a batch with no personas, so the batch list keeps a
- * record of it. Without this a failure left nothing behind at all: the toast
- * expired, the run id was dropped, and the run vanished as though it had never
- * been started, leaving the user no way to see that something had died or why.
- */
-function recordFailedBatch(runId: string, error: string | undefined) {
-  if (batchConsumedRunIds.has(runId)) return
-  batchConsumedRunIds.add(runId)
-  const source = sourceOf(runId)
-  usePersonaStore.getState().addBatch({
-    id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-    label: source === 'interviews' ? 'Personas from interviews' : 'Generated personas',
-    source,
-    createdAt: new Date().toISOString(),
-    personas: [],
-    // A run can fail with nothing to say; the batch still stands as the record
-    // that it was attempted.
-    error: error?.trim() || 'The run failed without a message.',
-  })
-}
-
 const removedSet = new Set<string>()
 const completedSet = new Set<string>()
 
 /**
  * App-wide toast surface for persona-generation runs, mounted in the root
- * layout. Polls each active runId's progress and result, adds finished batches
- * to `usePersonaStore`, and renders one sonner toast per run (in-progress,
- * completed, or failed). Renders nothing.
+ * layout. Polls each active runId's progress and result, and renders one sonner
+ * toast per run (in-progress, completed, or failed).
+ *
+ * It observes runs rather than owning them: a run that finishes while the user
+ * is on another page still has to reach the batch list, so the outcome is
+ * handed to `persistPersonaBatchForRun`, the same call the starting hook makes.
+ * Either may arrive first, and only one of them writes the batch.
  */
 export function PersonaProgressToaster() {
   const activeRunIds = usePersonaStore((s) => s.activeGenerationRunIds)
@@ -103,32 +85,19 @@ export function PersonaProgressToaster() {
           const personaCount = result.personas?.length ?? 0
           const isError = !!result.error
 
-          if (isError) recordFailedBatch(runId, result.error)
+          if (isError) recordFailedPersonaBatch(runId, result.error)
 
-          if (!isError && personaCount > 0 && !batchConsumedRunIds.has(runId)) {
-            batchConsumedRunIds.add(runId)
+          if (!isError && personaCount > 0) {
             const source = sourceOf(runId)
-            // This is the batch-creation path for a run that finished while the
-            // user was on another page, and it is often the only one that runs.
-            // It names the batch through the same helper as the hook paths
-            // instead of leaving a count, which told the reader nothing about
-            // who the personas were.
-            const label = await resolveBatchLabel(
-              source === 'interviews'
-                ? `${personaCount} Personas from Interviews`
-                : `${personaCount} Generated Personas`,
-              result.personas!,
-              { source },
-            )
-            const batch: PersonaBatch = {
-              id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-              label,
-              source,
-              transcriptCount: undefined,
-              createdAt: new Date().toISOString(),
+            await persistPersonaBatchForRun({
+              runId,
               personas: result.personas!,
-            }
-            usePersonaStore.getState().addBatch(batch)
+              source,
+              fallbackLabel:
+                source === 'interviews'
+                  ? `${personaCount} Personas from Interviews`
+                  : `${personaCount} Generated Personas`,
+            })
           }
 
           const content = (
@@ -173,7 +142,7 @@ export function PersonaProgressToaster() {
 
           // The result store expires after 30 minutes, so a run polled only
           // through the progress store must still leave its batch behind.
-          recordFailedBatch(runId, p.progress?.error)
+          recordFailedPersonaBatch(runId, p.progress?.error)
 
           toast.custom(
             () => (
