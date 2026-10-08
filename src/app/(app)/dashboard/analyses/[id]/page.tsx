@@ -640,7 +640,17 @@ function CompletedView({
           </div>
 
           {synthesis.researchQuestionAnswer && (
-            <div className="rounded-lg border border-primary/10 bg-primary/5 p-5">
+            /*
+              The panel shrinks to the answer rather than the answer filling the
+              panel. Capping only the paragraph left the panel full width with
+              the text in half of it.
+
+              The cap stays on the paragraph: `ch` resolves against the
+              element's own font, so a cap on this div measures 70ch at the
+              panel's inherited size (~20px here) and lets the 15px answer run
+              past the 70ch limit DESIGN.md sets for report body text.
+            */
+            <div className="w-fit rounded-lg border border-primary/10 bg-primary/5 p-5">
               <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-primary">The answer</span>
               <p className="max-w-[70ch] text-[15px] leading-relaxed text-foreground/90">{synthesis.researchQuestionAnswer}</p>
             </div>
