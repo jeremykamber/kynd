@@ -15,7 +15,7 @@ export default function MarketingLayout({
         <div className="container mx-auto flex h-16 max-w-screen-xl items-center justify-between px-4 md:px-8">
           <Link href="/" className="flex items-center space-x-2 shrink-0">
             <img src="/kynd_logo.svg" alt="Kynd" className="h-8 w-8" />
-            <span className="font-bold tracking-tight text-lg select-none">
+            <span className="font-semibold tracking-tight text-lg select-none">
               Kynd
             </span>
           </Link>
@@ -52,7 +52,7 @@ export default function MarketingLayout({
           <div className="flex flex-col items-center md:items-start">
             <div className="flex items-center gap-2">
               <img src="/kynd_logo.svg" alt="Kynd" className="h-6 w-6" />
-              <span className="font-bold tracking-tight text-lg select-none">
+              <span className="font-semibold tracking-tight text-lg select-none">
                 Kynd
               </span>
             </div>

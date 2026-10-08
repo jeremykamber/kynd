@@ -128,8 +128,8 @@ export default function GeneratingPage() {
           {result.error ? (
             <div className="flex flex-col items-center gap-4 text-center">
               <XCircleIcon className="h-12 w-12 text-destructive" />
-              <h2 className="text-xl font-semibold tracking-tight">Generation Failed</h2>
-              <p className="text-sm text-muted-foreground max-w-md">{result.error}</p>
+              <h2 className="text-lg font-semibold tracking-tight">Generation Failed</h2>
+              <p className="text-base leading-relaxed text-muted-foreground max-w-md">{result.error}</p>
               <FeedbackButton
                 label="Report this error"
                 defaultMessage={result.error}
@@ -141,10 +141,10 @@ export default function GeneratingPage() {
           ) : (
             <div className="flex flex-col items-center gap-4 text-center">
               <CheckCircleIcon className="h-12 w-12 text-green-500" />
-              <h2 className="text-xl font-semibold tracking-tight">
+              <h2 className="text-lg font-semibold tracking-tight">
                 {result.personas?.length ?? 0} Personas Ready
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base leading-relaxed text-muted-foreground">
                 Your personas have been generated and added to the dashboard.
               </p>
               <button
@@ -170,10 +170,10 @@ export default function GeneratingPage() {
             <div className="flex-shrink-0 w-full md:w-48">
               <StepIndicator steps={steps} currentStep={currentStep} />
             </div>
-            <div className="flex-1 min-h-[200px] flex flex-col justify-center items-center">
+            <div className="flex-1 min-h-50 flex flex-col justify-center items-center">
               {streamingText && (
                 <div className="mb-6 text-center">
-                  <p className="text-sm text-muted-foreground">{streamingText}</p>
+                  <p className="text-base leading-relaxed text-muted-foreground">{streamingText}</p>
                   {personaName && (
                     <p className="mt-1.5 text-xs font-mono text-muted-foreground/60">
                       ↳ persona: {personaName}

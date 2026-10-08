@@ -17,6 +17,8 @@ export default function DebatesPage() {
   const [startingDebate, setStartingDebate] = useState(false);
 
   const { startDebate, setActiveDebate } = useDebate();
+  const debates = useDebateStore((s) => s.debates);
+  const hasDebates = debates.length > 0;
   const activeBatch = usePersonaStore((s) => {
     const batches = s.batches;
     const activeId = s.activeBatchId;
@@ -48,7 +50,9 @@ export default function DebatesPage() {
 
   return (
     <div className="flex h-full w-full animate-in fade-in duration-500">
-      <DebateSidebar onNewDebate={() => setShowSetup(true)} />
+      {hasDebates && (
+        <DebateSidebar onNewDebate={() => setShowSetup(true)} />
+      )}
 
       <div className="flex-1 flex flex-col min-w-0">
         {showSetup ? (
@@ -70,7 +74,7 @@ export default function DebatesPage() {
             </div>
           </div>
         ) : (
-          <DebateRoom />
+          <DebateRoom onNewDebate={() => setShowSetup(true)} />
         )}
       </div>
     </div>

@@ -76,18 +76,20 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
             )}
             {analysis.status === 'COMPLETED' && (
               <p className="text-xs text-muted-foreground mt-1">
-                {analysis.completedAt && `Completed ${new Date(analysis.completedAt).toLocaleDateString()}`}
+                {analysis.completedAt && (
+                  <>Completed <span className="font-mono tabular-nums">{new Date(analysis.completedAt).toLocaleDateString()}</span></>
+                )}
               </p>
             )}
           </div>
           <div className="text-right shrink-0">
-            <p className="text-xs text-muted-foreground whitespace-nowrap">
+            <p className="text-xs font-mono tabular-nums text-muted-foreground whitespace-nowrap">
               {new Date(analysis.createdAt).toLocaleDateString(undefined, {
                 month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
               })}
             </p>
             {analysis.completedAt && analysis.status !== 'IN_PROGRESS' && (
-              <p className="text-[11px] text-muted-foreground/60 mt-0.5 whitespace-nowrap">
+              <p className="text-xs font-mono tabular-nums text-muted-foreground/60 mt-0.5 whitespace-nowrap">
                 {new Date(analysis.completedAt).toLocaleDateString(undefined, {
                   month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                 })}
@@ -99,7 +101,7 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
           <div className="mt-3">
             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
               <span>{analysis.completedResponses ?? 0}/{analysis.totalResponses} analyses</span>
-              <span className="tabular-nums font-medium">{Math.round(((analysis.completedResponses ?? 0) / analysis.totalResponses) * 100)}%</span>
+              <span className="font-mono tabular-nums font-medium">{Math.round(((analysis.completedResponses ?? 0) / analysis.totalResponses) * 100)}%</span>
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
@@ -249,7 +251,7 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
   if (batches.length === 0) {
     return (
       <Card>
-        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+        <CardContent className="flex flex-col gap-3 text-base leading-relaxed text-muted-foreground">
           <p>Create a persona batch first, then come back to run an analysis.</p>
           <Button asChild variant="default" size="sm" className="w-fit">
             <Link href="/dashboard">Go to Dashboard</Link>
@@ -339,7 +341,7 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-sm text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground cursor-pointer ${
+                  className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-base text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground cursor-pointer ${
                     isDragOver ? 'border-primary bg-primary/5' : ''
                   }`}
                 >
@@ -358,7 +360,7 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{screenshotFile.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs font-mono tabular-nums text-muted-foreground">
                       {(screenshotFile.size / 1024).toFixed(0)} KB
                     </p>
                   </div>
@@ -396,7 +398,7 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
             placeholder="What is this artifact trying to accomplish? e.g. Convince visitors to book a demo, explain product value, encourage signup"
             value={businessGoal}
             onChange={(e) => setBusinessGoal(e.target.value)}
-            className="min-h-[60px] text-sm"
+            className="min-h-15 text-sm"
           />
         </div>
 
@@ -410,7 +412,7 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
             placeholder="What do you want to learn? e.g. Why would users leave? What creates trust? How would enterprise buyers react?"
             value={researchQuestion}
             onChange={(e) => setResearchQuestion(e.target.value)}
-            className="min-h-[60px] text-sm"
+            className="min-h-15 text-sm"
           />
         </div>
 
@@ -472,7 +474,7 @@ function AnalysesPageContent() {
     <div className="flex flex-col gap-8 w-full h-full animate-in fade-in duration-500">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Analyses</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Analyses</h1>
           {analyses.length > 0 && (
             <p className="text-sm text-muted-foreground">
               {`${completed.length} completed${failed.length > 0 ? ` · ${failed.length} failed` : ''} · ${inProgress.length} in progress`}
@@ -493,12 +495,12 @@ function AnalysesPageContent() {
       )}
 
       {analysisFlow.isPending && (
-        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 text-sm text-blue-600 flex items-center gap-2">
+        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 text-base text-blue-600 flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
           Analysis is running…
           <Link
             href="/dashboard/analyses"
-            className="ml-auto text-xs font-medium text-blue-600 hover:underline"
+            className="ml-auto text-sm font-medium text-blue-600 hover:underline"
           >
             Refresh
           </Link>
@@ -507,7 +509,7 @@ function AnalysesPageContent() {
 
       {inProgress.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <h2 className="micro-label text-muted-foreground flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
             In Progress
           </h2>
@@ -521,7 +523,7 @@ function AnalysesPageContent() {
 
       {completed.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h2 className="micro-label text-muted-foreground">
             Completed
           </h2>
           <div className="flex flex-col gap-3">
@@ -534,7 +536,7 @@ function AnalysesPageContent() {
 
       {failed.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h2 className="micro-label text-muted-foreground">
             Failed
           </h2>
           <div className="flex flex-col gap-3">
@@ -550,7 +552,7 @@ function AnalysesPageContent() {
           <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-4">
             <ClockIcon className="h-6 w-6 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground text-sm max-w-sm">
+          <p className="text-base leading-relaxed text-muted-foreground max-w-sm">
             No analyses yet. Click "Run New Analysis" above to get started.
           </p>
         </div>
@@ -569,7 +571,7 @@ function AnalysesPageFallback() {
     <div className="flex flex-col gap-8 w-full h-full">
       <div className="flex flex-col gap-2">
         <div className="h-8 w-40 rounded bg-muted animate-pulse" />
-        <div className="h-4 w-52 rounded bg-muted animate-pulse" />
+        <div className="h-5 w-52 rounded bg-muted animate-pulse" />
       </div>
     </div>
   )
