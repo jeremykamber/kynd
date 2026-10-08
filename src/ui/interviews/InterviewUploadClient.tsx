@@ -118,7 +118,7 @@ export function InterviewUploadClient() {
           <div className="flex flex-col gap-6 items-center text-center py-8">
             <CheckCircle2 className="h-16 w-16 text-primary" />
             <div className="flex flex-col gap-2">
-              <h2 className="text-lg font-semibold tracking-tight">
+              <h2 className="text-xl font-semibold tracking-tight">
                 Personas Generated!
               </h2>
               <p className="text-base leading-relaxed text-muted-foreground text-balance max-w-lg">
@@ -151,30 +151,24 @@ export function InterviewUploadClient() {
     <div className="flex flex-col max-w-4xl mx-auto w-full animate-in fade-in duration-500">
       <div className="grid gap-12">
         <section className="flex flex-col gap-6 relative min-w-0">
-          <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary micro-label hidden md:flex">
+          <div className="absolute -left-14 top-6 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary micro-label hidden md:flex">
             1
           </div>
           <MinimalCard>
             <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <h2 className="text-lg font-semibold tracking-tight">
-                  Upload Interview Transcripts
-                </h2>
-                <p className="text-base leading-relaxed text-muted-foreground">
-                  Upload interview transcripts (.txt files) to extract behavioral
-                  signals and generate realistic personas.
-                </p>
-              </div>
+              <h2 className="text-xl font-semibold tracking-tight">
+                Upload Interview Transcripts
+              </h2>
 
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 md:p-12 gap-4 transition-colors cursor-pointer ${
+                className={`flex flex-col items-center justify-center rounded-lg p-10 md:p-12 gap-4 transition-colors cursor-pointer ${
                   isDragging
-                    ? 'border-primary/70 bg-primary/5'
-                    : 'border-border/60 hover:border-primary/50 bg-secondary/20'
+                    ? 'bg-primary/5 ring-2 ring-primary/40'
+                    : 'bg-secondary/20 hover:bg-secondary/40'
                 }`}
               >
                 <Upload className="h-12 w-12 text-muted-foreground/60" />
@@ -204,7 +198,7 @@ export function InterviewUploadClient() {
               )}
 
               {files.length > 0 && (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                   {files.map((file) => (
                     <div
                       key={file.id}
@@ -236,13 +230,13 @@ export function InterviewUploadClient() {
         </section>
 
         <section className="flex flex-col gap-6 relative min-w-0">
-          <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary micro-label hidden md:flex">
+          <div className="absolute -left-14 top-6 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary micro-label hidden md:flex">
             2
           </div>
           <MinimalCard>
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <h2 className="text-lg font-semibold tracking-tight">
+                <h2 className="text-xl font-semibold tracking-tight">
                   Generate Personas
                 </h2>
                 <p className="text-base leading-relaxed text-muted-foreground">
@@ -252,9 +246,9 @@ export function InterviewUploadClient() {
                 </p>
               </div>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium text-foreground">How should we combine the transcripts?</label>
-                <div className="flex gap-2 min-w-0">
+                <div className="flex gap-3 min-w-0">
                   <button
                     type="button"
                     onClick={() => setGenerationMode('individual')}
