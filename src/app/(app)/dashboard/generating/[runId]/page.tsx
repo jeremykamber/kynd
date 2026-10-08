@@ -8,6 +8,7 @@ import { getPersonaGenerationResultAction } from '@/actions/getPersonaGeneration
 import { StepIndicator } from '@/components/custom/StepIndicator'
 import { Progress } from '@/components/ui/progress'
 import type { PersonaGenerationResult } from '@/actions/getPersonaGenerationResult'
+import { personaRunProgress } from '@/ui/dashboard/utils/personaRunProgress'
 
 type FlowStep = { title: string; description?: string }
 
@@ -101,9 +102,8 @@ export default function GeneratingPage() {
       setCompletedCount(completed)
       setTotalCount(total)
 
-      if (total && total > 0 && completed != null) {
-        setProgress(Math.min(completed / total, 1) * 100)
-      }
+      // Same helper the toast uses, so the two bars always agree.
+      setProgress(personaRunProgress(p.progress.step, completed, total) * 100)
     }
 
     poll()

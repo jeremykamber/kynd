@@ -7,34 +7,9 @@ import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
 import { getProgressAction } from '@/actions/getProgress'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
 import { batchConsumedRunIds } from '@/lib/generationRunState'
+import { personaRunProgress } from '@/ui/dashboard/utils/personaRunProgress'
 
 const POLL_INTERVAL_MS = 1000
-
-/**
- * Progress per step as a 0-1 ratio, mirroring the full progress page
- * (DashboardClient). Based on position in the flow, not granular counts.
- */
-const STEP_PROGRESS: Record<string, number> = {
-  BRAINSTORMING_PERSONAS: 0.1,
-  GENERATING_BACKSTORIES: 0.2,
-  // Alias: entries written before this step was renamed may still carry the
-  // old key, so both spellings stay mapped.
-  ENHANCING_WITH_PBJ: 0.5,
-  ADDING_BEHAVIORAL_DEPTH: 0.5,
-  GENERATING_INSIGHTS: 0.75,
-  DONE: 1,
-  // Long-form keys (ICP pipeline)
-  EXTRACTING_SIGNALS: 0.15,
-  POOLING_SIGNALS: 0.35,
-  SAMPLING_PERSONAS: 0.5,
-  INGESTING_TO_MEMORY: 0.8,
-  // Short-form keys (interview pipeline — server emits these)
-  EXTRACTING: 0.15,
-  POOLING: 0.35,
-  SAMPLING: 0.5,
-  GENERATING: 0.65,
-  INGESTING: 0.8,
-}
 
 /**
  * Deterministic toast id per run. poll() can overlap itself (async interval,
@@ -186,7 +161,15 @@ export function PersonaProgressToaster() {
         if (removedSet.has(runId)) continue
 
         const step = p.progress?.step
-        const progress = STEP_PROGRESS[step ?? ''] ?? 0
+        // The same counts the progress page renders, through the same helper,
+        // so the toast's bar and the page's bar are the same number. The bar
+        // used to be step-position only, which is what made it jump to 60%
+        // while the page still read "0 of 9".
+        const progress = personaRunProgress(
+          step,
+          p.progress?.completedCount ?? p.progress?.completedResponses,
+          p.progress?.totalCount ?? p.progress?.totalResponses,
+        )
         // Live streamingText (e.g. a retry status) wins over the step name so
         // the toast surfaces what is actually happening.
         const subtext = p.progress?.streamingText || formatStepName(step)
