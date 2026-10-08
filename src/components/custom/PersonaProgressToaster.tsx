@@ -7,6 +7,7 @@ import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
 import { getProgressAction } from '@/actions/getProgress'
 import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
 import { batchConsumedRunIds } from '@/lib/generationRunState'
+import { resolveBatchLabel } from '@/lib/resolveBatchLabel'
 import { personaRunProgress } from '@/ui/dashboard/utils/personaRunProgress'
 
 const POLL_INTERVAL_MS = 1000
@@ -107,7 +108,18 @@ export function PersonaProgressToaster() {
           if (!isError && personaCount > 0 && !batchConsumedRunIds.has(runId)) {
             batchConsumedRunIds.add(runId)
             const source = sourceOf(runId)
-            const label = source === 'interviews' ? `${personaCount} Personas from Interviews` : `${personaCount} Generated Personas`
+            // This is the batch-creation path for a run that finished while the
+            // user was on another page, and it is often the only one that runs.
+            // It names the batch through the same helper as the hook paths
+            // instead of leaving a count, which told the reader nothing about
+            // who the personas were.
+            const label = await resolveBatchLabel(
+              source === 'interviews'
+                ? `${personaCount} Personas from Interviews`
+                : `${personaCount} Generated Personas`,
+              result.personas!,
+              { source },
+            )
             const batch: PersonaBatch = {
               id: `batch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
               label,

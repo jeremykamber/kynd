@@ -35,6 +35,16 @@ vi.mock('@/actions/getProgress', () => ({
   }),
 }))
 
+// Batch naming goes through a server action; the toaster must fall back to its
+// count label when the model returns nothing, so the default is null.
+const batchTitle = vi.fn(async (_personas: unknown, _context: unknown) => ({
+  title: null as string | null,
+}))
+
+vi.mock('@/actions/generateBatchTitleAction', () => ({
+  generateBatchTitleAction: (personas: unknown, context: unknown) => batchTitle(personas, context),
+}))
+
 const toastCustom = vi.fn()
 
 vi.mock('sonner', () => ({
@@ -54,6 +64,8 @@ beforeEach(() => {
   resultDeferreds.length = 0
   progressDeferreds.length = 0
   toastCustom.mockClear()
+  batchTitle.mockClear()
+  batchTitle.mockResolvedValue({ title: null })
   // Module-level toaster state (toastIdMap/removedSet/completedSet) persists
   // across tests; unique runIds keep each test isolated.
 })
@@ -186,6 +198,52 @@ describe('PersonaProgressToaster', () => {
       expect(batch).toBeTruthy()
       expect(batch?.personas).toEqual([])
       expect(usePersonaStore.getState().activeGenerationRunIds).not.toContain('fail-run')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('names a settled batch through the model instead of a bare count', async () => {
+    batchTitle.mockResolvedValueOnce({ title: 'Nordic public-sector buyers' })
+    vi.useFakeTimers()
+    try {
+      render(<PersonaProgressToaster />)
+
+      act(() => {
+        usePersonaStore.getState().addActiveGeneration('named-run')
+      })
+
+      await act(async () => {
+        resultDeferreds[0]?.resolve({ found: true, personas: [{ id: 'p1', name: 'Ada' }] })
+        await Promise.resolve()
+      })
+
+      const batch = usePersonaStore.getState().batches.at(-1)
+      expect(batch?.label).toBe('Nordic public-sector buyers')
+      expect(batch?.personas).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('falls back to the count label when the model returns no title', async () => {
+    vi.useFakeTimers()
+    try {
+      render(<PersonaProgressToaster />)
+
+      act(() => {
+        usePersonaStore.getState().addActiveGeneration('unnamed-run')
+      })
+
+      await act(async () => {
+        resultDeferreds[0]?.resolve({ found: true, personas: [{ id: 'p1', name: 'Ada' }] })
+        await Promise.resolve()
+      })
+
+      // 'unnamed-run' carries no `pt-` prefix, so it reads as an interview run.
+      expect(usePersonaStore.getState().batches.at(-1)?.label).toBe(
+        '1 Personas from Interviews',
+      )
     } finally {
       vi.useRealTimers()
     }
