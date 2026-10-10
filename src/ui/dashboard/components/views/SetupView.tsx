@@ -111,7 +111,18 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                 <p className="text-sm text-muted-foreground">
                   {useTextarea
                     ? "Describe your ideal customer, their pain points, and demographics."
-                    : "Answer a few quick questions."}
+                    : "Answer a few quick questions."}{" "}
+                  Or{" "}
+                  <button
+                    type="button"
+                    onClick={() => setUseTextarea((v) => !v)}
+                    className="text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+                  >
+                    {useTextarea
+                      ? "use the guided form instead"
+                      : "use a freeform description instead"}
+                  </button>
+                  .
                 </p>
               </div>
 
@@ -124,13 +135,6 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                     onChange={(e) => personaFlow.setCustomerProfile(e.target.value)}
                     disabled={personaFlow.isPending}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setUseTextarea(false)}
-                    className="self-start text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
-                  >
-                    Use guided form instead
-                  </button>
                   {personaCountField}
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <Button variant="link" asChild className="h-auto p-0 text-muted-foreground">
@@ -154,7 +158,6 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
               ) : (
                 <PersonaSurveyForm
                   onSubmit={handleSurveySubmit}
-                  onUseTextarea={() => setUseTextarea(true)}
                   isPending={personaFlow.isPending}
                   error={personaFlow.error}
                   beforeActions={personaCountField}

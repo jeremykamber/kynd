@@ -11,11 +11,10 @@ import {
   AUDIENCE_KNOWLEDGE_OPTIONS,
   DECISION_TYPE_OPTIONS,
 } from "@/lib/surveyToPrompt"
-import { ArrowRightIcon, SparklesIcon } from "lucide-react"
+import { SparklesIcon } from "lucide-react"
 
 interface PersonaSurveyFormProps {
   onSubmit: (survey: PersonaSurvey) => void
-  onUseTextarea: () => void
   isPending: boolean
   error?: string | null
   /**
@@ -114,9 +113,10 @@ function SingleSelect({
  * Guided questionnaire (audience, goals, frustrations, decision factors) that
  * turns free-text answers, including "Other" write-ins, into the `PersonaSurvey`
  * consumed by the prompt compiler. Submit stays disabled until every required
- * question is answered; `onUseTextarea` switches to the freeform path instead.
+ * question is answered. The freeform switch lives in the card header, next to
+ * the mode's own description, not in this form.
  */
-export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error, beforeActions }: PersonaSurveyFormProps) {
+export function PersonaSurveyForm({ onSubmit, isPending, error, beforeActions }: PersonaSurveyFormProps) {
   const [targetAudience, setTargetAudience] = useState("")
   const [goals, setGoals] = useState<string[]>([])
   const [frustration, setFrustration] = useState("")
@@ -268,14 +268,7 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error, b
 
       {beforeActions}
 
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onUseTextarea}
-          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
-        >
-          Use freeform description instead
-        </button>
+      <div className="flex items-center justify-end">
         <button
           type="button"
           onClick={handleSubmit}
