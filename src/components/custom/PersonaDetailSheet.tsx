@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { PersonaAvatar } from "./PersonaAvatar"
 import { PersonaChatInline } from "@/ui/dashboard/components/chat/PersonaChatInline"
 import { PersonaTraitsSuggestionDialog, type SuggestedTraits } from "./PersonaTraitsSuggestionDialog"
-import { MessageSquare, User, Search, XIcon, CopyIcon, ShuffleIcon, SparklesIcon, PenIcon, LoaderIcon } from "lucide-react"
+import { MessageSquare, User, Search, XIcon, CopyIcon, ShuffleIcon, SparklesIcon, PenIcon, LoaderIcon, Quote } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Slider } from "@/components/ui/slider"
 import { VariationFormData } from "./SimilarPersonaDialog"
@@ -33,6 +33,34 @@ interface PersonaDetailSheetProps {
 }
 
 type Tab = "profile" | "chat" | "variant"
+
+/**
+ * The profile's single evidence affordance. A labelled chip — "Source", or
+ * "Your response" in strategy mode — reveals the quote that backs an attribute.
+ * The label is what tells a first-time reader what the quote is; the icon is
+ * what makes the control read as "show the quote" rather than as decoration.
+ * Every evidence disclosure in the sheet uses this, so there is one pattern to
+ * learn instead of one per section.
+ */
+function EvidenceDisclosure({
+    label,
+    className,
+    children,
+}: {
+    label: string
+    className?: string
+    children: React.ReactNode
+}) {
+    return (
+        <details className={cn("group/evidence", className)}>
+            <summary className="inline-flex w-fit items-center gap-1.5 rounded border border-border/50 bg-muted/20 px-2 py-1 text-xs text-muted-foreground cursor-pointer list-none transition-colors hover:border-border hover:bg-muted/40 hover:text-foreground group-open/evidence:border-border group-open/evidence:bg-muted/40 group-open/evidence:text-foreground">
+                <Quote className="size-3 shrink-0" aria-hidden="true" />
+                {label}
+            </summary>
+            <div className="mt-2">{children}</div>
+        </details>
+    )
+}
 
 /**
  * Tabbed persona workspace in a dialog: profile (read, and edit with optional
@@ -359,7 +387,7 @@ export function PersonaDetailSheet({
                                                             <span className={'text-xs font-medium ' + lc}>{label}</span>
                                                         </div>
                                                         <p className="text-base text-muted-foreground/80 mt-1 leading-relaxed">{dim.description}</p>
-                                                        {dim.evidence && (() => { const question = persona.evidenceQuestions?.[dim.evidence]; return <details className="mt-2 group"><summary className="text-xs text-muted-foreground/80 cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1.5 font-sans"><span className="text-xs text-muted-foreground/30 group-open:text-foreground/60 transition-colors">▶</span>{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</summary><p className="text-sm text-foreground/70 mt-1.5 leading-relaxed border-l-2 border-border/30 pl-3">“{dim.evidence}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></details>; })()}
+                                                        {dim.evidence && (() => { const question = persona.evidenceQuestions?.[dim.evidence]; return <EvidenceDisclosure className="mt-3" label={persona.generationMode === 'strategy' ? 'Your response' : 'Source'}><p className="text-sm text-foreground/70 leading-relaxed border-l-2 border-border/30 pl-3">“{dim.evidence}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></EvidenceDisclosure>; })()}
                                                     </div>
                                                 );
                                             })}
@@ -434,36 +462,27 @@ export function PersonaDetailSheet({
                                     </div>
                                 ) : null}
 
-                                <div className={cn("grid gap-x-10 gap-y-10", persona.values?.length && persona.fears?.length && "sm:grid-cols-2")}>
+                                <div className="flex flex-col gap-10">
 
                                     {persona.values && persona.values.length > 0 && (
                                         <div className="flex flex-col gap-4">
                                             <h4 className="text-xl font-semibold tracking-tight">Motivations</h4>
-                                            <div className="flex flex-col gap-3">
+                                            <div className="flex flex-col gap-4">
                                                 {persona.values.map((v, i) => {
                                                     const quote = persona.valueEvidence?.[i];
                                                     const question = quote ? persona.evidenceQuestions?.[quote] : undefined;
-                                                    const row = (
-                                                        <>
-                                                            <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
-                                                            <span>
-                                                                {v}
-                                                                {quote && <>&nbsp;<span className="inline-block text-xs text-muted-foreground/50 transition-transform duration-150 group-open/disclosure:rotate-90 group-open/disclosure:text-muted-foreground/70" aria-hidden="true">▶</span></>}
+                                                    return (
+                                                        <div key={i} className="flex flex-col">
+                                                            <span className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">
+                                                                <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
+                                                                <span>{v}</span>
                                                             </span>
-                                                        </>
-                                                    );
-                                                    return quote ? (
-                                                        <details key={i} className="group/disclosure">
-                                                            <summary className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80 cursor-pointer list-none hover:text-foreground transition-colors">
-                                                                {row}
-                                                                <span className="sr-only">Show source</span>
-                                                            </summary>
-                                                            <p className="text-sm text-foreground/70 mt-2 ml-4 leading-relaxed border-l-2 border-border/30 pl-3">
-                                                                <span className="text-xs text-muted-foreground/60 mr-1.5">{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</span>“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}
-                                                            </p>
-                                                        </details>
-                                                    ) : (
-                                                        <span key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/80">{row}</span>
+                                                            {quote && (
+                                                                <EvidenceDisclosure className="mt-2 ml-4" label={persona.generationMode === 'strategy' ? 'Your response' : 'Source'}>
+                                                                    <p className="text-sm text-foreground/70 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p>
+                                                                </EvidenceDisclosure>
+                                                            )}
+                                                        </div>
                                                     );
                                                 })}
                                             </div>
@@ -477,29 +496,18 @@ export function PersonaDetailSheet({
                                                 {persona.fears.map((f, i) => {
                                                     const quote = persona.fearEvidence?.[i];
                                                     const question = quote ? persona.evidenceQuestions?.[quote] : undefined;
-                                                    const row = (
-                                                        <>
-                                                            <span className="mt-1.5 size-1 rounded-full bg-destructive/50 shrink-0" aria-hidden="true" />
-                                                            <span>
-                                                                {f}
-                                                                {quote && <>&nbsp;<span className="inline-block text-xs text-muted-foreground/50 transition-transform duration-150 group-open/disclosure:rotate-90 group-open/disclosure:text-muted-foreground/70" aria-hidden="true">▶</span></>}
+                                                    return (
+                                                        <li key={i} className="flex flex-col">
+                                                            <span className="flex items-start gap-2.5 text-sm leading-snug text-foreground/70">
+                                                                <span className="mt-1.5 size-1 rounded-full bg-destructive/50 shrink-0" aria-hidden="true" />
+                                                                <span>{f}</span>
                                                             </span>
-                                                        </>
-                                                    );
-                                                    return quote ? (
-                                                        <li key={i}>
-                                                            <details className="group/disclosure">
-                                                                <summary className="flex items-start gap-2.5 text-sm leading-snug text-foreground/70 cursor-pointer list-none hover:text-foreground transition-colors">
-                                                                    {row}
-                                                                    <span className="sr-only">Show source</span>
-                                                                </summary>
-                                                                <p className="text-sm text-foreground/70 mt-2 ml-4 leading-relaxed border-l-2 border-border/30 pl-3">
-                                                                    <span className="text-xs text-muted-foreground/60 mr-1.5">{persona.generationMode === 'strategy' ? 'Your response' : 'Source'}</span>“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}
-                                                                </p>
-                                                            </details>
+                                                            {quote && (
+                                                                <EvidenceDisclosure className="mt-2 ml-4" label={persona.generationMode === 'strategy' ? 'Your response' : 'Source'}>
+                                                                    <p className="text-sm text-foreground/70 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p>
+                                                                </EvidenceDisclosure>
+                                                            )}
                                                         </li>
-                                                    ) : (
-                                                        <li key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/70">{row}</li>
                                                     );
                                                 })}
                                             </ul>
