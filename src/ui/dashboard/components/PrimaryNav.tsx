@@ -32,7 +32,7 @@ function pillItemClass(active: boolean) {
 
 function tabItemClass(active: boolean) {
   return cn(
-    'flex flex-1 flex-col items-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors',
+    'flex flex-1 flex-col items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors',
     active
       ? 'bg-primary/10 text-primary'
       : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground',
@@ -156,12 +156,12 @@ export function PrimaryNav() {
   return (
     <>
       <header className="sticky top-0 z-40 hidden px-4 pb-2 pt-4 lg:block lg:px-6">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 rounded-lg border-2 border-border/60 bg-card/70 px-2.5 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60">
-          <Link href="/" className="shrink-0 select-none px-2 text-lg font-bold tracking-tight">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 rounded-lg border-2 border-border/60 bg-card/70 px-3 py-2.5 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60">
+          <Link href="/" className="shrink-0 select-none px-2 text-lg font-semibold tracking-tight">
             Kynd
           </Link>
           {/* Below `lg` the bottom tab bar owns navigation; the pill is hidden. */}
-          <nav className="hidden flex-1 items-center gap-1 lg:flex">
+          <nav className="hidden flex-1 items-center gap-2 lg:flex">
             {destinations.map((destination) => (
               <PillItem key={destination.id} destination={destination} />
             ))}
@@ -174,7 +174,7 @@ export function PrimaryNav() {
         aria-label="Primary"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 lg:hidden"
       >
-        <div className="mx-auto flex max-w-7xl items-stretch gap-1 px-2 py-1.5">
+        <div className="mx-auto flex max-w-7xl items-stretch gap-2 px-3 py-2">
           {destinations.map((destination) => (
             <TabItem key={destination.id} destination={destination} />
           ))}

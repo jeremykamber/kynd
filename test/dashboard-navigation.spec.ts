@@ -64,14 +64,14 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
   it('switches to freeform mode and shows the audience textarea', async () => {
     await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
-    await page.locator('button:has-text("Use freeform description instead")').first().click();
+    await page.locator('button:has-text("use a freeform description instead")').first().click();
     expect(await isVisible('textarea[placeholder*="B2B SaaS"]')).toBe(true);
   });
 
   it('disables Generate Personas in freeform mode when textarea is empty', async () => {
     await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
-    await page.locator('button:has-text("Use freeform description instead")').first().click();
+    await page.locator('button:has-text("use a freeform description instead")').first().click();
     const generateBtn = page.locator('button:has-text("Generate Personas")').first();
     await generateBtn.waitFor({ state: 'visible', timeout: 10_000 });
     expect(await generateBtn.isDisabled()).toBe(true);
@@ -80,7 +80,7 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
   it('enables Generate Personas in freeform mode when textarea has content', async () => {
     await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
-    await page.locator('button:has-text("Use freeform description instead")').first().click();
+    await page.locator('button:has-text("use a freeform description instead")').first().click();
     const textarea = page.locator('textarea[placeholder*="B2B SaaS"]').first();
     await textarea.waitFor({ state: 'visible', timeout: 10_000 });
     await textarea.fill('B2B SaaS founders dealing with high churn');
@@ -101,7 +101,7 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
   it('navigates to interviews from the setup view link', async () => {
     await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
-    await page.locator('button:has-text("Use freeform description instead")').first().click();
+    await page.locator('button:has-text("use a freeform description instead")').first().click();
     await page.locator('a:has-text("Generate from interviews")').first().click();
     await page.waitForURL('**/dashboard/interviews', { timeout: 10_000 });
   });

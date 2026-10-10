@@ -25,40 +25,61 @@ colors:
   chat-user-bubble: oklch(0.62 0.2 230 / 0.12)
   chat-assistant-bubble: oklch(0.16 0.01 265)
 typography:
+  # Canonical type scale. Root font size is the browser default (100% = 16px),
+  # never a hard-coded px value: the scale must honour the user's own text-size
+  # setting. Every size below is expressed in rem and consumed through the
+  # matching Tailwind utility.
   display:
     fontFamily: Geist, system-ui, sans-serif
-    fontSize: clamp(2.5rem, 5vw, 4.5rem)
+    fontSize: 3rem            # 48px — text-5xl (marketing hero only)
     fontWeight: 600
-    lineHeight: 1.1
+    lineHeight: 1.05
     letterSpacing: -0.03em
   headline:
     fontFamily: Geist, system-ui, sans-serif
-    fontSize: clamp(1.5rem, 3vw, 2.25rem)
+    fontSize: 2.25rem         # 36px — text-4xl (marketing sections only)
     fontWeight: 600
-    lineHeight: 1.2
+    lineHeight: 1.15
     letterSpacing: -0.02em
+  page-title:
+    fontFamily: Geist, system-ui, sans-serif
+    fontSize: 1.875rem        # 30px — text-3xl (one per page/view)
+    fontWeight: 600
+    lineHeight: 1.25
+    letterSpacing: -0.02em
+  section:
+    fontFamily: Geist, system-ui, sans-serif
+    fontSize: 1.25rem         # 20px — text-xl (section headers, sheet/dialog titles)
+    fontWeight: 600
+    lineHeight: 1.4
+    letterSpacing: -0.01em
   title:
     fontFamily: Geist, system-ui, sans-serif
-    fontSize: 1.125rem
-    fontWeight: 500
+    fontSize: 1rem            # 16px — text-base + font-semibold (card titles)
+    fontWeight: 600
     lineHeight: 1.4
     letterSpacing: -0.01em
   body:
     fontFamily: Geist, system-ui, sans-serif
-    fontSize: 0.9375rem
+    fontSize: 1rem            # 16px — text-base (all prose; hard floor)
     fontWeight: 400
     lineHeight: 1.6
+  secondary:
+    fontFamily: Geist, system-ui, sans-serif
+    fontSize: 0.875rem        # 14px — text-sm (dense UI sentences, controls, labels)
+    fontWeight: 400
+    lineHeight: 1.5
+  caption:
+    fontFamily: Geist, system-ui, sans-serif
+    fontSize: 0.75rem         # 12px — text-xs (metadata, timestamps, captions)
+    fontWeight: 400
+    lineHeight: 1.4
   label:
     fontFamily: Geist Mono, ui-monospace, monospace
-    fontSize: 0.6875rem
+    fontSize: 0.6875rem       # 11px — micro-label utility
     fontWeight: 500
     lineHeight: 1
     letterSpacing: 0.08em
-  mono:
-    fontFamily: Geist Mono, ui-monospace, monospace
-    fontSize: 0.8125rem
-    fontWeight: 400
-    lineHeight: 1.5
 rounded:
   sm: 4px
   md: 6px
@@ -170,18 +191,56 @@ A restrained palette built around cool charcoal neutrals and a single cerulean b
 
 ### Hierarchy
 
-- **Display** (600, `clamp(2.5rem, 5vw, 4.5rem)`, 1.1, `-0.03em`): Hero headlines and marketing landing titles only. Never used inside the app dashboard.
-- **Headline** (600, `clamp(1.5rem, 3vw, 2.25rem)`, 1.2, `-0.02em`): Section headers in the app, page titles, modal headers.
-- **Title** (500, `1.125rem`, 1.4, `-0.01em`): Card titles, persona names, feature headings.
-- **Body** (400, `0.9375rem`, 1.6): Primary reading text. Line length capped at 70ch.
-- **Label — Mono** (500, `0.6875rem`, 1, `0.08em`, uppercase): Data labels, metric names, badge text, metadata. Always Geist Mono, always uppercase.
-- **Mono** (400, `0.8125rem`, 1.5): Code snippets, numeric data, chat messages.
+Nine roles. Every piece of text in the product is exactly one of them. Roles are consumed through the Tailwind utility that matches the size; there are no other sizes.
+
+| Role | Utility | Size | Weight | Line-height | Tracking | Used for |
+|---|---|---|---|---|---|---|
+| **Display** | `text-5xl` | 48px | 600 | 1.05 | `-0.03em` | Marketing hero headline only. Never inside the dashboard. |
+| **Headline** | `text-4xl` | 36px | 600 | 1.15 | `-0.02em` | Marketing section headers only. |
+| **Page title** | `text-3xl` | 30px | 600 | 1.25 | `-0.02em` | Exactly one per page/view. Every in-app screen uses this same size. |
+| **Section** | `text-xl` | 20px | 600 | 1.4 | `-0.01em` | Section headers, sheet/dialog titles, step titles. |
+| **Title** | `text-base` + `font-semibold` | 16px | 600 | 1.4 | `-0.01em` | Card titles, persona names, dense sub-headers. |
+| **Body** | `text-base` | 16px | 400 | 1.6 | — | All prose: paragraphs, helper sentences, empty-state copy, chat messages, rationales. **Hard floor — never below 16px for anything read as a sentence.** |
+| **Secondary** | `text-sm` | 14px | 400 | 1.5 | — | Dense-UI sentences, card subtitles, list rows, form labels, control text. |
+| **Caption** | `text-xs` | 12px | 400 | 1.4 | — | Metadata, timestamps, counts, units, badges that are not uppercase. |
+| **Micro-label** | `micro-label` | 11px mono | 500 | 1 | `0.08em` | Uppercase mono eyebrows that label a group of data. The only role below 12px. |
 
 ### Named Rules
 
-**The Mono-Data Rule.** All quantitative data — scores, metrics, timestamps, tokens — renders in Geist Mono with `font-variant-numeric: tabular-nums`. Numbers must align in tables and lists.
+**The Root Rule.** The document root font size stays at the browser default (`100%`). Never set a hard `font-size` on `html` to make the app "bigger" — that overrides the user's own text-size setting and silently rescales every rem-based spacing value in the product. If text is too small, the offending role is wrong; fix the role.
+
+**The No-Arbitrary-Size Rule.** No `text-[10px]`, `text-[13px]`, `text-[0.85em]` and friends. If a size is not in the table above, it is not allowed. The single sub-12px voice in the product is `micro-label`, and it exists as a utility precisely so it can be applied identically everywhere.
+
+**The Weight Restraint Rule.** Only `font-medium` (500) and `font-semibold` (600) exist. There is no `font-bold`, no `font-black`, no `font-light`. Emphasis comes from size, color, and space first; weight is the last lever, not the first.
+
+**The Prose Floor Rule.** Anything the user reads as a sentence is Body (16px), regardless of how much space it would save to shrink it. Secondary (14px) is for interface text and short supporting lines, never for paragraphs.
+
+**The Mono-Data Rule.** All quantitative data — scores, metrics, timestamps, counts, tokens — renders in Geist Mono with `font-variant-numeric: tabular-nums`. Numbers must align in tables and lists.
 
 **The Single-Family Rule.** No mixing display fonts with body fonts. Geist Sans carries everything. Hierarchy comes from weight, size, and the Sans-vs-Mono switch, not from font changes.
+
+**The Label-Is-A-Utility Rule.** The uppercase-mono eyebrow treatment is `micro-label`, defined once in `globals.css`. Do not hand-roll `text-[10px] uppercase tracking-widest font-mono`. One definition, applied everywhere, is what makes the labels look like a system instead of a series of one-offs.
+
+**The Step Rule.** Adjacent levels on the ladder must be a visible step apart: 30 → 20 → 16 → 14 → 12, five levels, no two the same size. Exactly one `text-3xl` per page; a screen with two elements at the same size and weight has no hierarchy, and one of them is wrong. Do not create a level by going below the floor — drop a level instead.
+
+### Spacing & Rhythm
+
+One scale, 4px base, consumed through Tailwind's numeric step — `1`=4px, `2`=8px, `3`=12px, `4`=16px, `5`=20px, `6`=24px, `8`=32px, `10`=40px, `12`=48px, `16`=64px. No arbitrary values (`mt-[9px]`).
+
+Space must scale with semantic distance. The binding relation is **between-group space ≥ 1.5× within-group space**:
+
+- **Label → value:** 8px (`gap-2`) — a label and the thing it describes are one unit.
+- **Within a group:** 12–16px (`gap-3`/`gap-4`) — sibling fields, list rows, action buttons.
+- **Between groups:** 24px (`gap-6`) — distinct blocks inside a card or panel.
+- **Between cards:** 16–24px (`gap-4`/`gap-6`).
+- **Between sections:** 40–48px (`gap-10`/`gap-12`) — top-level page regions.
+- **Section header → its content:** 12–16px (`mb-3`/`mb-4`), never 0.
+- **Page padding:** 16px on phone, 24px from `sm` up (see `DashboardLayout`); 32–40px at the top of a view below the nav.
+- **Card padding:** 24px (`p-6`) standard; 20px (`p-5`) only for genuinely data-dense cards.
+
+**The Two-Surface Rule.** Never more than two nested bordered surfaces on a path. A bordered card inside a bordered card is a smell: drop the inner frame (use a tonal step, a divider, or nothing) or drop the outer one. Stacked padding is how a 400px-wide panel loses half its width to frames.
+
+The rule behind the numbers: **whitespace does the grouping.** Related things sit close because they belong together, not because there was room; unrelated things sit apart because the gap is the only thing telling the user they are separate. When a layout feels cluttered, the fix is almost always more space or a deleted frame — not smaller type.
 
 ## 4. Elevation
 
@@ -225,9 +284,9 @@ The persona card is a **browse-and-triage surface, not a profile.** It carries o
 - **Structure:** identity row (avatar, name, occupation, optional "Variant of") → hairline divider (`h-px bg-border/40`) → labeled detail groups → action row (`Create Variant`, `Chat with …`).
 - **Identity text:** name and occupation **wrap** onto as many lines as needed (`break-words`) — never truncated. The full role must stay readable; the card grows to fit rather than clipping with an ellipsis. Long unbroken tokens break rather than overflow.
 - **Detail groups:** goals (capped at 3) and the decision style. Each group is introduced by a micro-label so the values explain themselves.
-- **Goals:** a labeled **bulleted list**, one goal per row, 13px `leading-snug`, with a small accent dot marker (`size-1 rounded-full bg-primary/70`). Not chips — a list is a list. The dot is the detail block's only accent touch; the action row's Chat button remains the card's primary accent.
-- **Decision style:** labeled **"How they decide"**, 13px `leading-relaxed`, clamped to 3 lines. The pronoun is neutral because `Persona` carries no gender field; a gendered label would require a new entity field and generation output.
-- **Micro-label:** 10px, bold, uppercase, `tracking-widest`, Muted Foreground at 70% — a de-emphasized step below the Label typography.
+- **Goals:** a labeled **bulleted list**, one goal per row, `text-sm leading-snug`, with a small accent dot marker (`size-1 rounded-full bg-primary/70`). Not chips — a list is a list. The dot is the detail block's only accent touch; the action row's Chat button remains the card's primary accent.
+- **Decision style:** labeled **"How they decide"**, `text-sm leading-relaxed`, clamped to 3 lines. The pronoun is neutral because `Persona` carries no gender field; a gendered label would require a new entity field and generation output.
+- **Micro-label:** the `micro-label` utility (11px mono, medium, uppercase, `0.08em`) plus `text-muted-foreground/70` — a de-emphasized step below the Label typography.
 - **Height economy:** the card must stay scannable in a grid. Cap goals at 3, clamp the decision line, pin the action row with `mt-auto`, and rely on grid stretch so sibling cards match height.
 - **Delete affordance:** hover-reveal destructive button — see Destructive Actions.
 - **Rationale:** a narrative hook (backstory pull-quote) was evaluated for this card and rejected — quotes read as decorative and carry no decision signal. Decision-relevant facts (goals, how they decide) win on a triage surface; narrative belongs in the detail view.
@@ -285,7 +344,7 @@ This applies to all segmented toggle groups, option rows, and count selectors ac
 
 ### Chips / Badges / Tags
 
-- **Style:** 4px radius, Panel Surface background at `oklch(0.18 0.01 265)`. Metadata badges use the Label typography (Geist Mono, uppercase, 11px); scannable tag chips use Geist Sans at 13px minimum (see the size floor below).
+- **Style:** 4px radius, Panel Surface background at `oklch(0.18 0.01 265)`. Metadata badges use the Label typography (Geist Mono, uppercase, 11px); scannable tag chips use Geist Sans at `text-sm` (14px) minimum (see the size floor below).
 - **Color Variants:** Cerulean Blue text for active/selected states. Muted Foreground for neutral. Alert Red text for warning/error.
 - **Padding:** `4px 10px`.
 
@@ -293,7 +352,7 @@ This applies to all segmented toggle groups, option rows, and count selectors ac
 
 When chips are used, they must be readable and unclipped:
 
-- **Size floor:** 13px minimum. The 11px Label size is for metadata, not for scannable tag text.
+- **Size floor:** `text-sm` (14px) minimum. The `micro-label` size is for metadata, not for scannable tag text.
 - **Sizing:** content-sized. No fixed `max-width` — a fixed cap forces mid-word truncation and awkward wrapping. Let the chip grow; let the row wrap on word boundaries.
 - **Never truncate** chip text. If a chip can't fit its content, it isn't a chip — it's a list row.
 
@@ -322,8 +381,8 @@ Edit mode fields are inputs that appear when the user explicitly enters an editi
 
 Any set of values shown on a card or panel — goals, values, fears, interests, domains, expertise — must be introduced by a label. **Unlabeled value rows and orphan chips are prohibited:** the user cannot tell what they represent, so the data becomes noise.
 
-- **Label:** micro-label above the group — 10px, bold, uppercase, `tracking-widest`, Muted Foreground at 70%. A de-emphasized step below the Label typography; it orients without competing with the content.
-- **Content lists:** bulleted rows — a small accent dot marker, one value per row, 13px `leading-snug`. Use this for anything the user must actually read (goals, values, fears).
+- **Label:** `micro-label text-muted-foreground/70` above the group. A de-emphasized step below the Label typography; it orients without competing with the content.
+- **Content lists:** bulleted rows — a small accent dot marker, one value per row, `text-sm leading-snug`. Use this for anything the user must actually read (goals, values, fears).
 - **Tag sets:** only genuinely low-stakes tags may go inline or as chips (see The Tag-Not-Content Rule).
 - **Pronouns:** labels that need a pronoun use the neutral "they" — `Persona` has no gender field, and guessing from a name risks misgendering.
 - **Rationale:** the label is the difference between a designed element and a pile of values. An unlabeled chip row reads as decoration; a labeled group reads as intent.

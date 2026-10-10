@@ -11,11 +11,10 @@ import {
   AUDIENCE_KNOWLEDGE_OPTIONS,
   DECISION_TYPE_OPTIONS,
 } from "@/lib/surveyToPrompt"
-import { ArrowRightIcon, SparklesIcon } from "lucide-react"
+import { SparklesIcon } from "lucide-react"
 
 interface PersonaSurveyFormProps {
   onSubmit: (survey: PersonaSurvey) => void
-  onUseTextarea: () => void
   isPending: boolean
   error?: string | null
   /**
@@ -47,7 +46,7 @@ function MultiSelect({
   }
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="text-sm font-medium text-foreground mb-1">{label} (choose up to {max})</legend>
+      <legend className="text-sm font-semibold text-foreground mb-1">{label} (choose up to {max})</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => {
           const isSelected = selected.includes(opt)
@@ -56,7 +55,7 @@ function MultiSelect({
               key={opt}
               type="button"
               onClick={() => toggle(opt)}
-              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                 isSelected
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -85,7 +84,7 @@ function SingleSelect({
 }) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="text-sm font-medium text-foreground mb-1">{label}</legend>
+      <legend className="text-sm font-semibold text-foreground mb-1">{label}</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => {
           const isSelected = selected === opt
@@ -94,7 +93,7 @@ function SingleSelect({
               key={opt}
               type="button"
               onClick={() => onChange(opt)}
-              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                 isSelected
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -114,9 +113,10 @@ function SingleSelect({
  * Guided questionnaire (audience, goals, frustrations, decision factors) that
  * turns free-text answers, including "Other" write-ins, into the `PersonaSurvey`
  * consumed by the prompt compiler. Submit stays disabled until every required
- * question is answered; `onUseTextarea` switches to the freeform path instead.
+ * question is answered. The freeform switch lives in the card header, next to
+ * the mode's own description, not in this form.
  */
-export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error, beforeActions }: PersonaSurveyFormProps) {
+export function PersonaSurveyForm({ onSubmit, isPending, error, beforeActions }: PersonaSurveyFormProps) {
   const [targetAudience, setTargetAudience] = useState("")
   const [goals, setGoals] = useState<string[]>([])
   const [frustration, setFrustration] = useState("")
@@ -166,10 +166,10 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error, b
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-foreground">Who are you targeting?</label>
-        <p className="text-xs text-muted-foreground">Describe your audience in a few words.</p>
+        <p className="text-sm text-muted-foreground">Describe your audience in a few words.</p>
         <input
           type="text"
           value={targetAudience}
@@ -268,14 +268,7 @@ export function PersonaSurveyForm({ onSubmit, onUseTextarea, isPending, error, b
 
       {beforeActions}
 
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onUseTextarea}
-          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
-        >
-          Use freeform description instead
-        </button>
+      <div className="flex items-center justify-end">
         <button
           type="button"
           onClick={handleSubmit}

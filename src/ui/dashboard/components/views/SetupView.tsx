@@ -65,13 +65,21 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
   )
 
   return (
-    <div className="flex flex-col gap-16 max-w-4xl mx-auto w-full">
-      <div className="flex flex-wrap justify-between gap-2">
-        {onBack && (
-          <Button variant="ghost" size="sm" onClick={onBack} className="text-muted-foreground hover:text-foreground">
-            ← Back to batches
-          </Button>
-        )}
+    <div className="flex flex-col gap-10 max-w-4xl mx-auto w-full">
+      {onBack && (
+        <Button variant="ghost" size="sm" onClick={onBack} className="w-fit text-muted-foreground hover:text-foreground">
+          ← Back to batches
+        </Button>
+      )}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Define your target market
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Tell us about who you're trying to reach. Kynd will build personas that represent your audience.
+          </p>
+        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -83,23 +91,15 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
               setActiveBatch(DEMO_PERSONA_BATCH.id)
             }
           }}
-          className="text-muted-foreground hover:text-foreground ml-auto"
+          className="text-muted-foreground hover:text-foreground"
         >
           Load Demo Persona Batch
         </Button>
       </div>
-      <div className="flex flex-col gap-4 text-center items-center">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-balance">
-          Define your target market
-        </h1>
-        <p className="text-lg text-muted-foreground text-balance max-w-2xl">
-          Tell us about who you're trying to reach. Kynd will build personas that represent your audience.
-        </p>
-      </div>
 
-      <div className="grid gap-12">
+      <div className="grid gap-8">
         <section className="flex flex-col gap-6 relative min-w-0">
-          <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary font-bold hidden md:flex">
+          <div className="absolute -left-12 top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary text-primary font-semibold hidden md:flex">
             1
           </div>
           <MinimalCard>
@@ -111,7 +111,18 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                 <p className="text-sm text-muted-foreground">
                   {useTextarea
                     ? "Describe your ideal customer, their pain points, and demographics."
-                    : "Answer a few quick questions so Kynd can build better personas."}
+                    : "Answer a few quick questions."}{" "}
+                  Or{" "}
+                  <button
+                    type="button"
+                    onClick={() => setUseTextarea((v) => !v)}
+                    className="text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+                  >
+                    {useTextarea
+                      ? "use the guided form instead"
+                      : "use a freeform description instead"}
+                  </button>
+                  .
                 </p>
               </div>
 
@@ -124,15 +135,8 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                     onChange={(e) => personaFlow.setCustomerProfile(e.target.value)}
                     disabled={personaFlow.isPending}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setUseTextarea(false)}
-                    className="self-start text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
-                  >
-                    Use guided form instead
-                  </button>
                   {personaCountField}
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <Button variant="link" asChild className="h-auto p-0 text-muted-foreground">
                       <Link href="/dashboard/interviews" className="inline-flex items-center gap-1">
                         Have interview transcripts? Generate from interviews
@@ -154,7 +158,6 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
               ) : (
                 <PersonaSurveyForm
                   onSubmit={handleSurveySubmit}
-                  onUseTextarea={() => setUseTextarea(true)}
                   isPending={personaFlow.isPending}
                   error={personaFlow.error}
                   beforeActions={personaCountField}

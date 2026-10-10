@@ -121,8 +121,8 @@ export function PanelChat({ responses, synthesis, personaNames, isOpen, onClose 
                 <UsersIcon className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="text-base">Ask the simulated users</DialogTitle>
-                <DialogDescription className="text-xs">
+                <DialogTitle>Ask the simulated users</DialogTitle>
+                <DialogDescription>
                   One question, synthesized across {names}
                 </DialogDescription>
               </div>
@@ -142,11 +142,11 @@ export function PanelChat({ responses, synthesis, personaNames, isOpen, onClose 
                 <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center text-xl">
                   🎯
                 </div>
-                <p className="text-sm max-w-[280px] text-balance">
+                <p className="text-base leading-relaxed max-w-sm text-balance">
                   Ask the simulated users about what they experienced — what
                   they saw, what stopped them, what they'd want changed.
                 </p>
-                <div className="flex flex-col gap-2 w-full max-w-[280px]">
+                <div className="flex flex-col gap-2 w-full max-w-sm">
                   {[
                     "We're thinking of adding a free tier — what would the simulated users think?",
                     "What stopped people from signing up?",
@@ -156,13 +156,13 @@ export function PanelChat({ responses, synthesis, personaNames, isOpen, onClose 
                     <button
                       key={suggestion}
                       onClick={() => handleSend(suggestion)}
-                      className="text-xs text-left px-3 py-2 rounded-md border border-border bg-background hover:bg-muted/40 transition-colors"
+                      className="text-sm leading-relaxed text-left px-3 py-2 rounded-md border border-border bg-background hover:bg-muted/40 transition-colors"
                     >
                       {suggestion}
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-muted-foreground/60 max-w-[280px]">
+                <p className="text-base leading-relaxed text-muted-foreground/60 max-w-sm">
                   Findings describe simulated users — hypotheses to test, not
                   proof about real users.
                 </p>
@@ -171,7 +171,7 @@ export function PanelChat({ responses, synthesis, personaNames, isOpen, onClose 
               messages.map((m, i) => (
                 <div
                   key={`${m.role}-${i}`}
-                  className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'self-end items-end' : 'self-start items-start'}`}
+                  className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'self-end items-end' : 'mt-2 self-start items-start'}`}
                 >
                   <div
                     style={{
@@ -179,13 +179,13 @@ export function PanelChat({ responses, synthesis, personaNames, isOpen, onClose 
                         ? 'var(--chat-user-bubble)'
                         : 'var(--chat-assistant-bubble)',
                     }}
-                    className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words min-w-0 max-w-full text-foreground ${
+                    className={`px-5 py-4 rounded-2xl text-base leading-relaxed break-words min-w-0 max-w-prose text-foreground ${
                       m.role === 'user' ? 'rounded-tr-sm whitespace-pre-wrap' : 'rounded-tl-sm border border-border/40'
                     }`}
                   >
                     {parseMessageContent(m.content)}
                   </div>
-                  <span className="text-[10px] text-muted-foreground mt-1.5 px-1">
+                  <span className="text-xs text-muted-foreground mt-2 px-1">
                     {m.role === 'user' ? 'You' : 'Synthesis'}
                   </span>
                 </div>
@@ -205,7 +205,7 @@ export function PanelChat({ responses, synthesis, personaNames, isOpen, onClose 
             )}
           </div>
 
-          <div className="p-4 bg-card border-t border-border/40 shrink-0">
+          <div className="px-6 py-4 bg-card border-t border-border/40 shrink-0">
             <form
               onSubmit={(e) => {
                 e.preventDefault()

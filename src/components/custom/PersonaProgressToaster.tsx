@@ -261,18 +261,18 @@ function PersonaToastContent({
         className="absolute inset-y-0 left-0 bg-primary/[0.06] transition-all duration-300 ease-out"
         style={{ width: `${progress * 100}%` }}
       />
-      <div className="relative z-10 flex items-center gap-3 p-4">
+      <div className="relative z-10 flex items-center gap-4 p-5">
         <Icon className={`h-4 w-4 shrink-0 ${iconClass}`} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+        <div className="min-w-0 flex-1 flex flex-col gap-1">
+          <p className="truncate text-base font-semibold text-foreground leading-snug">{title}</p>
           {subtext && (
-            <p className="text-xs text-muted-foreground">{subtext}</p>
+            <p className="text-sm text-muted-foreground">{subtext}</p>
           )}
         </div>
         {onView && (
           <button
             onClick={onView}
-            className="shrink-0 text-xs font-semibold text-primary underline underline-offset-4 transition-colors hover:text-primary/80"
+            className="shrink-0 text-sm font-semibold text-primary underline underline-offset-4 transition-colors hover:text-primary/80"
           >
             {label}
           </button>

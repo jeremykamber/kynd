@@ -33,10 +33,10 @@ export function Slider({
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex justify-between items-end">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        <span className="micro-label text-muted-foreground">
           {label}
         </span>
-        <span className="text-sm font-bold font-mono tabular-nums text-foreground/90">
+        <span className="text-sm font-semibold font-mono tabular-nums text-foreground">
           {showTickMarks ? `${value} / ${max}` : value}
         </span>
       </div>
@@ -94,7 +94,7 @@ export function Slider({
       </div>
 
       {(leftLabel || rightLabel) && (
-        <div className="flex justify-between text-[10px] text-muted-foreground/60 font-medium">
+        <div className="flex justify-between text-xs text-muted-foreground/70 font-medium">
           <span>{leftLabel ?? ""}</span>
           <span>{rightLabel ?? ""}</span>
         </div>

@@ -66,9 +66,10 @@ export function FlowDialog({
   // Live streamingText (e.g. a retry status) is the primary caption;
   // per-step cycling texts animate only when no streamingText is set.
   const displayText = streamingText ?? (cycledText ?? null)
-  // Sub-line telemetry only shown when main caption is from cyclingTexts
-  const showSubLine = !!currentStepTexts?.length
-  const hasTelemetry = showSubLine && (streamingText || personaName)
+  // The persona sub-line is only shown when the main caption comes from the
+  // step's cycling copy. When `streamingText` is set it *is* the caption, so a
+  // "system:" line echoing it back was pure duplication and is gone.
+  const showPersonaLine = !!currentStepTexts?.length && !!personaName
 
   React.useEffect(() => {
     setTextIndex(0)
@@ -97,20 +98,20 @@ export function FlowDialog({
           <div className="mx-4 rounded-xl border border-border bg-background overflow-hidden">
             <div className="px-8 pt-6 pb-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
+                <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
                 <button
                   onClick={() => onOpenChange(false)}
-                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+                  className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4"
                 >
                   Cancel
                 </button>
               </div>
               {description && (
-                <p className="text-sm text-muted-foreground mt-1">{description}</p>
+                <p className="text-base text-muted-foreground mt-1">{description}</p>
               )}
             </div>
             <div className="flex flex-col md:flex-row gap-8 px-8 pb-6 pt-2">
-              <div className="flex-shrink-0 w-full md:w-48">
+              <div className="flex-shrink-0 w-full md:w-56">
                 <StepIndicator steps={steps} currentStep={currentStep} />
               </div>
               <div className="flex-1 min-h-[200px] flex flex-col justify-center items-center">
@@ -122,19 +123,10 @@ export function FlowDialog({
                     >
                       {displayText}
                     </p>
-                    {hasTelemetry && (
-                      <div className="mt-1.5 space-y-0.5">
-                        {streamingText && (
-                          <p className="text-xs font-mono text-muted-foreground/60">
-                            ↳ system: {streamingText}
-                          </p>
-                        )}
-                        {personaName && (
-                          <p className="text-xs font-mono text-muted-foreground/60">
-                            ↳ persona: {personaName}
-                          </p>
-                        )}
-                      </div>
+                    {showPersonaLine && (
+                      <p className="mt-1.5 text-xs font-mono text-muted-foreground/60">
+                        ↳ persona: {personaName}
+                      </p>
                     )}
                   </div>
                 )}
@@ -165,7 +157,7 @@ export function FlowDialog({
       <DialogContent className="sm:max-w-2xl gap-8 p-8 md:p-12 border-border rounded-xl bg-background overflow-hidden">
         
         <DialogHeader className="gap-3">
-          <DialogTitle className="text-3xl font-semibold tracking-tight text-center">
+          <DialogTitle className="text-center">
             {title}
           </DialogTitle>
           {description && (
@@ -192,19 +184,10 @@ export function FlowDialog({
                 >
                   {displayText}
                 </p>
-                {hasTelemetry && (
-                  <div className="mt-1.5 space-y-0.5">
-                    {streamingText && (
-                      <p className="text-xs font-mono text-muted-foreground/60">
-                        ↳ system: {streamingText}
-                      </p>
-                    )}
-                    {personaName && (
-                      <p className="text-xs font-mono text-muted-foreground/60">
-                        ↳ persona: {personaName}
-                      </p>
-                    )}
-                  </div>
+                {showPersonaLine && (
+                  <p className="mt-1.5 text-xs font-mono text-muted-foreground/60">
+                    ↳ persona: {personaName}
+                  </p>
                 )}
               </div>
             )}

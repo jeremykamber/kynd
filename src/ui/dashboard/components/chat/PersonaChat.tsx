@@ -118,8 +118,8 @@ export function PersonaChat({ persona, isOpen, onClose, analysis = null }: Perso
                 {persona.name.substring(0, 2).toUpperCase()}
               </div>
               <div>
-                <DialogTitle className="text-base">{persona.name}</DialogTitle>
-                <DialogDescription className="text-xs">{persona.occupation}</DialogDescription>
+                <DialogTitle>{persona.name}</DialogTitle>
+                <DialogDescription>{persona.occupation}</DialogDescription>
               </div>
             </div>
           </DialogHeader>
@@ -137,7 +137,7 @@ export function PersonaChat({ persona, isOpen, onClose, analysis = null }: Perso
                 <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
                   💬
                 </div>
-                <p className="text-sm max-w-[250px] text-balance">
+                <p className="text-base leading-relaxed max-w-sm text-balance">
                   {analysis
                     ? `Ask ${persona.name} about what they just experienced — their reaction to your site, what stopped them, and what would have won them over.`
                     : `Start a conversation with ${persona.name}. Ask them about your product, pricing, or their pain points.`}
@@ -147,7 +147,7 @@ export function PersonaChat({ persona, isOpen, onClose, analysis = null }: Perso
               messages.map((m, i) => (
               <div 
                 key={`${m.role}-${i}`}
-                className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'self-end items-end' : 'self-start items-start'}`}
+                className={`flex flex-col max-w-[85%] ${m.role === 'user' ? 'self-end items-end' : 'mt-2 self-start items-start'}`}
               >
                 <div 
                   style={{
@@ -155,13 +155,13 @@ export function PersonaChat({ persona, isOpen, onClose, analysis = null }: Perso
                       ? 'var(--chat-user-bubble)' 
                       : 'var(--chat-assistant-bubble)',
                   }}
-                  className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words min-w-0 max-w-full text-foreground ${
+                  className={`px-5 py-4 rounded-2xl text-base leading-relaxed break-words min-w-0 max-w-prose text-foreground ${
                     m.role === 'user' ? 'rounded-tr-sm whitespace-pre-wrap' : 'rounded-tl-sm border border-border/40'
                   }`}
                 >
                   {parseMessageContent(m.content)}
                 </div>
-                <span className="text-[10px] text-muted-foreground mt-1.5 px-1">
+                <span className="text-xs text-muted-foreground mt-2 px-1">
                   {m.role === 'user' ? 'You' : persona.name}
                 </span>
               </div>
@@ -181,7 +181,7 @@ export function PersonaChat({ persona, isOpen, onClose, analysis = null }: Perso
           )}
         </div>
 
-        <div className="p-4 bg-card border-t border-border/40 shrink-0">
+        <div className="px-6 py-4 bg-card border-t border-border/40 shrink-0">
           <form 
             onSubmit={(e) => {
               e.preventDefault()

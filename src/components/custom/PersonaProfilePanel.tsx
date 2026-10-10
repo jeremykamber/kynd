@@ -64,11 +64,11 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
             name={persona.name}
             size="lg"
           />
-          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
             <div className="flex items-center justify-between gap-4">
-              <h3 className="font-semibold text-xl tracking-tight text-foreground break-words">{persona.name}</h3>
+              <h3 className="text-base font-semibold tracking-tight break-words">{persona.name}</h3>
             </div>
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest leading-snug break-words">{persona.occupation}</p>
+            <p className="micro-label text-muted-foreground break-words">{persona.occupation}</p>
             {persona.variantOf && (
               <div className="flex items-center gap-1.5 mt-1">
                 <GitForkIcon className="w-3 h-3 text-muted-foreground/80 shrink-0" />
@@ -81,18 +81,18 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
         </div>
 
         {(persona.goals?.length || persona.decisionStyle) && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-6">
             <div className="h-px w-full bg-border/40" />
 
             {persona.goals?.length ? (
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                <span className="micro-label text-muted-foreground/70">
                   Goals
                 </span>
-                <ul className="flex flex-col gap-1.5">
+                <ul className="flex flex-col gap-3">
                   {persona.goals.slice(0, 3).map((goal, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-[13px] leading-snug text-foreground/85">
-                      <span className="mt-[6px] size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
+                    <li key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/85">
+                      <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
                       <span>{goal}</span>
                     </li>
                   ))}
@@ -102,10 +102,10 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
 
             {persona.decisionStyle ? (
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+                <span className="micro-label text-muted-foreground/70">
                   How they decide
                 </span>
-                <p className="text-[13px] leading-relaxed text-foreground/85 line-clamp-3">
+                <p className="text-sm leading-relaxed text-foreground/85 line-clamp-3">
                   {persona.decisionStyle}
                 </p>
               </div>
@@ -113,7 +113,7 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
           </div>
         )}
 
-        <div className="mt-auto flex flex-wrap gap-2">
+        <div className="mt-auto flex flex-wrap gap-3">
           {onCreateVariant && (
             <button
               type="button"
@@ -121,7 +121,7 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
                 e.stopPropagation()
                 onCreateVariant()
               }}
-              className="flex-1 inline-flex h-10 items-center justify-center gap-1.5 rounded-md border border-border/60 bg-card px-4 text-xs font-medium text-foreground transition-colors hover:bg-muted/30 focus-visible:outline-none"
+              className="flex-1 inline-flex h-10 items-center justify-center gap-1.5 rounded-md border border-border/60 bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted/30 focus-visible:outline-none"
             >
               <CopyIcon className="w-3.5 h-3.5" />
               Create Variant
@@ -134,7 +134,7 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
                 e.stopPropagation()
                 onChatClick()
               }}
-              className="flex-1 inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90 ring-1 ring-primary/20 focus-visible:outline-none"
+              className="flex-1 inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 ring-1 ring-primary/20 focus-visible:outline-none"
             >
               Chat with {persona.name.split(' ')[0]}
             </button>
@@ -160,15 +160,15 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
 
           {usedInAnalyses.length > 0 && (
             <div className="mx-6 -mt-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <p className="text-xs text-amber-600/90 dark:text-amber-400/90 font-medium">
-                <span className="font-bold">{persona.name}</span> is used in {usedInAnalyses.length} analysis{usedInAnalyses.length > 1 ? 's' : ''}. The persona will be removed but analysis data will be preserved. Opening it from an analysis will show a "persona deleted" notice.
+              <p className="text-sm leading-relaxed text-amber-600/90 dark:text-amber-400/90">
+                <span className="font-semibold">{persona.name}</span> is used in {usedInAnalyses.length} analysis{usedInAnalyses.length > 1 ? 's' : ''}. The persona will be removed but analysis data will be preserved. Opening it from an analysis will show a "persona deleted" notice.
               </p>
             </div>
           )}
 
           {usedInAnalyses.length === 0 && (
             <div className="px-6 -mt-2">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 This persona will be permanently deleted from this batch.
               </p>
             </div>

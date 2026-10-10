@@ -33,25 +33,38 @@ export function ChatMarkdown({ content }: { content: string }) {
             {children}
           </a>
         ),
-        ul: ({ children }) => <ul className="list-disc pl-5 my-1.5 space-y-1">{children}</ul>,
-        ol: ({ children }) => <ol className="list-decimal pl-5 my-1.5 space-y-1">{children}</ol>,
+        ul: ({ children }) => <ul className="list-disc pl-5 my-2 space-y-2">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-5 my-2 space-y-2">{children}</ol>,
         li: ({ children }) => <li className="leading-relaxed">{children}</li>,
         blockquote: ({ children }) => (
-          <blockquote className="border-l-2 border-border/60 pl-3 my-1.5 text-muted-foreground">
+          <blockquote className="border-l-2 border-border/60 pl-4 my-3 leading-relaxed text-muted-foreground">
             {children}
           </blockquote>
         ),
         code: ({ children }) => (
-          <code className="rounded bg-muted px-1.5 py-0.5 text-[0.85em] font-mono">{children}</code>
+          <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono">{children}</code>
         ),
         pre: ({ children }) => (
-          <pre className="overflow-x-auto rounded-md bg-muted p-3 my-2 text-xs font-mono leading-relaxed">
+          <pre className="overflow-x-auto rounded-md bg-muted p-4 my-3 text-sm font-mono leading-relaxed">
             {children}
           </pre>
         ),
-        h1: ({ children }) => <h1 className="text-base font-bold mt-2 mb-1">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-sm font-bold mt-2 mb-1">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>,
+        // Chat headings sit one step above the body: h1/h2 are the section
+        // voice (20px), h3/h4 the title voice (16px semibold). Real margins
+        // above/below replace the old mt-2 mb-1, because paragraphs render as
+        // inline spans and the heading is the only thing creating a block break.
+        h1: ({ children }) => (
+          <h1 className="text-xl font-semibold tracking-tight leading-snug mt-4 mb-2">{children}</h1>
+        ),
+        h2: ({ children }) => (
+          <h2 className="text-xl font-semibold tracking-tight leading-snug mt-4 mb-2">{children}</h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="text-base font-semibold tracking-tight leading-snug mt-4 mb-2">{children}</h3>
+        ),
+        h4: ({ children }) => (
+          <h4 className="text-base font-semibold tracking-tight leading-snug mt-4 mb-2">{children}</h4>
+        ),
         strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
       }}
     >

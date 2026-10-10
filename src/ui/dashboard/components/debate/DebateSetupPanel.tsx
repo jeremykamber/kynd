@@ -65,11 +65,11 @@ export function DebateSetupPanel({
   return (
     <div className="bg-card border border-border rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold tracking-tight">New Debate</h2>
+        <h2 className="text-xl font-semibold tracking-tight">New Debate</h2>
         <button
           type="button"
           onClick={onCancel}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           Cancel
         </button>
@@ -84,7 +84,7 @@ export function DebateSetupPanel({
             value={proposal}
             onChange={(e) => setProposal(e.target.value)}
             placeholder="What proposal should the personas debate?"
-            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-4 py-3 text-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+            className="flex min-h-20 w-full rounded-md border border-input bg-background px-4 py-3 text-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
             rows={3}
           />
         </div>
@@ -93,7 +93,7 @@ export function DebateSetupPanel({
           <label className="text-sm font-medium text-foreground">
             Participants ({selectedPersonas.length}/5 — select 2-5)
           </label>
-          <div className="flex flex-col gap-1 max-h-[240px] overflow-y-auto custom-scrollbar">
+          <div className="flex flex-col gap-2 max-h-60 overflow-y-auto custom-scrollbar">
             {availablePersonas.map((p) => {
               const isSelected = selectedIds.has(p.id);
               return (
@@ -111,7 +111,7 @@ export function DebateSetupPanel({
                     onChange={() => togglePersona(p.id)}
                     className="rounded border-input h-4 w-4 accent-primary"
                   />
-                  <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                     <span className="font-medium truncate">{p.name}</span>
                     <span className="text-xs text-muted-foreground truncate">
                       {p.occupation}
@@ -127,7 +127,7 @@ export function DebateSetupPanel({
             })}
           </div>
           {availablePersonas.length < 2 && (
-            <p className="text-xs text-destructive">
+            <p className="text-base leading-relaxed text-destructive">
               You need at least 2 personas in your batch. Create more personas first.
             </p>
           )}
@@ -145,7 +145,7 @@ export function DebateSetupPanel({
             onChange={(e) => setTotalRounds(Number(e.target.value))}
             className="w-full accent-primary"
           />
-          <div className="flex justify-between text-xs text-muted-foreground">
+          <div className="flex justify-between text-xs text-muted-foreground font-mono tabular-nums">
             <span>1</span>
             <span>3 (recommended)</span>
             <span>5</span>

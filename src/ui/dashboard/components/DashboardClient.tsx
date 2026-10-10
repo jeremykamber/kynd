@@ -297,11 +297,11 @@ export function DashboardClient() {
                 </div>
             ) : (
                 <div className="flex flex-col gap-8 animate-in fade-in duration-500">
-                    <div className="flex items-center justify-between">
-                        <h1 className="text-2xl font-bold tracking-tight">Personas</h1>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <h1 className="text-3xl font-semibold tracking-tight">Personas</h1>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+                                <button className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
                                     <PlusIcon className="h-3.5 w-3.5" />
                                     New Batch
                                     <ChevronDownIcon className="h-3 w-3 opacity-60" />
@@ -369,7 +369,7 @@ export function DashboardClient() {
                                                     className="mt-1 w-fit"
                                                 />
                                             </div>
-                                            <span className="text-xs text-muted-foreground shrink-0">
+                                            <span className="text-xs text-muted-foreground shrink-0 font-mono tabular-nums">
                                                 {batchTimestamp(batch.createdAt)}
                                             </span>
                                         </div>
@@ -402,7 +402,7 @@ export function DashboardClient() {
                                                         : 'from description'}
                                                 </span>
                                             </div>
-                                            <span className="text-xs text-muted-foreground shrink-0">
+                                            <span className="text-xs text-muted-foreground shrink-0 font-mono tabular-nums">
                                                 {batchTimestamp(batch.createdAt)}
                                             </span>
                                         </div>
@@ -430,9 +430,9 @@ export function DashboardClient() {
                                 <ArrowLeftIcon className="h-4 w-4" />
                                 All personas
                             </button>
-                            <div className="flex flex-col gap-1 min-w-0 border-b border-border/40 pb-4">
+                            <div className="flex flex-col gap-2 min-w-0 border-b border-border/40 pb-4">
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <h2 className="text-xl font-bold tracking-tight min-w-0">
+                                    <h2 className="text-xl font-semibold tracking-tight min-w-0">
                                         <InlineRenamable
                                             value={activeBatch.label}
                                             onRename={(label) => updateBatchLabel(activeBatch.id, label)}
@@ -441,7 +441,7 @@ export function DashboardClient() {
                                     {batchAnalysisCount > 0 && (
                                         <Link
                                             href="/dashboard/analyses"
-                                            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                                            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-sm font-medium tabular-nums text-primary transition-colors hover:bg-primary/20"
                                         >
                                             <PlayIcon className="h-3 w-3" />
                                             {batchAnalysisCount} analysis{batchAnalysisCount !== 1 ? 's' : ''}
@@ -484,7 +484,7 @@ export function DashboardClient() {
             {showSetupView && personaFlow.personaProgress && !showExpandedFlow && (
               <button
                 onClick={() => setShowExpandedFlow(true)}
-                className="fixed bottom-6 right-6 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-xs font-semibold shadow-lg transition-colors hover:bg-accent"
+                className="fixed bottom-6 right-6 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium shadow-lg transition-colors hover:bg-accent"
               >
                 <LayersIcon className="h-3.5 w-3.5" />
                 Show Progress
@@ -608,7 +608,7 @@ export function DashboardClient() {
                                                     )}
                                                 </div>
                                                 <span
-                                                    className={`text-xs max-w-[72px] truncate text-center ${isCompletePhase ? 'text-foreground' : 'text-muted-foreground'
+                                                    className={`text-xs max-w-18 truncate text-center ${isCompletePhase ? 'text-foreground' : 'text-muted-foreground'
                                                         }`}
                                                 >
                                                     {p.name.split(' ')[0]}

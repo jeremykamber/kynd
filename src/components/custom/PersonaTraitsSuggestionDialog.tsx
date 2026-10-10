@@ -45,7 +45,7 @@ function DiffToggle({ selected, onSelect, label }: { selected: boolean; onSelect
       type="button"
       onClick={onSelect}
       className={cn(
-        "text-xs font-medium px-2 py-0.5 rounded-sm transition-all duration-150",
+        "text-sm font-medium px-2 py-0.5 rounded-sm transition-all duration-150",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         selected
           ? "bg-primary/10 text-primary"
@@ -68,26 +68,26 @@ function DiffRow({ label, suggested, original, apply, onToggle }: {
   if (!isDifferent) {
     return (
       <div className="flex items-center justify-between py-1.5 px-2 rounded-sm hover:bg-muted/20 transition-colors">
-          <span className="text-xs text-muted-foreground/80">{label}</span>
-        <span className="text-xs text-foreground">{suggested}</span>
+          <span className="micro-label text-muted-foreground/70">{label}</span>
+        <span className="text-sm text-foreground">{suggested}</span>
       </div>
     )
   }
 
   return (
     <div className="flex items-center justify-between py-1.5 px-2 rounded-sm hover:bg-muted/20 transition-colors group">
-      <span className="text-xs text-muted-foreground/80 min-w-[100px]">{label}</span>
+      <span className="micro-label text-muted-foreground/70 min-w-25">{label}</span>
       <div className="flex items-center gap-3 flex-1 justify-end">
         <div className="flex flex-col items-end gap-0.5 min-w-0">
           <span className={cn(
-            "text-xs leading-tight transition-all duration-150",
-            apply ? "text-primary font-bold" : "line-through text-muted-foreground/40",
+            "text-sm leading-tight transition-all duration-150",
+            apply ? "text-primary font-semibold" : "line-through text-muted-foreground/40",
           )}>
             {suggested}
           </span>
           <span className={cn(
-            "text-xs leading-tight transition-all duration-150",
-            apply ? "line-through text-muted-foreground/40" : "text-foreground font-bold",
+            "text-sm leading-tight transition-all duration-150",
+            apply ? "line-through text-muted-foreground/40" : "text-foreground font-semibold",
           )}>
             {original}
           </span>
@@ -168,12 +168,12 @@ export function PersonaTraitsSuggestionDialog({
               <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
                 <LoaderIcon className="w-4 h-4 text-primary animate-spin" />
               </div>
-              <h2 className="text-sm font-semibold tracking-tight">Analyzing backstory...</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Analyzing backstory...</h2>
             </div>
           </div>
           <div className="p-10 flex flex-col items-center gap-4">
             <LoaderIcon className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground/80">Inferring personality traits from the updated backstory...</p>
+            <p className="text-base leading-relaxed text-muted-foreground/80">Inferring personality traits from the updated backstory...</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -208,12 +208,12 @@ export function PersonaTraitsSuggestionDialog({
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
               <SparklesIcon className="w-4 h-4 text-primary" />
             </div>
-            <h2 className="text-sm font-semibold tracking-tight">Traits Inferred from Backstory</h2>
+            <h2 className="text-xl font-semibold tracking-tight">Traits Inferred from Backstory</h2>
           </div>
         </div>
 
-        <div className="p-5 flex flex-col gap-5">
-          <p className="text-xs text-muted-foreground leading-relaxed">
+        <div className="p-5 flex flex-col gap-6">
+          <p className="text-base text-muted-foreground leading-relaxed">
             We analyzed the updated backstory and inferred new values. Hover each row to choose Apply or Keep original.
           </p>
 
@@ -221,21 +221,21 @@ export function PersonaTraitsSuggestionDialog({
             <button
               type="button"
               onClick={() => setAll(false)}
-              className="text-xs font-medium text-muted-foreground/80 hover:text-foreground transition-colors px-2 py-1"
+              className="text-sm font-medium text-muted-foreground/80 hover:text-foreground transition-colors px-2 py-1"
             >
               Reject all
             </button>
             <button
               type="button"
               onClick={() => setAll(true)}
-              className="text-xs font-medium text-muted-foreground/80 hover:text-foreground transition-colors px-2 py-1"
+              className="text-sm font-medium text-muted-foreground/80 hover:text-foreground transition-colors px-2 py-1"
             >
               Accept all
             </button>
           </div>
 
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-card border border-border">
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-2">Personality Traits (OCEAN)</h3>
+            <h3 className="micro-label text-muted-foreground/70 mb-2 px-2">Personality Traits (OCEAN)</h3>
             {oceanRows.map((row) => (
               <DiffRow
                 key={row.key}
@@ -249,7 +249,7 @@ export function PersonaTraitsSuggestionDialog({
           </div>
 
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-card border border-border">
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 px-2">Psychographics</h3>
+            <h3 className="micro-label text-muted-foreground/70 mb-2 px-2">Psychographics</h3>
             {psychoRows.map((row) => (
               <DiffRow
                 key={row.key}
@@ -266,7 +266,7 @@ export function PersonaTraitsSuggestionDialog({
             <button
               type="button"
               onClick={handleKeepOriginals}
-              className="flex-1 inline-flex h-10 items-center justify-center rounded-md border border-border/60 bg-card px-4 text-xs font-medium text-foreground transition-colors hover:bg-muted/30"
+              className="flex-1 inline-flex h-10 items-center justify-center rounded-md border border-border/60 bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted/30"
             >
               Keep originals
             </button>
@@ -274,7 +274,7 @@ export function PersonaTraitsSuggestionDialog({
               type="button"
               onClick={handleApply}
               disabled={!anyApplied}
-              className="flex-1 inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90 ring-1 ring-primary/20 gap-2 disabled:opacity-50"
+              className="flex-1 inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 ring-1 ring-primary/20 gap-2 disabled:opacity-50"
             >
               <SparklesIcon className="w-3.5 h-3.5" />
               Apply selections
