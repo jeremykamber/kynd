@@ -18,7 +18,8 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { ArtifactAnalysis, AnalysisStatus } from '@/domain/entities/ArtifactAnalysis'
-import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
+import { completedResponses, type PersonaResponse } from '@/domain/entities/PersonaResponse'
+import { humanizeAnalysisError } from '@/lib/analysisError'
 import type { ArtifactSynthesis } from '@/domain/entities/ArtifactSynthesis'
 import { indexedDBStorage } from '@/infrastructure/services/indexedDBStorage'
 
@@ -82,7 +83,11 @@ export const useAnalysisStore = create<AnalysisStoreState>()(
                   ...a,
                   status: 'COMPLETED' as AnalysisStatus,
                   completedAt: new Date().toISOString(),
-                  completedResponses: responses.length,
+                  // Both counts come from the same predicate the report and the
+                  // synthesis use, so a run with failed personas cannot show a
+                  // full denominator next to a report that has gaps in it.
+                  completedResponses: completedResponses(responses).length,
+                  totalResponses: responses.length,
                   responses,
                   // `undefined` leaves any existing synthesis untouched.
                   ...(synthesis !== undefined ? { synthesis: synthesis ?? undefined } : {}),
@@ -99,7 +104,11 @@ export const useAnalysisStore = create<AnalysisStoreState>()(
                   ...a,
                   status: 'ERROR' as AnalysisStatus,
                   completedAt: new Date().toISOString(),
-                  error,
+                  // Last boundary before error text becomes display state: it
+                  // may have been written by this app, or arrive from a
+                  // backend build we do not control, and engine text must not
+                  // reach the screen either way.
+                  error: humanizeAnalysisError(error),
                 }
               : a
           ),

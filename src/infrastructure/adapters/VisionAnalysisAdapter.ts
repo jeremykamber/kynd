@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysisSchema } from "@/domain/entities/PricingAnalysis";
 import { PersonaResponseSchema } from "@/domain/entities/PersonaResponse";
+import { cleanLlmText } from "@/domain/entities/PersonaResponse";
 import type { ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { CohortSynthesisContent } from "@/domain/entities/ArtifactSynthesis";
@@ -89,6 +90,13 @@ RULES:
 }
 
 /**
+ * Every free-text field of the synthesis schemas. One schema instance, so the
+ * control-character strip (shared with the persona-response schema) is applied
+ * identically wherever model prose enters the domain.
+ */
+const text = z.string().transform(cleanLlmText);
+
+/**
  * Wire schema for the single cohort-synthesis LLM call. Evidence anchors ride
  * on each finding (one call instead of two — locators must be chosen by the
  * same pass that forms the finding); the model never emits counts of the run
@@ -108,8 +116,8 @@ const EvidenceLocatorSchema = z.object({
 
 
 const CohortSynthesisSchema = z.object({
-  overview: z.string(),
-  researchQuestionAnswer: z.string(),
+  overview: text,
+  researchQuestionAnswer: text,
   // Models occasionally emit one finding object instead of an array, or nest
   // the array under another key; normalize both instead of failing the whole
   // synthesis over presentation drift.
@@ -126,9 +134,9 @@ const CohortSynthesisSchema = z.object({
     return [];
   }, z.array(
     z.object({
-      observation: z.string(),
-      evidence: z.string(),
-      impact: z.string(),
+      observation: text,
+      evidence: text,
+      impact: text,
       confidence: z.enum(["strongly supported", "some support", "weakly supported"]),
       affectedPersonaCount: z.number().int().min(0),
       totalPersonaCount: z.number().int().min(0),
@@ -137,10 +145,10 @@ const CohortSynthesisSchema = z.object({
   )),
   disagreements: z.array(
     z.object({
-      topic: z.string(),
+      topic: text,
       split: z.array(
         z.object({
-          view: z.string(),
+          view: text,
           personaCount: z.number().int().min(0),
         }),
       ),
@@ -153,7 +161,7 @@ const CohortSynthesisSchema = z.object({
   // the prompt; coerce any object entry to its friction string instead of
   // failing the whole synthesis over presentation drift.
   biggestFrictions: z.array(
-    z.union([z.string(), z.record(z.string(), z.unknown())])
+    z.union([text, z.record(z.string(), z.unknown())])
       .transform((v) => {
         if (typeof v === 'string') return v;
         const obj = v as Record<string, unknown>;

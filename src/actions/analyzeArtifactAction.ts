@@ -4,7 +4,8 @@ import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUs
 import { ArtifactIntakeAdapter, type ArtifactInput } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
-import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
+import { completedResponses, responseCounts } from "@/domain/entities/PersonaResponse";
+import { humanizeAnalysisError } from "@/lib/analysisError";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { cancellationManager } from "@/infrastructure/RequestCancellationManager";
@@ -128,17 +129,17 @@ async function runLocally(
             if (!abortSignal.aborted) {
                 // Generate cross-persona synthesis
                 let synthesis: ArtifactSynthesis | null = null;
-                const completedResponses = responses.filter(r => r.overview && r.customerJourney.length > 0);
-                const failedCount = responses.length - completedResponses.length;
+                const completed = completedResponses(responses);
+                const counts = responseCounts(responses);
 
                 try {
-                    if (completedResponses.length === 0) {
+                    if (completed.length === 0) {
                         log.warn("analyzeArtifactAction", "No completed responses — skipping synthesis");
                     } else {
                         synthesis = await new SynthesizeArtifactResultsUseCase(llmService).execute(
-                            completedResponses,
+                            completed,
                             researchQuestion,
-                            { runId: id, failedCount, totalPersonaCount: responses.length },
+                            { runId: id, failedCount: counts.failed, totalPersonaCount: counts.total },
                         );
                     }
                 } catch (synthErr) {
@@ -164,11 +165,14 @@ async function runLocally(
                 analysisResultStore.saveError(id, 'Request was cancelled');
                 try { stream.done({ step: "CANCELLED", requestId: id }); } catch {}
             } else {
-                const errMsg = (error as Error).message;
-                log.error("analyzeArtifactAction", "Error analyzing artifact", { error: errMsg });
-                analysisResultStore.saveError(id, errMsg);
-                storeProgress(id, { error: errMsg });
-                try { stream.done({ step: "ERROR", error: errMsg, requestId: id }); } catch {}
+                // The engine's text is the diagnostic record: log it, and store
+                // and stream the user-facing sentence it translates to.
+                const rawMessage = (error as Error).message;
+                const message = humanizeAnalysisError(rawMessage);
+                log.error("analyzeArtifactAction", "Error analyzing artifact", { error: rawMessage });
+                analysisResultStore.saveError(id, message);
+                storeProgress(id, { error: message });
+                try { stream.done({ step: "ERROR", error: message, requestId: id }); } catch {}
             }
         } finally {
             log.info("analyzeArtifactAction", `=== ACTION END (${Date.now() - actionStartTime}ms) ===`);

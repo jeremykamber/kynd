@@ -110,9 +110,30 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
 
     expect(responses).toHaveLength(1)
     const failed = responses[0]
+    // The failure is modelled, not dressed up as a report: the engine's text
+    // stays in rawAnalysis, and nothing else pretends a journey happened.
+    expect(failed.outcome).toBe('failed')
     expect(failed.rawAnalysis).toBe('Analysis failed: vlm down')
-    expect(failed.customerJourney).toHaveLength(5)
-    expect(failed.pointsOfFriction).toContain('vlm down')
+    expect(failed.failureMessage).toBeTruthy()
+    expect(failed.overview).toBe('')
+    expect(failed.customerJourney).toEqual([])
+    expect(failed.majorFindings).toEqual([])
+    expect(failed.researchQuestionAnswer).toBe('')
+    // Identity survives the failure: the card still says whose run it was.
+    expect(failed.personaProfile?.name).toBe('Ada')
+  })
+
+  it('marks a completed persona response as completed', async () => {
+    const useCase = makeUseCase(llm)
+    const responses = await useCase.execute(
+      { type: 'url', url: 'https://x.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(responses[0].outcome).toBe('completed')
+    expect(responses[0].failureMessage).toBeUndefined()
   })
 
   it('falls back to a shape-valid response when extraction fails after the monologue succeeded', async () => {

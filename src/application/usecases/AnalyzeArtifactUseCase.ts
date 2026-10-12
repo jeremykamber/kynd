@@ -1,9 +1,11 @@
 import type { Persona } from "@/domain/entities/Persona";
+import type { PersonaProfile } from "@/domain/entities/PersonaProfile";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import { validatePersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import { AnalysisProgressStep } from "@/domain/entities/ArtifactAnalysis";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
+import { humanizeAnalysisError } from "@/lib/analysisError";
 
 import { ArtifactIntakeAdapter, type ArtifactInput, type IntakeProgress } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -42,6 +44,30 @@ export function artifactNameFrom(url: string | undefined): string | null {
 }
 
 /**
+ * Display projection of a Persona for a stored response. Built for completed
+ * and failed responses alike: a card whose persona is unnamed ("Persona 3")
+ * loses the identity the run was about, which is the one fact a failure still
+ * has.
+ */
+function personaProfileOf(persona: Persona): PersonaProfile {
+  return {
+    name: persona.name,
+    occupation: persona.occupation,
+    bigFive: {
+      conscientiousness: persona.conscientiousness,
+      neuroticism: persona.neuroticism,
+      openness: persona.openness,
+      extraversion: persona.extraversion,
+      agreeableness: persona.agreeableness,
+    },
+    values: persona.values ? [...persona.values] : [],
+    fears: persona.fears ? [...persona.fears] : [],
+    communicationStyle: persona.communicationStyle ?? "",
+    decisionStyle: persona.decisionStyle ?? "",
+  };
+}
+
+/**
  * Analyzes one captured artifact through the eyes of each supplied persona.
  *
  * The artifact is captured once by the intake adapter; each persona then runs
@@ -50,9 +76,10 @@ export function artifactNameFrom(url: string | undefined): string | null {
  * runs.
  *
  * Guarantees: given at least one persona, the returned array holds one entry
- * per persona. A persona whose pipeline fails yields a degraded
- * "Analysis failed" response rather than rejecting the run; the call rejects
- * only on intake failure, abort, or failure of every persona.
+ * per persona. A persona whose pipeline fails yields a response marked
+ * `outcome: "failed"` (no report, a user-facing `failureMessage`) rather than
+ * rejecting the run; the call rejects only on intake failure, abort, or
+ * failure of every persona.
  */
 export class AnalyzeArtifactUseCase {
   constructor(
@@ -242,22 +269,9 @@ export class AnalyzeArtifactUseCase {
               majorFindings: response.majorFindings,
               pointsOfFriction: response.pointsOfFriction,
               unansweredQuestions: response.unansweredQuestions,
-              personaProfile: {
-                name: persona.name,
-                occupation: persona.occupation,
-                bigFive: {
-                  conscientiousness: persona.conscientiousness,
-                  neuroticism: persona.neuroticism,
-                  openness: persona.openness,
-                  extraversion: persona.extraversion,
-                  agreeableness: persona.agreeableness,
-                },
-                values: persona.values ? [...persona.values] : [],
-                fears: persona.fears ? [...persona.fears] : [],
-                communicationStyle: persona.communicationStyle ?? "",
-                decisionStyle: persona.decisionStyle ?? "",
-              },
+              personaProfile: personaProfileOf(persona),
               personaId: persona.id,
+              outcome: "completed",
             };
 
             if (!validatePersonaResponse(fullResponse)) {
@@ -284,23 +298,26 @@ export class AnalyzeArtifactUseCase {
               completedCount: finishedCount,
             });
 
+            // A failed persona is stored as a failure, not as a plausible-looking
+            // report: no journey, no findings, no answer. Anything else makes the
+            // header count, the list card and the report disagree about whether
+            // this persona produced results. The engine's message goes to the log
+            // field and to the run log; the user reads `failureMessage`.
             return {
               id: `${persona.name.replace(/[\s-]+/g, "_")}-${Date.now()}`,
               screenshotBase64: intake.screenshotBase64,
               rawAnalysis: `Analysis failed: ${errMsg}`,
-              overview: "Analysis could not be completed.",
-              customerJourney: [
-                { stage: "interpretation", description: `Analysis failed: ${errMsg}`, sentiment: "negative", outcome: "stopped" },
-                { stage: "understanding", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-                { stage: "belief", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-                { stage: "motivation", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-                { stage: "action", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-              ],
-              researchQuestionAnswer: "Analysis failed — no answer available.",
+              outcome: "failed",
+              failureMessage: humanizeAnalysisError(errMsg),
+              overview: "",
+              customerJourney: [],
+              researchQuestionAnswer: "",
               majorFindings: [],
-              pointsOfFriction: [errMsg],
+              pointsOfFriction: [],
               unansweredQuestions: [],
-            } as PersonaResponse;
+              personaProfile: personaProfileOf(persona),
+              personaId: persona.id,
+            } satisfies PersonaResponse;
           }
         }),
       ),

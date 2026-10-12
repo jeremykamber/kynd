@@ -16,12 +16,14 @@ import { toast } from 'sonner'
 import { exportAnalysisAsPdf } from '@/lib/exportPdf'
 import type { Persona } from '@/domain/entities/Persona'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
+import { completedResponses, isCompletedResponse, responseCounts } from '@/domain/entities/PersonaResponse'
 import type { MajorFinding } from '@/domain/entities/MajorFinding'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
 import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import type { StageJourney, StageOutcome } from '@/domain/entities/StageJourney'
 import { cn } from '@/lib/utils'
+import { ANALYSIS_ERROR_COPY, humanizeAnalysisError } from '@/lib/analysisError'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
 import { PersonaChat } from '@/ui/dashboard/components/chat/PersonaChat'
@@ -47,11 +49,23 @@ const ANALYSIS_STEPS = [
   { title: 'Analyzing', description: 'Simulating persona responses' },
 ]
 
-/** Micro-label above a content group, per the design system. */
-const SECTION_LABEL = 'micro-label text-muted-foreground/70'
-
 /** Top-level report region heading (DESIGN.md → Typography: Section). */
 const SECTION_HEADING = 'text-xl font-semibold'
+
+/**
+ * The report's one prose measure. It stays on each paragraph rather than on a
+ * wrapper: `ch` resolves against the element's own font, so only the paragraph
+ * measures the measure it is set in — a capped wrapper would hand every
+ * paragraph its own text's width back and restore the 1300px line (DESIGN.md →
+ * Typography: body text is read in prose widths).
+ */
+const PROSE_MEASURE = 'max-w-prose'
+
+/**
+ * Jump-link offset: a section starts below the floating primary nav and this
+ * report's own section nav, so an anchor must not scroll under them.
+ */
+const SECTION_ANCHOR = 'scroll-mt-6 lg:scroll-mt-40'
 
 function getCurrentStep(step?: string): number {
   if (!step || step === 'STARTING') return 0
@@ -152,7 +166,7 @@ function JourneyPath({ journey }: { journey: StageJourney[] }) {
               )}
             </div>
             <div className={cn('flex flex-col gap-0.5', !isLast && 'pb-4')}>
-              <span className="micro-label text-foreground/80">
+              <span className="micro-label text-foreground">
                 {stage.stage}
               </span>
               {isTerminal && (
@@ -160,7 +174,7 @@ function JourneyPath({ journey }: { journey: StageJourney[] }) {
                   {meta.label}
                 </span>
               )}
-              <span className="text-sm leading-snug text-muted-foreground">
+              <span className={cn('text-sm leading-snug text-muted-foreground', PROSE_MEASURE)}>
                 {isReached ? stage.description : 'Not reached'}
               </span>
             </div>
@@ -168,6 +182,31 @@ function JourneyPath({ journey }: { journey: StageJourney[] }) {
         )
       })}
     </ol>
+  )
+}
+
+/**
+ * In-page nav for the completed report: a ~5900px scroll with five landmarks.
+ * Segmented control styling from DESIGN.md → Navigation, sticky from `lg` up
+ * (above `lg` the primary nav is a bottom bar, so there is nothing to clear and
+ * the strip scrolls with the page). Opaque surface: content passes beneath it.
+ */
+function ReportSectionNav({ sections }: { sections: { id: string; label: string }[] }) {
+  return (
+    <nav aria-label="Report sections" className="z-30 lg:sticky lg:top-20">
+      <ul className="flex gap-1 overflow-x-auto rounded-md border border-border/60 bg-card p-1">
+        {sections.map((section) => (
+          <li key={section.id}>
+            <a
+              href={`#${section.id}`}
+              className="block whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+            >
+              {section.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   )
 }
 
@@ -354,9 +393,6 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
               </>
             )}
           </p>
-          {analysis.error && (
-            <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md mt-2">{analysis.error}</p>
-          )}
         </div>
 
         {analysis.status === 'COMPLETED' && (
@@ -383,24 +419,81 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
       ) : analysis.status === 'COMPLETED' ? (
         <CompletedView analysis={analysis} onRemove={() => removeAnalysis(id)} />
       ) : (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-muted-foreground">Analysis was {analysis.status.toLowerCase()}.</p>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-          >
-            Run New Analysis
-          </button>
-          {analysis.status === 'ERROR' && (
-            <FeedbackButton
-              label="Report this error"
-              defaultMessage={analysis.error ?? ''}
-              context={{ error: analysis.error, runId: analysis.id }}
-              variant="outline"
-              className="mt-3"
-            />
-          )}
-        </div>
+        <TerminalState
+          status={analysis.status}
+          error={analysis.error}
+          runId={analysis.id}
+          onRetry={() => router.push('/dashboard/analyses?new=1')}
+          onBack={() => router.push('/dashboard/analyses')}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * The end of a run that produced nothing: a failure or a cancellation. The
+ * message is the human one from `analysis.error` (or the cancelled copy when
+ * there is no error text), never the engine's own log line, and both exits —
+ * retry, or back to the list — are one click away.
+ */
+function TerminalState({
+  status,
+  error,
+  runId,
+  onRetry,
+  onBack,
+}: {
+  status: 'ERROR' | 'CANCELLED'
+  error?: string
+  runId: string
+  onRetry: () => void
+  onBack: () => void
+}) {
+  const failed = status === 'ERROR'
+
+  return (
+    <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card px-6 py-16 text-center">
+      <div
+        className={cn(
+          'mb-4 flex h-12 w-12 items-center justify-center rounded-full',
+          failed ? 'bg-destructive/10' : 'bg-muted/30',
+        )}
+      >
+        {failed ? (
+          <AlertTriangleIcon className="h-6 w-6 text-destructive" />
+        ) : (
+          <XCircleIcon className="h-6 w-6 text-muted-foreground" />
+        )}
+      </div>
+      <h2 className="mb-2 text-xl font-semibold tracking-tight">
+        {failed ? 'The analysis failed' : 'The analysis was cancelled'}
+      </h2>
+      <p className={cn('text-base leading-relaxed text-muted-foreground', PROSE_MEASURE)}>
+        {failed ? humanizeAnalysisError(error) : ANALYSIS_ERROR_COPY.cancelled}
+      </p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <button
+          onClick={onRetry}
+          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Retry analysis
+        </button>
+        <button
+          onClick={onBack}
+          className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-background px-6 text-sm font-medium text-foreground transition-colors hover:bg-muted/40"
+        >
+          Back to Analyses
+        </button>
+      </div>
+      {failed && (
+        <FeedbackButton
+          label="Report this error"
+          defaultMessage={error ?? ''}
+          context={{ error, runId }}
+          variant="outline"
+          className="mt-4"
+        />
       )}
     </div>
   )
@@ -498,7 +591,7 @@ function PersonaIdentityCard({ profile }: { profile: PersonaProfile }) {
         .filter((group) => group.items.length > 0)
         .map((group) => (
           <div key={group.label} className="flex flex-col gap-2">
-            <span className="micro-label text-muted-foreground/70">
+            <span className="micro-label text-muted-foreground">
               {group.label}
             </span>
             <ul className="flex flex-col gap-2">
@@ -513,14 +606,14 @@ function PersonaIdentityCard({ profile }: { profile: PersonaProfile }) {
         ))}
 
       <div className="flex flex-col gap-2">
-        <span className="micro-label text-muted-foreground/70">
+        <span className="micro-label text-muted-foreground">
           Communication
         </span>
         <span className="text-sm leading-relaxed text-foreground/80">{profile.communicationStyle}</span>
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="micro-label text-muted-foreground/70">
+        <span className="micro-label text-muted-foreground">
           Decision style
         </span>
         <span className="text-sm leading-relaxed text-foreground/80">{profile.decisionStyle}</span>
@@ -572,7 +665,14 @@ function CompletedView({
   onRemove: () => void
 }) {
   const analyses = analysis.responses as PersonaResponse[] | undefined
-  const [expandedPersonas, setExpandedPersonas] = useState<Set<number>>(new Set())
+  // Failure is read from the response itself, so the header count, the list
+  // card and the per-persona sections cannot disagree about the same run.
+  const counts = responseCounts(analyses ?? [])
+  // A failed persona opens by default: the reason it failed is the only thing
+  // its card has to say, and collapsing it would hide that behind a click.
+  const [expandedPersonas, setExpandedPersonas] = useState<Set<number>>(
+    () => new Set((analyses ?? []).flatMap((response, index) => (isCompletedResponse(response) ? [] : [index])))
+  )
   const [chatTarget, setChatTarget] = useState<{ persona: Persona; analysis: PersonaResponse } | null>(null)
   const [isPanelChatOpen, setIsPanelChatOpen] = useState(false)
   // Think-aloud drawer state: which persona's transcript is open, and which
@@ -601,6 +701,15 @@ function CompletedView({
     [analyses, batches, analysis?.batchId]
   )
 
+  // The report is a long scroll; the nav only offers sections that are
+  // actually rendered (an empty cohort section is hidden below).
+  const sections: { id: string; label: string }[] = []
+  if (synthesis?.researchQuestionAnswer) sections.push({ id: 'answer', label: 'Answer' })
+  if (synthesis && synthesis.topFindings.length > 0) sections.push({ id: 'findings', label: 'Findings' })
+  if (synthesis && synthesis.disagreements.length > 0) sections.push({ id: 'disagreements', label: 'Disagreements' })
+  if (synthesis && synthesis.biggestFrictions.length > 0) sections.push({ id: 'frictions', label: 'Frictions' })
+  sections.push({ id: 'personas', label: 'Persona reports' })
+
   const togglePersona = (index: number) => {
     setExpandedPersonas(prev => {
       const next = new Set(prev)
@@ -623,19 +732,21 @@ function CompletedView({
       {/* What Kynd is, then the one qualification the findings need — both
           before the reader forms an expectation of the numbers below. */}
       <div className="flex flex-col gap-3">
-        <p className="max-w-prose text-base leading-relaxed text-foreground/80">{REPORT_INTRO}</p>
-        <p className="max-w-prose text-base leading-relaxed text-muted-foreground">{REPORT_DISCLAIMER}</p>
+        <p className={cn('text-base leading-relaxed text-foreground/80', PROSE_MEASURE)}>{REPORT_INTRO}</p>
+        <p className={cn('text-base leading-relaxed text-muted-foreground', PROSE_MEASURE)}>{REPORT_DISCLAIMER}</p>
       </div>
+
+      <ReportSectionNav sections={sections} />
 
       {/* ── Executive Synthesis ─────────────────────────────── */}
       {synthesis && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
-              <span className="font-mono tabular-nums text-foreground/80">{synthesis.completedCount}</span> of{' '}
-              <span className="font-mono tabular-nums text-foreground/80">{synthesis.totalPersonaCount}</span> personas completed
-              {synthesis.failedCount > 0 && (
-                <span className="text-destructive"> · {synthesis.failedCount} failed</span>
+              <span className="font-mono tabular-nums text-foreground/80">{counts.completed}</span> of{' '}
+              <span className="font-mono tabular-nums text-foreground/80">{counts.total}</span> personas completed
+              {counts.failed > 0 && (
+                <span className="text-destructive"> · {counts.failed} failed</span>
               )}
             </p>
             <button
@@ -650,39 +761,35 @@ function CompletedView({
           {synthesis.researchQuestionAnswer && (
             /*
               The panel shrinks to the answer rather than the answer filling the
-              panel. Capping only the paragraph left the panel full width with
-              the text in half of it.
-
-              The cap stays on the paragraph: `ch` resolves against the
-              element's own font, so the paragraph is the only node that
-              measures the answer's own limit (DESIGN.md → Typography: report
-              body text is measured in prose widths).
+              panel: a full-width panel with the text in half of it read as a
+              mistake. The measure still sits on the paragraph itself, because
+              `ch` resolves against the element's own font (see PROSE_MEASURE).
             */
-            <div className="w-fit rounded-lg border border-primary/10 bg-primary/5 p-5">
-              <span className="micro-label mb-2 block text-primary">The answer</span>
-              <p className="max-w-prose text-base leading-relaxed text-foreground/90">{synthesis.researchQuestionAnswer}</p>
+            <div id="answer" className={cn('w-fit rounded-lg border border-primary/10 bg-primary/5 p-5', SECTION_ANCHOR)}>
+              <h3 className={cn(SECTION_HEADING, 'mb-3 text-primary')}>The answer</h3>
+              <p className={cn('text-base leading-relaxed text-foreground/90', PROSE_MEASURE)}>{synthesis.researchQuestionAnswer}</p>
             </div>
           )}
 
           {synthesis.topFindings.length > 0 && (
-            <section className="flex flex-col gap-4">
+            <section id="findings" className={cn('flex flex-col gap-4', SECTION_ANCHOR)}>
               <h3 className={SECTION_HEADING}>Top findings</h3>
               {synthesis.topFindings.slice(0, 5).map((finding, i) => (
                 <div key={i} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-base font-semibold leading-snug text-foreground">{finding.observation}</p>
+                    <p className={cn('text-base font-semibold leading-snug text-foreground', PROSE_MEASURE)}>{finding.observation}</p>
                     <span className="micro-label shrink-0 text-muted-foreground">
                       {finding.confidence}
                     </span>
                   </div>
-                  <p className="max-w-prose text-base leading-relaxed text-muted-foreground">{finding.impact}</p>
+                  <p className={cn('text-base leading-relaxed text-muted-foreground', PROSE_MEASURE)}>{finding.impact}</p>
                   <details className="group/f">
                     <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
                       <ChevronRightIcon className="h-3 w-3 transition-transform group-open/f:rotate-90" />
                       Evidence and citations
                     </summary>
                     <div className="mt-3 flex flex-col gap-3">
-                      <p className="max-w-prose rounded-md bg-muted/40 px-3 py-3 text-base italic leading-loose text-muted-foreground">
+                      <p className={cn('rounded-md bg-muted/40 px-3 py-3 text-base italic leading-loose text-muted-foreground', PROSE_MEASURE)}>
                         {finding.evidence}
                       </p>
                       {citationsOf(finding).length > 0 && (
@@ -721,13 +828,13 @@ function CompletedView({
           )}
 
           {synthesis.disagreements.length > 0 && (
-            <section className="flex flex-col gap-4">
+            <section id="disagreements" className={cn('flex flex-col gap-4', SECTION_ANCHOR)}>
               <h3 className={SECTION_HEADING}>Where personas split</h3>
               {synthesis.disagreements.map((d, i) => {
                 const total = d.split.reduce((sum, s) => sum + s.personaCount, 0) || 1
                 return (
                   <div key={i} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
-                    <p className="text-base font-semibold text-foreground">{d.topic}</p>
+                    <p className={cn('text-base font-semibold text-foreground', PROSE_MEASURE)}>{d.topic}</p>
                     <div className="flex flex-col gap-4">
                       {d.split.map((side, j) => (
                         <div key={j} className="flex flex-col gap-2">
@@ -753,7 +860,7 @@ function CompletedView({
           )}
 
           {synthesis.biggestFrictions.length > 0 && (
-            <section className="flex flex-col gap-4">
+            <section id="frictions" className={cn('flex flex-col gap-4', SECTION_ANCHOR)}>
               <h3 className={SECTION_HEADING}>Biggest friction points</h3>
               <ul className="flex flex-col gap-3">
                 {synthesis.biggestFrictions.slice(0, 3).map((f, i) => (
@@ -761,7 +868,7 @@ function CompletedView({
                     <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-warning-foreground/10 font-mono text-xs tabular-nums text-warning-foreground">
                       {i + 1}
                     </span>
-                    <span className="text-sm leading-relaxed text-foreground/80">{f}</span>
+                    <span className={cn('text-sm leading-relaxed text-foreground/80', PROSE_MEASURE)}>{f}</span>
                   </li>
                 ))}
               </ul>
@@ -771,7 +878,7 @@ function CompletedView({
       )}
 
       {/* ── Per-Persona Drill-Down ──────────────────────────── */}
-      <div className="border-t border-border/40 pt-6">
+      <div id="personas" className={cn('border-t border-border/40 pt-6', SECTION_ANCHOR)}>
         <h3 className={cn(SECTION_HEADING, 'mb-4')}>
           Individual persona reports
         </h3>
@@ -780,8 +887,11 @@ function CompletedView({
             const personaName = analysis.personaProfile?.name ?? `Persona ${index + 1}`
             const isExpanded = expandedPersonas.has(index)
             const chatPersona = resolvedPersonas[index]
-            const verdict =
-              analysis.customerJourney && analysis.customerJourney.length > 0
+            const failed = !isCompletedResponse(analysis)
+            const failureMessage = analysis.failureMessage ?? ANALYSIS_ERROR_COPY.generic
+            const verdict = failed
+              ? { label: 'Analysis failed', title: failureMessage, className: 'text-destructive' }
+              : analysis.customerJourney && analysis.customerJourney.length > 0
                 ? journeyVerdict(analysis.customerJourney)
                 : null
 
@@ -816,6 +926,24 @@ function CompletedView({
               </button>
 
               {isExpanded && (
+                failed ? (
+                  /* No journey, no findings, no answer: this persona never
+                     produced a report, and inventing one is what made the
+                     report contradict its own count. */
+                  <div className="border-t border-border/40 px-5 pb-6 pt-5">
+                    <div className="flex items-start gap-3 rounded-md border border-destructive/20 bg-destructive/5 p-4">
+                      <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                      <div className="flex flex-col gap-1">
+                        <p className="text-base font-semibold text-foreground">
+                          This persona's analysis failed
+                        </p>
+                        <p className={cn('text-sm leading-relaxed text-muted-foreground', PROSE_MEASURE)}>
+                          {failureMessage}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
                 <div className="flex flex-col gap-6 border-t border-border/40 px-5 pb-6 pt-5">
                   <div className="flex flex-wrap gap-2">
                     {chatPersona && (
@@ -841,9 +969,9 @@ function CompletedView({
                   </div>
 
                   {analysis.overview && (
-                    <div className="flex flex-col gap-2">
-                      <span className={SECTION_LABEL}>In short</span>
-                      <p className="max-w-prose text-base leading-relaxed text-foreground/90">
+                    <div className="flex flex-col gap-3">
+                      <h4 className={SECTION_HEADING}>In short</h4>
+                      <p className={cn('text-base leading-relaxed text-foreground/90', PROSE_MEASURE)}>
                         {analysis.overview}
                       </p>
                     </div>
@@ -851,17 +979,17 @@ function CompletedView({
 
                   {analysis.customerJourney?.length > 0 && (
                     <div className="flex flex-col gap-3">
-                      <span className={SECTION_LABEL}>Journey</span>
+                      <h4 className={SECTION_HEADING}>Journey</h4>
                       <JourneyPath journey={analysis.customerJourney} />
                     </div>
                   )}
 
                   {analysis.researchQuestionAnswer && (
                     <div className="rounded-md bg-primary/5 p-4">
-                      <span className="micro-label mb-2 block text-primary">
+                      <h4 className={cn(SECTION_HEADING, 'mb-3 text-primary')}>
                         Their answer
-                      </span>
-                      <p className="max-w-prose text-base leading-relaxed text-foreground/80">
+                      </h4>
+                      <p className={cn('text-base leading-relaxed text-foreground/80', PROSE_MEASURE)}>
                         {analysis.researchQuestionAnswer}
                       </p>
                     </div>
@@ -869,11 +997,11 @@ function CompletedView({
 
                   {analysis.majorFindings.length > 0 && (
                     <div className="flex flex-col gap-3">
-                      <span className={SECTION_LABEL}>Findings</span>
+                      <h4 className={SECTION_HEADING}>Findings</h4>
                       {analysis.majorFindings.map((finding: MajorFinding, i: number) => (
                         <div key={i} className="flex flex-col gap-2 rounded-md bg-muted/20 p-4">
-                          <p className="text-base font-semibold leading-snug text-foreground">{finding.observation}</p>
-                          <p className="text-base leading-relaxed text-muted-foreground">
+                          <p className={cn('text-base font-semibold leading-snug text-foreground', PROSE_MEASURE)}>{finding.observation}</p>
+                          <p className={cn('text-base leading-relaxed text-muted-foreground', PROSE_MEASURE)}>
                             <span className="font-medium text-foreground/70">Impact:</span> {finding.impact}
                           </p>
                           {finding.evidence && (
@@ -882,7 +1010,7 @@ function CompletedView({
                                 <ChevronRightIcon className="h-3 w-3 transition-transform group-open/ev:rotate-90" />
                                 Evidence
                               </summary>
-                              <p className="mt-3 rounded-md bg-muted/40 px-3 py-3 text-base italic leading-loose text-muted-foreground">
+                              <p className={cn('mt-3 rounded-md bg-muted/40 px-3 py-3 text-base italic leading-loose text-muted-foreground', PROSE_MEASURE)}>
                                 {finding.evidence}
                               </p>
                             </details>
@@ -895,26 +1023,26 @@ function CompletedView({
                   {(analysis.pointsOfFriction.length > 0 || analysis.unansweredQuestions.length > 0) && (
                     <div className="grid gap-4 sm:grid-cols-2">
                       {analysis.pointsOfFriction.length > 0 && (
-                        <div className="flex flex-col gap-2">
-                          <span className={SECTION_LABEL}>Friction</span>
+                        <div className="flex flex-col gap-3">
+                          <h4 className={SECTION_HEADING}>Friction</h4>
                           <ul className="flex flex-col gap-2">
                             {analysis.pointsOfFriction.map((f: string, i: number) => (
                               <li key={i} className="flex items-start gap-2 text-sm leading-snug text-foreground/80">
                                 <AlertTriangleIcon className="mt-0.5 h-3 w-3 shrink-0 text-warning-foreground" />
-                                {f}
+                                <span className={PROSE_MEASURE}>{f}</span>
                               </li>
                             ))}
                           </ul>
                         </div>
                       )}
                       {analysis.unansweredQuestions.length > 0 && (
-                        <div className="flex flex-col gap-2">
-                          <span className={SECTION_LABEL}>Still unanswered</span>
+                        <div className="flex flex-col gap-3">
+                          <h4 className={SECTION_HEADING}>Still unanswered</h4>
                           <ul className="flex flex-col gap-2">
                             {analysis.unansweredQuestions.map((q: string, i: number) => (
                               <li key={i} className="flex items-start gap-2 text-sm leading-snug text-foreground/80">
                                 <HelpCircleIcon className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
-                                {q}
+                                <span className={PROSE_MEASURE}>{q}</span>
                               </li>
                             ))}
                           </ul>
@@ -935,6 +1063,7 @@ function CompletedView({
                     </details>
                   )}
                 </div>
+                )
               )}
             </div>
             )
@@ -973,7 +1102,7 @@ function CompletedView({
       />
 
       <PanelChat
-        responses={analyses}
+        responses={completedResponses(analyses)}
         synthesis={synthesis}
         personaNames={analysis.personaNames ?? []}
         isOpen={isPanelChatOpen}
