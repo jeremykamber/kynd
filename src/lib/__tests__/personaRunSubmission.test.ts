@@ -20,6 +20,19 @@ vi.mock('@/actions/generatePersonasFromInterviews', () => ({
   generatePersonasFromInterviewsAction: (formData: FormData) => startGeneration(formData),
 }))
 
+/**
+ * The content of a form-data file, in the jsdom environment these tests run in:
+ * its `File` has no `Blob.text()`, and handing it to `Response` stringifies it
+ * to `[object File]`. FileReader is the one reader that works here.
+ */
+const readFileText = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsText(blob)
+  })
+
 const input: InterviewRunInput = {
   transcripts: [
     { name: 'ada.txt', content: 'interview one' },
@@ -44,8 +57,8 @@ describe('buildInterviewFormData', () => {
 
     const files = formData.getAll('files')
     expect(files).toHaveLength(2)
-    expect(await (files[0] as Blob).text()).toBe('interview one')
-    expect(await (files[1] as Blob).text()).toBe('interview two')
+    expect(await readFileText(files[0] as Blob)).toBe('interview one')
+    expect(await readFileText(files[1] as Blob)).toBe('interview two')
     expect(formData.get('count')).toBe('4')
     expect(formData.get('mode')).toBe('synthesized')
   })

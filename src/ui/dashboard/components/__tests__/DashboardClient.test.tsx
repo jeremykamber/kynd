@@ -303,8 +303,9 @@ describe('DashboardClient — failed batches', () => {
     render(<DashboardClient />)
 
     expect(screen.queryByText(/generation failed/i)).toBeNull()
-    // One persona, one word: the count is pluralised, not spelled out.
-    expect(screen.getByText(/1 persona ·/)).toBeTruthy()
+    // One persona, one word: the count is pluralised, not spelled out. The noun
+    // is what this pins — the separator after it may change.
+    expect(screen.getByText(/1 persona\b/)).toBeTruthy()
   })
 })
 
