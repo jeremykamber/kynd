@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { parseMessageContent } from "../parseMessageContent";
+import { parseMessageContent, isStreamingMessage, type ChatMessage } from "../parseMessageContent";
 
 describe("parseMessageContent", () => {
   it("renders bold markdown instead of raw asterisks", () => {
@@ -36,12 +36,31 @@ describe("parseMessageContent", () => {
     const { container } = render(
       <div>{parseMessageContent("<<REASONING>>inner plan<</REASONING>>answer")}</div>,
     );
-    // Collapsed ThinkingBlock shows its toggle; the reasoning body is hidden.
-    expect(container.textContent).toContain("Thinking");
+    // Collapsed ThinkingBlock shows its settled toggle; the reasoning body is hidden.
+    expect(container.textContent).toContain("Reasoning");
     expect(container.textContent).toContain("answer");
     // The reasoning markers themselves are consumed.
     expect(container.textContent).not.toContain("<<REASONING>>");
     expect(container.textContent).not.toContain("<</REASONING>>");
+  });
+
+  it("renders settled reasoning as a quiet label with no live character count", () => {
+    const { container } = render(
+      <div>{parseMessageContent("<<REASONING>>inner plan<</REASONING>>answer")}</div>,
+    );
+    // A finished turn must not read as mid-flight: no "Thinking", no count.
+    expect(container.textContent).not.toContain("Thinking");
+    expect(container.textContent).not.toContain("chars");
+  });
+
+  it("keeps the live Thinking affordance while the message streams", () => {
+    const { container } = render(
+      <div>{parseMessageContent("<<REASONING>>still thinking", true)}</div>,
+    );
+    // Mid-stream the block reads as live, with the character count as a hint.
+    expect(container.textContent).toContain("Thinking");
+    expect(container.textContent).toContain(`${"still thinking".length} chars`);
+    expect(container.textContent).not.toContain("Reasoning");
   });
 
   it("renders every reasoning block, not just the first", () => {
@@ -73,7 +92,7 @@ describe("parseMessageContent", () => {
 
   it("does not leak raw markers for an unclosed mid-stream reasoning block", () => {
     const { container } = render(
-      <div>{parseMessageContent("<<REASONING>>still thinking")}</div>,
+      <div>{parseMessageContent("<<REASONING>>still thinking", true)}</div>,
     );
     // In-progress reasoning is shown as a collapsed ThinkingBlock, never as
     // raw marker text.
@@ -115,6 +134,21 @@ describe("parseMessageContent", () => {
     expect(container.textContent).not.toContain("burned by a vendor in 2022");
     expect(container.textContent).not.toContain("<%");
     expect(container.textContent).not.toContain("|");
+  });
+
+  it("dresses the cited span as a gloss, never as a link", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <div>{parseMessageContent('<% "trust is earned" | "burned by a vendor in 2022" %>')}</div>
+      </TooltipProvider>,
+    );
+    // Only a real hyperlink wears the primary-coloured solid underline; an
+    // inline marker is a gloss and must not read as one.
+    expect(container.querySelector("a")).toBeNull();
+    const gloss = container.querySelector('[class*="decoration-dotted"]');
+    expect(gloss).not.toBeNull();
+    expect(gloss?.className).not.toContain("text-primary");
+    expect(container.querySelectorAll('[class*="text-primary"]').length).toBe(0);
   });
 
   it("renders an unterminated marker mid-stream without leaking delimiters", () => {
@@ -166,5 +200,30 @@ describe("parseMessageContent", () => {
       </TooltipProvider>,
     );
     expect(container.textContent).toBe("watch the video the demo and decide");
+  });
+});
+
+describe("isStreamingMessage", () => {
+  const thread: ChatMessage[] = [
+    { role: "user", content: "what stopped you at pricing?" },
+    { role: "assistant", content: "the tiers read like a maze" },
+  ];
+
+  it("marks only the trailing assistant message of a pending turn", () => {
+    expect(isStreamingMessage(thread, 1, true)).toBe(true);
+  });
+
+  it("settles every message once the turn has finished", () => {
+    expect(isStreamingMessage(thread, 1, false)).toBe(false);
+  });
+
+  it("never marks the user's own message as streaming", () => {
+    expect(isStreamingMessage([{ role: "user", content: "hello" }], 0, true)).toBe(false);
+  });
+
+  it("marks an earlier assistant reply as settled while a later one streams", () => {
+    const longer: ChatMessage[] = [...thread, { role: "user", content: "why?" }, { role: "assistant", content: "" }];
+    expect(isStreamingMessage(longer, 1, true)).toBe(false);
+    expect(isStreamingMessage(longer, 3, true)).toBe(true);
   });
 });

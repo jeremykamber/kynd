@@ -16,8 +16,6 @@ interface AnalysisContextValue {
   setBusinessGoal: Dispatch<SetStateAction<string>>
   researchQuestion: string
   setResearchQuestion: Dispatch<SetStateAction<string>>
-  analyses: PersonaResponse[] | null
-  setAnalyses: Dispatch<SetStateAction<PersonaResponse[] | null>>
   error: string | null
   setError: Dispatch<SetStateAction<string | null>>
   isPending: boolean

@@ -1,38 +1,38 @@
 "use client"
 
 import { useState } from 'react'
-import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
+import { usePersonaStore } from '@/ui/stores/personaStore'
+import { useLoadDemoBatch } from '@/ui/hooks/useLoadDemoBatch'
+import type { PersonaFlowState } from '@/ui/hooks/usePersonaFlow'
 import { MinimalCard } from '@/components/custom/MinimalCard'
 import { DEMO_PERSONA_BATCH } from '@/domain/entities/MockPersonas'
-import { usePersonaStore } from '@/ui/stores/personaStore'
 import Link from 'next/link'
 import { ArrowRightIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { PersonaSurveyForm } from '@/components/custom/PersonaSurveyForm'
+import { PersonaSubmitButton, PersonaSurveyForm } from '@/components/custom/PersonaSurveyForm'
 import { surveyToPrompt, type PersonaSurvey } from '@/lib/surveyToPrompt'
 
 interface SetupViewProps {
-  personaFlow: ReturnType<typeof usePersonaFlow>
+  personaFlow: PersonaFlowState
   onBack?: () => void
 }
 
 /**
  * Persona-generation setup form (guided survey or free-text description).
  * Owns the survey/textarea toggle and persona-count input; delegates generation
- * to `personaFlow` and loads the demo batch from the persona store.
+ * to `personaFlow`. Both modes submit through the same control and read the same
+ * submitting state.
  */
 export function SetupView({ personaFlow, onBack }: SetupViewProps) {
-  const batches = usePersonaStore((s) => s.batches)
-  const addBatch = usePersonaStore((s) => s.addBatch)
-  const setActiveBatch = usePersonaStore((s) => s.setActiveBatch)
-  const hasDemoBatch = batches.some((b) => b.id === DEMO_PERSONA_BATCH.id)
+  const loadDemoBatch = useLoadDemoBatch()
   const [personaCountInput, setPersonaCountInput] = useState(String(personaFlow.personaCount))
   const [useTextarea, setUseTextarea] = useState(false)
 
   const handleSurveySubmit = (survey: PersonaSurvey) => {
-    const prompt = surveyToPrompt(survey)
-    personaFlow.handleGeneratePersonas(prompt)
+    // The compiled prompt drives generation; the audience line is the user's own
+    // description of their market, so the batch is named from it.
+    personaFlow.handleGeneratePersonas(surveyToPrompt(survey), survey.targetAudience)
   }
 
   const personaCountField = (
@@ -58,7 +58,7 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
             setPersonaCountInput(String(v))
           }
         }}
-        disabled={personaFlow.isPending}
+        disabled={personaFlow.isSubmitting}
         className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-24"
       />
     </div>
@@ -83,14 +83,7 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            if (hasDemoBatch) {
-              setActiveBatch(DEMO_PERSONA_BATCH.id)
-            } else {
-              addBatch(DEMO_PERSONA_BATCH)
-              setActiveBatch(DEMO_PERSONA_BATCH.id)
-            }
-          }}
+          onClick={loadDemoBatch}
           className="text-muted-foreground hover:text-foreground"
         >
           Load Demo Persona Batch
@@ -133,7 +126,7 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                     placeholder="e.g. B2B SaaS Founders dealing with high churn rates, usually aged 30-45..."
                     value={personaFlow.customerProfile}
                     onChange={(e) => personaFlow.setCustomerProfile(e.target.value)}
-                    disabled={personaFlow.isPending}
+                    disabled={personaFlow.isSubmitting}
                   />
                   {personaCountField}
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -143,13 +136,11 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
                         <ArrowRightIcon className="h-3.5 w-3.5" />
                       </Link>
                     </Button>
-                    <Button
-                      size="lg"
-                      disabled={!personaFlow.customerProfile.trim() || personaFlow.isPending}
+                    <PersonaSubmitButton
+                      isSubmitting={personaFlow.isSubmitting}
+                      disabled={!personaFlow.customerProfile.trim()}
                       onClick={() => personaFlow.handleGeneratePersonas()}
-                    >
-                      {personaFlow.isPending ? "Generating..." : "Generate Personas"}
-                    </Button>
+                    />
                   </div>
                   {personaFlow.error && (
                     <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">{personaFlow.error}</p>
@@ -158,7 +149,7 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
               ) : (
                 <PersonaSurveyForm
                   onSubmit={handleSurveySubmit}
-                  isPending={personaFlow.isPending}
+                  isSubmitting={personaFlow.isSubmitting}
                   error={personaFlow.error}
                   beforeActions={personaCountField}
                 />

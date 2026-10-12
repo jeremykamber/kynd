@@ -3,7 +3,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 
 const { router, personaState, pathname } = vi.hoisted(() => ({
   router: { push: vi.fn(), replace: vi.fn() },
-  personaState: { batches: [] as unknown[] },
+  personaState: { batches: [] as unknown[], activeBatchId: null as string | null },
   pathname: { current: '/dashboard' },
 }))
 
@@ -13,7 +13,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/ui/stores/personaStore', () => ({
-  usePersonaStore: (selector: (s: { batches: unknown[] }) => unknown) => selector(personaState),
+  usePersonaStore: (selector: (s: { batches: unknown[]; activeBatchId: string | null }) => unknown) =>
+    selector(personaState),
 }))
 
 import { FloatingAnalysisButton } from '../FloatingAnalysisButton'
@@ -23,6 +24,7 @@ afterEach(cleanup)
 beforeEach(() => {
   router.push.mockClear()
   personaState.batches = []
+  personaState.activeBatchId = null
   pathname.current = '/dashboard'
 })
 
@@ -43,5 +45,32 @@ describe('FloatingAnalysisButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /run analysis/i }))
 
     expect(router.push).not.toHaveBeenCalled()
+  })
+
+  it('stays off the analyses list, where the real run CTA lives', () => {
+    personaState.batches = [{ id: 'batch-1' }]
+    pathname.current = '/dashboard/analyses'
+
+    render(<FloatingAnalysisButton />)
+
+    expect(screen.queryByRole('button', { name: /run analysis/i })).toBeNull()
+  })
+
+  it('stays off a batch\'s persona cards, where the dock covers a card action', () => {
+    personaState.batches = [{ id: 'batch-1' }]
+    personaState.activeBatchId = 'batch-1'
+
+    render(<FloatingAnalysisButton />)
+
+    expect(screen.queryByRole('button', { name: /run analysis/i })).toBeNull()
+  })
+
+  it('stays off an analysis report', () => {
+    personaState.batches = [{ id: 'batch-1' }]
+    pathname.current = '/dashboard/analyses/analysis-1791834166549-qxhdc'
+
+    render(<FloatingAnalysisButton />)
+
+    expect(screen.queryByRole('button', { name: /run analysis/i })).toBeNull()
   })
 })

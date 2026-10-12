@@ -5,6 +5,13 @@ interface StoredPersonaGeneration {
   personas: Persona[]
   completedAt: string
   error?: string
+  /**
+   * The user stopped the run. A cancelled run is terminal but it is not a
+   * failure: nothing is stored in `error`, so every observer settles it as
+   * cancelled instead of writing a failed batch, and the verdict survives the
+   * process that was running it.
+   */
+  cancelled?: boolean
 }
 
 /**
@@ -38,6 +45,15 @@ class PersonaGenerationStore {
       personas: [],
       completedAt: new Date().toISOString(),
       error,
+    });
+  }
+
+  saveCancelled(runId: string): void {
+    console.log(`[PERSONA_STORE] Saving cancellation for ${runId}`);
+    this.store.set(runId, {
+      personas: [],
+      completedAt: new Date().toISOString(),
+      cancelled: true,
     });
   }
 

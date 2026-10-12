@@ -2,8 +2,10 @@ import React from 'react'
 import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactSynthesis, SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
+import { isCompletedResponse, responseCounts } from '@/domain/entities/PersonaResponse'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
+import { ANALYSIS_ERROR_COPY } from '@/lib/analysisError'
 
 // ── Typography & Palette ───────────────────────────────────────────────────
 // Simple, clean, editorial design with high legibility and quiet accents.
@@ -289,6 +291,24 @@ const styles = StyleSheet.create({
     color: colors.primaryLight,
     lineHeight: 1.35,
   },
+  failedCard: {
+    borderWidth: 1,
+    borderColor: colors.destructive,
+    backgroundColor: colors.destructiveBg,
+    borderRadius: 4,
+    padding: 8,
+  },
+  failedTitle: {
+    fontSize: 8.5,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.destructive,
+    marginBottom: 3,
+  },
+  failedText: {
+    fontSize: 8.5,
+    color: colors.primaryLight,
+    lineHeight: 1.35,
+  },
   footer: {
     position: 'absolute',
     bottom: 20,
@@ -333,6 +353,9 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
   const responses = analysis.responses ?? []
   const synthesis: ArtifactSynthesis =
     analysis.synthesis ?? fallbackSynthesis(responses)
+  // Counted from the responses this document prints, not from the stored
+  // synthesis: the two must not disagree inside one PDF.
+  const counts = responseCounts(responses)
 
   const formattedDate = new Date(
     analysis.completedAt || analysis.createdAt || Date.now()
@@ -383,8 +406,8 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
           <View style={styles.metaItem}>
             <Text style={styles.metaLabel}>Completion</Text>
             <Text style={styles.metaValue}>
-              {synthesis.completedCount} of {synthesis.totalPersonaCount} personas completed
-              {synthesis.failedCount > 0 ? ` (${synthesis.failedCount} failed)` : ''}
+              {counts.completed} of {counts.total} personas completed
+              {counts.failed > 0 ? ` (${counts.failed} failed)` : ''}
             </Text>
           </View>
         </View>
@@ -484,69 +507,82 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
                   ) : null}
                 </View>
 
-                {resp.overview && (
-                  <View style={{ marginBottom: 6 }}>
-                    <Text style={{ fontSize: 8.5, color: colors.primaryLight, fontStyle: 'italic', lineHeight: 1.35 }}>
-                      "{resp.overview}"
-                    </Text>
-                  </View>
-                )}
+                {isCompletedResponse(resp) ? (
+                  <>
+                    {resp.overview && (
+                      <View style={{ marginBottom: 6 }}>
+                        <Text style={{ fontSize: 8.5, color: colors.primaryLight, fontStyle: 'italic', lineHeight: 1.35 }}>
+                          "{resp.overview}"
+                        </Text>
+                      </View>
+                    )}
 
-                {/* 5-Stage Cognitive Journey */}
-                {resp.customerJourney && resp.customerJourney.length > 0 && (
-                  <View style={styles.journeyTable}>
-                    {resp.customerJourney.map((stg, sIdx) => {
-                      const isSuccess = stg.outcome === 'succeeded'
-                      const isBlocked = stg.outcome === 'blocked'
-                      const badgeBg = isSuccess
-                        ? styles.badgeSuccessBg
-                        : isBlocked
-                        ? styles.badgeDestructiveBg
-                        : styles.badgePrimaryBg
-                      const badgeText = isSuccess
-                        ? styles.badgeSuccessText
-                        : isBlocked
-                        ? styles.badgeDestructiveText
-                        : styles.badgePrimaryText
+                    {/* 5-Stage Cognitive Journey */}
+                    {resp.customerJourney && resp.customerJourney.length > 0 && (
+                      <View style={styles.journeyTable}>
+                        {resp.customerJourney.map((stg, sIdx) => {
+                          const isSuccess = stg.outcome === 'succeeded'
+                          const isBlocked = stg.outcome === 'blocked'
+                          const badgeBg = isSuccess
+                            ? styles.badgeSuccessBg
+                            : isBlocked
+                            ? styles.badgeDestructiveBg
+                            : styles.badgePrimaryBg
+                          const badgeText = isSuccess
+                            ? styles.badgeSuccessText
+                            : isBlocked
+                            ? styles.badgeDestructiveText
+                            : styles.badgePrimaryText
 
-                      const outcomeLabel =
-                        stg.outcome.charAt(0).toUpperCase() + stg.outcome.slice(1)
+                          const outcomeLabel =
+                            stg.outcome.charAt(0).toUpperCase() + stg.outcome.slice(1)
 
-                      return (
-                        <View
-                          key={sIdx}
-                          style={[
-                            styles.journeyRow,
-                            sIdx === resp.customerJourney.length - 1 ? { borderBottomWidth: 0 } : {},
-                          ]}
-                        >
-                          <Text style={styles.journeyStageName}>{stg.stage}</Text>
-                          <Text style={styles.journeyDesc}>{stg.description}</Text>
-                          <View style={styles.journeyOutcomeContainer}>
-                            <View style={[styles.badgeContainer, badgeBg]}>
-                              <Text style={[styles.badgeText, badgeText]}>{outcomeLabel}</Text>
+                          return (
+                            <View
+                              key={sIdx}
+                              style={[
+                                styles.journeyRow,
+                                sIdx === resp.customerJourney.length - 1 ? { borderBottomWidth: 0 } : {},
+                              ]}
+                            >
+                              <Text style={styles.journeyStageName}>{stg.stage}</Text>
+                              <Text style={styles.journeyDesc}>{stg.description}</Text>
+                              <View style={styles.journeyOutcomeContainer}>
+                                <View style={[styles.badgeContainer, badgeBg]}>
+                                  <Text style={[styles.badgeText, badgeText]}>{outcomeLabel}</Text>
+                                </View>
+                              </View>
                             </View>
-                          </View>
-                        </View>
-                      )
-                    })}
-                  </View>
-                )}
+                          )
+                        })}
+                      </View>
+                    )}
 
-                {resp.majorFindings && resp.majorFindings.length > 0 && (
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={styles.findingLabel}>Simulation Findings</Text>
-                    <View style={{ marginTop: 4 }}>
-                      {resp.majorFindings.slice(0, 2).map((f, fIdx) => (
-                        <View key={fIdx} style={{ flexDirection: 'row', marginBottom: 4 }}>
-                          <Text style={styles.bullet}>•</Text>
-                          <Text style={styles.findingText}>
-                            <Text style={{ fontFamily: 'Helvetica-Bold' }}>{f.observation}: </Text>
-                            {f.evidence}
-                          </Text>
+                    {resp.majorFindings && resp.majorFindings.length > 0 && (
+                      <View style={{ marginTop: 8 }}>
+                        <Text style={styles.findingLabel}>Simulation Findings</Text>
+                        <View style={{ marginTop: 4 }}>
+                          {resp.majorFindings.slice(0, 2).map((f, fIdx) => (
+                            <View key={fIdx} style={{ flexDirection: 'row', marginBottom: 4 }}>
+                              <Text style={styles.bullet}>•</Text>
+                              <Text style={styles.findingText}>
+                                <Text style={{ fontFamily: 'Helvetica-Bold' }}>{f.observation}: </Text>
+                                {f.evidence}
+                              </Text>
+                            </View>
+                          ))}
                         </View>
-                      ))}
-                    </View>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  /* A failed persona has no journey, findings or answer to
+                     print — only the reason it has none. */
+                  <View style={styles.failedCard}>
+                    <Text style={styles.failedTitle}>This persona's analysis failed</Text>
+                    <Text style={styles.failedText}>
+                      {resp.failureMessage ?? ANALYSIS_ERROR_COPY.generic}
+                    </Text>
                   </View>
                 )}
               </View>

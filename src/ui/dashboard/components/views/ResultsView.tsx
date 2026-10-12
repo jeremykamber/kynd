@@ -82,7 +82,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   </div>
 
                   <div className="flex flex-col gap-4 mt-2">
-                    <h4 className="micro-label text-muted-foreground/70">Scoring</h4>
+                    <h4 className="micro-label text-muted-foreground">Scoring</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <ScoreMetric label="Clarity" value={analysis.scores.clarity} reason={analysis.scores.clarityReason} />
                       <ScoreMetric label="Value" value={analysis.scores.valuePerception} reason={analysis.scores.valuePerceptionReason} />
@@ -91,7 +91,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
 
                     <div className="h-px bg-border/20 my-2" />
 
-                    <h4 className="micro-label text-muted-foreground/70">Intent Funnel</h4>
+                    <h4 className="micro-label text-muted-foreground">Intent Funnel</h4>
                     <div className="flex flex-col gap-3">
                       <FunnelStage label="Exploration" value={analysis.scores.explorationIntent} reason={analysis.scores.explorationIntentReason} color="bg-blue-500" />
                       <FunnelStage label="Analysis" value={analysis.scores.analysisIntent} reason={analysis.scores.analysisIntentReason} color="bg-indigo-500" />
@@ -112,7 +112,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
 
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                      <h4 className="micro-label text-muted-foreground/70">Gut Reaction</h4>
+                      <h4 className="micro-label text-muted-foreground">Gut Reaction</h4>
                       <div
                         className={`w-2 h-2 rounded-full ${getSentimentVariant(analysis.scores.buyIntent)}`}
                         title="Tone Sentiment"
@@ -124,7 +124,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
                   </div>
 
                   <div className="flex flex-col gap-3">
-                    <h4 className="micro-label text-muted-foreground/70">Detailed Thoughts</h4>
+                    <h4 className="micro-label text-muted-foreground">Detailed Thoughts</h4>
                     <div className="text-base text-foreground/80 leading-relaxed space-y-4 whitespace-pre-wrap">
                       {analysis.thoughts}
                     </div>
@@ -132,7 +132,7 @@ export function ResultsView({ personas, analyses, onReset }: ResultsViewProps) {
 
                   {analysis.risks && analysis.risks.length > 0 && (
                     <div className="flex flex-col gap-3 mt-4">
-                      <h4 className="micro-label text-muted-foreground/70">Perceived Risks</h4>
+                      <h4 className="micro-label text-muted-foreground">Perceived Risks</h4>
                       <ul className="flex flex-col gap-2">
                         {analysis.risks.map((risk, i) => (
                           <li key={`risk-${analysis.id}-${i}`} className="flex items-start gap-2 text-sm text-foreground/80 leading-relaxed">

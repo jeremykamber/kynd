@@ -1,15 +1,20 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ClockIcon, CheckCircleIcon, XCircleIcon, ArrowLeftIcon } from 'lucide-react'
-import { getProgressAction } from '@/actions/getProgress'
-import { getPersonaGenerationResultAction } from '@/actions/getPersonaGenerationResult'
+import { CheckCircleIcon, XCircleIcon, ArrowLeftIcon } from 'lucide-react'
 import { StepIndicator } from '@/components/custom/StepIndicator'
 import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { Progress } from '@/components/ui/progress'
 import type { PersonaGenerationResult } from '@/actions/getPersonaGenerationResult'
 import { personaRunProgress } from '@/ui/dashboard/utils/personaRunProgress'
+import {
+  PERSONA_RUN_STALLED_MESSAGE,
+  observePersonaRun,
+  runStatusText,
+  startPersonaRunPolling,
+} from '@/lib/personaRunPolling'
+import { canRetryInterviewRun, retryInterviewRun } from '@/lib/personaRunSubmission'
 
 type FlowStep = { title: string; description?: string }
 
@@ -29,8 +34,8 @@ const PIPELINE_STEPS: FlowStep[] = [
 ]
 
 function detectFlowType(runId: string): 'persona' | 'pipeline' | 'unknown' {
-  if (runId.startsWith('pipeline-')) return 'pipeline'
-  if (runId.startsWith('persona-')) return 'persona'
+  if (runId.startsWith('pipeline-') || runId.startsWith('pi-')) return 'pipeline'
+  if (runId.startsWith('persona-') || runId.startsWith('pt-')) return 'persona'
   return 'unknown'
 }
 
@@ -57,7 +62,12 @@ function stepToIndex(step: string | undefined, steps: FlowStep[]): number {
 /**
  * /dashboard/generating/[runId]: progress screen for a background persona run.
  * The runId prefix ("persona-" / "pipeline-") selects which pipeline's step
- * labels apply; the page polls every second for progress and for completion.
+ * labels apply.
+ *
+ * Progress comes through the shared cadence and fetch gate in
+ * `@/lib/personaRunPolling`, which is also where the verdict on a run that
+ * stopped reporting comes from — so this page and the toast that reported the
+ * same run can never tell the user two different stories.
  */
 export default function GeneratingPage() {
   const params = useParams()
@@ -72,6 +82,7 @@ export default function GeneratingPage() {
   const [completedCount, setCompletedCount] = useState<number | undefined>(undefined)
   const [totalCount, setTotalCount] = useState<number | undefined>(undefined)
   const [result, setResult] = useState<PersonaGenerationResult | null>(null)
+  const [stalled, setStalled] = useState(false)
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -82,35 +93,50 @@ export default function GeneratingPage() {
   useEffect(() => {
     if (!runId) return
 
-    const poll = async () => {
+    return startPersonaRunPolling(async () => {
+      const observation = await observePersonaRun(runId)
       if (!mountedRef.current) return
 
-      const res = await getPersonaGenerationResultAction(runId)
-      if (res.found) {
-        if (mountedRef.current) setResult(res)
+      if (observation.result) {
+        setResult(observation.result)
         return
       }
 
-      const p = await getProgressAction(runId)
-      if (!p.found || !p.progress || !mountedRef.current) return
+      setStalled(observation.stalled)
 
-      setCurrentStep(stepToIndex(p.progress.step, steps))
-      setStreamingText(p.progress.streamingText ?? null)
-      setPersonaName(p.progress.personaName ?? null)
+      const state = observation.progress
+      if (!state) return
 
-      const completed = p.progress.completedCount ?? p.progress.completedResponses
-      const total = p.progress.totalCount ?? p.progress.totalResponses
+      setCurrentStep(stepToIndex(state.step, steps))
+      // A transient retry is internal; runStatusText logs it and returns the
+      // step's neutral label.
+      setStreamingText(state.streamingText?.trim() ? runStatusText(state) : null)
+      setPersonaName(state.personaName ?? null)
+
+      const completed = state.completedCount ?? state.completedResponses
+      const total = state.totalCount ?? state.totalResponses
       setCompletedCount(completed)
       setTotalCount(total)
 
       // Same helper the toast uses, so the two bars always agree.
-      setProgress(personaRunProgress(p.progress.step, completed, total) * 100)
-    }
-
-    poll()
-    const interval = setInterval(poll, 1000)
-    return () => clearInterval(interval)
+      setProgress(personaRunProgress(state.step, completed, total) * 100)
+    })
   }, [runId, steps])
+
+  // A run can only be retried while the inputs that made it are still known.
+  const retryable = canRetryInterviewRun(runId)
+
+  const handleRetry = () => {
+    void retryInterviewRun(runId)
+      .then((retryRunId) => {
+        if (retryRunId) router.replace(`/dashboard/generating/${retryRunId}`)
+      })
+      .catch((error) => {
+        console.error('[generating] retry failed to start', error)
+      })
+  }
+
+  const failure = result?.error ?? (stalled ? PERSONA_RUN_STALLED_MESSAGE : null)
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-12">
@@ -123,39 +149,50 @@ export default function GeneratingPage() {
         Back to Dashboard
       </button>
 
-      {result ? (
+      {failure ? (
         <div className="rounded-xl border border-border bg-card p-8 md:p-12">
-          {result.error ? (
-            <div className="flex flex-col items-center gap-4 text-center">
-              <XCircleIcon className="h-12 w-12 text-destructive" />
-              <h1 className="text-3xl font-semibold tracking-tight">Generation Failed</h1>
-              <p className="text-base leading-relaxed text-muted-foreground max-w-md">{result.error}</p>
-              <FeedbackButton
-                label="Report this error"
-                defaultMessage={result.error}
-                context={{ error: result.error, runId }}
-                variant="outline"
-                className="mt-2"
-              />
+          <div className="flex flex-col items-center gap-4 text-center">
+            <XCircleIcon className="h-12 w-12 text-destructive" />
+            <h1 className="text-3xl font-semibold tracking-tight">Generation Failed</h1>
+            <p className="text-base leading-relaxed text-muted-foreground max-w-md">{failure}</p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              {retryable && (
+                <button
+                  onClick={handleRetry}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  Retry
+                </button>
+              )}
+              {result?.error && (
+                <FeedbackButton
+                  label="Report this error"
+                  defaultMessage={result.error}
+                  context={{ error: result.error, runId }}
+                  variant="outline"
+                />
+              )}
             </div>
-          ) : (
-            <div className="flex flex-col items-center gap-4 text-center">
-              <CheckCircleIcon className="h-12 w-12 text-green-500" />
-              <h1 className="text-3xl font-semibold tracking-tight">
-                {result.personas?.length ?? 0} Personas Ready
-              </h1>
-              <p className="text-base leading-relaxed text-muted-foreground">
-                Your personas have been generated and added to the dashboard.
-              </p>
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors mt-2"
-              >
-                <ArrowLeftIcon className="h-3.5 w-3.5" />
-                View on Dashboard
-              </button>
-            </div>
-          )}
+          </div>
+        </div>
+      ) : result ? (
+        <div className="rounded-xl border border-border bg-card p-8 md:p-12">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <CheckCircleIcon className="h-12 w-12 text-green-500" />
+            <h1 className="text-3xl font-semibold tracking-tight">
+              {result.personas?.length ?? 0} Personas Ready
+            </h1>
+            <p className="text-base leading-relaxed text-muted-foreground">
+              Your personas have been generated and added to the dashboard.
+            </p>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors mt-2"
+            >
+              <ArrowLeftIcon className="h-3.5 w-3.5" />
+              View on Dashboard
+            </button>
+          </div>
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -175,7 +212,7 @@ export default function GeneratingPage() {
                 <div className="mb-6 text-center">
                   <p className="text-base leading-relaxed text-muted-foreground">{streamingText}</p>
                   {personaName && (
-                    <p className="mt-1.5 text-xs font-mono text-muted-foreground/60">
+                    <p className="mt-1.5 text-xs font-mono text-muted-foreground">
                       ↳ persona: {personaName}
                     </p>
                   )}

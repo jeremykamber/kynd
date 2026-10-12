@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     found: true,
     personas: result.personas,
     error: result.error,
+    cancelled: result.cancelled,
     completedAt: result.completedAt,
   });
 }

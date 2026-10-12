@@ -12,6 +12,25 @@ const REASONING_REGEX = new RegExp(
   "g",
 )
 
+/** One thread entry as the chat surfaces store it. */
+export interface ChatMessage {
+  role: "user" | "assistant"
+  content: string
+}
+
+/**
+ * True while `index` is the message a live turn is still writing — the trailing
+ * assistant entry of a pending turn. Every other message is settled, so the
+ * derivation lives here once instead of in each of the three chat surfaces.
+ */
+export function isStreamingMessage(
+  messages: ChatMessage[],
+  index: number,
+  isPending: boolean,
+): boolean {
+  return isPending && index === messages.length - 1 && messages[index]?.role === "assistant"
+}
+
 interface ReasoningSegment {
   text: string
   start: number
@@ -83,15 +102,20 @@ function inlineStatement(body: string, match: RegExpExecArray): string {
  *   no closing `%>` — renders `statement` as plain prose. The model often
  *   drops the `|` half of the documented two-part form; the delimiters must
  *   never reach the user.
- * - `<%display|excerpt%>` → dotted-underline tooltip.
+ * - `<%display|excerpt%>` → dotted-underline tooltip. Styled as a gloss, not a
+ *   link: only a real `<a>` carries the primary-coloured solid underline.
  * - `[Memory: text]` → superscript reference, with `text` collected into a
  *   footnote list appended after the body.
  * - `<I text>` → inline "memory" pill whose tooltip shows `text`.
  *
  * Returns nodes in source order — `[]` for empty input. Unrecognised or
  * malformed markers fall through as plain body text.
+ *
+ * `streaming` is the caller's verdict on whether this message is still being
+ * written (`isStreamingMessage`); it is forwarded to the reasoning block so a
+ * completed answer renders settled.
  */
-export function parseMessageContent(content: string): React.ReactNode[] {
+export function parseMessageContent(content: string, streaming = false): React.ReactNode[] {
   const parts: React.ReactNode[] = []
   const memories: MemoryFootnote[] = []
   let keyCounter = 0
@@ -115,7 +139,12 @@ export function parseMessageContent(content: string): React.ReactNode[] {
   for (const segment of segments) {
     if (segment.type === "reasoning") {
       parts.push(
-        <ThinkingBlock key={`reasoning-${keyCounter++}`} content={segment.text} className="mb-4" />
+        <ThinkingBlock
+          key={`reasoning-${keyCounter++}`}
+          content={segment.text}
+          streaming={streaming}
+          className="mb-4"
+        />
       )
       continue
     }
@@ -168,7 +197,7 @@ export function parseMessageContent(content: string): React.ReactNode[] {
           parts.push(
             <Tooltip key={`tooltip-${keyCounter++}`} delayDuration={200}>
               <TooltipTrigger asChild>
-                <span className="underline underline-offset-2 decoration-dotted cursor-help text-primary/80 hover:text-primary">
+                <span className="underline decoration-dotted decoration-muted-foreground/60 underline-offset-2 cursor-help">
                   {displayText}
                 </span>
               </TooltipTrigger>
@@ -227,7 +256,7 @@ export function parseMessageContent(content: string): React.ReactNode[] {
     parts.push(
       <div key="memory-footnotes" className="mt-4 pt-4 border-t border-border/30 space-y-2">
         {memories.map((m) => (
-          <div key={`fn-${m.index}`} className="flex items-start gap-2 text-xs text-muted-foreground/80 leading-relaxed">
+          <div key={`fn-${m.index}`} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
             <sup className="text-xs text-primary/60 font-medium leading-none mt-1 shrink-0">
               {m.index}
             </sup>

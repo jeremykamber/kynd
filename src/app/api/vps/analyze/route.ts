@@ -11,6 +11,8 @@ import { RateLimiterMemory } from "rate-limiter-flexible";
 import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUseCase";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
+import { completedResponses, responseCounts } from "@/domain/entities/PersonaResponse";
+import { humanizeAnalysisError } from "@/lib/analysisError";
 import type { ArtifactInput } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { cancellationManager } from "@/infrastructure/RequestCancellationManager";
@@ -170,14 +172,15 @@ async function runAnalysis(
             // Generate cross-persona synthesis; failure is non-fatal (logged,
             // the UI renders persona results without the cohort report).
             let synthesis: ArtifactSynthesis | undefined;
-            const completedResponses = responses.filter((r) => r.overview && r.customerJourney.length > 0 && !r.overview.startsWith("Analysis could not be completed."));
-            if (completedResponses.length > 0) {
+            const completed = completedResponses(responses);
+            const counts = responseCounts(responses);
+            if (completed.length > 0) {
                 try {
                     log.info("runAnalysis", "Generating cross-persona synthesis...");
                     synthesis = await new SynthesizeArtifactResultsUseCase(llmService).execute(
-                        completedResponses,
+                        completed,
                         researchQuestion || "",
-                        { runId: id, failedCount: responses.length - completedResponses.length, totalPersonaCount: responses.length },
+                        { runId: id, failedCount: counts.failed, totalPersonaCount: counts.total },
                     );
                 } catch (synthErr) {
                     log.warn("runAnalysis", "Synthesis generation failed, proceeding without", {
@@ -197,12 +200,15 @@ async function runAnalysis(
         if (abortSignal.aborted) {
             analysisResultStore.saveError(id, "Request was cancelled");
         } else {
-            const errMsg = (error as Error).message;
+            // Log the engine's own text; store and publish the user-facing
+            // sentence it translates to, which is what the client renders.
+            const rawMessage = (error as Error).message;
+            const message = humanizeAnalysisError(rawMessage);
             log.error("runAnalysis", "Error analyzing artifact", {
-                error: errMsg,
+                error: rawMessage,
             });
-            analysisResultStore.saveError(id, errMsg);
-            storeProgress(id, { error: errMsg });
+            analysisResultStore.saveError(id, message);
+            storeProgress(id, { error: message });
         }
     } finally {
         const duration = Date.now() - startTime;

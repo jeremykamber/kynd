@@ -150,6 +150,44 @@ describe('AnalysisPdfDocument', () => {
     expect(text).not.toContain('Primary Points of Friction')
   })
 
+  it('prints a failed persona as a failure instead of a report', () => {
+    const failed: PersonaResponse = {
+      id: 'resp-3',
+      personaId: 'p-3',
+      screenshotBase64: '',
+      rawAnalysis: 'Analysis failed: page.goto: net::ERR_NAME_NOT_RESOLVED at https://x',
+      outcome: 'failed',
+      failureMessage: "We couldn't load that page. Check the URL and try again.",
+      overview: '',
+      customerJourney: [],
+      researchQuestionAnswer: '',
+      majorFindings: [],
+      pointsOfFriction: [],
+      unansweredQuestions: [],
+      personaProfile: {
+        name: 'Bea Chen',
+        occupation: 'Security Engineer',
+        bigFive: { conscientiousness: 70, neuroticism: 40, openness: 60, extraversion: 40, agreeableness: 55 },
+        values: ['Control'],
+        fears: ['Lock-in'],
+        communicationStyle: 'Formal',
+        decisionStyle: 'Risk-averse',
+      },
+    }
+    const text = renderedText(
+      AnalysisPdfDocument({ analysis: { ...baseAnalysis, responses: [...mockResponses, failed] } }),
+    )
+
+    // The completion line counts the failure, and the card says what happened
+    // instead of printing an empty journey as if it were analysis.
+    expect(text).toContain('2 of 3 personas completed')
+    expect(text).toContain('(1 failed)')
+    expect(text).toContain('Bea Chen')
+    expect(text).toContain("This persona's analysis failed")
+    expect(text).toContain("We couldn't load that page. Check the URL and try again.")
+    expect(text).not.toContain('net::ERR_NAME_NOT_RESOLVED')
+  })
+
   it('discloses what Kynd is and that the report is simulated, before the findings', () => {
     const text = renderedText(AnalysisPdfDocument({ analysis: baseAnalysis }))
 

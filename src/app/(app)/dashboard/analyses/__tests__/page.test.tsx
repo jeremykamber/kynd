@@ -13,6 +13,7 @@ const { router, searchParams, personaState, analysisState, analysisFlow } = vi.h
     setBusinessGoal: vi.fn(),
     setResearchQuestion: vi.fn(),
     handleAnalyzeArtifact: vi.fn(),
+    handleCancel: vi.fn(),
   },
 }))
 
@@ -59,14 +60,27 @@ const BATCH = {
   personas: [],
 }
 
+const ANALYSIS = {
+  id: 'a1',
+  name: 'Run',
+  status: 'COMPLETED',
+  url: 'https://example.com',
+  personaCount: 1,
+  createdAt: '2026-01-01T00:00:00.000Z',
+}
+
 afterEach(cleanup)
 
 beforeEach(() => {
   searchParams.current = new URLSearchParams()
   personaState.batches = [BATCH]
   analysisState.analyses = []
+  analysisFlow.isPending = false
   router.push.mockClear()
   router.replace.mockClear()
+  analysisState.removeAnalysis.mockClear()
+  analysisState.updateAnalysis.mockClear()
+  analysisFlow.handleCancel.mockClear()
 })
 
 describe('AnalysesPage — ?new=1 opens the new-analysis form', () => {
@@ -104,19 +118,10 @@ describe('AnalysesPage — ?new=1 opens the new-analysis form', () => {
 })
 
 describe('AnalysesPage — failed runs are not counted as completed', () => {
-  const baseAnalysis = {
-    id: 'a1',
-    name: 'Run',
-    status: 'COMPLETED',
-    url: 'https://example.com',
-    personaCount: 1,
-    createdAt: '2026-01-01T00:00:00.000Z',
-  }
-
   it('groups an errored run under Failed and keeps it out of Completed', () => {
     analysisState.analyses = [
-      { ...baseAnalysis, id: 'done', name: 'Good run' },
-      { ...baseAnalysis, id: 'bad', name: 'Bad run', status: 'ERROR', error: 'boom' },
+      { ...ANALYSIS, id: 'done', name: 'Good run' },
+      { ...ANALYSIS, id: 'bad', name: 'Bad run', status: 'ERROR', error: 'boom' },
     ]
 
     render(<AnalysesPage />)
@@ -127,11 +132,98 @@ describe('AnalysesPage — failed runs are not counted as completed', () => {
   })
 
   it('omits the failed count and section when nothing has failed', () => {
-    analysisState.analyses = [{ ...baseAnalysis }]
+    analysisState.analyses = [{ ...ANALYSIS }]
 
     render(<AnalysesPage />)
 
     expect(screen.queryByRole('heading', { name: 'Failed' })).toBeNull()
     expect(screen.getByText('1 completed · 0 in progress')).toBeTruthy()
+  })
+})
+
+describe('AnalysesPage — a run is announced from the store, not from the hook', () => {
+  it('keeps the running banner and the card when only the store knows about the run', () => {
+    analysisFlow.isPending = false
+    analysisState.analyses = [
+      { ...ANALYSIS, id: 'live', status: 'IN_PROGRESS', completedResponses: 0, totalResponses: 3 },
+    ]
+
+    render(<AnalysesPage />)
+
+    expect(screen.getByText(/analysis is running/i)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'In Progress' })).toBeTruthy()
+  })
+
+  it('drops the banner once the run settles', () => {
+    analysisState.analyses = [{ ...ANALYSIS, id: 'live' }]
+
+    render(<AnalysesPage />)
+
+    expect(screen.queryByText(/analysis is running/i)).toBeNull()
+  })
+})
+
+describe('AnalysesPage — cancelling a live run', () => {
+  it('offers Cancel on an in-progress run and passes the run id to the flow', () => {
+    analysisState.analyses = [
+      { ...ANALYSIS, id: 'live', status: 'IN_PROGRESS', completedResponses: 1, totalResponses: 3 },
+    ]
+
+    render(<AnalysesPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(analysisFlow.handleCancel).toHaveBeenCalledWith('live')
+  })
+
+  it('offers no Cancel on a settled run', () => {
+    analysisState.analyses = [{ ...ANALYSIS }]
+
+    render(<AnalysesPage />)
+
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
+  })
+})
+
+describe('AnalysesPage — deleting a run', () => {
+  it('asks first, and deletes only on confirm', async () => {
+    analysisState.analyses = [{ ...ANALYSIS, id: 'done' }]
+
+    render(<AnalysesPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete analysis' }))
+
+    expect(await screen.findByText('Delete this analysis?')).toBeTruthy()
+    expect(screen.getByText('This action cannot be undone.')).toBeTruthy()
+    expect(analysisState.removeAnalysis).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(analysisState.removeAnalysis).toHaveBeenCalledWith('done')
+  })
+})
+
+describe('AnalysesPage — one primary run CTA per view', () => {
+  const primaryRunCtas = () =>
+    screen
+      .getAllByRole('button', { name: /run .*analysis/i })
+      .filter((button) => button.className.includes('bg-primary'))
+
+  it('leaves the list with a single primary CTA', () => {
+    analysisState.analyses = [{ ...ANALYSIS }]
+
+    render(<AnalysesPage />)
+
+    expect(primaryRunCtas()).toHaveLength(1)
+    expect(primaryRunCtas()[0].textContent).toMatch(/run new analysis/i)
+  })
+
+  it('demotes the form toggle while the form is open, leaving the submit the only primary CTA', () => {
+    searchParams.current = new URLSearchParams('new=1')
+
+    render(<AnalysesPage />)
+
+    expect(primaryRunCtas()).toHaveLength(1)
+    expect(primaryRunCtas()[0].textContent).toMatch(/^run analysis$/i)
   })
 })

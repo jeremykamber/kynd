@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { usePersonaStore } from '@/ui/stores/personaStore'
+import { BOTTOM_BAR_POSITION_CLASS } from '@/lib/bottomClearance'
 import { UserIcon, FileTextIcon, PlayIcon, MessageSquareIcon } from 'lucide-react'
 
 interface PrimaryDestination {
@@ -170,9 +171,14 @@ export function PrimaryNav() {
         </div>
       </header>
 
+      {/* The bottom bar is the reference edge of the clearance contract: the
+          content column reserves its height and every fixed action clears it. */}
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 lg:hidden"
+        className={cn(
+          BOTTOM_BAR_POSITION_CLASS,
+          'border-t border-border/60 bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 lg:hidden',
+        )}
       >
         <div className="mx-auto flex max-w-7xl items-stretch gap-2 px-3 py-2">
           {destinations.map((destination) => (

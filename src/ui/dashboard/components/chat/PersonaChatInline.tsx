@@ -7,12 +7,7 @@ import { useLocalStorage } from "@/ui/hooks/useLocalStorage"
 import { Send, Loader2 } from "lucide-react"
 import { readStreamableValue } from "@ai-sdk/rsc"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { parseMessageContent } from "./parseMessageContent"
-
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-}
+import { isStreamingMessage, parseMessageContent, type ChatMessage } from "./parseMessageContent"
 
 interface PersonaChatInlineProps {
   persona: Persona
@@ -25,7 +20,7 @@ interface PersonaChatInlineProps {
  */
 export function PersonaChatInline({ persona }: PersonaChatInlineProps) {
   const storageKey = `persona_chat_${persona.id}`
-  const [messages, setMessages] = useLocalStorage<Message[]>(storageKey, [])
+  const [messages, setMessages] = useLocalStorage<ChatMessage[]>(storageKey, [])
   const [input, setInput] = useState("")
   const [isPending, startTransition] = useTransition()
   const chatRef = useRef<HTMLDivElement>(null)
@@ -52,7 +47,7 @@ export function PersonaChatInline({ persona }: PersonaChatInlineProps) {
     // re-engage follow mode.
     stickToBottomRef.current = true
     setInput("")
-    const newMessages: Message[] = [...messages, { role: 'user', content: messageToSend }]
+    const newMessages: ChatMessage[] = [...messages, { role: 'user', content: messageToSend }]
     setMessages(newMessages)
 
     setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
@@ -130,7 +125,7 @@ export function PersonaChatInline({ persona }: PersonaChatInlineProps) {
                     m.role === 'user' ? 'rounded-tr-sm whitespace-pre-wrap' : 'rounded-tl-sm border border-border/40'
                   }`}
                 >
-                  {parseMessageContent(m.content)}
+                  {parseMessageContent(m.content, isStreamingMessage(messages, i, isPending))}
                 </div>
                 <span className="text-xs text-muted-foreground mt-2 px-1">
                   {m.role === 'user' ? 'You' : persona.name}
@@ -162,7 +157,7 @@ export function PersonaChatInline({ persona }: PersonaChatInlineProps) {
           >
             <input
               type="text"
-              className="w-full h-12 pl-4 pr-12 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all placeholder:text-muted-foreground/70"
+              className="w-full h-12 pl-4 pr-12 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all placeholder:text-muted-foreground"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={`Message ${persona.name}...`}

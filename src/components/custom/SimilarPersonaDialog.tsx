@@ -160,10 +160,10 @@ export function SimilarPersonaDialog({
         <div className="p-5 flex flex-col gap-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h3 className="micro-label text-muted-foreground/70">
+              <h3 className="micro-label text-muted-foreground">
                 Big Five Personality Traits
               </h3>
-              <span className="text-xs text-muted-foreground/60">
+              <span className="text-xs text-muted-foreground">
                 Adjust the personality profile
               </span>
             </div>
@@ -203,10 +203,10 @@ export function SimilarPersonaDialog({
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h3 className="micro-label text-muted-foreground/70">
+              <h3 className="micro-label text-muted-foreground">
                 How Many?
               </h3>
-              <span className="text-xs text-muted-foreground/60">
+              <span className="text-xs text-muted-foreground">
                 Number of variations to generate
               </span>
             </div>

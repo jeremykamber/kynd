@@ -7,10 +7,11 @@ import { usePersonaStore } from '@/ui/stores/personaStore'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
 
 import { SetupView } from './views/SetupView'
-import { MinimalCard } from '@/components/custom/MinimalCard'
+import { useLoadDemoBatch } from '@/ui/hooks/useLoadDemoBatch'
 import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
 import { PersonaSkeletonCard } from '@/components/custom/PersonaSkeletonCard'
 import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
+import { ConfirmDeleteDialog } from '@/components/custom/ConfirmDeleteDialog'
 import type { VariationFormData } from '@/components/custom/SimilarPersonaDialog'
 import { LayersIcon, SparklesIcon, PlayIcon, PlusIcon, ChevronDownIcon, FileTextIcon, PenIcon, ClockIcon, XIcon, ArrowLeftIcon, AlertTriangleIcon } from 'lucide-react'
 import Link from 'next/link'
@@ -21,6 +22,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Persona } from '@/domain/entities/Persona'
@@ -28,8 +30,10 @@ import { readStreamableValue } from '@ai-sdk/rsc'
 import { generateSimilarPersonasAction } from '@/actions/generateSimilarPersonas'
 import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { summarizeError } from '@/lib/errorSummary'
+import { pluralize } from '@/lib/pluralize'
 import { FeedbackButton } from '@/components/custom/FeedbackButton'
-import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
+import { DESTRUCTIVE_CARD_CONTROL_CLASS, cn } from '@/lib/utils'
+import { FIXED_BOTTOM_OFFSET_CLASS } from '@/lib/bottomClearance'
 
 /** One timestamp format for both the ready and the failed batch card. */
 function batchTimestamp(createdAt: string): string {
@@ -55,6 +59,8 @@ export function DashboardClient() {
     const [pendingPersonaIds, setPendingPersonaIds] = useState<Set<string>>(new Set())
     const [showSetup, setShowSetup] = useState(false)
     const [showExpandedFlow, setShowExpandedFlow] = useState(false)
+    const [batchPendingDeleteId, setBatchPendingDeleteId] = useState<string | null>(null)
+    const loadDemoBatch = useLoadDemoBatch()
     const batches = usePersonaStore((s) => s.batches)
     const activeRunIds = usePersonaStore((s) => s.activeGenerationRunIds)
     const activeBatchId = usePersonaStore((s) => s.activeBatchId)
@@ -85,6 +91,10 @@ export function DashboardClient() {
 
     const activeBatch = activeBatchId
         ? batches.find((b) => b.id === activeBatchId)
+        : null
+
+    const batchPendingDelete = batchPendingDeleteId
+        ? batches.find((b) => b.id === batchPendingDeleteId) ?? null
         : null
 
     const analyses = useAnalysisStore((s) => s.analyses)
@@ -168,7 +178,7 @@ export function DashboardClient() {
 
             const count = formData.count
             toastIdRef.current = toast.loading(
-                `Generating ${count} variation${count > 1 ? 's' : ''} of ${referencePersona.name}`,
+                `Generating ${pluralize(count, 'variation')} of ${referencePersona.name}`,
                 {
                     description: 'Creating personas with adjusted traits...',
                     icon: <SparklesIcon className="h-4 w-4 text-primary animate-pulse" />,
@@ -215,7 +225,7 @@ export function DashboardClient() {
 
                         if (toastIdRef.current) {
                             toast.success(
-                                `${completedCount} variation${completedCount > 1 ? 's' : ''} of ${referencePersona.name} generated`,
+                                `${pluralize(completedCount, 'variation')} of ${referencePersona.name} generated`,
                                 {
                                     id: toastIdRef.current,
                                     description: 'New persona cards added to the batch',
@@ -320,6 +330,11 @@ export function DashboardClient() {
                                         From interviews
                                     </Link>
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={loadDemoBatch}>
+                                    <LayersIcon className="h-4 w-4 mr-2" />
+                                    Load demo persona batch
+                                </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -396,7 +411,7 @@ export function DashboardClient() {
                                                     className="min-w-0"
                                                 />
                                                 <span className="text-sm text-muted-foreground">
-                                                    {batch.personas.length} personas ·{' '}
+                                                    {pluralize(batch.personas.length, 'persona')} ·{' '}
                                                     {batch.source === 'interviews'
                                                         ? 'from interviews'
                                                         : 'from description'}
@@ -411,7 +426,7 @@ export function DashboardClient() {
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation()
-                                            removeBatch(batch.id)
+                                            setBatchPendingDeleteId(batch.id)
                                         }}
                                         className={DESTRUCTIVE_CARD_CONTROL_CLASS}
                                         aria-label="Delete batch"
@@ -444,12 +459,12 @@ export function DashboardClient() {
                                             className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-sm font-medium tabular-nums text-primary transition-colors hover:bg-primary/20"
                                         >
                                             <PlayIcon className="h-3 w-3" />
-                                            {batchAnalysisCount} analysis{batchAnalysisCount !== 1 ? 's' : ''}
+                                            {pluralize(batchAnalysisCount, 'analysis', 'analyses')}
                                         </Link>
                                     )}
                                 </div>
                                 <p className="text-sm text-muted-foreground">
-                                    {activeBatch.personas.length} personas ·{' '}
+                                    {pluralize(activeBatch.personas.length, 'persona')} ·{' '}
                                     {activeBatch.source === 'interviews'
                                         ? 'from interviews'
                                         : 'Generated from description'}
@@ -457,7 +472,7 @@ export function DashboardClient() {
                                     {new Date(activeBatch.createdAt).toLocaleString()}
                                 </p>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
                                 {activeBatch.personas.map((persona, idx) => {
                                     // Use combined key to prevent collisions from duplicate persona IDs
                                     const key = `${persona.id}::${idx}`
@@ -484,7 +499,10 @@ export function DashboardClient() {
             {showSetupView && personaFlow.personaProgress && !showExpandedFlow && (
               <button
                 onClick={() => setShowExpandedFlow(true)}
-                className="fixed bottom-6 right-6 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium shadow-lg transition-colors hover:bg-accent"
+                className={cn(
+                  'fixed left-6 z-40 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium shadow-lg transition-colors hover:bg-accent',
+                  FIXED_BOTTOM_OFFSET_CLASS,
+                )}
               >
                 <LayersIcon className="h-3.5 w-3.5" />
                 Show Progress
@@ -538,7 +556,7 @@ export function DashboardClient() {
                             <h3 className="text-xl font-semibold tracking-tight">Generation Complete</h3>
 
                             <p className="text-sm text-muted-foreground text-center text-balance">
-                                {personaFlow.personaProgress.personas?.length ?? 0} personas created from your target profile.
+                                {pluralize(personaFlow.personaProgress.personas?.length ?? 0, 'persona')} created from your target profile.
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-3 w-full pt-2">
@@ -624,6 +642,33 @@ export function DashboardClient() {
                 </FlowDialog>
             )}
 
+
+            <ConfirmDeleteDialog
+                open={batchPendingDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open) setBatchPendingDeleteId(null)
+                }}
+                title="Delete this batch?"
+                description={
+                    batchPendingDelete
+                        ? batchPendingDelete.personas.length > 0
+                            ? <>
+                                Deleting <span className="text-foreground">{batchPendingDelete.label}</span> removes{' '}
+                                {pluralize(batchPendingDelete.personas.length, 'persona')} from the workspace.
+                                Analyses already run against this batch are kept. This cannot be undone.
+                            </>
+                            : <>
+                                Deleting <span className="text-foreground">{batchPendingDelete.label}</span> removes the
+                                batch from the workspace. This cannot be undone.
+                            </>
+                        : ''
+                }
+                confirmLabel="Delete Batch"
+                onConfirm={() => {
+                    if (batchPendingDelete) removeBatch(batchPendingDelete.id)
+                    setBatchPendingDeleteId(null)
+                }}
+            />
 
             <PersonaDetailSheet
                 persona={selectedPersona}
