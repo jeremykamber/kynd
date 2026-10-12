@@ -7,7 +7,7 @@ colors:
   card: oklch(0.14 0.01 265)
   card-foreground: oklch(0.95 0 0)
   primary: oklch(0.62 0.2 230)
-  primary-foreground: oklch(0.98 0 0)
+  primary-foreground: oklch(0.14 0.01 265)
   secondary: oklch(0.16 0.01 265)
   secondary-foreground: oklch(0.95 0 0)
   muted: oklch(0.18 0.01 265)
@@ -22,7 +22,7 @@ colors:
   sidebar: oklch(0.1 0.01 265)
   sidebar-foreground: oklch(0.9 0 0)
   sidebar-border: oklch(0.16 0.01 265)
-  chat-user-bubble: oklch(0.62 0.2 230 / 0.12)
+  chat-user-bubble: oklch(0.62 0.2 230 / 0.22)
   chat-assistant-bubble: oklch(0.16 0.01 265)
 typography:
   # Canonical type scale. Root font size is the browser default (100% = 16px),
@@ -97,6 +97,7 @@ spacing:
 components:
   button-primary:
     backgroundColor: '{colors.primary}'
+    # Dark ink, not white: white on cerulean is 3.05:1 (fails AA). See Colors.
     textColor: '{colors.primary-foreground}'
     rounded: '{rounded.md}'
     padding: 12px 24px
@@ -156,6 +157,7 @@ A restrained palette built around cool charcoal neutrals and a single cerulean b
 - **Raised Surface** (`oklch(0.16 0.01 265)`): Secondary surfaces, sidebar, hovered cards.
 - **Cerulean Blue** (`oklch(0.62 0.2 230)`): Primary accent. A warm cerulean blue used sparingly for interactive elements, active states, and data highlights. Never decorative.
 - **Instrument White** (`oklch(0.95 0 0)`): Primary text, headings, high-importance labels.
+- **Instrument Charcoal ink** (`oklch(0.14 0.01 265)`), the `primary-foreground` token: The ink for anything sitting **on** Cerulean Blue (primary buttons, selected chips, the Chat action). Measured 6.16:1 on cerulean. White here is 3.05:1 and fails AA. The alternative, darkening Cerulean Blue to `L≈0.52` so white text passes, was rejected: it fixes buttons but drags `text-primary` (links, active nav, the Chat affordance) down to 4.24:1 on the dark canvas, which fails the same bar. At `L=0.62` the accent cannot carry white text and stay a link colour, so the foreground gives instead.
 - **Instrument Grey** (`oklch(0.65 0.01 265)`): Secondary text, metadata, placeholders.
 - **Panel Edge** (`oklch(0.2 0.01 265)`): Borders and dividers. Thin, crisp, present but not dominant.
 
@@ -172,7 +174,7 @@ A restrained palette built around cool charcoal neutrals and a single cerulean b
 - **Alert Red** (`oklch(0.58 0.2 28)`): Destructive actions, errors, critical signals.
 - **Caution** (`oklch(0.76 0.14 24)`): Negative information that isn't an error — model uncertainty, low-confidence outputs, "less reliable for" labels. Visually softer than Alert Red; reads as caution, not danger.
 - **Verified Green** (`oklch(0.72 0.15 155)`): Confirmed success — a stage the persona actually completed, a finished run. Reserved for state the system verified, never for emphasis or decoration. Deliberately absent from interactive elements, which stay Cerulean.
-- **Cerulean Blue (low opacity)** (`oklch(0.62 0.2 230 / 0.12)`): User chat bubbles, selection highlights, active filter backgrounds. The accent color applied as a tint rather than a solid.
+- **Cerulean Blue (low opacity)** (`oklch(0.62 0.2 230 / 0.22)`): User chat bubbles, selection highlights, active filter backgrounds. The accent color applied as a tint rather than a solid. The user's own bubble sits on the darkest surface in the product; a lighter tint than this stops reading as a surface at all.
 
 ### Named Rules
 
@@ -262,7 +264,7 @@ Flat by default. This system does not use box-shadows to convey surface hierarch
 **Button Hierarchy (Primary → Secondary → Ghost):** Every button in the UI must clearly belong to one of three tiers. The visual difference between tiers must be unmistakable — two buttons in the same action group must not look like they belong to different families. Mixing styles within a tier creates visual noise.
 
 - **Shape:** Crisp 6px radius (`rounded.md`). No pill shapes — those belong on consumer surfaces.
-- **Primary** (one per viewport max — chat buttons are the exception): Cerulean Blue (`bg-primary`) fill, Instrument White text. Distinguished by a subtle `ring-1 ring-primary/20` for depth. Hover: `bg-primary/90` (slightly darker fill, no shift). Transition: all 150ms `cubic-bezier(0.16, 1, 0.3, 1)`. No scale, no lift. Primary buttons are rare — reserved for the single most important action on screen, plus "Chat with" buttons which are intentionally elevated to primary to signal interactivity.
+- **Primary** (one per viewport max — chat buttons are the exception): Cerulean Blue (`bg-primary`) fill, Instrument Charcoal ink text (`text-primary-foreground`) — dark ink on cerulean is 6.16:1, where white was 3.05:1 and failed AA. Distinguished by a subtle `ring-1 ring-primary/20` for depth. Hover: `bg-primary/90` (slightly darker fill, no shift). Transition: all 150ms `cubic-bezier(0.16, 1, 0.3, 1)`. No scale, no lift. Primary buttons are rare — reserved for the single most important action on screen, plus "Chat with" buttons which are intentionally elevated to primary to signal interactivity.
 - **Secondary** (preferred default for paired actions): `bg-card` fill with `1px border border-border/60`, Foreground text. Hover: `bg-muted/30`. This integrates with the card surface it sits on — it feels planted, not floating. Transition: colors 150ms. Used for non-primary actions in action bars, card footers, and dialog rows. Pairs of buttons use Primary + Secondary, never Primary + Primary.
 - **Ghost:** Transparent fill, no border, Muted Foreground text. Hover: Foreground text. Used for icon-only buttons, inline toolbar actions, and sidebar items.
 - **Padding:** `12px 24px` (standard), `8px 16px` (compact/icon), `10px 20px` (within data-heavy layouts).
@@ -284,10 +286,10 @@ The persona card is a **browse-and-triage surface, not a profile.** It carries o
 - **Structure:** identity row (avatar, name, occupation, optional "Variant of") → hairline divider (`h-px bg-border/40`) → labeled detail groups → action row (`Create Variant`, `Chat with …`).
 - **Identity text:** name and occupation **wrap** onto as many lines as needed (`break-words`) — never truncated. The full role must stay readable; the card grows to fit rather than clipping with an ellipsis. Long unbroken tokens break rather than overflow.
 - **Detail groups:** goals (capped at 3) and the decision style. Each group is introduced by a micro-label so the values explain themselves.
-- **Goals:** a labeled **bulleted list**, one goal per row, `text-sm leading-snug`, with a small accent dot marker (`size-1 rounded-full bg-primary/70`). Not chips — a list is a list. The dot is the detail block's only accent touch; the action row's Chat button remains the card's primary accent.
-- **Decision style:** labeled **"How they decide"**, `text-sm leading-relaxed`, clamped to 3 lines. The pronoun is neutral because `Persona` carries no gender field; a gendered label would require a new entity field and generation output.
-- **Micro-label:** the `micro-label` utility (11px mono, medium, uppercase, `0.08em`) plus `text-muted-foreground/70` — a de-emphasized step below the Label typography.
-- **Height economy:** the card must stay scannable in a grid. Cap goals at 3, clamp the decision line, pin the action row with `mt-auto`, and rely on grid stretch so sibling cards match height.
+- **Goals:** a labeled **bulleted list**, one goal per row, `text-base leading-snug`, with a small accent dot marker (`size-1 rounded-full bg-primary/70`). Not chips — a list is a list. The dot is the detail block's only accent touch; the action row's Chat button remains the card's primary accent.
+- **Decision style:** labeled **"How they decide"**, `text-base leading-relaxed`, clamped to 3 lines. The pronoun is neutral because `Persona` carries no gender field; a gendered label would require a new entity field and generation output.
+- **Micro-label:** the `micro-label` utility (11px mono, medium, uppercase, `0.08em`) plus `text-muted-foreground` — a de-emphasized step below the Label typography. Never pair `micro-label` with an opacity step: the `/70` variant measured 3.41:1 on the card surface and failed AA at 11px.
+- **Height economy:** the card must stay scannable in a grid. Cap goals at 3, clamp the decision line, pin the action row with `mt-auto`, and rely on grid stretch so sibling cards match height (the grid sets `items-stretch`, the card `h-full`).
 - **Delete affordance:** hover-reveal destructive button — see Destructive Actions.
 - **Rationale:** a narrative hook (backstory pull-quote) was evaluated for this card and rejected — quotes read as decorative and carry no decision signal. Decision-relevant facts (goals, how they decide) win on a triage surface; narrative belongs in the detail view.
 
@@ -298,6 +300,7 @@ The persona card is a **browse-and-triage surface, not a profile.** It carries o
 - **Padding:** `10px 14px` vertical/horizontal.
 - **Placeholder:** Muted Foreground at `oklch(0.50 0.01 265)`.
 - **Error:** Alert Red border. Error text in Alert Red at Label size.
+- **Required:** A required group a user has not answered carries a `Required` micro-label next to its legend, in Caution (`text-warning-foreground`); it disappears once answered. A submit control that is disabled while the form is incomplete must say what is still missing next to itself, naming the unanswered groups. A disabled button with no visible reason reads as a broken button, not as a form.
 - **Disabled:** Full opacity at 0.4. No special background change.
 
 ### Dropdown Menus
@@ -364,6 +367,7 @@ When chips are used, they must be readable and unclipped:
 - **Hover:** Full opacity red (`hover:bg-destructive`).
 - **Parent:** The parent container must have `group relative` classes to enable the hover reveal.
 - **Usage:** Used on cards, list items, and tags where deletion is a secondary action. The button must never be visible at rest — it only appears when the user is actively engaging with the item.
+- **Confirmation:** The button opens a dialog, never deletes on click. One component (`ConfirmDeleteDialog`) carries the title, the statement of what is lost, the destructive action and the pending state, so a batch, a persona and an analysis all confirm the same way. The dialog's confirm action is the only Alert Red button on screen. A delete with no way back is never silent.
 
 ### Edit Mode Fields
 
@@ -381,8 +385,8 @@ Edit mode fields are inputs that appear when the user explicitly enters an editi
 
 Any set of values shown on a card or panel — goals, values, fears, interests, domains, expertise — must be introduced by a label. **Unlabeled value rows and orphan chips are prohibited:** the user cannot tell what they represent, so the data becomes noise.
 
-- **Label:** `micro-label text-muted-foreground/70` above the group. A de-emphasized step below the Label typography; it orients without competing with the content.
-- **Content lists:** bulleted rows — a small accent dot marker, one value per row, `text-sm leading-snug`. Use this for anything the user must actually read (goals, values, fears).
+- **Label:** `micro-label text-muted-foreground` above the group. A de-emphasized step below the Label typography; it orients without competing with the content. Do not add an opacity step to the label: `micro-label text-muted-foreground/70` measured 3.41:1 on the card surface and failed AA for 11px text.
+- **Content lists:** bulleted rows, a small accent dot marker, one value per row, `text-base leading-snug`. Use this for anything the user must actually read (goals, values, fears).
 - **Tag sets:** only genuinely low-stakes tags may go inline or as chips (see The Tag-Not-Content Rule).
 - **Pronouns:** labels that need a pronoun use the neutral "they" — `Persona` has no gender field, and guessing from a name risks misgendering.
 - **Rationale:** the label is the difference between a designed element and a pile of values. An unlabeled chip row reads as decoration; a labeled group reads as intent.
