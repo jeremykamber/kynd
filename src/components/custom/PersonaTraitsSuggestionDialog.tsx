@@ -68,7 +68,7 @@ function DiffRow({ label, suggested, original, apply, onToggle }: {
   if (!isDifferent) {
     return (
       <div className="flex items-center justify-between py-1.5 px-2 rounded-sm hover:bg-muted/20 transition-colors">
-          <span className="micro-label text-muted-foreground/70">{label}</span>
+          <span className="micro-label text-muted-foreground">{label}</span>
         <span className="text-sm text-foreground">{suggested}</span>
       </div>
     )
@@ -76,7 +76,7 @@ function DiffRow({ label, suggested, original, apply, onToggle }: {
 
   return (
     <div className="flex items-center justify-between py-1.5 px-2 rounded-sm hover:bg-muted/20 transition-colors group">
-      <span className="micro-label text-muted-foreground/70 min-w-25">{label}</span>
+      <span className="micro-label text-muted-foreground min-w-25">{label}</span>
       <div className="flex items-center gap-3 flex-1 justify-end">
         <div className="flex flex-col items-end gap-0.5 min-w-0">
           <span className={cn(
@@ -235,7 +235,7 @@ export function PersonaTraitsSuggestionDialog({
           </div>
 
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-card border border-border">
-            <h3 className="micro-label text-muted-foreground/70 mb-2 px-2">Personality Traits (OCEAN)</h3>
+            <h3 className="micro-label text-muted-foreground mb-2 px-2">Personality Traits (OCEAN)</h3>
             {oceanRows.map((row) => (
               <DiffRow
                 key={row.key}
@@ -249,7 +249,7 @@ export function PersonaTraitsSuggestionDialog({
           </div>
 
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-card border border-border">
-            <h3 className="micro-label text-muted-foreground/70 mb-2 px-2">Psychographics</h3>
+            <h3 className="micro-label text-muted-foreground mb-2 px-2">Psychographics</h3>
             {psychoRows.map((row) => (
               <DiffRow
                 key={row.key}

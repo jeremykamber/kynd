@@ -56,7 +56,7 @@ export function PersonaDetailModal({
   const renderScalar = (label: string, value: number, leftLabel: string, rightLabel: string) => (
     <div className="flex flex-col gap-2">
       <div className="flex justify-between items-end">
-        <span className="micro-label text-muted-foreground/70">{label}</span>
+        <span className="micro-label text-muted-foreground">{label}</span>
         <span className="text-sm font-semibold font-mono tabular-nums">{value}</span>
       </div>
       <Progress value={value} className="h-1.5" />
@@ -105,7 +105,7 @@ export function PersonaDetailModal({
               <PersonaAvatar name={persona.name} size="xl" className="w-16 h-16 md:w-24 md:h-24 border-2 border-background shrink-0" />
               <div className="flex flex-col gap-1 min-w-0">
                 <DialogTitle className="text-xl font-semibold tracking-tight break-words">{persona.name}</DialogTitle>
-                <div className="flex flex-wrap items-center gap-x-2 md:gap-x-3 gap-y-1 micro-label text-muted-foreground/80">
+                <div className="flex flex-wrap items-center gap-x-2 md:gap-x-3 gap-y-1 micro-label text-muted-foreground">
                   <span>{persona.age} years old</span>
                   <span className="w-1 h-1 rounded-full bg-border" />
                   <span className="break-words">{persona.occupation}</span>
@@ -139,7 +139,7 @@ export function PersonaDetailModal({
                   className="flex flex-col h-[400px] p-5 md:p-6 rounded-lg bg-card border border-border overflow-hidden transition-colors duration-150 hover:border-border"
                 >
                   <div className="flex items-center justify-between mb-6">
-                    <h4 className="micro-label text-muted-foreground/70">THE BACKSTORY VAULT</h4>
+                    <h4 className="micro-label text-muted-foreground">THE BACKSTORY VAULT</h4>
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/70" />
                       <Input
@@ -175,7 +175,7 @@ export function PersonaDetailModal({
                   variants={itemVariants}
                   className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-3 transition-colors duration-150 hover:border-border"
                 >
-                  <h4 className="micro-label text-muted-foreground/70">GOALS</h4>
+                  <h4 className="micro-label text-muted-foreground">GOALS</h4>
                   <ul className="space-y-3">
                     {persona.goals.map((goal, i) => (
                       <li key={`${persona.id}-goal-${i}`} className="text-sm flex gap-2 leading-snug">
@@ -192,10 +192,10 @@ export function PersonaDetailModal({
                   variants={itemVariants}
                   className="p-5 md:p-6 rounded-lg bg-card border border-border flex flex-col gap-4 h-full transition-colors duration-150 hover:border-border"
                 >
-                  <h4 className="micro-label text-muted-foreground/70">THE ENGINE</h4>
+                  <h4 className="micro-label text-muted-foreground">THE ENGINE</h4>
 
                   <div className="space-y-2">
-                    <h4 className="micro-label text-muted-foreground/70">Big Five (OCEAN) — Joshi et al. (2025)</h4>
+                    <h4 className="micro-label text-muted-foreground">Big Five (OCEAN) — Joshi et al. (2025)</h4>
                     <div className="space-y-4">
                       {renderScalar("Conscientiousness", persona.conscientiousness, "Chaotic", "Meticulous")}
                       {renderScalar("Neuroticism", persona.neuroticism, "Stable", "Anxious")}
@@ -211,11 +211,11 @@ export function PersonaDetailModal({
                   variants={itemVariants}
                   className="p-5 md:p-6 rounded-lg bg-card border border-border transition-colors duration-150 hover:border-border"
                 >
-                  <h4 className="micro-label text-muted-foreground/70 mb-4">PSYCHOGRAPHIC SPECIFICATION</h4>
+                  <h4 className="micro-label text-muted-foreground mb-4">PSYCHOGRAPHIC SPECIFICATION</h4>
                   <div className="flex flex-col gap-4">
                     {persona.values && persona.values.length > 0 && (
                       <div className="flex flex-col gap-2">
-                        <span className="micro-label text-muted-foreground/70">Values</span>
+                        <span className="micro-label text-muted-foreground">Values</span>
                         <div className="flex flex-wrap gap-1.5">
                           {persona.values.map((v, i) => (
                             <span key={i} className="text-sm font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-sm">{v}</span>
@@ -225,7 +225,7 @@ export function PersonaDetailModal({
                     )}
                     {persona.fears && persona.fears.length > 0 && (
                       <div className="flex flex-col gap-2">
-                        <span className="micro-label text-muted-foreground/70">Fears</span>
+                        <span className="micro-label text-muted-foreground">Fears</span>
                         <ul className="space-y-1.5">
                           {persona.fears.map((f, i) => (
                             <li key={i} className="text-sm flex gap-2 leading-snug text-foreground/80">
@@ -238,13 +238,13 @@ export function PersonaDetailModal({
                     )}
                     {persona.communicationStyle && (
                       <div className="flex items-center justify-between py-2 border-t border-border/20">
-                        <span className="micro-label text-muted-foreground/70">Communication</span>
+                        <span className="micro-label text-muted-foreground">Communication</span>
                         <span className="text-sm font-medium capitalize">{persona.communicationStyle}</span>
                       </div>
                     )}
                     {persona.decisionStyle && (
                       <div className="flex items-center justify-between py-2 border-t border-border/20">
-                        <span className="micro-label text-muted-foreground/70">Decision Style</span>
+                        <span className="micro-label text-muted-foreground">Decision Style</span>
                         <span className="text-sm font-medium capitalize">{persona.decisionStyle}</span>
                       </div>
                     )}

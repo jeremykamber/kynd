@@ -54,7 +54,10 @@
     --popover: oklch(0.18 0.008 265);
     --popover-foreground: oklch(0.95 0 0);
     --primary: oklch(0.62 0.2 230);
-    --primary-foreground: oklch(0.98 0 0);
+    /* Dark ink on cerulean (6.16:1). White on cerulean was 3.05:1, and darkening
+     * --primary far enough for white text would drag text-primary links under
+     * 4.5:1. See DESIGN.md → Primary (Dark Mode). */
+    --primary-foreground: oklch(0.14 0.01 265);
     --secondary: oklch(0.20 0.008 265);
     --secondary-foreground: oklch(0.95 0 0);
     --muted: oklch(0.22 0.008 265);
@@ -76,7 +79,9 @@
     --sidebar-accent-foreground: var(--primary-foreground);
     --sidebar-border: oklch(0.18 0.008 265);
     --sidebar-ring: oklch(0.25 0 0);
-    --chat-user-bubble: color-mix(in oklch, var(--primary) 12%, transparent);
+    /* The user's own chat bubble. 12% nearly vanished on the dark canvas; 22%
+     * reads as a distinct surface while staying a tint, not a solid fill. */
+    --chat-user-bubble: color-mix(in oklch, var(--primary) 22%, transparent);
     --chat-assistant-bubble: oklch(0.20 0.008 265);
 }
 
@@ -89,7 +94,7 @@
   --popover: oklch(0.98 0 0);
   --popover-foreground: oklch(0.14 0.01 265);
   --primary: oklch(0.57 0.2 230);
-  --primary-foreground: oklch(0.98 0 0);
+  --primary-foreground: oklch(0.14 0.01 265);
   --secondary: oklch(0.87 0.005 265);
   --secondary-foreground: oklch(0.14 0.01 265);
   --muted: oklch(0.89 0.005 265);
@@ -109,7 +114,7 @@
   --sidebar-accent-foreground: var(--primary-foreground);
   --sidebar-border: oklch(0.80 0.01 265);
   --sidebar-ring: oklch(0.75 0 0);
-  --chat-user-bubble: color-mix(in oklch, var(--primary) 12%, transparent);
+  --chat-user-bubble: color-mix(in oklch, var(--primary) 22%, transparent);
   --chat-assistant-bubble: oklch(0.87 0.005 265);
 }
 */

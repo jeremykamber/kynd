@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, act } from '@testing-library/react'
+import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 import React from 'react'
+
+const removeBatchSpy = vi.hoisted(() => vi.fn())
 
 // ── Store state (reset per test) ─────────────────────────────────────────
 
@@ -30,11 +32,10 @@ interface MockPersonaFlow {
   personaCount: number
   personas: any[] | null
   personaProgress: { step?: string; error?: string } | null
-  isPending: boolean
+  isSubmitting: boolean
   error: string | null
   lastCompletedBatchId: string | null
   handleGeneratePersonas: ReturnType<typeof vi.fn>
-  handleCancel: ReturnType<typeof vi.fn>
   handleClearProgress: ReturnType<typeof vi.fn>
   setCustomerProfile: ReturnType<typeof vi.fn>
   setPersonaCount: ReturnType<typeof vi.fn>
@@ -50,11 +51,10 @@ function resetPersonaFlow(overrides?: Partial<MockPersonaFlow>) {
     personaCount: 5,
     personas: null,
     personaProgress: null,
-    isPending: false,
+    isSubmitting: false,
     error: null,
     lastCompletedBatchId: null,
     handleGeneratePersonas: vi.fn(),
-    handleCancel: vi.fn(),
     handleClearProgress: vi.fn(),
     setCustomerProfile: vi.fn(),
     setPersonaCount: vi.fn(),
@@ -68,6 +68,7 @@ function resetPersonaFlow(overrides?: Partial<MockPersonaFlow>) {
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/dashboard',
 }))
 
 vi.mock('sonner', () => ({
@@ -82,7 +83,7 @@ vi.mock('@/ui/stores/personaStore', () => ({
       get activeGenerationRunIds() { return storeState.activeGenerationRunIds },
       setActiveBatch: vi.fn(),
       addBatch: vi.fn(),
-      removeBatch: vi.fn(),
+      removeBatch: removeBatchSpy,
       removePersona: vi.fn(),
       insertPersonasAfter: vi.fn(),
       updatePersona: vi.fn(),
@@ -139,6 +140,7 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: any) => <div>{children}</div>,
   DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuSeparator: () => <hr />,
   DropdownMenuItem: ({ children, onClick, asChild, ...p }: any) =>
     asChild ? children : <button onClick={onClick} {...p}>{children}</button>,
 }))
@@ -171,6 +173,7 @@ describe('DashboardClient — setup view visibility (isGenerating logic)', () =>
   beforeEach(() => {
     resetStore()
     resetPersonaFlow()
+    removeBatchSpy.mockClear()
   })
 
   afterEach(() => {
@@ -300,6 +303,40 @@ describe('DashboardClient — failed batches', () => {
     render(<DashboardClient />)
 
     expect(screen.queryByText(/generation failed/i)).toBeNull()
-    expect(screen.getByText(/1 personas/)).toBeTruthy()
+    // One persona, one word: the count is pluralised, not spelled out.
+    expect(screen.getByText(/1 persona ·/)).toBeTruthy()
+  })
+})
+
+describe('DashboardClient — deleting a batch', () => {
+  const BATCH = {
+    id: 'b1',
+    label: 'Small business owners',
+    source: 'description',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    personas: [{ id: 'p1', name: 'A' }],
+  }
+
+  beforeEach(() => {
+    resetStore({ batches: [BATCH] })
+    resetPersonaFlow()
+    removeBatchSpy.mockClear()
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('asks first, and deletes only once the confirmation is accepted', () => {
+    render(<DashboardClient />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete batch' }))
+
+    expect(removeBatchSpy).not.toHaveBeenCalled()
+    expect(screen.getByText('Delete this batch?')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Batch' }))
+
+    expect(removeBatchSpy).toHaveBeenCalledWith('b1')
   })
 })

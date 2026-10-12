@@ -3,7 +3,12 @@ import { renderHook, act } from "@testing-library/react";
 
 // The ICP flow (usePersonaFlow) must always generate strategy-mode personas.
 const mockGeneratePersonasAction = vi.hoisted(() => vi.fn());
+const mockRouterPush = vi.hoisted(() => vi.fn());
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockRouterPush }),
+  usePathname: () => "/dashboard/new",
+}));
 vi.mock("@/actions/generatePersonas", () => ({
   generatePersonasAction: mockGeneratePersonasAction,
 }));
@@ -49,6 +54,7 @@ const strategyPersona: Persona = {
 describe("usePersonaFlow (ICP screen)", () => {
   beforeEach(() => {
     mockGeneratePersonasAction.mockReset();
+    mockRouterPush.mockReset();
     usePersonaStore.setState({
       batches: [],
       activeBatchId: null,
@@ -98,5 +104,106 @@ describe("usePersonaFlow (ICP screen)", () => {
     expect(batch.personas).toEqual([strategyPersona]);
     expect(result.current.personas).toEqual([strategyPersona]);
     expect(result.current.lastCompletedBatchId).toBe(batch.id);
+
+    // The run settles into the results view: the batch is active and the form
+    // page has navigated away from itself.
+    expect(usePersonaStore.getState().activeBatchId).toBe(batch.id);
+    expect(mockRouterPush).toHaveBeenCalledWith("/dashboard");
+    expect(result.current.isSubmitting).toBe(false);
+  });
+
+  it("keeps the submit state for the whole run and names the batch from the description", async () => {
+    let releaseStream: () => void = () => {};
+    // Executor form: the project's lib target (ES2017) has no Promise.withResolvers.
+    const gate = new Promise<void>((resolve) => { releaseStream = resolve });
+
+    mockGeneratePersonasAction.mockResolvedValue({
+      runId: "run-2",
+      streamData: (async function* () {
+        yield { step: "GENERATING_BACKSTORIES", completedCount: 0, totalCount: 1 };
+        await gate;
+        yield { step: "DONE", personas: [strategyPersona] };
+      })(),
+    });
+
+    const { result } = renderHook(() => usePersonaFlow());
+
+    await act(async () => {
+      result.current.setCustomerProfile("Small business owners in local retail");
+    });
+    await act(async () => {
+      result.current.handleGeneratePersonas();
+    });
+
+    // Mid-run: the button's disabled state and label come from here.
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(result.current.isSubmitting).toBe(true);
+      });
+    });
+
+    await act(async () => {
+      releaseStream();
+      // Wait on the store: it is external, so a settled run is observable
+      // inside the act scope. React state only lands when the scope flushes,
+      // so `result.current` is asserted after it.
+      await vi.waitFor(() => {
+        expect(usePersonaStore.getState().batches).toHaveLength(1);
+      });
+    });
+
+    expect(result.current.isSubmitting).toBe(false);
+    expect(usePersonaStore.getState().batches[0].label).toBe(
+      "Small business owners in local retail",
+    );
+  });
+
+  it("names the batch from the description when the toaster wrote it first", async () => {
+    let releaseStream: () => void = () => {};
+    const gate = new Promise<void>((resolve) => { releaseStream = resolve });
+
+    mockGeneratePersonasAction.mockResolvedValue({
+      runId: "run-3",
+      streamData: (async function* () {
+        await gate;
+        yield { step: "DONE", personas: [strategyPersona] };
+      })(),
+    });
+
+    const { result } = renderHook(() => usePersonaFlow());
+
+    await act(async () => {
+      result.current.setCustomerProfile("Small business owners in local retail");
+    });
+    await act(async () => {
+      result.current.handleGeneratePersonas();
+    });
+
+    // The background toaster settles the run first and can only give the row a
+    // generic count label; the page that holds the description renames it.
+    usePersonaStore.getState().addBatch({
+      id: "batch-from-toaster",
+      label: "1 Persona Generated",
+      source: "description",
+      createdAt: new Date().toISOString(),
+      personas: [strategyPersona],
+      runId: "run-3",
+    });
+
+    await act(async () => {
+      releaseStream();
+      // The rename lands in the store before the hook's own state flushes.
+      await vi.waitFor(() => {
+        expect(
+          usePersonaStore.getState().batches.find((b) => b.runId === "run-3")?.label,
+        ).toBe("Small business owners in local retail");
+      });
+    });
+
+    expect(result.current.isSubmitting).toBe(false);
+
+    const batch = usePersonaStore.getState().batches.find((b) => b.runId === "run-3");
+    expect(batch?.label).toBe("Small business owners in local retail");
+    expect(usePersonaStore.getState().activeBatchId).toBe("batch-from-toaster");
   });
 });

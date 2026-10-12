@@ -2,18 +2,12 @@ import * as React from "react"
 import { cn, DESTRUCTIVE_CARD_CONTROL_CLASS } from "@/lib/utils"
 import { MinimalCard } from "./MinimalCard"
 import { PersonaAvatar } from "./PersonaAvatar"
-import { CopyIcon, GitForkIcon, XIcon, AlertTriangleIcon } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-  DialogHeader,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog"
+import { CopyIcon, GitForkIcon, XIcon } from "lucide-react"
 
 import { Persona } from "@/domain/entities/Persona"
 import { useAnalysisStore } from "@/ui/stores/analysisStore"
+import { pluralize } from "@/lib/pluralize"
 
 export interface PersonaProfilePanelProps extends React.HTMLAttributes<HTMLDivElement> {
   persona: Persona
@@ -68,7 +62,10 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
             <div className="flex items-center justify-between gap-4">
               <h3 className="text-base font-semibold tracking-tight break-words">{persona.name}</h3>
             </div>
-            <p className="micro-label text-muted-foreground break-words">{persona.occupation}</p>
+            {/* The role is the card's second identity line: it wraps and
+                balances rather than truncating, so a long title never loses its
+                last words to an orphan. */}
+            <p className="micro-label text-muted-foreground break-words text-balance">{persona.occupation}</p>
             {persona.variantOf && (
               <div className="flex items-center gap-1.5 mt-1">
                 <GitForkIcon className="w-3 h-3 text-muted-foreground/80 shrink-0" />
@@ -86,13 +83,13 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
 
             {persona.goals?.length ? (
               <div className="flex flex-col gap-2">
-                <span className="micro-label text-muted-foreground/70">
+                <span className="micro-label text-muted-foreground">
                   Goals
                 </span>
                 <ul className="flex flex-col gap-3">
                   {persona.goals.slice(0, 3).map((goal, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm leading-snug text-foreground/85">
-                      <span className="mt-1.5 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
+                    <li key={i} className="flex items-start gap-2.5 text-base leading-snug text-foreground/85">
+                      <span className="mt-2 size-1 rounded-full bg-primary/70 shrink-0" aria-hidden="true" />
                       <span>{goal}</span>
                     </li>
                   ))}
@@ -102,10 +99,10 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
 
             {persona.decisionStyle ? (
               <div className="flex flex-col gap-2">
-                <span className="micro-label text-muted-foreground/70">
+                <span className="micro-label text-muted-foreground">
                   How they decide
                 </span>
-                <p className="text-sm leading-relaxed text-foreground/85 line-clamp-3">
+                <p className="text-base leading-relaxed text-foreground/85 line-clamp-3">
                   {persona.decisionStyle}
                 </p>
               </div>
@@ -142,56 +139,27 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
         </div>
       </MinimalCard>
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent showCloseButton={false} className="sm:max-w-[400px]">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center size-10 rounded-full bg-destructive/10 shrink-0">
-                <AlertTriangleIcon className="size-5 text-destructive" />
-              </div>
-              <div>
-                <DialogTitle>Delete {persona.name.split(' ')[0]}?</DialogTitle>
-                <DialogDescription>
-                  This action cannot be undone.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {usedInAnalyses.length > 0 && (
-            <div className="mx-6 -mt-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <p className="text-sm leading-relaxed text-amber-600/90 dark:text-amber-400/90">
-                <span className="font-semibold">{persona.name}</span> is used in {usedInAnalyses.length} analysis{usedInAnalyses.length > 1 ? 's' : ''}. The persona will be removed but analysis data will be preserved. Opening it from an analysis will show a "persona deleted" notice.
-              </p>
-            </div>
-          )}
-
-          {usedInAnalyses.length === 0 && (
-            <div className="px-6 -mt-2">
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                This persona will be permanently deleted from this batch.
-              </p>
-            </div>
-          )}
-
-          <DialogFooter className="px-6 pb-6 pt-2">
-            <button
-              type="button"
-              onClick={() => setIsDeleteDialogOpen(false)}
-              className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-transparent px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted/30 focus-visible:outline-none"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 text-sm font-semibold text-destructive-foreground transition-colors hover:bg-destructive/90 focus-visible:outline-none"
-            >
-              Delete Persona
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title={`Delete ${persona.name.split(' ')[0]}?`}
+        description={
+          usedInAnalyses.length > 0 ? (
+            <>
+              This action cannot be undone.{' '}
+              <span className="text-warning-foreground">
+                {persona.name} is used in {pluralize(usedInAnalyses.length, 'analysis', 'analyses')}.
+              </span>{' '}
+              The persona will be removed but analysis data will be preserved; opening it from an
+              analysis will show a "persona deleted" notice.
+            </>
+          ) : (
+            'This persona will be permanently deleted from this batch.'
+          )
+        }
+        confirmLabel="Delete Persona"
+        onConfirm={handleDelete}
+      />
     </>
   )
 }

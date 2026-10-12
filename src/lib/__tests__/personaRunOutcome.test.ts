@@ -39,14 +39,51 @@ describe('persistPersonaBatchForRun', () => {
     expect(usePersonaStore.getState().batches).toHaveLength(1)
   })
 
-  it('uses the model title when there is one', async () => {
+  it('names a description batch from the description itself, not the model', async () => {
     generateBatchTitleAction.mockResolvedValueOnce({ title: 'Nordic public-sector buyers' })
 
     const batch = await persistPersonaBatchForRun({
       runId: 'pt-2',
       personas: [persona('p1')],
       source: 'description',
+      description: 'Small business owners in local retail',
       fallbackLabel: 'fallback',
+    })
+
+    // Label and source must agree: the row says "from description", so the
+    // label is the user's own description, and the model is not consulted.
+    expect(batch?.label).toBe('Small business owners in local retail')
+    expect(generateBatchTitleAction).not.toHaveBeenCalled()
+  })
+
+  it('cuts a long description on a word boundary', async () => {
+    const description =
+      'Senior frontend engineers and solo design-systems consultants inside large, slow-moving enterprise organisations'
+
+    const batch = await persistPersonaBatchForRun({
+      runId: 'pt-3',
+      personas: [persona('p1')],
+      source: 'description',
+      description,
+      fallbackLabel: 'fallback',
+    })
+
+    expect(batch?.label.length).toBeLessThanOrEqual(61)
+    expect(batch?.label.endsWith('…')).toBe(true)
+    expect(description.startsWith(batch!.label.slice(0, -1))).toBe(true)
+    // No half words: the character after the cut is a space in the original.
+    expect(description[batch!.label.length - 1]).toBe(' ')
+  })
+
+  it('uses the model title for an interview batch, which has no user text', async () => {
+    generateBatchTitleAction.mockResolvedValueOnce({ title: 'Nordic public-sector buyers' })
+
+    const batch = await persistPersonaBatchForRun({
+      runId: 'pi-9',
+      personas: [persona('p1')],
+      source: 'interviews',
+      transcriptCount: 3,
+      fallbackLabel: '3 Personas from Interviews',
     })
 
     expect(batch?.label).toBe('Nordic public-sector buyers')

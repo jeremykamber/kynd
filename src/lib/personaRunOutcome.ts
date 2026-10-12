@@ -9,8 +9,10 @@ import { usePersonaStore, type PersonaBatch } from '@/ui/stores/personaStore'
  * (streaming locally, polling the VPS otherwise) and `PersonaProgressToaster`,
  * which polls every active run so a generation started on one page still lands
  * in the list after the user navigates away. Exactly one of them may write the
- * batch, and the batch they write must be identical either way — so the entity
- * is built here, once, instead of at each observation site.
+ * batch — so the entity is built here, once, instead of at each observation
+ * site. The label is the one field the two observers cannot agree on: only the
+ * hook that ran the generation holds the user's description, so an observer
+ * without it falls back to the caller's label instead of inventing a title.
  *
  * A run is written at most once, decided by `batch.runId`:
  *
@@ -61,7 +63,7 @@ export async function persistPersonaBatchForRun(
     const { runId, personas, source, fallbackLabel, description, transcriptCount } = outcome
 
     if (runId) {
-        if (namingInFlight.has(runId) || hasBatchForRun(runId)) return null
+        if (namingInFlight.has(runId) || batchForRun(runId)) return null
         namingInFlight.add(runId)
     }
 
@@ -94,7 +96,7 @@ export async function persistPersonaBatchForRun(
  * alone why it died.
  */
 export function recordFailedPersonaBatch(runId: string, error: string | undefined): void {
-    if (hasBatchForRun(runId)) return
+    if (batchForRun(runId)) return
 
     const source = sourceOf(runId)
     usePersonaStore.getState().addBatch({
@@ -108,6 +110,12 @@ export function recordFailedPersonaBatch(runId: string, error: string | undefine
     })
 }
 
-function hasBatchForRun(runId: string): boolean {
-    return usePersonaStore.getState().batches.some((b) => b.runId === runId)
+/**
+ * The batch a settled run produced, once some observer has written it. Two
+ * observers can settle the same run, so the loser of the naming race (and any
+ * caller that arrives after the fact) reads the winner's row from here rather
+ * than from a locally built batch that never reached the store.
+ */
+export function batchForRun(runId: string): PersonaBatch | undefined {
+    return usePersonaStore.getState().batches.find((b) => b.runId === runId)
 }
