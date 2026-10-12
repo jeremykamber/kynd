@@ -331,7 +331,7 @@ The dashboard has **no sidebar.** One destination list (Personas, Interviews, An
 - **Placement:** fixed to the bottom edge (`inset-x-0 bottom-0`, `z-40`), with bottom padding for the safe-area inset.
 - **Surface:** Panel Surface at `bg-card/90`, a `1px` top Panel Edge border, and the same sanctioned `backdrop-blur-xl` as the top bar.
 - **Items:** three equal-width tabs (`flex-1`), icon above label, centred.
-- **Clearance:** content carries `pb-28` below `lg` so the last row clears the bar; the floating "Run Analysis" CTA sits at `bottom-24` below `lg` to clear it too.
+- **Clearance:** one contract, defined once in `@/lib/bottomClearance`. The tab bar owns the bottom edge (`inset-x-0 bottom-0`, below `lg`). A fixed bottom action sits at `bottom-24` below `lg` — clear of the bar — and `bottom-6` above it, and two fixed actions never share a corner: the "Run Analysis" dock owns the right, a progress action takes the left. The content column reserves the bar's clearance (`pb-28` below `lg`, `pb-16` above it) so its last row clears every fixed action. The toast stack starts above the whole column (148px from the viewport bottom) and is informational: its card never takes a click that belongs to the page underneath it. The same numbers in two units, Tailwind classes and sonner pixels: change them together.
 
 - **Back navigation:** inside a batch, a **left-aligned** `← All personas` control sits above the title and returns to the batch list; selecting Personas in the nav does the same. Back affordances live on the left, above the content, never as a text link parked on the right.
 - **Batch reset:** selecting "Personas" clears the active batch, so the batch list is always reachable, from any section and any viewport.
