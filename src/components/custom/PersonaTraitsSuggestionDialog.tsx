@@ -49,7 +49,7 @@ function DiffToggle({ selected, onSelect, label }: { selected: boolean; onSelect
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         selected
           ? "bg-primary/10 text-primary"
-          : "bg-transparent text-muted-foreground/80 hover:text-foreground hover:bg-muted/30",
+          : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30",
       )}
     >
       {label}
@@ -173,7 +173,7 @@ export function PersonaTraitsSuggestionDialog({
           </div>
           <div className="p-10 flex flex-col items-center gap-4">
             <LoaderIcon className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-base leading-relaxed text-muted-foreground/80">Inferring personality traits from the updated backstory...</p>
+            <p className="text-base leading-relaxed text-muted-foreground">Inferring personality traits from the updated backstory...</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -221,14 +221,14 @@ export function PersonaTraitsSuggestionDialog({
             <button
               type="button"
               onClick={() => setAll(false)}
-              className="text-sm font-medium text-muted-foreground/80 hover:text-foreground transition-colors px-2 py-1"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
             >
               Reject all
             </button>
             <button
               type="button"
               onClick={() => setAll(true)}
-              className="text-sm font-medium text-muted-foreground/80 hover:text-foreground transition-colors px-2 py-1"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
             >
               Accept all
             </button>

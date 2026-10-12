@@ -184,6 +184,8 @@ A restrained palette built around cool charcoal neutrals and a single cerulean b
 
 **The Flat-Edge Rule.** Borders are thin (`1px`) and present. They separate surfaces so shadows don't have to. If a border is doing its job, a shadow isn't needed.
 
+**The Step-Once Rule.** Secondary text uses the `text-muted-foreground` token as-is, and accent text uses `text-primary`. The token *is* the de-emphasized step: an alpha variant of it measures lower than the step it was chosen for (`muted-foreground/70` on the card surface is 3.41:1, failing AA at 11px labels and at 16px body copy alike) and drifts every time the surface under it changes. Alpha steps are reserved for glyphs that carry no reading (chevrons, `·` separators) and for inactive or disabled states, where receding is the point — the treated-but-unapplied trait, the disabled dock, the inert tab.
+
 ## 3. Typography
 
 **Display & Body Font:** Geist Sans (with system-ui, sans-serif fallback)
@@ -288,7 +290,7 @@ The persona card is a **browse-and-triage surface, not a profile.** It carries o
 - **Detail groups:** goals (capped at 3) and the decision style. Each group is introduced by a micro-label so the values explain themselves.
 - **Goals:** a labeled **bulleted list**, one goal per row, `text-base leading-snug`, with a small accent dot marker (`size-1 rounded-full bg-primary/70`). Not chips — a list is a list. The dot is the detail block's only accent touch; the action row's Chat button remains the card's primary accent.
 - **Decision style:** labeled **"How they decide"**, `text-base leading-relaxed`, clamped to 3 lines. The pronoun is neutral because `Persona` carries no gender field; a gendered label would require a new entity field and generation output.
-- **Micro-label:** the `micro-label` utility (11px mono, medium, uppercase, `0.08em`) plus `text-muted-foreground` — a de-emphasized step below the Label typography. Never pair `micro-label` with an opacity step: the `/70` variant measured 3.41:1 on the card surface and failed AA at 11px.
+- **Micro-label:** the `micro-label` utility (11px mono, medium, uppercase, `0.08em`) plus `text-muted-foreground` — a de-emphasized step below the Label typography. Never pair it with an opacity step (see The Step-Once Rule).
 - **Height economy:** the card must stay scannable in a grid. Cap goals at 3, clamp the decision line, pin the action row with `mt-auto`, and rely on grid stretch so sibling cards match height (the grid sets `items-stretch`, the card `h-full`).
 - **Delete affordance:** hover-reveal destructive button — see Destructive Actions.
 - **Rationale:** a narrative hook (backstory pull-quote) was evaluated for this card and rejected — quotes read as decorative and carry no decision signal. Decision-relevant facts (goals, how they decide) win on a triage surface; narrative belongs in the detail view.
@@ -385,7 +387,7 @@ Edit mode fields are inputs that appear when the user explicitly enters an editi
 
 Any set of values shown on a card or panel — goals, values, fears, interests, domains, expertise — must be introduced by a label. **Unlabeled value rows and orphan chips are prohibited:** the user cannot tell what they represent, so the data becomes noise.
 
-- **Label:** `micro-label text-muted-foreground` above the group. A de-emphasized step below the Label typography; it orients without competing with the content. Do not add an opacity step to the label: `micro-label text-muted-foreground/70` measured 3.41:1 on the card surface and failed AA for 11px text.
+- **Label:** `micro-label text-muted-foreground` above the group. A de-emphasized step below the Label typography; it orients without competing with the content. Do not add an opacity step to it (see The Step-Once Rule).
 - **Content lists:** bulleted rows, a small accent dot marker, one value per row, `text-base leading-snug`. Use this for anything the user must actually read (goals, values, fears).
 - **Tag sets:** only genuinely low-stakes tags may go inline or as chips (see The Tag-Not-Content Rule).
 - **Pronouns:** labels that need a pronoun use the neutral "they" — `Persona` has no gender field, and guessing from a name risks misgendering.

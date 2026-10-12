@@ -163,7 +163,7 @@ export function SimilarPersonaDialog({
               <h3 className="micro-label text-muted-foreground">
                 Big Five Personality Traits
               </h3>
-              <span className="text-xs text-muted-foreground/60">
+              <span className="text-xs text-muted-foreground">
                 Adjust the personality profile
               </span>
             </div>
@@ -206,7 +206,7 @@ export function SimilarPersonaDialog({
               <h3 className="micro-label text-muted-foreground">
                 How Many?
               </h3>
-              <span className="text-xs text-muted-foreground/60">
+              <span className="text-xs text-muted-foreground">
                 Number of variations to generate
               </span>
             </div>

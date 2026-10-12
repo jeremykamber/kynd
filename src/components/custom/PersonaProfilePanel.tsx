@@ -68,8 +68,8 @@ export function PersonaProfilePanel({ persona, onChatClick, onCreateVariant, onD
             <p className="micro-label text-muted-foreground break-words text-balance">{persona.occupation}</p>
             {persona.variantOf && (
               <div className="flex items-center gap-1.5 mt-1">
-                <GitForkIcon className="w-3 h-3 text-muted-foreground/80 shrink-0" />
-                <span className="text-xs font-medium text-muted-foreground/80 break-words">
+                <GitForkIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-xs font-medium text-muted-foreground break-words">
                   Variant of {persona.variantOf.name}
                 </span>
               </div>

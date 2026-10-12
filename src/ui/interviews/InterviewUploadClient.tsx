@@ -180,7 +180,7 @@ export function InterviewUploadClient() {
                     : 'bg-secondary/20 hover:bg-secondary/40'
                 }`}
               >
-                <Upload className="h-12 w-12 text-muted-foreground/60" />
+                <Upload className="h-12 w-12 text-muted-foreground" />
                 <p className="text-base font-medium text-center">
                   Drop transcripts here or click to browse
                 </p>

@@ -79,7 +79,7 @@ function AnalysisCard({ analysis, onCancel }: { analysis: ArtifactAnalysis; onCa
             {analysis.batchName && (
               <span>Batch: {analysis.batchName}</span>
             )}
-            <span className="ml-auto flex items-center gap-1 whitespace-nowrap text-muted-foreground/70">
+            <span className="ml-auto flex items-center gap-1 whitespace-nowrap text-muted-foreground">
               <ClockIcon className="h-3 w-3 shrink-0" />
               {new Date(analysis.createdAt).toLocaleDateString(undefined, {
                 month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -375,7 +375,7 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
                 >
                   <UploadIcon className="h-6 w-6" />
                   Drop a screenshot or click to browse
-                  <span className="text-xs text-muted-foreground/70">PNG, JPG, or WEBP — under 10 MB</span>
+                  <span className="text-xs text-muted-foreground">PNG, JPG, or WEBP — under 10 MB</span>
                 </button>
               ) : (
                 <div className="flex items-center gap-3 rounded-lg border p-3">

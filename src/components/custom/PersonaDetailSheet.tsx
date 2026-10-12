@@ -216,7 +216,7 @@ export function PersonaDetailSheet({
                 <span className="text-sm font-semibold font-mono tabular-nums">{value}</span>
             </div>
             <Progress value={value} className="h-1.5" />
-            <div className="flex justify-between text-xs text-muted-foreground/60 font-medium">
+            <div className="flex justify-between text-xs text-muted-foreground font-medium">
                 <span>{leftLabel}</span>
                 <span>{rightLabel}</span>
             </div>
@@ -285,7 +285,7 @@ export function PersonaDetailSheet({
                                 <h2 className="text-xl font-semibold tracking-tight break-words">{persona.name}</h2>
                                 <p className="micro-label text-muted-foreground">{persona.occupation}</p>
                                 {persona.generationMode && (
-                                    <span className="inline-flex mt-1.5 self-start text-xs font-medium text-primary/70 bg-primary/5 rounded px-1.5 py-0.5 whitespace-nowrap">
+                                    <span className="inline-flex mt-1.5 self-start text-xs font-medium text-primary bg-primary/5 rounded px-1.5 py-0.5 whitespace-nowrap">
                                         {persona.generationMode === 'research' ? 'Transcript-based' : persona.generationMode === 'cluster' ? 'Synthesized from interviews' : 'Description-based'}
                                     </span>
                                 )}
@@ -386,8 +386,8 @@ export function PersonaDetailSheet({
                                                             <span className="text-sm font-medium text-foreground">{dim.name}</span>
                                                             <span className={'text-xs font-medium ' + lc}>{label}</span>
                                                         </div>
-                                                        <p className="text-base text-muted-foreground/80 mt-1 leading-relaxed">{dim.description}</p>
-                                                        {dim.evidence && (() => { const question = persona.evidenceQuestions?.[dim.evidence]; return <EvidenceDisclosure className="mt-3" label={persona.generationMode === 'strategy' ? 'Your response' : 'Source'}><p className="text-sm text-foreground/70 leading-relaxed border-l-2 border-border/30 pl-3">“{dim.evidence}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p></EvidenceDisclosure>; })()}
+                                                        <p className="text-base text-muted-foreground mt-1 leading-relaxed">{dim.description}</p>
+                                                        {dim.evidence && (() => { const question = persona.evidenceQuestions?.[dim.evidence]; return <EvidenceDisclosure className="mt-3" label={persona.generationMode === 'strategy' ? 'Your response' : 'Source'}><p className="text-sm text-foreground/70 leading-relaxed border-l-2 border-border/30 pl-3">“{dim.evidence}”{question ? <span className="text-muted-foreground"> (Answer to “{question}” in audience description)</span> : null}</p></EvidenceDisclosure>; })()}
                                                     </div>
                                                 );
                                             })}
@@ -479,7 +479,7 @@ export function PersonaDetailSheet({
                                                             </span>
                                                             {quote && (
                                                                 <EvidenceDisclosure className="mt-2 ml-4" label={persona.generationMode === 'strategy' ? 'Your response' : 'Source'}>
-                                                                    <p className="text-sm text-foreground/70 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p>
+                                                                    <p className="text-sm text-foreground/70 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground"> (Answer to “{question}” in audience description)</span> : null}</p>
                                                                 </EvidenceDisclosure>
                                                             )}
                                                         </div>
@@ -504,7 +504,7 @@ export function PersonaDetailSheet({
                                                             </span>
                                                             {quote && (
                                                                 <EvidenceDisclosure className="mt-2 ml-4" label={persona.generationMode === 'strategy' ? 'Your response' : 'Source'}>
-                                                                    <p className="text-sm text-foreground/70 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p>
+                                                                    <p className="text-sm text-foreground/70 leading-relaxed border-l-2 border-border/30 pl-3">“{quote}”{question ? <span className="text-muted-foreground"> (Answer to “{question}” in audience description)</span> : null}</p>
                                                                 </EvidenceDisclosure>
                                                             )}
                                                         </li>
@@ -530,12 +530,12 @@ export function PersonaDetailSheet({
                                                                     <span className={'w-2 h-2 rounded-full shrink-0 ' + tc} />
                                                                     <div className="flex-1 min-w-0 flex items-center gap-2">
                                                                         <span className="text-foreground/80 break-words">{attr.attribute}</span>
-                                                                        <span className="text-muted-foreground/80 text-xs font-mono">{attr.confidence >= 0.8 ? 'High' : attr.confidence >= 0.6 ? 'Moderate' : 'Low'}</span>
+                                                                        <span className="text-muted-foreground text-xs font-mono">{attr.confidence >= 0.8 ? 'High' : attr.confidence >= 0.6 ? 'Moderate' : 'Low'}</span>
                                                                     </div>
                                                                     {(attr.rationale || attr.evidence) && (
                                                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-lg border border-border bg-card text-sm text-foreground/80 leading-relaxed opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none shadow-lg">
                                                                             {attr.rationale && <p>{attr.rationale}</p>}
-                                                                            {attr.evidence && <p className={attr.rationale ? 'mt-1 text-muted-foreground/70' : ''}>“{attr.evidence}”</p>}
+                                                                            {attr.evidence && <p className={attr.rationale ? 'mt-1 text-muted-foreground' : ''}>“{attr.evidence}”</p>}
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -545,7 +545,7 @@ export function PersonaDetailSheet({
                                                 )}
                                             </>
                                         ) : (
-                                            <p className="text-base text-muted-foreground/60 leading-relaxed">
+                                            <p className="text-base text-muted-foreground leading-relaxed">
                                                 {persona.generationMode === 'research' ? "No provenance data available" : "Generated from a description."}
                                             </p>
                                         )}
@@ -561,9 +561,9 @@ export function PersonaDetailSheet({
                                                         <div key={i} className="relative pl-4 border-l-2 border-border/40">
                                                             <div className="flex items-center gap-2 mb-1.5">
                                                                 <span className="micro-label text-primary">{link.attribute}</span>
-                                                                <span className="text-xs text-muted-foreground/70">{persona.generationMode === 'strategy' ? 'Your response' : link.transcriptId}</span>
+                                                                <span className="text-xs text-muted-foreground">{persona.generationMode === 'strategy' ? 'Your response' : link.transcriptId}</span>
                                                             </div>
-                                                            <p className="text-base text-foreground/70 leading-relaxed">“{link.excerpt}”{question ? <span className="text-muted-foreground/60"> (Answer to “{question}” in audience description)</span> : null}</p>
+                                                            <p className="text-base text-foreground/70 leading-relaxed">“{link.excerpt}”{question ? <span className="text-muted-foreground"> (Answer to “{question}” in audience description)</span> : null}</p>
                                                         </div>
                                                     );
                                                 })}
@@ -589,7 +589,7 @@ export function PersonaDetailSheet({
                                                 <div className="flex flex-col gap-2">
                                                     <h4 className="micro-label text-muted-foreground">BACKSTORY</h4>
                                                     <div className="relative">
-                                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/70" />
+                                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                                                         <Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-8 text-sm pl-8 rounded-md bg-muted/30 border-none" />
                                                     </div>
                                                     <div className="flex flex-col gap-3 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
@@ -608,7 +608,7 @@ export function PersonaDetailSheet({
                                                 </div>
                                             )}
                                             {persona.clusterInfo && (
-                                                <div className="text-sm leading-relaxed text-muted-foreground/70">
+                                                <div className="text-sm leading-relaxed text-muted-foreground">
                                                     Represents {persona.clusterInfo.representedCount} interview subjects
                                                     {persona.clusterInfo.sourceIds.length > 0 && (' (' + persona.clusterInfo.sourceIds.join(', ') + ')')}
                                                 </div>
@@ -776,7 +776,7 @@ export function PersonaDetailSheet({
                                                 onChange={(e) => updateDraft({ pricingSensitivity: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
                                                 className="h-9 text-sm bg-muted/30 border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
                                             />
-                                            <span className="text-sm text-muted-foreground/70">1 = low sensitivity, 100 = high sensitivity</span>
+                                            <span className="text-sm text-muted-foreground">1 = low sensitivity, 100 = high sensitivity</span>
                                         </div>
                                         <div className="flex flex-col gap-2">
                                             <span className="micro-label text-muted-foreground">Typical Budget</span>
@@ -793,7 +793,7 @@ export function PersonaDetailSheet({
                                 <div className="flex flex-col gap-4">
                                     <div className="flex items-center gap-2">
                                         <h4 className="micro-label text-muted-foreground">BIG FIVE TRAITS</h4>
-                                        <span className="text-xs font-medium text-primary/60 bg-primary/10 px-1.5 py-0.5 rounded-sm">Inferred from backstory</span>
+                                        <span className="text-xs font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-sm">Inferred from backstory</span>
                                     </div>
                                     <div className="space-y-4">
                                         {renderScalar("Conscientiousness", draftPersona.conscientiousness, "Chaotic", "Meticulous")}
@@ -845,7 +845,7 @@ export function PersonaDetailSheet({
                                                 <ShuffleIcon className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
-                                        <span className="text-sm text-muted-foreground/80">
+                                        <span className="text-sm text-muted-foreground">
                                             Adjust the personality profile
                                         </span>
                                     </div>
@@ -888,7 +888,7 @@ export function PersonaDetailSheet({
                                         <h3 className="micro-label text-muted-foreground">
                                             How Many?
                                         </h3>
-                                        <span className="text-sm text-muted-foreground/80">
+                                        <span className="text-sm text-muted-foreground">
                                             Number of variations to generate
                                         </span>
                                     </div>

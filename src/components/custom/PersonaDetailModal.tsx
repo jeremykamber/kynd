@@ -60,7 +60,7 @@ export function PersonaDetailModal({
         <span className="text-sm font-semibold font-mono tabular-nums">{value}</span>
       </div>
       <Progress value={value} className="h-1.5" />
-      <div className="flex justify-between text-xs text-muted-foreground/80 font-medium">
+      <div className="flex justify-between text-xs text-muted-foreground font-medium">
         <span>{leftLabel}</span>
         <span>{rightLabel}</span>
       </div>
@@ -141,7 +141,7 @@ export function PersonaDetailModal({
                   <div className="flex items-center justify-between mb-6">
                     <h4 className="micro-label text-muted-foreground">THE BACKSTORY VAULT</h4>
                     <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/70" />
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                       <Input
                         placeholder="Search backstory..."
                         value={searchTerm}

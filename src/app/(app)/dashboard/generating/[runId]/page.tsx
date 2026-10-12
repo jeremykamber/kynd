@@ -212,7 +212,7 @@ export default function GeneratingPage() {
                 <div className="mb-6 text-center">
                   <p className="text-base leading-relaxed text-muted-foreground">{streamingText}</p>
                   {personaName && (
-                    <p className="mt-1.5 text-xs font-mono text-muted-foreground/60">
+                    <p className="mt-1.5 text-xs font-mono text-muted-foreground">
                       ↳ persona: {personaName}
                     </p>
                   )}
