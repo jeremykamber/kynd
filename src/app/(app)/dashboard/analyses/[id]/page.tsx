@@ -423,7 +423,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
           status={analysis.status}
           error={analysis.error}
           runId={analysis.id}
-          onRetry={() => router.push('/dashboard/analyses?new=1')}
+          onNewAnalysis={() => router.push('/dashboard/analyses?new=1')}
           onBack={() => router.push('/dashboard/analyses')}
         />
       )}
@@ -435,19 +435,24 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
  * The end of a run that produced nothing: a failure or a cancellation. The
  * message is the human one from `analysis.error` (or the cancelled copy when
  * there is no error text), never the engine's own log line, and both exits —
- * retry, or back to the list — are one click away.
+ * start a new analysis, or back to the list — are one click away.
+ *
+ * The exit is named for what it does. A run's inputs are not kept on the
+ * record, so nothing here can resubmit the same analysis: the form opens empty
+ * and the user chooses the artifact and the personas again. "Retry" is
+ * reserved for the generating page, which does resend a failed run's inputs.
  */
 function TerminalState({
   status,
   error,
   runId,
-  onRetry,
+  onNewAnalysis,
   onBack,
 }: {
   status: 'ERROR' | 'CANCELLED'
   error?: string
   runId: string
-  onRetry: () => void
+  onNewAnalysis: () => void
   onBack: () => void
 }) {
   const failed = status === 'ERROR'
@@ -474,10 +479,10 @@ function TerminalState({
       </p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button
-          onClick={onRetry}
+          onClick={onNewAnalysis}
           className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
-          Retry analysis
+          New analysis
         </button>
         <button
           onClick={onBack}
