@@ -15,12 +15,19 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
+import { ConfirmDeleteDialog } from '@/components/custom/ConfirmDeleteDialog'
 import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
 
-function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
+/**
+ * One run in the list: clicking it opens the report, and it carries the run's
+ * two actions — Cancel while it is live, and a confirmed Delete. Renaming lives
+ * on the name itself.
+ */
+function AnalysisCard({ analysis, onCancel }: { analysis: ArtifactAnalysis; onCancel: (id: string) => void }) {
   const router = useRouter()
   const removeAnalysis = useAnalysisStore((s) => s.removeAnalysis)
   const updateAnalysis = useAnalysisStore((s) => s.updateAnalysis)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   const statusConfig = {
     IN_PROGRESS: { label: 'In Progress', icon: ClockIcon, class: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
@@ -52,7 +59,7 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
               onRename={(name) => updateAnalysis(analysis.id, { name })}
               className="min-w-0 flex-1 text-base font-semibold"
             />
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${statusConfig.class}`}>
+            <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${statusConfig.class}`}>
               <StatusIcon className="h-3 w-3" />
               {statusConfig.label}
               {analysis.status === 'IN_PROGRESS' && (
@@ -88,18 +95,36 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
             </span>
           </div>
         </div>
-        {analysis.status === 'IN_PROGRESS' && analysis.totalResponses && (
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-              <span>{analysis.completedResponses ?? 0}/{analysis.totalResponses} analyses</span>
-              <span className="font-mono tabular-nums font-medium">{Math.round(((analysis.completedResponses ?? 0) / analysis.totalResponses) * 100)}%</span>
-            </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${((analysis.completedResponses ?? 0) / analysis.totalResponses) * 100}%` }}
-              />
-            </div>
+        {analysis.status === 'IN_PROGRESS' && (
+          <div className="mt-3 flex items-center gap-3">
+            {analysis.totalResponses ? (
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                  <span>{analysis.completedResponses ?? 0}/{analysis.totalResponses} analyses</span>
+                  <span className="font-mono tabular-nums font-medium">{Math.round(((analysis.completedResponses ?? 0) / analysis.totalResponses) * 100)}%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${((analysis.completedResponses ?? 0) / analysis.totalResponses) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <span className="flex-1" />
+            )}
+            {/* The only place a live run can be stopped. */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={(e) => {
+                e.stopPropagation()
+                onCancel(analysis.id)
+              }}
+            >
+              Cancel
+            </Button>
           </div>
         )}
         {analysis.error && (
@@ -110,13 +135,25 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
         type="button"
         onClick={(e) => {
           e.stopPropagation()
-          removeAnalysis(analysis.id)
+          setIsDeleteDialogOpen(true)
         }}
         className={DESTRUCTIVE_CARD_CONTROL_CLASS}
         aria-label="Delete analysis"
       >
         <XIcon className="size-3.5" />
       </button>
+
+      <ConfirmDeleteDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Delete this analysis?"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          removeAnalysis(analysis.id)
+          setIsDeleteDialogOpen(false)
+        }}
+      />
     </div>
   )
 }
@@ -427,8 +464,12 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
  * the inline "Run New Analysis" form. Analysis records come from the client
  * analysis store; starting a run is delegated to useAnalysisFlow.
  *
+ * The in-progress banner and the cards are both read from that store, so a run
+ * looks the same here whether this tab started it or a reload dropped the
+ * hook's local state — and a run that finishes takes the banner down with it.
+ *
  * The form's open state lives in the URL (`?new=1`) so the global floating CTA
- * can open it from any route, including this one.
+ * can open it from any dashboard route.
  */
 function AnalysesPageContent() {
   const analyses = useAnalysisStore((s) => s.analyses)
@@ -475,6 +516,7 @@ function AnalysesPageContent() {
         <Button
           onClick={() => setShowNewForm(!showNewForm)}
           size="sm"
+          variant={showNewForm ? 'outline' : 'default'}
         >
           <PlusIcon className="h-3.5 w-3.5" />
           Run New Analysis
@@ -485,7 +527,7 @@ function AnalysesPageContent() {
         <NewAnalysisForm onRun={handleRunAnalysis} />
       )}
 
-      {analysisFlow.isPending && (
+      {inProgress.length > 0 && (
         <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 text-base text-blue-600 flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
           Analysis is running…
@@ -506,7 +548,7 @@ function AnalysesPageContent() {
           </h2>
           <div className="flex flex-col gap-4">
             {inProgress.map((sim) => (
-              <AnalysisCard key={sim.id} analysis={sim} />
+              <AnalysisCard key={sim.id} analysis={sim} onCancel={analysisFlow.handleCancel} />
             ))}
           </div>
         </section>
@@ -519,7 +561,7 @@ function AnalysesPageContent() {
           </h2>
           <div className="flex flex-col gap-4">
             {completed.map((sim) => (
-              <AnalysisCard key={sim.id} analysis={sim} />
+              <AnalysisCard key={sim.id} analysis={sim} onCancel={analysisFlow.handleCancel} />
             ))}
           </div>
         </section>
@@ -532,7 +574,7 @@ function AnalysesPageContent() {
           </h2>
           <div className="flex flex-col gap-4">
             {failed.map((sim) => (
-              <AnalysisCard key={sim.id} analysis={sim} />
+              <AnalysisCard key={sim.id} analysis={sim} onCancel={analysisFlow.handleCancel} />
             ))}
           </div>
         </section>

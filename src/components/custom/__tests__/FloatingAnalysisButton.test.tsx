@@ -44,4 +44,22 @@ describe('FloatingAnalysisButton', () => {
 
     expect(router.push).not.toHaveBeenCalled()
   })
+
+  it('stays off the analyses list, where the real run CTA lives', () => {
+    personaState.batches = [{ id: 'batch-1' }]
+    pathname.current = '/dashboard/analyses'
+
+    render(<FloatingAnalysisButton />)
+
+    expect(screen.queryByRole('button', { name: /run analysis/i })).toBeNull()
+  })
+
+  it('stays off an analysis report', () => {
+    personaState.batches = [{ id: 'batch-1' }]
+    pathname.current = '/dashboard/analyses/analysis-1791834166549-qxhdc'
+
+    render(<FloatingAnalysisButton />)
+
+    expect(screen.queryByRole('button', { name: /run analysis/i })).toBeNull()
+  })
 })
