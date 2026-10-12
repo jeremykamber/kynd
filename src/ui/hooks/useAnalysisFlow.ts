@@ -86,8 +86,6 @@ export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthe
   const [artifactImageBase64, setArtifactImageBase64] = useState<string | null>(null)
   const [businessGoal, setBusinessGoal] = useState('')
   const [researchQuestion, setResearchQuestion] = useState('')
-  const [analyses, setAnalyses] = useState<PersonaResponse[] | null>(null)
-  const [synthesis, setSynthesis] = useState<ArtifactSynthesis | null>(null)
   const [error, setError] = useState<string | null>(null)
   /** The run this hook started, filed under the id the server runs it under. */
   const [runId, setRunId] = useState<string | null>(null)
@@ -245,8 +243,8 @@ export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthe
         if (!mountedRef.current) return
 
         if (settled?.status === 'COMPLETED') {
-          setAnalyses(settled.responses ?? null)
-          setSynthesis(settled.synthesis ?? null)
+          // The responses and the synthesis are already on the settled record,
+          // which is what the report reads; the caller is told what landed.
           onSuccessRef.current?.(settled.responses ?? [], settled.synthesis ?? null)
         } else if (settled?.status === 'CANCELLED') {
           setError('Analysis was cancelled')
@@ -276,10 +274,6 @@ export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthe
     setBusinessGoal,
     researchQuestion,
     setResearchQuestion,
-    analyses,
-    setAnalyses,
-    synthesis,
-    setSynthesis,
     error,
     setError,
     isPending,
