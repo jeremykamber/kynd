@@ -1,11 +1,11 @@
 "use client"
 
-import { useCallback, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { usePersonaStore } from '@/ui/stores/personaStore'
+import { useLoadDemoBatch } from '@/ui/hooks/useLoadDemoBatch'
 import type { PersonaFlowState } from '@/ui/hooks/usePersonaFlow'
 import { MinimalCard } from '@/components/custom/MinimalCard'
 import { DEMO_PERSONA_BATCH } from '@/domain/entities/MockPersonas'
-import { usePersonaStore } from '@/ui/stores/personaStore'
 import Link from 'next/link'
 import { ArrowRightIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -16,28 +16,6 @@ import { surveyToPrompt, type PersonaSurvey } from '@/lib/surveyToPrompt'
 interface SetupViewProps {
   personaFlow: PersonaFlowState
   onBack?: () => void
-}
-
-/**
- * Loads the demo batch and shows it.
- *
- * The demo is how a new user or a reviewer gets a populated workspace, so it
- * has to be reachable once the workspace already has data: the empty-state
- * setup view disappears then, and the batch list keeps this behind its "New
- * Batch" menu. Both entry points call this one handler.
- */
-export function useLoadDemoBatch(): () => void {
-  const router = useRouter()
-  const pathname = usePathname()
-
-  return useCallback(() => {
-    const store = usePersonaStore.getState()
-    if (!store.batches.some((b) => b.id === DEMO_PERSONA_BATCH.id)) {
-      store.addBatch(DEMO_PERSONA_BATCH)
-    }
-    store.setActiveBatch(DEMO_PERSONA_BATCH.id)
-    if (pathname !== '/dashboard') router.push('/dashboard')
-  }, [pathname, router])
 }
 
 /**

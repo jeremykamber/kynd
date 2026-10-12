@@ -6,7 +6,8 @@ import { toast } from 'sonner'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
 
-import { SetupView, useLoadDemoBatch } from './views/SetupView'
+import { SetupView } from './views/SetupView'
+import { useLoadDemoBatch } from '@/ui/hooks/useLoadDemoBatch'
 import { PersonaProfilePanel } from '@/components/custom/PersonaProfilePanel'
 import { PersonaSkeletonCard } from '@/components/custom/PersonaSkeletonCard'
 import { PersonaDetailSheet } from '@/components/custom/PersonaDetailSheet'
@@ -31,7 +32,8 @@ import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { summarizeError } from '@/lib/errorSummary'
 import { pluralize } from '@/lib/pluralize'
 import { FeedbackButton } from '@/components/custom/FeedbackButton'
-import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
+import { DESTRUCTIVE_CARD_CONTROL_CLASS, cn } from '@/lib/utils'
+import { FIXED_BOTTOM_OFFSET_CLASS } from '@/lib/bottomClearance'
 
 /** One timestamp format for both the ready and the failed batch card. */
 function batchTimestamp(createdAt: string): string {
@@ -497,7 +499,10 @@ export function DashboardClient() {
             {showSetupView && personaFlow.personaProgress && !showExpandedFlow && (
               <button
                 onClick={() => setShowExpandedFlow(true)}
-                className="fixed bottom-6 right-6 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium shadow-lg transition-colors hover:bg-accent"
+                className={cn(
+                  'fixed left-6 z-40 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium shadow-lg transition-colors hover:bg-accent',
+                  FIXED_BOTTOM_OFFSET_CLASS,
+                )}
               >
                 <LayersIcon className="h-3.5 w-3.5" />
                 Show Progress
