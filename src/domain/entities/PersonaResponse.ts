@@ -45,9 +45,17 @@ export interface PersonaResponse {
   /** Id of the Persona this response came from. */
   personaId?: string;
   /**
-   * How this persona's pipeline ended. Absent on results persisted before the
-   * marker existed, which were only ever written by a finished pipeline — so
-   * absent means completed. Set by the use case, never by the model.
+   * How this persona's pipeline ended: `"completed"` or `"failed"`. Set by the
+   * use case, never by the model.
+   *
+   * Absent on responses persisted before this marker existed, and those split
+   * into two shapes the marker alone cannot tell apart: a genuine report from
+   * the pipeline of that time, and the failure placeholder it wrote on a
+   * per-persona catch — an apology in place of an overview, five "Not reached"
+   * stages, the error text in `pointsOfFriction`, no marker. Browser storage
+   * outlives deploys, so those older responses are still read today and
+   * `isCompletedResponse` decides them by shape (see `LEGACY_FAILURE_OVERVIEW`)
+   * rather than assuming absence means success.
    */
   outcome?: ResponseOutcome;
   /**
@@ -58,12 +66,24 @@ export interface PersonaResponse {
 }
 
 /**
+ * The `overview` the pre-marker pipeline wrote when one persona's analysis
+ * failed. That path returned a whole report shape for a run that produced
+ * nothing: this apology as the overview, five "Not reached — analysis failed."
+ * stages, the error text in `pointsOfFriction`, and no `outcome` field. A
+ * marker-less response carrying this overview is that failure, and the only
+ * thing still telling it apart from a real report of the same era.
+ */
+const LEGACY_FAILURE_OVERVIEW = "Analysis could not be completed.";
+
+/**
  * Whether a response carries a report. The single predicate for the fact —
  * the progress denominator, the synthesis input, the report and the PDF all
  * read failure from here instead of re-deriving it from prose or shape.
  */
 export function isCompletedResponse(response: PersonaResponse): boolean {
-  return response.outcome !== "failed";
+  if (response.outcome === "failed") return false;
+  if (response.outcome === "completed") return true;
+  return response.overview !== LEGACY_FAILURE_OVERVIEW;
 }
 
 /** The responses that carry a report, in their original order. */

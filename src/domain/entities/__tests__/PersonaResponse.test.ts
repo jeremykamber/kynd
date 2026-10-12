@@ -30,6 +30,21 @@ describe('response outcome', () => {
     expect(isCompletedResponse(response({ outcome: 'failed' }))).toBe(false)
   })
 
+  it('reads the pre-marker failure placeholder as a failure, not a report', () => {
+    // What the pipeline wrote before `outcome` existed: an apology in place of
+    // an overview, every stage a stub, the error text in pointsOfFriction, and
+    // no marker to say so. Browser storage outlives the code that wrote it.
+    const legacyFailure = response({
+      overview: 'Analysis could not be completed.',
+      customerJourney: [],
+      researchQuestionAnswer: 'Analysis failed — no answer available.',
+      pointsOfFriction: ['the model refused'],
+    })
+
+    expect(isCompletedResponse(legacyFailure)).toBe(false)
+    expect(responseCounts([response(), legacyFailure])).toEqual({ completed: 1, failed: 1, total: 2 })
+  })
+
   it('counts completed, failed and attempted from the responses themselves', () => {
     const responses = [
       response({ id: 'a', outcome: 'completed' }),
