@@ -9,6 +9,9 @@ import { usePersonaStore } from '@/ui/stores/personaStore'
 /** The analyses route owns its own "Run New Analysis" / "Run Analysis" CTAs. */
 const ANALYSES_ROUTE = '/dashboard/analyses'
 
+/** The personas route renders one batch's cards when a batch is selected. */
+const PERSONAS_ROUTE = '/dashboard'
+
 /**
  * Floating "Run Analysis" CTA. Mounted in the root layout, but it belongs to
  * the dashboard: on public routes it floated over body copy and advertised a
@@ -22,14 +25,25 @@ const ANALYSES_ROUTE = '/dashboard/analyses'
  * padding and the toast stack use. Navigating with `?new=1` tells
  * /dashboard/analyses to open its "Run New Analysis" form, so the click has a
  * visible effect from any dashboard route.
+ *
+ * It also stays off a batch's cards on the personas route: a fixed 150x40
+ * control in the bottom-right corner is over the third column's "Chat with
+ * …" button at some scroll position on every card grid that overflows the
+ * viewport (measured: up to 1406px² of the button), and reserving the content
+ * column's clearance cannot fix that — padding moves where the page ends, not
+ * where a floating control sits. A card grid is a results view with its own
+ * actions, exactly like the analyses list this shortcut already leaves.
  */
 export function FloatingAnalysisButton() {
   const router = useRouter()
   const pathname = usePathname()
   const hasBatches = usePersonaStore((s) => s.batches.length > 0)
+  /** True while the personas route is showing a batch's cards, not the setup form. */
+  const showingBatchCards = usePersonaStore((s) => s.activeBatchId !== null)
 
   const isAnalysesRoute = pathname === ANALYSES_ROUTE || (pathname?.startsWith(`${ANALYSES_ROUTE}/`) ?? false)
   if (!(pathname?.startsWith('/dashboard') ?? false) || isAnalysesRoute) return null
+  if (pathname === PERSONAS_ROUTE && showingBatchCards) return null
 
   return (
     <button
