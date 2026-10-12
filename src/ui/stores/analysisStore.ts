@@ -12,7 +12,9 @@
  * Status transitions are owned by the analysis flow: `markComplete`,
  * `markError` and `markCancelled` set a terminal status and `completedAt`,
  * while `updateAnalysis` carries in-flight progress. Every mutation is a no-op
- * for an unknown id.
+ * for an unknown id, and a terminal status is terminal: what a record settled
+ * as is what every surface keeps reading, with the one exception in
+ * `mayOverwrite`.
  */
 
 import { create } from 'zustand'
@@ -42,6 +44,33 @@ interface AnalysisStoreState extends AnalysisPersistedState {
 }
 
 const STORAGE_VERSION = 3;
+
+/** Statuses a run never leaves. */
+const TERMINAL_STATUSES: AnalysisStatus[] = ['COMPLETED', 'ERROR', 'CANCELLED']
+
+/**
+ * Whether a terminal record may be overwritten, and by what.
+ *
+ * Every surface acts on a *believed* state — a toast that last saw the run in
+ * flight, a card rehydrated from a previous page load — and the poller trails
+ * the server by up to one cadence, so a terminal write can arrive after the run
+ * has really finished. Terminal is therefore terminal: the outcome a record
+ * already holds is the one the card, the toast, the report and the hook all
+ * read, and a late cancel or error cannot replace it with a run that never
+ * finished. Without this, cancelling a run the client still believed live
+ * discarded the completed result underneath it.
+ *
+ * The one exception is a result superseding a cancellation. A cancel means
+ * "stop this run"; if the server had already produced the report, the cancel
+ * stopped nothing, and throwing the result away would discard the work the user
+ * paid for. Nothing else supersedes anything: a completion cannot replace an
+ * error, a cancellation cannot replace either, and a settled record stays as it
+ * settled.
+ */
+function mayOverwrite(current: AnalysisStatus, next: AnalysisStatus): boolean {
+  if (!TERMINAL_STATUSES.includes(current)) return true
+  return next === 'COMPLETED' && current === 'CANCELLED'
+}
 
 export const useAnalysisStore = create<AnalysisStoreState>()(
   persist(
@@ -78,7 +107,7 @@ export const useAnalysisStore = create<AnalysisStoreState>()(
       markComplete: (id, responses, synthesis) =>
         set((state) => ({
           analyses: state.analyses.map((a) =>
-            a.id === id
+            a.id === id && mayOverwrite(a.status, 'COMPLETED')
               ? {
                   ...a,
                   status: 'COMPLETED' as AnalysisStatus,
@@ -99,7 +128,7 @@ export const useAnalysisStore = create<AnalysisStoreState>()(
       markError: (id, error) =>
         set((state) => ({
           analyses: state.analyses.map((a) =>
-            a.id === id
+            a.id === id && mayOverwrite(a.status, 'ERROR')
               ? {
                   ...a,
                   status: 'ERROR' as AnalysisStatus,
@@ -117,7 +146,7 @@ export const useAnalysisStore = create<AnalysisStoreState>()(
       markCancelled: (id) =>
         set((state) => ({
           analyses: state.analyses.map((a) =>
-            a.id === id
+            a.id === id && mayOverwrite(a.status, 'CANCELLED')
               ? {
                   ...a,
                   status: 'CANCELLED' as AnalysisStatus,
