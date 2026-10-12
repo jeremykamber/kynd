@@ -295,7 +295,7 @@ const STEP_DISPLAY: Record<string, string> = {
 }
 
 /** Human label for a pipeline step. */
-export function formatRunStepName(step?: string): string {
+function formatRunStepName(step?: string): string {
   if (!step) return 'Generating personas...'
   return (
     STEP_DISPLAY[step] ??

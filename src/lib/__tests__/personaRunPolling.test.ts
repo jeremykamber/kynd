@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { ProgressState } from '@/actions/getProgress'
 import {
   forgetPersonaRun,
-  formatRunStepName,
   observePersonaRun,
   PERSONA_RUN_POLL_INTERVAL_MS,
   PERSONA_RUN_STALL_MS,
@@ -246,13 +245,17 @@ describe('runStartedAt', () => {
   })
 })
 
-describe('formatRunStepName', () => {
+describe('the step a run shows', () => {
   it('names known steps from the display table', () => {
-    expect(formatRunStepName('INGESTING')).toBe('Indexing personas for chat')
-    expect(formatRunStepName('ADDING_BEHAVIORAL_DEPTH')).toBe('Adding behavioral depth')
+    expect(runStatusText({ step: 'INGESTING' } as ProgressState)).toBe('Indexing personas for chat')
+    expect(runStatusText({ step: 'ADDING_BEHAVIORAL_DEPTH' } as ProgressState)).toBe('Adding behavioral depth')
   })
 
   it('title-cases an unknown step rather than showing the raw key', () => {
-    expect(formatRunStepName('SOME_NEW_STEP')).toBe('Some New Step')
+    expect(runStatusText({ step: 'SOME_NEW_STEP' } as ProgressState)).toBe('Some New Step')
+  })
+
+  it('falls back to the generic label before a step is reported', () => {
+    expect(runStatusText(undefined)).toBe('Generating personas...')
   })
 })
