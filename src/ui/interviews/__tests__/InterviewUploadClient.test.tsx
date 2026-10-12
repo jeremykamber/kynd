@@ -14,12 +14,12 @@ vi.mock('@/ui/hooks/useInterviewPipeline', () => ({
     error: null,
     isPending: false,
     progress: null,
+    runId: null,
     personaCount: 3,
     setPersonaCount: vi.fn(),
     generationMode: 'individual',
     setGenerationMode: vi.fn(),
     handleSubmit: vi.fn(),
-    handleCancel: vi.fn(),
   }),
 }))
 

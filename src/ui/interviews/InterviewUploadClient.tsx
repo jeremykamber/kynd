@@ -1,12 +1,15 @@
 "use client"
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { Upload, FileText, XIcon, CheckCircle2, LayersIcon } from 'lucide-react'
 import { useInterviewPipeline } from '@/ui/hooks/useInterviewPipeline'
 import { MinimalCard } from '@/components/custom/MinimalCard'
 import { Badge } from '@/components/ui/badge'
 import { FlowDialog } from '@/components/custom/FlowDialog'
+import { FIXED_BOTTOM_OFFSET_CLASS } from '@/lib/bottomClearance'
+import { personaRunToastId } from '@/lib/personaRunPolling'
 
 /** The only extension the pipeline accepts, compared case-insensitively. */
 const TRANSCRIPT_EXTENSION = '.txt'
@@ -31,7 +34,7 @@ export function InterviewUploadClient() {
     generationMode,
     setGenerationMode,
     handleSubmit,
-    handleCancel,
+    runId,
   } = useInterviewPipeline()
 
   const [showExpandedFlow, setShowExpandedFlow] = useState(false)
@@ -111,6 +114,12 @@ export function InterviewUploadClient() {
 
   const hasResults = personas && personas.length > 0
 
+  // The success panel is this run's outcome, rendered where the user is: the
+  // toast's job is done, so the two never sit on screen together.
+  useEffect(() => {
+    if (runId && hasResults) toast.dismiss(personaRunToastId(runId))
+  }, [runId, hasResults])
+
   if (hasResults) {
     return (
       <div className="flex flex-col gap-8 max-w-4xl mx-auto w-full animate-in fade-in duration-500">
@@ -165,14 +174,14 @@ export function InterviewUploadClient() {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`flex flex-col items-center justify-center rounded-lg p-10 md:p-12 gap-4 transition-colors cursor-pointer ${
+                className={`flex flex-col items-center justify-center rounded-lg p-8 md:p-10 gap-4 transition-colors cursor-pointer ${
                   isDragging
                     ? 'bg-primary/5 ring-2 ring-primary/40'
                     : 'bg-secondary/20 hover:bg-secondary/40'
                 }`}
               >
                 <Upload className="h-12 w-12 text-muted-foreground/60" />
-                <p className="text-base font-medium">
+                <p className="text-base font-medium text-center">
                   Drop transcripts here or click to browse
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -188,21 +197,22 @@ export function InterviewUploadClient() {
                 />
               </div>
 
-              {uploadError && (
-                <p
-                  role="alert"
-                  className="text-base leading-relaxed text-destructive font-medium bg-destructive/10 p-3 rounded-md"
-                >
-                  {uploadError}
-                </p>
-              )}
-
-              {files.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  {files.map((file) => (
+              {/*
+                The transcript list keeps a fixed height whether it holds none,
+                one or twenty transcripts, so adding a file never reflows the
+                "Generate Personas" section below it. Anything past the
+                reserved rows scrolls inside the region.
+              */}
+              <div className="flex h-44 flex-col gap-3 overflow-y-auto pr-1">
+                {files.length === 0 ? (
+                  <p className="text-base leading-relaxed text-muted-foreground">
+                    No transcripts yet — accepted .txt files appear here.
+                  </p>
+                ) : (
+                  files.map((file) => (
                     <div
                       key={file.id}
-                      className="flex items-center justify-between rounded-lg border border-border/60 bg-secondary/30 px-4 py-3"
+                      className="flex shrink-0 items-center justify-between rounded-lg border border-border/60 bg-secondary/30 px-4 py-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <FileText className="h-4 w-4 text-primary shrink-0" />
@@ -222,8 +232,17 @@ export function InterviewUploadClient() {
                         <XIcon className="h-4 w-4" />
                       </button>
                     </div>
-                  ))}
-                </div>
+                  ))
+                )}
+              </div>
+
+              {uploadError && (
+                <p
+                  role="alert"
+                  className="text-base leading-relaxed text-destructive font-medium bg-destructive/10 p-3 rounded-md"
+                >
+                  {uploadError}
+                </p>
               )}
             </div>
           </MinimalCard>
@@ -333,9 +352,12 @@ export function InterviewUploadClient() {
       </div>
 
       {progress && !showExpandedFlow && (
+        // Same clearance as the dock (see @/lib/bottomClearance), but on the
+        // left: the dock owns the bottom-right corner, and two floating actions
+        // in one corner cover each other.
         <button
           onClick={() => setShowExpandedFlow(true)}
-          className="fixed bottom-6 right-6 z-50 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium shadow-lg transition-colors hover:bg-accent"
+          className={`fixed left-6 z-40 inline-flex h-10 items-center gap-2 rounded-md border border-border/60 bg-card px-4 text-sm font-medium transition-colors hover:bg-muted/30 ${FIXED_BOTTOM_OFFSET_CLASS}`}
         >
           <LayersIcon className="h-3.5 w-3.5" />
           Show Progress

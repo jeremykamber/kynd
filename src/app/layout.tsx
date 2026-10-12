@@ -5,6 +5,10 @@ import Script from 'next/script';
 import { Toaster } from 'sonner';
 import { ToasterProvider } from '@/components/custom/ToasterProvider';
 import { FloatingAnalysisButton } from '@/components/custom/FloatingAnalysisButton';
+import {
+  TOAST_BOTTOM_OFFSET_PX,
+  TOAST_SIDE_OFFSET_PX,
+} from '@/lib/bottomClearance';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -51,6 +55,17 @@ export default function RootLayout({
           visibleToasts={8}
           closeButton
           theme="dark"
+          // The stack starts above the dashboard's fixed bottom chrome instead
+          // of in sonner's default corner inset; the clearance (and why both
+          // offsets are the same value) is in @/lib/bottomClearance.
+          offset={{ bottom: TOAST_BOTTOM_OFFSET_PX, right: TOAST_SIDE_OFFSET_PX.desktop }}
+          mobileOffset={{ bottom: TOAST_BOTTOM_OFFSET_PX, right: TOAST_SIDE_OFFSET_PX.mobile }}
+          // Toast chrome is not a control. The stack never takes a click that
+          // belongs to the page beneath it, and each toast opts back in only
+          // where it has something to click (an individual toast sets
+          // `pointer-events: none` when it is purely informational).
+          style={{ pointerEvents: 'none' }}
+          toastOptions={{ style: { pointerEvents: 'auto' } }}
         />
         <ToasterProvider />
         <FloatingAnalysisButton />

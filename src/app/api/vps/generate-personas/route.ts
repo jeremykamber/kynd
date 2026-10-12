@@ -8,6 +8,7 @@ import { RateLimiterMemory } from "rate-limiter-flexible";
 import { GeneratePersonasUseCase } from "@/application/usecases/GeneratePersonasUseCase";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { personaGenerationStore } from "@/infrastructure/PersonaGenerationStore";
+import { cancellationManager } from "@/infrastructure/RequestCancellationManager";
 import { storeProgress, storeCompleted } from "@/actions/getProgress";
 
 
@@ -55,16 +56,34 @@ export async function POST(req: NextRequest) {
 
   const runId = `pt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-  runGeneration(runId, personaDescription, personaCount, generationMode).catch((err) => {
+  // Registered before the run starts: the toaster's Cancel aborts this
+  // controller, and runGeneration stops at its next stage.
+  const { signal } = cancellationManager.createRequest(runId);
+
+  runGeneration(runId, personaDescription, personaCount, generationMode, signal).catch((err) => {
     console.error(`[generate-personas] Background generation failed for ${runId}:`, err);
   });
 
   return NextResponse.json({ runId });
 }
 
+/** The message a cancelled run's pipeline is stopped with. */
+const CANCELLED_MESSAGE = "Request was cancelled";
+
+/**
+ * A run the user stopped. Terminal, but not a failure: the store records the
+ * cancellation so every observer settles it without writing a failed batch,
+ * and the progress entry closes so pollers stop asking.
+ */
+function settleCancelled(runId: string): void {
+  console.log(`[generate-personas] Cancelled ${runId}`);
+  personaGenerationStore.saveCancelled(runId);
+  storeCompleted(runId);
+}
+
 // Background generation runner
 
-async function runGeneration(runId: string, personaDescription: string, count: number, generationMode?: 'research' | 'strategy') {
+async function runGeneration(runId: string, personaDescription: string, count: number, generationMode?: 'research' | 'strategy', abortSignal?: AbortSignal) {
   try {
     storeProgress(runId, { step: "BRAINSTORMING_PERSONAS" });
 
@@ -72,6 +91,11 @@ async function runGeneration(runId: string, personaDescription: string, count: n
     const useCase = new GeneratePersonasUseCase(llmService);
 
     const personas = await useCase.execute(personaDescription, (progress) => {
+      // Cancellation lands between pipeline stages: the individual LLM calls
+      // cannot be interrupted, so the next progress event is the earliest
+      // honest stopping point. The signal decides the outcome wherever the
+      // throw ends up, so this is an optimisation, not the mechanism.
+      if (abortSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
       storeProgress(runId, {
         step: progress.step,
         streamingText: progress.streamingText,
@@ -80,14 +104,28 @@ async function runGeneration(runId: string, personaDescription: string, count: n
       });
     }, count, undefined, generationMode);
 
+    if (abortSignal?.aborted) {
+      settleCancelled(runId);
+      return;
+    }
+
     const serialized = JSON.parse(JSON.stringify(personas));
     personaGenerationStore.save(runId, serialized);
     storeCompleted(runId);
     console.log(`[generate-personas] Completed ${runId} with ${personas.length} personas`);
   } catch (error) {
+    // A cancelled run is terminal but it is not a failure: nothing is recorded
+    // in `error`, so no observer writes a failed batch for work the user
+    // deliberately stopped.
+    if (abortSignal?.aborted) {
+      settleCancelled(runId);
+      return;
+    }
     console.error("[generate-personas] Failed:", error);
     const errMsg = (error as Error).message;
     personaGenerationStore.saveError(runId, errMsg);
     storeCompleted(runId, errMsg);
+  } finally {
+    cancellationManager.clearRequest(runId);
   }
 }

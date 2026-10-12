@@ -10,6 +10,8 @@ export interface PersonaGenerationResult {
   found: boolean;
   personas?: Persona[];
   error?: string;
+  /** The user stopped the run: terminal, but not a failure. */
+  cancelled?: boolean;
   completedAt?: string;
 }
 
@@ -30,6 +32,7 @@ export async function getPersonaGenerationResultAction(runId: string): Promise<P
       found: true,
       personas: result.personas,
       error: result.error,
+      cancelled: result.cancelled,
       completedAt: result.completedAt,
     };
   }
