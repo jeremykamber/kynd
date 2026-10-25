@@ -98,9 +98,8 @@ async function runLocally(
             }
 
             log.info("analyzeArtifactAction", "Instantiating dependencies...");
-            const browserService = RemotePlaywrightAdapter.createFromEnv();
-            const llmService = LlmServiceImpl.createFromEnv("openrouter");
-            const intakeAdapter = new ArtifactIntakeAdapter(browserService, llmService);
+                const llmService = LlmServiceImpl.createFromEnv("openrouter");
+            const intakeAdapter = new ArtifactIntakeAdapter(() => RemotePlaywrightAdapter.createFromEnv(), llmService);
             const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llmService);
 
             log.info("analyzeArtifactAction", "Calling useCase.execute()...");

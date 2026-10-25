@@ -23,8 +23,12 @@ export type IntakeProgressCallback = (progress: IntakeProgress) => void;
  * artifact's content.
  */
 export class ArtifactIntakeAdapter {
+  /**
+   * The browser arrives through a factory, not an instance: a text run never
+   * opens one, so it must not pay to construct (or configure) Playwright.
+   */
   constructor(
-    private readonly browserService: BrowserServicePort,
+    private readonly browserServiceFactory: () => BrowserServicePort,
     private readonly llmService: LlmServicePort,
   ) {}
 
@@ -97,19 +101,20 @@ export class ArtifactIntakeAdapter {
     runId?: string,
   ): Promise<{ screenshotBase64: string; pageHtml?: string; url: string }> {
     const log = runId ? AnalysisLogger.forRun(runId) : null;
+    const browser = this.browserServiceFactory();
 
     onProgress?.("NAVIGATING");
 
     try {
-      await this.browserService.navigateTo(url, (status) => {
+      await browser.navigateTo(url, (status) => {
         log?.trace("ArtifactIntakeAdapter", "Navigation status", { status });
       });
 
       onProgress?.("CAPTURING");
 
       const [screenshotBase64, cleanedHtml] = await Promise.all([
-        this.browserService.captureViewport(),
-        this.browserService.getCleanedHtml(),
+        browser.captureViewport(),
+        browser.getCleanedHtml(),
       ]);
 
       if (!cleanedHtml) {
@@ -129,7 +134,7 @@ export class ArtifactIntakeAdapter {
       };
     } finally {
       try {
-        await this.browserService.close();
+        await browser.close();
       } catch (closeErr) {
         log?.warn("ArtifactIntakeAdapter", "Error closing browser", {
           error: String(closeErr),

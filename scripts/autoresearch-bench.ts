@@ -88,9 +88,8 @@ async function main(): Promise<void> {
 
   const t0 = Date.now();
 
-  const browserService = RemotePlaywrightAdapter.createFromEnv();
   const llmService = LlmServiceImpl.createFromEnv("openrouter");
-  const intakeAdapter = new ArtifactIntakeAdapter(browserService, llmService);
+  const intakeAdapter = new ArtifactIntakeAdapter(() => RemotePlaywrightAdapter.createFromEnv(), llmService);
   const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llmService);
 
   const intakeStart = Date.now();

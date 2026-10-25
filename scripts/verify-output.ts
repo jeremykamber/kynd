@@ -162,9 +162,10 @@ function checkResponses(responses: any[]): { pass: string[]; fail: string[] } {
       );
     }
 
+    // screenshotBase64 is deliberately absent for text artifacts.
     const requiredResponseFields = [
       'overview', 'researchQuestionAnswer', 'majorFindings', 'pointsOfFriction',
-      'unansweredQuestions', 'screenshotBase64', 'rawAnalysis',
+      'unansweredQuestions', 'rawAnalysis',
     ];
     const missing = requiredResponseFields.filter((f) => {
       const v = r?.[f];
@@ -385,8 +386,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
   const { SynthesizeArtifactResultsUseCase } = await import('@/application/usecases/SynthesizeArtifactResultsUseCase');
 
   const llm = LlmServiceImpl.createFromEnv('openrouter');
-  const browserService = RemotePlaywrightAdapter.createFromEnv();
-  const intakeAdapter = new ArtifactIntakeAdapter(browserService, llm);
+  const intakeAdapter = new ArtifactIntakeAdapter(() => RemotePlaywrightAdapter.createFromEnv(), llm);
   const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llm);
 
   const runId = `verify-${Date.now()}`;

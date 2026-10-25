@@ -11,7 +11,7 @@ function makeAdapter() {
     close: vi.fn(),
   } as unknown as BrowserServicePort
   const llm = { summarizeHtml: vi.fn() } as unknown as LlmServicePort
-  return { adapter: new ArtifactIntakeAdapter(browser, llm), browser, llm }
+  return { adapter: new ArtifactIntakeAdapter(() => browser, llm), browser, llm }
 }
 
 describe('ArtifactIntakeAdapter — text artifacts', () => {
