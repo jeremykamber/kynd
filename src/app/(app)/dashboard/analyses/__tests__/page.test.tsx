@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 
 const { router, searchParams, personaState, analysisState, analysisFlow } = vi.hoisted(() => ({
   router: { push: vi.fn(), replace: vi.fn() },
@@ -8,8 +8,7 @@ const { router, searchParams, personaState, analysisState, analysisFlow } = vi.h
   analysisState: { analyses: [] as unknown[], removeAnalysis: vi.fn(), updateAnalysis: vi.fn() },
   analysisFlow: {
     isPending: false,
-    setArtifactUrl: vi.fn(),
-    setArtifactImageBase64: vi.fn(),
+    setArtifactSource: vi.fn(),
     setBusinessGoal: vi.fn(),
     setResearchQuestion: vi.fn(),
     handleAnalyzeArtifact: vi.fn(),
@@ -67,6 +66,8 @@ beforeEach(() => {
   analysisState.analyses = []
   router.push.mockClear()
   router.replace.mockClear()
+  analysisFlow.handleAnalyzeArtifact.mockClear()
+  analysisFlow.setArtifactSource.mockClear()
 })
 
 describe('AnalysesPage — ?new=1 opens the new-analysis form', () => {
@@ -133,5 +134,122 @@ describe('AnalysesPage — failed runs are not counted as completed', () => {
 
     expect(screen.queryByRole('heading', { name: 'Failed' })).toBeNull()
     expect(screen.getByText('1 completed · 0 in progress')).toBeTruthy()
+  })
+})
+
+/** Radix Tabs activates a trigger on mouse-down, not on click. */
+function openTab(name: string) {
+  fireEvent.mouseDown(screen.getByRole('tab', { name }), { button: 0, ctrlKey: false })
+}
+
+describe('AnalysesPage — the three artifact tabs', () => {
+  beforeEach(() => {
+    searchParams.current = new URLSearchParams('new=1')
+  })
+
+  it('offers URL, Upload, and Text and starts on URL', () => {
+    render(<AnalysesPage />)
+
+    for (const tab of ['URL', 'Upload', 'Text']) {
+      expect(screen.getByRole('tab', { name: tab })).toBeTruthy()
+    }
+    expect(screen.getByLabelText('Artifact URL')).toBeTruthy()
+    expect(screen.queryByLabelText('Artifact Text')).toBeNull()
+  })
+
+  it('runs pasted text from the Text tab', () => {
+    render(<AnalysesPage />)
+
+    openTab('Text')
+    fireEvent.change(screen.getByLabelText('Artifact Text'), {
+      target: { value: 'Feature brief: share a read-only analysis link.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Run Analysis' }))
+
+    expect(analysisFlow.handleAnalyzeArtifact).toHaveBeenCalledWith(
+      [],
+      {
+        type: 'text',
+        text: 'Feature brief: share a read-only analysis link.',
+        label: 'Pasted text',
+      },
+      '',
+      '',
+      'batch-1',
+    )
+    expect(analysisFlow.setArtifactSource).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'text' }),
+    )
+  })
+
+  it('counts characters, rejects text past the cap, and disables the run', () => {
+    render(<AnalysesPage />)
+
+    openTab('Text')
+    const textarea = screen.getByLabelText('Artifact Text')
+
+    fireEvent.change(textarea, { target: { value: 'abc' } })
+    expect(screen.getByText('3 / 80,000 characters')).toBeTruthy()
+
+    fireEvent.change(textarea, { target: { value: 'x'.repeat(80_001) } })
+    expect(screen.getByText('80,001 / 80,000 characters')).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toContain('80,000 limit')
+    expect(screen.getByRole('button', { name: 'Run Analysis' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('keeps the run disabled when pasted text is only whitespace', () => {
+    render(<AnalysesPage />)
+
+    openTab('Text')
+    fireEvent.change(screen.getByLabelText('Artifact Text'), { target: { value: '   ' } })
+
+    expect(screen.getByRole('button', { name: 'Run Analysis' }).hasAttribute('disabled')).toBe(true)
+  })
+})
+
+describe('AnalysesPage — multi-document upload', () => {
+  /** jsdom's File has no arrayBuffer(); the browser's does. Adds just that seam. */
+  function fileWithBytes(name: string, content: string, type = 'text/plain'): File {
+    const file = new File([content], name, { type })
+    return Object.assign(file, {
+      arrayBuffer: async () => new TextEncoder().encode(content).buffer,
+    })
+  }
+
+  function uploadFiles(container: HTMLElement, files: File[]) {
+    const input = container.querySelector('input[type="file"][multiple]') as HTMLInputElement
+    fireEvent.change(input, { target: { files } })
+  }
+
+  it('lists documents with sizes, extracts text, and updates the totals on remove', async () => {
+    searchParams.current = new URLSearchParams('new=1')
+    const { container } = render(<AnalysesPage />)
+
+    openTab('Upload')
+    uploadFiles(container, [
+      fileWithBytes('first.txt', 'first brief'),
+      fileWithBytes('second.txt', 'second brief'),
+    ])
+
+    expect(await screen.findByText('first.txt')).toBeTruthy()
+    expect(screen.getByText('second.txt')).toBeTruthy()
+    expect(await screen.findByText('2 of 5 documents · 45 characters')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove second.txt' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('second.txt')).toBeNull()
+    })
+    expect(await screen.findByText('1 of 5 documents · 11 characters')).toBeTruthy()
+  })
+
+  it('rejects a legacy .doc with export instructions', async () => {
+    searchParams.current = new URLSearchParams('new=1')
+    const { container } = render(<AnalysesPage />)
+
+    openTab('Upload')
+    uploadFiles(container, [fileWithBytes('old-brief.doc', 'x', 'application/msword')])
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Export it to PDF or DOCX first.')
   })
 })

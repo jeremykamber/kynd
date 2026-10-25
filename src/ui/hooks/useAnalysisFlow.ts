@@ -1,8 +1,9 @@
 /**
  * Client-side driver for a single artifact analysis run.
  *
- * Owns the request inputs (artifact URL or screenshot, business goal, research
- * question), the live progress of the in-flight run, and the settled
+ * Owns the pending artifact source (URL, screenshot, or extracted text), the
+ * business goal and research question, the live progress of the in-flight run,
+ * and the settled
  * `analyses`/`synthesis` returned to the caller. Each run is also written
  * through to `useAnalysisStore`, which is the durable record surfaced by the
  * dashboard and toasts; the hook's own copies are the caller's convenience.
@@ -23,7 +24,8 @@ import { Persona } from '@/domain/entities/Persona'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { ArtifactSynthesis } from '@/domain/entities/ArtifactSynthesis'
 import { analyzeArtifactAction } from '@/actions/analyzeArtifactAction'
-import type { ArtifactInput } from '@/infrastructure/adapters/ArtifactIntakeAdapter'
+import type { ArtifactInput } from '@/domain/entities/ArtifactInput'
+import { PASTED_TEXT_LABEL, SCREENSHOT_LABEL } from '@/domain/entities/ArtifactIntakeLimits'
 import { getAnalysisResultAction } from '@/actions/getAnalysisResult'
 import { getProgressAction } from '@/actions/getProgress'
 import { getScreenshotAction } from '@/actions/getScreenshot'
@@ -44,8 +46,7 @@ export interface AnalysisProgress {
 }
 
 export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthesis?: ArtifactSynthesis | null) => void) {
-  const [artifactUrl, setArtifactUrl] = useState('')
-  const [artifactImageBase64, setArtifactImageBase64] = useState<string | null>(null)
+  const [artifactSource, setArtifactSource] = useState<ArtifactInput | null>(null)
   const [businessGoal, setBusinessGoal] = useState('')
   const [researchQuestion, setResearchQuestion] = useState('')
   const [analyses, setAnalyses] = useState<PersonaResponse[] | null>(null)
@@ -86,18 +87,11 @@ export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthe
     overrideResearchQuestion?: string,
     batchId?: string,
   ) => {
+    const resolvedInput = overrideInput ?? artifactSource
+    if (!resolvedInput || !personas || personas.length === 0) return
+
     const activeGoal = (overrideBusinessGoal || businessGoal).trim()
     const activeQuestion = (overrideResearchQuestion || researchQuestion).trim()
-    const activeInput = overrideInput
-
-    if (!activeInput) {
-      const activeUrl = artifactUrl.trim()
-      const activeImage = artifactImageBase64
-      if (!activeUrl && !activeImage) return
-      if (!personas || personas.length === 0) return
-    }
-
-    if (!personas || personas.length === 0) return
 
     setError(null)
     const controller = new AbortController()
@@ -105,14 +99,21 @@ export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthe
     setAnalysisProgress({ step: 'STARTING' })
 
     const analysisId = `analysis-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-    const resolvedInput: ArtifactInput = activeInput || (artifactImageBase64
-      ? { type: 'screenshot', imageBase64: artifactImageBase64, url: artifactUrl || undefined }
-      : { type: 'url', url: artifactUrl })
+    // One derivation of the record's source fields, used for the name as well.
+    const source = resolvedInput.type === 'text'
+      ? { kind: 'text' as const, label: resolvedInput.label?.trim() || PASTED_TEXT_LABEL }
+      : resolvedInput.type === 'screenshot'
+        ? { kind: 'screenshot' as const, label: SCREENSHOT_LABEL }
+        : { kind: 'url' as const, url: resolvedInput.url }
 
     useAnalysisStore.getState().addAnalysis({
       id: analysisId,
-      name: generateAnalysisName('url' in resolvedInput ? resolvedInput.url || 'Screenshot Upload' : 'Screenshot Upload'),
-      url: 'url' in resolvedInput ? resolvedInput.url || '' : '',
+      name: generateAnalysisName(source),
+      url: resolvedInput.type === 'url' ? resolvedInput.url : '',
+      inputKind: source.kind,
+      label: source.label,
+      text: resolvedInput.type === 'text' ? resolvedInput.text : undefined,
+      sourceFiles: resolvedInput.type === 'text' ? resolvedInput.files : undefined,
       status: 'IN_PROGRESS',
       personaCount: personas.length,
       personaNames: personas.map((p) => p.name),
@@ -143,7 +144,9 @@ export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthe
         )
         setCurrentRequestId(requestId)
 
-        if (requestId) {
+        // A text run has no capture to wait for; polling it every 2s for ten
+        // minutes would be pure noise.
+        if (requestId && resolvedInput.type !== 'text') {
           screenshotPollInterval = setInterval(async () => {
             try {
               const result = await getScreenshotAction(requestId)
@@ -285,10 +288,8 @@ export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthe
   }
 
   return {
-    artifactUrl,
-    setArtifactUrl,
-    artifactImageBase64,
-    setArtifactImageBase64,
+    artifactSource,
+    setArtifactSource,
     businessGoal,
     setBusinessGoal,
     researchQuestion,
