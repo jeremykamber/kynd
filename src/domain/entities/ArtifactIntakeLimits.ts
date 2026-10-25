@@ -44,8 +44,10 @@ const LEGACY_OFFICE_EXTENSIONS: Record<string, true> = { doc: true, ppt: true };
 /** Derived from the one format map above, so the picker cannot drift from the parser. */
 export const ACCEPTED_DOCUMENT_EXTENSIONS = Object.keys(EXTENSION_TO_KIND).map((extension) => `.${extension}`);
 
-/** One line the form shows under the document picker. */
-export const ACCEPTED_DOCUMENT_HINT = "PDF, DOCX, PPTX, TXT, MD, CSV, JSON, or RTF";
+/** One line the form shows under the document picker, derived from the same map. */
+export const ACCEPTED_DOCUMENT_HINT = ACCEPTED_DOCUMENT_EXTENSIONS
+  .map((extension) => extension.slice(1).toUpperCase())
+  .join(", ");
 
 export function documentKindOf(filename: string): DocumentKind | null {
   const extension = filename.split(".").pop()?.toLowerCase() ?? "";

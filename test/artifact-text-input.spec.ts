@@ -7,6 +7,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 import type { ChildProcess } from 'child_process';
+import path from 'node:path';
+import fs from 'node:fs';
 import { findOrStartServer, ensureScreenshotDir, SERVER_TIMEOUT } from './helpers/server';
 
 // Dev-server routes compile on first request; 30s flakes under load.
@@ -216,6 +218,26 @@ describe('Artifact text input — E2E', { timeout: TEST_TIMEOUT }, () => {
     await page.getByRole('button', { name: 'Remove second.txt' }).click();
     await expect(page.getByText('second.txt').count()).resolves.toBe(0);
     await page.getByText('1 of 5 documents · 11 characters').waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
+    await page.close();
+  });
+
+  it('extracts a DOCX and a PDF in the browser, where mammoth and pdfjs run', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await seedPersonaStore(page);
+    await page.goto(`${BASE_URL}/dashboard/analyses?new=1`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+
+    const fixtures = path.join(process.cwd(), 'src/infrastructure/adapters/__tests__/fixtures');
+    await page.getByRole('tab', { name: 'Upload' }).click();
+    await page.locator('input[type="file"][multiple]').setInputFiles([
+      { name: 'shared-analyses-brief.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: fs.readFileSync(path.join(fixtures, 'shared-analyses-brief.docx')) },
+      { name: 'seed-brief.pdf', mimeType: 'application/pdf', buffer: fs.readFileSync(path.join(fixtures, 'seed-brief.pdf')) },
+    ]);
+
+    await page.getByText('2 of 5 documents', { exact: false }).waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
+    // The character total proves both parsers returned real text, not empty
+    // strings: an empty extraction would read "0 characters".
+    await expect(page.getByText(/2 of 5 documents · [1-9][\d,]* characters/).isVisible()).resolves.toBe(true);
+    await expect(page.getByRole('button', { name: 'Run Analysis' }).first().isEnabled()).resolves.toBe(true);
     await page.close();
   });
 
