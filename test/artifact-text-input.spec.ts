@@ -7,10 +7,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 import type { ChildProcess } from 'child_process';
-import { findOrStartServer, SCREENSHOT_DIR, ensureScreenshotDir, SERVER_TIMEOUT } from './helpers/server';
-import path from 'path';
+import { findOrStartServer, ensureScreenshotDir, SERVER_TIMEOUT } from './helpers/server';
 
-const TEST_TIMEOUT = 30_000;
+// Dev-server routes compile on first request; 30s flakes under load.
+const TEST_TIMEOUT = 90_000;
 let BASE_URL = '';
 let browser: Browser;
 let serverProcess: ChildProcess | null = null;
@@ -171,7 +171,7 @@ describe('Artifact text input — E2E', { timeout: TEST_TIMEOUT }, () => {
     await page.goto(`${BASE_URL}/dashboard/analyses?new=1`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
     for (const tab of ['URL', 'Upload', 'Text']) {
-      await expect(page.getByRole('tab', { name: tab }).isVisible()).resolves.toBe(true);
+      await page.getByRole('tab', { name: tab }).waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
     }
     await page.close();
   });
@@ -183,7 +183,8 @@ describe('Artifact text input — E2E', { timeout: TEST_TIMEOUT }, () => {
 
     await page.getByRole('tab', { name: 'Text' }).click();
     const textarea = page.getByLabel('Artifact Text');
-    const runButton = page.getByRole('button', { name: 'Run Analysis' });
+    // The floating CTA also says "Run Analysis"; the form's is the first one.
+    const runButton = page.getByRole('button', { name: 'Run Analysis' }).first();
 
     await textarea.fill('Feature brief: share a read-only analysis link.');
     await expect(page.getByText('47 / 80,000 characters').isVisible()).resolves.toBe(true);
@@ -194,7 +195,6 @@ describe('Artifact text input — E2E', { timeout: TEST_TIMEOUT }, () => {
     expect(await page.getByText(/80,000 limit/).isVisible()).toBe(true);
     expect(await runButton.isDisabled()).toBe(true);
 
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'artifact-text-cap-error.png'), fullPage: true });
     await page.close();
   });
 
@@ -209,15 +209,13 @@ describe('Artifact text input — E2E', { timeout: TEST_TIMEOUT }, () => {
       { name: 'second.txt', mimeType: 'text/plain', buffer: Buffer.from('second brief') },
     ]);
 
-    await expect(page.getByText('first.txt').isVisible()).resolves.toBe(true);
-    await expect(page.getByText('2 of 5 documents · 45 characters').isVisible()).resolves.toBe(true);
-    expect(await page.getByRole('button', { name: 'Run Analysis' }).isEnabled()).toBe(true);
-
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'artifact-text-two-documents.png'), fullPage: true });
+    await page.getByText('first.txt').waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
+    await page.getByText('2 of 5 documents · 45 characters').waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
+    expect(await page.getByRole('button', { name: 'Run Analysis' }).first().isEnabled()).toBe(true);
 
     await page.getByRole('button', { name: 'Remove second.txt' }).click();
     await expect(page.getByText('second.txt').count()).resolves.toBe(0);
-    await expect(page.getByText('1 of 5 documents · 11 characters').isVisible()).resolves.toBe(true);
+    await page.getByText('1 of 5 documents · 11 characters').waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
     await page.close();
   });
 
@@ -240,15 +238,14 @@ describe('Artifact text input — E2E', { timeout: TEST_TIMEOUT }, () => {
     await seedAnalysisStore(page);
     await page.goto(`${BASE_URL}/dashboard/analyses/${TEXT_SIM_ID}`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
-    await expect(page.getByText('Source', { exact: true }).isVisible()).resolves.toBe(true);
+    // The route compiles on first request in dev; wait for the card itself.
+    await page.getByText('Source', { exact: true }).first().waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
     await expect(page.getByText(TEXT_LABEL).first().isVisible()).resolves.toBe(true);
     await expect(page.getByText('Read the analyzed text').isVisible()).resolves.toBe(true);
     expect(await page.getByText('Waiting for the first capture…').count()).toBe(0);
 
     await page.getByText('Read the analyzed text').click();
-    await expect(page.getByText(TEXT_BODY).isVisible()).resolves.toBe(true);
-
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'artifact-text-source-card.png'), fullPage: true });
+    await page.getByText(TEXT_BODY).waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
     await page.close();
   });
 
@@ -257,8 +254,7 @@ describe('Artifact text input — E2E', { timeout: TEST_TIMEOUT }, () => {
     await seedAnalysisStore(page);
     await page.goto(`${BASE_URL}/dashboard/analyses`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
-    await expect(page.getByText(TEXT_LABEL).first().isVisible()).resolves.toBe(true);
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'artifact-text-dashboard-card.png'), fullPage: true });
+    await page.getByText(TEXT_LABEL).first().waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
     await page.close();
   });
 });

@@ -336,7 +336,7 @@ function NewAnalysisForm({
   return (
     <Card>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2 flex-1">
             <label htmlFor="batch-select" className="text-sm font-medium">Persona Batch</label>
             <Select value={selectedBatchId} onValueChange={setSelectedBatchId}>
@@ -356,7 +356,7 @@ function NewAnalysisForm({
             type="button"
             variant="outline"
             size="sm"
-            className="mt-7 shrink-0"
+            className="shrink-0 sm:mt-7"
             onClick={prefillTestAnalysis}
             title={`Prefills ${TEST_ANALYSIS_PRESET.url} with a matching goal and research question, then starts the run`}
           >
