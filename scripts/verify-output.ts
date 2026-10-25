@@ -132,7 +132,7 @@ function checkPersonas(personas: any[]): { pass: string[]; fail: string[] } {
   return { pass, fail };
 }
 
-function checkResponses(responses: any[]): { pass: string[]; fail: string[] } {
+function checkResponses(responses: any[], inputType: string): { pass: string[]; fail: string[] } {
   const pass: string[] = [];
   const fail: string[] = [];
 
@@ -162,10 +162,12 @@ function checkResponses(responses: any[]): { pass: string[]; fail: string[] } {
       );
     }
 
-    // screenshotBase64 is deliberately absent for text artifacts.
+    // screenshotBase64 is deliberately absent for text artifacts only; visual
+    // runs must still carry the screenshot they were analyzed from.
     const requiredResponseFields = [
       'overview', 'researchQuestionAnswer', 'majorFindings', 'pointsOfFriction',
       'unansweredQuestions', 'rawAnalysis',
+      ...(inputType === 'text' ? [] : ['screenshotBase64']),
     ];
     const missing = requiredResponseFields.filter((f) => {
       const v = r?.[f];
@@ -360,7 +362,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
       url: path.basename(String(image)),
     };
   } else if (textPath || filePaths.length > 0) {
-    const { extractArtifactText } = await import('@/infrastructure/adapters/ArtifactTextExtractor');
+    const { extractArtifactText } = await import('@/lib/artifactText');
     const files = textPath
       ? [{ name: path.basename(textPath), size: 0, arrayBuffer: async () => (await fs.promises.readFile(path.resolve(textPath))).buffer as ArrayBuffer }]
       : await Promise.all(filePaths.map(async (filePath) => {
@@ -437,7 +439,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
     return null;
   }) : null;
 
-  report('artifact', checkResponses(responses));
+  report('artifact', checkResponses(responses, input.type));
   report('monologues', checkMonologues(responses));
   report('synthesis', checkSynthesis(synthesis, responses.length));
   report('citations', checkCitations(synthesis, responses));

@@ -100,7 +100,7 @@ async function extractOne(kind: DocumentKind, buffer: ArrayBuffer): Promise<stri
  * briefs and copy; not a layout renderer.
  */
 export function stripRtf(rtf: string): string {
-  const withoutBinary = rtf.replace(/\{\\\*?\\(?:fonttbl|colortbl|stylesheet|info|pict)[\s\S]*?\}/g, " ");
+  const withoutBinary = rtf.replace(/\{\\(?:\*)?\\?(?:fonttbl|colortbl|stylesheet|info|pict)\b[\s\S]*?\}/g, " ");
   const withBreaks = withoutBinary
     .replace(/\\par[d]?\b/g, "\n")
     .replace(/\\line\b/g, "\n")
@@ -164,8 +164,11 @@ async function extractPdf(buffer: ArrayBuffer): Promise<string> {
     data: new Uint8Array(buffer),
     useSystemFonts: true,
   });
-  const pdf = await loadingTask.promise;
   try {
+    // Await inside the try: a corrupt or encrypted PDF rejects the load, and
+    // pdfjs only tears down the worker/transport through destroy() — without
+    // this the failed attempt leaks a worker holding the document.
+    const pdf = await loadingTask.promise;
     const pages: string[] = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);

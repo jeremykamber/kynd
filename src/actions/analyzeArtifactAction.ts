@@ -38,10 +38,18 @@ export async function analyzeArtifactAction(
     requestId?: string,
 ) {
     // The form validates first; this rejects a hand-crafted call before any
-    // run state is created, on both the local and the VPS path.
+    // run state is created, on both the local and the VPS path. The rejection
+    // travels through the action's own ERROR channel rather than as a thrown
+    // error: Next redacts thrown action errors in production, which would
+    // replace the trim instruction with an opaque digest.
     if (input.type === "text") {
         const textProblem = validateTextArtifact(input);
-        if (textProblem) throw new Error(textProblem);
+        if (textProblem) {
+            const id = requestId || `analysis-${Date.now()}`;
+            const stream = createStreamableValue<any>({ step: "STARTING", requestId: id });
+            stream.done({ step: "ERROR", error: textProblem, requestId: id });
+            return { streamData: stream.value, requestId: id };
+        }
     }
 
     if (shouldRunLocally()) {

@@ -22,7 +22,6 @@ export const PASTED_TEXT_LABEL = "Pasted text";
 export const SCREENSHOT_LABEL = "Screenshot";
 
 export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
-export const ACCEPTED_IMAGE_ACCEPT_ATTR = ACCEPTED_IMAGE_TYPES.join(",");
 export const ACCEPTED_IMAGE_HINT = "PNG, JPG, or WEBP — under 10 MB";
 
 export type DocumentKind = "pdf" | "docx" | "pptx" | "txt" | "md" | "csv" | "json" | "rtf";
@@ -42,12 +41,8 @@ const EXTENSION_TO_KIND: Record<string, DocumentKind> = {
 /** Formats we refuse with export instructions instead of a generic error. */
 const LEGACY_OFFICE_EXTENSIONS: Record<string, true> = { doc: true, ppt: true };
 
-export const ACCEPTED_DOCUMENT_EXTENSIONS = [
-  ".pdf", ".docx", ".pptx", ".txt", ".md", ".csv", ".json", ".rtf",
-] as const;
-
-/** `accept` attribute value for the document file input. */
-export const ACCEPTED_DOCUMENT_ACCEPT_ATTR = ACCEPTED_DOCUMENT_EXTENSIONS.join(",");
+/** Derived from the one format map above, so the picker cannot drift from the parser. */
+export const ACCEPTED_DOCUMENT_EXTENSIONS = Object.keys(EXTENSION_TO_KIND).map((extension) => `.${extension}`);
 
 /** One line the form shows under the document picker. */
 export const ACCEPTED_DOCUMENT_HINT = "PDF, DOCX, PPTX, TXT, MD, CSV, JSON, or RTF";

@@ -12,7 +12,7 @@ import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
-import type { ArtifactIntake } from "@/domain/entities/ArtifactIntake";
+import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import { StreamOfConsciousness } from "@/domain/entities/StreamOfConsciousness";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -592,7 +592,7 @@ export class LlmServiceImpl implements LlmServicePort {
         persona: Persona,
         context: ArtifactIntake,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifactName?: string }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
     ): Promise<{ text: string }> {
         return this.visionAdapter.generateVisceralMonologue(
             persona,
@@ -606,7 +606,7 @@ export class LlmServiceImpl implements LlmServicePort {
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifactName?: string }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
     ): Promise<PersonaResponse> {
         return this.visionAdapter.extractPersonaResponse(
             persona,

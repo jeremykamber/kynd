@@ -8,13 +8,13 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon, PlusIcon, UploadIcon, ImageIcon, LinkIcon, TargetIcon, HelpCircleIcon, FlaskConicalIcon, FileTextIcon } from 'lucide-react'
 import { Persona } from '@/domain/entities/Persona'
+import { ArtifactTextError } from '@/domain/entities/ArtifactIntakeLimits'
 import { analysisInputKind, analysisSourceLabel } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactInput } from '@/domain/entities/ArtifactInput'
 import {
-  ACCEPTED_DOCUMENT_ACCEPT_ATTR,
+  ACCEPTED_DOCUMENT_EXTENSIONS,
   ACCEPTED_DOCUMENT_HINT,
-  ACCEPTED_IMAGE_ACCEPT_ATTR,
   ACCEPTED_IMAGE_HINT,
   ACCEPTED_IMAGE_TYPES,
   MAX_DOCUMENTS,
@@ -25,7 +25,7 @@ import {
   validateImageFile,
   validateTextLength,
 } from '@/domain/entities/ArtifactIntakeLimits'
-import type { ExtractedArtifactText } from '@/infrastructure/adapters/ArtifactTextExtractor'
+import type { ExtractedArtifactText } from '@/lib/artifactText'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -190,6 +190,10 @@ function NewAnalysisForm({
   const [isDragOver, setIsDragOver] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const documentInputRef = useRef<HTMLInputElement>(null)
+  // Extraction is async; only the newest request may write selection state, so
+  // a slow parse cannot resurrect documents the user already removed or
+  // re-enable the run with a stale text.
+  const extractionIdRef = useRef(0)
 
   // Text
   const [pastedText, setPastedText] = useState('')
@@ -202,11 +206,15 @@ function NewAnalysisForm({
   }, [])
 
   const selectImage = useCallback((file: File) => {
+    if (isExtracting) return
     const problem = validateImageFile(file)
     if (problem) {
       setValidationError(problem)
       return
     }
+    // An image replaces the document selection, and any in-flight extraction
+    // of the old one must not write back.
+    extractionIdRef.current++
     setValidationError(null)
     setDocuments([])
     setDocumentText(null)
@@ -218,7 +226,7 @@ function NewAnalysisForm({
     reader.onload = () => setImageBase64(reader.result as string)
     reader.onerror = () => setValidationError('Failed to read file. Please try again.')
     reader.readAsDataURL(file)
-  }, [])
+  }, [isExtracting])
 
   /**
    * Validates the new selection, then extracts it. Extraction runs in the
@@ -226,33 +234,52 @@ function NewAnalysisForm({
    * imported on first use so a URL or screenshot run never downloads a parser.
    */
   const applyDocuments = useCallback(async (next: File[]) => {
+    if (isExtracting) return
     const problem = validateDocumentSelection(next)
     if (problem) {
       setValidationError(problem)
       return
     }
 
+    const requestId = ++extractionIdRef.current
     setValidationError(null)
-    clearImage()
     setIsExtracting(true)
     try {
-      const { extractArtifactText } = await import('@/infrastructure/adapters/ArtifactTextExtractor')
+      // Imported on first document use so a URL or screenshot run never
+      // downloads a parser.
+      const { extractArtifactText } = await import('@/lib/artifactText')
       const extracted = await extractArtifactText(next)
+      if (requestId !== extractionIdRef.current) return
+      // Swap on success only: a failed parse leaves the previous selection —
+      // including a working screenshot — exactly as it was.
+      clearImage()
       setDocuments(next)
       setDocumentText(extracted)
     } catch (err) {
-      setValidationError((err as Error).message)
+      if (requestId !== extractionIdRef.current) return
+      // User-correctable failures carry a written message; parser internals
+      // ("Invalid PDF structure") do not, so they are reported generically and
+      // kept in the console for diagnosis.
+      if (err instanceof ArtifactTextError) {
+        setValidationError(err.message)
+      } else {
+        console.error('[artifact-upload] extraction failed', err)
+        setValidationError(
+          `Could not read ${next.map((file) => file.name).join(', ')} — re-export it as a PDF or DOCX, or upload a screenshot instead.`,
+        )
+      }
     } finally {
-      setIsExtracting(false)
+      if (requestId === extractionIdRef.current) setIsExtracting(false)
     }
-  }, [clearImage])
+  }, [clearImage, isExtracting])
 
   const addDocuments = useCallback((files: File[]) => {
-    if (files.length === 0) return
+    if (files.length === 0 || isExtracting) return
     void applyDocuments([...documents, ...files])
-  }, [applyDocuments, documents])
+  }, [applyDocuments, documents, isExtracting])
 
   const removeDocument = useCallback((name: string) => {
+    if (isExtracting) return
     const next = documents.filter((file) => file.name !== name)
     if (next.length === 0) {
       setDocuments([])
@@ -261,7 +288,7 @@ function NewAnalysisForm({
       return
     }
     void applyDocuments(next)
-  }, [applyDocuments, documents])
+  }, [applyDocuments, documents, isExtracting])
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -422,6 +449,7 @@ function NewAnalysisForm({
             ) : (
               <button
                 type="button"
+                disabled={isExtracting}
                 onClick={() => (documents.length > 0 || documentText ? documentInputRef.current?.click() : imageInputRef.current?.click())}
                 onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
                 onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false) }}
@@ -439,11 +467,11 @@ function NewAnalysisForm({
             )}
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
+              <Button type="button" variant="outline" size="sm" disabled={isExtracting} onClick={() => imageInputRef.current?.click()}>
                 <ImageIcon data-icon="inline-start" />
                 Choose image
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => documentInputRef.current?.click()}>
+              <Button type="button" variant="outline" size="sm" disabled={isExtracting} onClick={() => documentInputRef.current?.click()}>
                 <FileTextIcon data-icon="inline-start" />
                 Add documents
               </Button>
@@ -455,16 +483,18 @@ function NewAnalysisForm({
             <input
               ref={imageInputRef}
               type="file"
-              accept={ACCEPTED_IMAGE_ACCEPT_ATTR}
+              accept={ACCEPTED_IMAGE_TYPES.join(',')}
               onChange={handleFileInput}
+              disabled={isExtracting}
               className="hidden"
             />
             <input
               ref={documentInputRef}
               type="file"
               multiple
-              accept={ACCEPTED_DOCUMENT_ACCEPT_ATTR}
+              accept={ACCEPTED_DOCUMENT_EXTENSIONS.join(',')}
               onChange={handleDocumentInput}
+              disabled={isExtracting}
               className="hidden"
             />
 
@@ -482,6 +512,7 @@ function NewAnalysisForm({
                       </div>
                       <button
                         type="button"
+                        disabled={isExtracting}
                         onClick={() => removeDocument(file.name)}
                         className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors"
                         aria-label={`Remove ${file.name}`}
@@ -511,7 +542,10 @@ function NewAnalysisForm({
               placeholder="Paste a feature brief, feature list, landing-page copy, YouTube script, or pitch-deck text…"
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
-              className="min-h-40 text-sm"
+              // A pasted document must not stretch the form: scroll inside the
+              // field so the counter, the cap error and the Run button stay on
+              // screen.
+              className="min-h-40 max-h-64 overflow-y-auto text-sm"
             />
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs font-mono tabular-nums text-muted-foreground">
@@ -605,7 +639,7 @@ function AnalysesPageContent() {
   }
 
   return (
-    <div className="flex flex-col gap-8 w-full h-full animate-in fade-in duration-500">
+    <div className="flex flex-col gap-8 w-full h-full animate-in fade-in duration-500 pb-24 lg:pb-16">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold tracking-tight">Analyses</h1>

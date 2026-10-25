@@ -218,8 +218,16 @@ export class VisionAnalysisAdapter {
         // not DOM-structure facts it could never see in a first glance —
         // over-informed personas rationalize instead of reacting. A text
         // artifact has no screenshot at all; its full text is the user content.
+        // The framing decides the medium; the payload is checked against it so
+        // prompt and content cannot disagree.
         const streamStart = Date.now();
-        const isDocument = context.text !== undefined;
+        const isDocument = options.artifact?.kind === "document";
+        if (isDocument && context.text === undefined) {
+            throw new Error("Cannot run a document monologue: the artifact carries no text");
+        }
+        if (!isDocument && !context.screenshotBase64) {
+            throw new Error("Cannot run a site monologue: the artifact carries no screenshot");
+        }
         const content = isDocument
             ? [{ type: "text" as const, text: `Read this document and think aloud as ${persona.name}.\n\n"""\n${context.text}\n"""` }]
             : [

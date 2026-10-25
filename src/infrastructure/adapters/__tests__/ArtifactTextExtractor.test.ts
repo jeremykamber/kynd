@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { extractArtifactText, stripRtf, type ExtractableFile } from '../ArtifactTextExtractor';
+import { extractArtifactText, stripRtf, type ExtractableFile } from '@/lib/artifactText';
 import { MAX_TEXT_CHARS, ArtifactTextError } from '@/domain/entities/ArtifactIntakeLimits';
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
@@ -34,7 +34,9 @@ function virtualFile(name: string, text: string): ExtractableFile {
   };
 }
 
-describe('extractArtifactText — real formats', () => {
+// Parsing real archives and PDFs costs seconds under load; the default 5s
+// budget is about the parser, not this code's behavior.
+describe('extractArtifactText — real formats', { timeout: 30_000 }, () => {
   it('reads a PDF text layer', async () => {
     const result = await extractArtifactText([fixture('seed-brief.pdf')]);
     expect(result.text).toContain('41 paying teams');
@@ -70,6 +72,22 @@ describe('extractArtifactText — real formats', () => {
     expect(result.text).toContain('Users skip the setup wizard');
     expect(result.text).toContain('Nobody read the pricing page');
     expect(result.text).not.toContain('\\par');
+    // Destination groups carry the font table and embedded images; neither is
+    // document text, and a pict blob would eat the character budget.
+    expect(result.text).not.toContain('Helvetica');
+  });
+
+  it('drops an embedded RTF picture instead of leaking its hex payload', async () => {
+    const rtf = String.raw`{\rtf1\ansi{\fonttbl{\f0 Helvetica;}}{\*\pict\pngblip 89504e470d0a1a0a}\f0 The pricing page confused me.\par}`;
+    const bytes = Buffer.from(rtf, 'utf-8');
+    const result = await extractArtifactText([{
+      name: 'notes.rtf',
+      size: bytes.byteLength,
+      arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+    }]);
+    expect(result.text).toContain('The pricing page confused me.');
+    expect(result.text).not.toContain('89504e47');
+    expect(result.text).not.toContain('Helvetica');
   });
 
   it('rejects a PDF with no text layer with the screenshot advice', async () => {
@@ -79,7 +97,7 @@ describe('extractArtifactText — real formats', () => {
   });
 });
 
-describe('extractArtifactText — selection rules', () => {
+describe('extractArtifactText — selection rules', { timeout: 30_000 }, () => {
   it('concatenates in selection order with a named separator', async () => {
     const result = await extractArtifactText([fixture('copy.txt'), fixture('landing-copy.md')]);
     expect(result.text.indexOf('No scheduling.')).toBeLessThan(result.text.indexOf('Kynd — landing page'));

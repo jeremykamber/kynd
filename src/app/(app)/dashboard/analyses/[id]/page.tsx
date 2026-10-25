@@ -346,7 +346,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
             <StatusBadge status={analysis.status} />
           </div>
           <p className="text-sm text-muted-foreground">
-            {analysis.url} · {analysis.personaCount} personas
+            {analysisSourceLabel(analysis) ?? analysis.url} · {analysis.personaCount} personas
             {analysis.batchName && ` · Batch: ${analysis.batchName}`}
             {analysis.createdAt && (
               <>
