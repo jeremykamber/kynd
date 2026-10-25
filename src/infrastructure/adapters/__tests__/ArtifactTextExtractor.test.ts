@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extractArtifactText, stripRtf, type ExtractableFile } from '@/lib/artifactText';
-import { MAX_TEXT_CHARS, ArtifactTextError } from '@/domain/entities/ArtifactIntakeLimits';
+import { ACCEPTED_DOCUMENT_HINT, ArtifactTextError, MAX_DOCUMENTS, MAX_TEXT_CHARS } from '@/domain/entities/ArtifactIntakeLimits';
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
 
@@ -113,7 +113,7 @@ describe('extractArtifactText — selection rules', { timeout: 30_000 }, () => {
 
   it('rejects an unsupported extension with the accepted list', async () => {
     await expect(extractArtifactText([{ name: 'photo.png', size: 10, arrayBuffer: async () => new ArrayBuffer(0) }]))
-      .rejects.toThrow('"photo.png" is not a supported format. Use PDF, DOCX, PPTX, TXT, MD, CSV, JSON, or RTF.');
+      .rejects.toThrow(`"photo.png" is not a supported format. Use ${ACCEPTED_DOCUMENT_HINT}.`);
   });
 
   it('rejects legacy Office formats with export instructions', async () => {

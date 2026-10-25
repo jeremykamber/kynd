@@ -132,6 +132,9 @@ function checkPersonas(personas: any[]): { pass: string[]; fail: string[] } {
   return { pass, fail };
 }
 
+/** Fields whose contract is "present as an array", empty allowed. */
+const ARRAY_RESPONSE_FIELDS = new Set(['majorFindings', 'pointsOfFriction', 'unansweredQuestions']);
+
 function checkResponses(responses: any[], inputType: string): { pass: string[]; fail: string[] } {
   const pass: string[] = [];
   const fail: string[] = [];
@@ -164,14 +167,18 @@ function checkResponses(responses: any[], inputType: string): { pass: string[]; 
 
     // screenshotBase64 is deliberately absent for text artifacts only; visual
     // runs must still carry the screenshot they were analyzed from.
+    // Arrays must be arrays, not non-empty: the extraction prompt explicitly
+    // allows an empty unansweredQuestions list, and demanding content would
+    // make a correct run fail (or push the model to invent findings).
     const requiredResponseFields = [
       'overview', 'researchQuestionAnswer', 'majorFindings', 'pointsOfFriction',
       'unansweredQuestions', 'rawAnalysis',
       ...(inputType === 'text' ? [] : ['screenshotBase64']),
     ];
-    const missing = requiredResponseFields.filter((f) => {
-      const v = r?.[f];
-      return v === undefined || v === null || (Array.isArray(v) && v.length === 0);
+    const missing = requiredResponseFields.filter((field) => {
+      const value = r?.[field];
+      if (ARRAY_RESPONSE_FIELDS.has(field)) return !Array.isArray(value);
+      return typeof value !== 'string' || value.trim() === '';
     });
     if (missing.length === 0) {
       pass.push(`${personaName}: all response fields present`);
@@ -214,8 +221,14 @@ function checkSynthesis(synthesis: any, totalPersonaCount: number): { pass: stri
 function report(label: string, checks: { pass: string[]; fail: string[] }): void {
   console.log(`\n[${label}]`);
   for (const line of checks.pass) console.log(`  PASS  ${line}`);
-  for (const line of checks.fail) console.log(`  FAIL  ${line}`);
+  for (const line of checks.fail) {
+    console.log(`  FAIL  ${line}`);
+    failedChecks += 1;
+  }
 }
+
+/** A run that fails any check must not look like a green run to a caller. */
+let failedChecks = 0;
 
 // Banned UX-consultant jargon — the Visceral Actor must never produce these.
 // Mirrors the operating rules in buildVisceralMonologueSystemPrompt.
@@ -479,6 +492,11 @@ async function main(): Promise<void> {
       break;
     default:
       fail('usage: verify-output.ts <persona|artifact> [--description "..."] [--count N] [--url <url> | --image <path>] [--personas-file <path>] [--out <path>]');
+  }
+
+  if (failedChecks > 0) {
+    console.error(`\n[verify-output] ${failedChecks} check(s) failed`);
+    process.exit(1);
   }
 }
 
