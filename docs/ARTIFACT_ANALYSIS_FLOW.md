@@ -237,7 +237,7 @@ Every synthesis prompt enforces:
 ### Adding a document format
 
 1. Add the extension to `EXTENSION_TO_KIND` in `ArtifactIntakeLimits.ts` (the accepted-extension list is derived from it)
-2. Add a branch to `extractOne` in `ArtifactTextExtractor.ts` (dynamic import of the parser)
+2. Add a branch to `extractOne` in `src/lib/artifactText.ts` (dynamic import of the parser)
 3. Add a real fixture and a case to `ArtifactTextExtractor.test.ts` — a hand-written stub is not proof
 
 Prompts do not branch per format: text runs are framed as "a document", and the persona infers the kind from the text.
