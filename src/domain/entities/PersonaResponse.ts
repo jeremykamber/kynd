@@ -59,6 +59,42 @@ export const PersonaResponseSchema = z.object({
 });
 
 /**
+ * Identity drift the report cannot recover from: the summary layers must say
+ * whose session they describe. Observed in real runs: "The user reviewed
+ * feature-brief.docx…" in 2 of 8 responses (no name to attribute the finding
+ * to), and summaries that spoke as the persona.
+ *
+ * Mechanical on purpose — three rules, no judgement:
+ * 1. the persona's name appears in the overview and the RQ answer;
+ * 2. the summary never calls them "the user" (that loses the attribution);
+ * 3. the summary never slips into the first person.
+ *
+ * Role/pronoun transfer from the artifact's own copy is prompted against, not
+ * detected here: deciding that "freelancer" contradicts "Head of Marketing"
+ * needs the artifact and the persona model, which this function does not see.
+ */
+export function personaIdentityViolations(
+  response: PersonaResponse,
+  fallbackName?: string,
+): string[] {
+  const name = response.personaProfile?.name ?? fallbackName ?? "";
+  const summary = [response.overview ?? "", response.researchQuestionAnswer ?? ""];
+  const joined = summary.join(" ");
+  const violations: string[] = [];
+
+  if (name && !joined.toLowerCase().includes(name.toLowerCase())) {
+    violations.push(`does not name the persona (${name})`);
+  }
+  if (/\bthe user\b/i.test(joined)) {
+    violations.push('refers to "the user" instead of the persona');
+  }
+  if (/\b(I|I'm|I've|my|me)\b/i.test(joined)) {
+    violations.push("speaks in the first person");
+  }
+  return violations;
+}
+
+/**
  * Checks a value has every required PersonaResponse field and a journey that
  * covers all five cognitive stages once, in order. Optional fields and the
  * artifact/persona identity fields are not cross-checked.

@@ -12,6 +12,20 @@ import type {
 const SENTENCE_ENDERS = [".", "!", "?", "\n"] as const;
 
 /**
+ * A `...` inside a thought is a pause, not the end of a sentence. Treating its
+ * periods as terminators produced quotes cut mid-thought ("No card means I can
+ * just...") — a fragment presented as the persona's sentence.
+ */
+function isEllipsisDot(text: string, index: number): boolean {
+  return text[index] === "." && (text[index - 1] === "." || text[index + 1] === ".");
+}
+
+/** Leading/trailing quote marks are artifacts of the surrounding transcript. */
+function trimQuotes(value: string): string {
+  return value.replace(/^[\s"'“”‘’]+/, "").replace(/[\s"'“”‘’]+$/, "");
+}
+
+/**
  * Expands an anchor phrase into the full sentence containing it, as a VERBATIM
  * substring of the transcript. Anchor lookup is case-insensitive; the first
  * occurrence wins. Boundaries extend to the nearest sentence ender
@@ -35,15 +49,20 @@ export function extractVerbatimQuote(transcript: string, anchor: string): string
     if (at !== -1 && at + 1 > start) start = at + 1;
   }
 
-  // Sentence end: the earliest ender at/after the end of the anchor.
+  // Sentence end: the earliest ender at/after the end of the anchor, skipping
+  // the dots of an ellipsis so a pause never truncates the quote.
   const afterAnchor = index + needle.length;
   let end = -1;
   for (const ender of SENTENCE_ENDERS) {
-    const at = haystack.indexOf(ender, afterAnchor);
-    if (at !== -1 && (end === -1 || at < end)) end = at;
+    for (let at = haystack.indexOf(ender, afterAnchor); at !== -1; at = haystack.indexOf(ender, at + 1)) {
+      if (isEllipsisDot(haystack, at)) continue;
+      if (end === -1 || at < end) end = at;
+      break;
+    }
   }
 
-  return transcript.slice(start, end > -1 ? end + 1 : transcript.length).trim();
+  const quote = transcript.slice(start, end > -1 ? end + 1 : transcript.length);
+  return trimQuotes(quote.trim()) || null;
 }
 
 /**
@@ -77,6 +96,11 @@ export function groundSynthesisCitations(
       citations.push({ personaId: persona.personaId, personaName: persona.personaName, quote });
     }
 
+    // Counts are derived, never trusted from the model: a finding affects the
+    // personas its resolved citations belong to, out of the run's persona set.
+    // The model's own numbers were inflated (5/5 for a claim one persona made).
+    const affectedPersonaCount = new Set(citations.map((c) => c.personaId)).size;
+
     // Explicit reconstruction (not spread) guarantees evidenceLocators and
     // anything else the LLM added cannot survive into user-facing content.
     return {
@@ -84,8 +108,8 @@ export function groundSynthesisCitations(
       evidence: finding.evidence,
       impact: finding.impact,
       confidence: finding.confidence,
-      affectedPersonaCount: finding.affectedPersonaCount,
-      totalPersonaCount: finding.totalPersonaCount,
+      affectedPersonaCount,
+      totalPersonaCount: transcripts.length,
       ...(citations.length > 0 ? { citations } : {}),
     };
   });

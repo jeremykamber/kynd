@@ -10,6 +10,12 @@ blocks the feature; each row names what it costs.
 
 [squawk] high | deployment | No deployed-backend proof: F4 (PM2 restart + real text analysis through `/api/vps/analyze`) needs a live LLM call, which the exhausted balance refuses | Same credits blocker; the branch is pushed and the restart command is in the report
 
+[squawk] high | analysis schema | The five-stage journey is a purchase funnel, and a video script has no purchase: run 09's personas had to express "would I keep watching" through interpretation → understanding → belief → motivation → action, and the synthesis inherited that frame | Changing the stage model is a product redesign with eval work, not a mechanical fix
+
+[squawk] medium | personas | Persona batches are homogeneous: in run 06 the same eight personas open several monologues with near-identical sentences and all eight raise the "why five" objection, so a "7 of 8 flagged" count overstates independent corroboration | Diversity is a persona-generation property; the synthesis now counts *cited* personas, but two templated personas still count as two
+
+[squawk] medium | synthesis | A persona can still pick up the artifact's own role labels: run 08's Sky is "a skeptical, experienced freelancer" in the overview while the profile says Head of Marketing (the artifact mentions a freelancer) | The mechanical half is in (name/"the user"/first person) and the prompt forbids the transfer, but detecting that "freelancer" contradicts "Head of Marketing" needs the artifact and the persona model in the same check
+
 [squawk] medium | extraction | Scanned PDFs have no OCR; they fail with "No text layer found. Export a text-based PDF or upload a DOCX" instead of guessing | OCR is a new dependency with its own size and accuracy tradeoffs, not a normalization detail
 
 [squawk] medium | extraction | `.doc` and `.ppt` are refused with export instructions rather than converted; PPTX follows slide XML order, drops speaker notes and chart data | No trustworthy pure-JS legacy-office converter; adding one would put a fragile binary parser in the browser bundle

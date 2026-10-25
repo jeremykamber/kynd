@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysisSchema } from "@/domain/entities/PricingAnalysis";
-import { PersonaResponseSchema } from "@/domain/entities/PersonaResponse";
+import { PersonaResponseSchema, personaIdentityViolations } from "@/domain/entities/PersonaResponse";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { CohortSynthesisContent } from "@/domain/entities/ArtifactSynthesis";
@@ -105,7 +105,8 @@ RULES:
    - Never describe a not-reached stage by restating what the stage is about — describe what happened (or why nothing could happen) in THIS session.
 4. The five journey stages MUST all appear in canonical order (interpretation, understanding, belief, motivation, action); skipping is expressed through outcomes, not omission.
 5. Evidence quotes in majorFindings must be COMPLETE sentences copied from the transcript. Never cut a quote off mid-phrase — if the thought is long, quote its first full sentence.
-6. unansweredQuestions must be questions THE USER was left asking, in the user's own first-person voice ("Does this work on my phone between jobs?"), not researcher hypotheses about the user ("Would the user have...?"). If the transcript shows no open questions, return an empty list.`;
+6. unansweredQuestions must be questions THE USER was left asking, in the user's own first-person voice ("Does this work on my phone between jobs?"), not researcher hypotheses about the user ("Would the user have...?"). If the transcript shows no open questions, return an empty list.
+7. Name the persona in overview and researchQuestionAnswer ("${persona.name}…"). Never write "the user" in those two fields, and never adopt a name, role, occupation, or pronoun that the artifact assigns to someone — the persona's identity comes from their profile, not from the artifact's copy.`;
 }
 
 /**
@@ -335,7 +336,11 @@ export class VisionAnalysisAdapter {
                     system,
                     messages: [{ role: "user", content: prompt }],
                     temperature: 0.1,
-                    maxTokens: tokenLimit,
+                    // AI SDK v6 renamed this option. `maxTokens` (v5) is
+                    // ignored, so the provider fell back to the model maximum
+                    // (131,072 tokens) and OpenRouter refused the call for
+                    // insufficient credit before a single token was generated.
+                    maxOutputTokens: tokenLimit,
                     abortSignal: controller.signal,
                 } as unknown as Parameters<typeof streamObject>[0]);
 
@@ -378,7 +383,24 @@ export class VisionAnalysisAdapter {
                     controller.abort();
                 });
 
-                if (responseObj) break;
+                if (responseObj) {
+                    // One corrective retry when the summary layers lose the
+                    // persona's identity (no name, "the user", first person).
+                    // After that the response is kept: a labelled-but-imperfect
+                    // report beats a missing persona, and the violation is
+                    // logged for the run report.
+                    const violations = personaIdentityViolations(
+                        responseObj as PersonaResponse,
+                        persona.name,
+                    );
+                    if (violations.length === 0) break;
+                    log?.warn("VisionAnalysisAdapter", `extractPersonaResponse identity drift for "${persona.name}"`, {
+                        attempt: attempt + 1,
+                        violations,
+                    });
+                    if (attempt === MAX_RETRIES) break;
+                    continue;
+                }
             } catch (e) {
                 log?.warn("VisionAnalysisAdapter", `extractPersonaResponse attempt ${attempt + 1} failed for "${persona.name}"`, {
                     error: String(e),

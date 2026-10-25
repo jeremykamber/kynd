@@ -61,6 +61,20 @@ describe("extractVerbatimQuote", () => {
     expect(q).toBe("Anchor sentence.");
   });
 
+  it("never cuts a quote at an ellipsis pause", () => {
+    const t = "No card means I can just... try it. Tonight. On the launch email.\nThen I closed the tab.";
+    expect(extractVerbatimQuote(t, "I can just")).toBe("No card means I can just... try it.");
+  });
+
+  it("strips stray quote marks at the quote boundary", () => {
+    // The observed defect: a quote that started on a quoted artifact line
+    // began with the opening quote mark ("No credit card for the first…").
+    const t = 'It loaded fast. "No credit card for the first analysis." Then I looked for the price.';
+    expect(extractVerbatimQuote(t, "No credit card for the first analysis")).toBe(
+      "No credit card for the first analysis.",
+    );
+  });
+
   it("result is always a verbatim substring", () => {
     const t = "Ein Satz mit Ümläuten und 'emoji'. Zweiter Satz.";
     const q = extractVerbatimQuote(t, "Ümläuten");
@@ -110,6 +124,39 @@ describe("groundSynthesisCitations", () => {
       { personaId: "p-1", personaName: "Sarah Chen", quote: "The pricing page confused me completely." },
       { personaId: "p-2", personaName: "Miguel Torres", quote: "However the enterprise tier hides SSO behind a sales call." },
     ]);
+  });
+
+  it("derives counts from resolved citations, ignoring the model's numbers", () => {
+    const [out] = groundSynthesisCitations(
+      [
+        {
+          ...baseFinding,
+          affectedPersonaCount: 5,
+          totalPersonaCount: 8,
+          evidenceLocators: [{ personaId: "p-2", uniqueAnchorPhrase: "hides SSO" }],
+        },
+      ],
+      transcripts,
+    );
+    expect(out.affectedPersonaCount).toBe(1);
+    expect(out.totalPersonaCount).toBe(transcripts.length);
+  });
+
+  it("counts zero when no locator resolves, even if the model claimed support", () => {
+    const [out] = groundSynthesisCitations(
+      [
+        {
+          ...baseFinding,
+          affectedPersonaCount: 2,
+          totalPersonaCount: 2,
+          evidenceLocators: [{ personaId: "p-1", uniqueAnchorPhrase: "a sentence she never said" }],
+        },
+      ],
+      transcripts,
+    );
+    expect(out.citations).toBeUndefined();
+    expect(out.affectedPersonaCount).toBe(0);
+    expect(out.totalPersonaCount).toBe(transcripts.length);
   });
 
   it("drops locators for unknown personas", () => {
