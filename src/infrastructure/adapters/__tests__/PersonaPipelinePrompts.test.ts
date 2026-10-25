@@ -129,7 +129,9 @@ describe('VisionAnalysisAdapter Observer-Actor pipeline wiring', () => {
   let adapter: VisionAnalysisAdapter
 
   const validResponse = {
-    overview: 'The user bounced off the pricing table.',
+    // The summary layers must name the persona; a response that says "the
+    // user" is retried by the adapter (see personaIdentityViolations).
+    overview: 'Maya Chen bounced off the pricing table.',
     customerJourney: [
       { stage: 'interpretation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
       { stage: 'understanding', description: 'd', sentiment: 'negative', outcome: 'blocked' },
@@ -137,7 +139,7 @@ describe('VisionAnalysisAdapter Observer-Actor pipeline wiring', () => {
       { stage: 'motivation', description: 'd', sentiment: 'negative', outcome: 'stopped' },
       { stage: 'action', description: 'd', sentiment: 'negative', outcome: 'stopped' },
     ],
-    researchQuestionAnswer: 'They hesitated because the tiers were unclear.',
+    researchQuestionAnswer: 'Maya Chen hesitated because the tiers were unclear.',
     majorFindings: [],
     pointsOfFriction: ['confusing tiers'],
     unansweredQuestions: [],

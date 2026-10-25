@@ -40,6 +40,9 @@ describe('extractPersonaResponse - outbound token cap', () => {
   });
 
   it('sends the caller token limit, not the model maximum', async () => {
+    // createFromEnv reads the key from the environment; the value is never
+    // used because the stubbed fetch answers first.
+    process.env.OPENROUTER_API_KEY ??= 'test-key';
     const svc = LlmServiceImpl.createFromEnv('openrouter');
     const persona = {
       id: 'p1', name: 'Ada', age: 34, occupation: 'Product manager',
