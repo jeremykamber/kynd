@@ -1,11 +1,12 @@
 import type { Persona } from "@/domain/entities/Persona";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import { validatePersonaResponse } from "@/domain/entities/PersonaResponse";
-import type { ArtifactIntake } from "@/domain/entities/ArtifactIntake";
+import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
+import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
 import { AnalysisProgressStep } from "@/domain/entities/ArtifactAnalysis";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
 
-import { ArtifactIntakeAdapter, type ArtifactInput, type IntakeProgress } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
+import { ArtifactIntakeAdapter, type IntakeProgress } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
 /**
@@ -93,6 +94,10 @@ export class AnalyzeArtifactUseCase {
       tokenLimit,
       businessGoal,
       researchQuestion,
+      // Counts only — artifact content must never reach the log.
+      ...(input.type === "text"
+        ? { textLength: input.text.length, fileCount: input.files?.length ?? 0 }
+        : {}),
     });
 
     // Phase 1: Intake — capture the artifact
@@ -113,8 +118,15 @@ export class AnalyzeArtifactUseCase {
       throw new Error(`Failed to capture artifact: ${(err as Error).message}`);
     }
 
+    // One derivation of how prompts address the artifact, shared by both
+    // stages: a website by its brand, a document by its label.
+    const framing: ArtifactFraming = intake.text !== undefined
+      ? { kind: "document", name: intake.label }
+      : { kind: "site", name: artifactNameFrom(intake.url) ?? undefined };
+
     log.info("AnalyzeArtifactUseCase", "Intake complete", {
-      screenshotLength: intake.screenshotBase64.length,
+      screenshotLength: intake.screenshotBase64?.length ?? 0,
+      textLength: intake.text?.length ?? 0,
       hasHtml: !!intake.pageHtml,
       hasSummaryPending: !!intake.summaryPromise,
       url: intake.url,
@@ -141,6 +153,8 @@ export class AnalyzeArtifactUseCase {
             artifactUrl: intake.url,
             pageSummary: intake.summaryPromise ? await intake.summaryPromise : undefined,
             screenshotBase64: intake.screenshotBase64,
+            artifactText: intake.text,
+            artifactLabel: intake.label,
           },
           { runId },
         );
@@ -181,16 +195,17 @@ export class AnalyzeArtifactUseCase {
           try {
             const pipelineStart = Date.now();
 
-            // Stage 1: visceral first-person monologue (screenshot only — no
-            // page summary reaches the actor), then Stage 2: third-person
-            // extraction from that monologue. businessGoal intentionally does
-            // not enter the persona pipeline; identity lives in the persona.
+            // Stage 1: visceral first-person monologue (the screenshot, or the
+            // document text — no page summary reaches the actor), then Stage 2:
+            // third-person extraction from that monologue. businessGoal
+            // intentionally does not enter the persona pipeline; identity
+            // lives in the persona.
             const streamStart = Date.now();
             const monologue = await this.llmService.generateVisceralMonologue(
               persona,
               intake,
               researchQuestion,
-              { tokenLimit, runId, artifactName: artifactNameFrom(intake.url) ?? undefined },
+              { tokenLimit, runId, artifact: framing },
             );
             const streamDuration = Date.now() - streamStart;
             log.info("AnalyzeArtifactUseCase", `${personaLog} Visceral monologue completed`, {
@@ -204,7 +219,7 @@ export class AnalyzeArtifactUseCase {
               persona,
               monologue.text,
               researchQuestion,
-              { tokenLimit, runId, artifactName: artifactNameFrom(intake.url) ?? undefined },
+              { tokenLimit, runId, artifact: framing },
             );
 
             const pipelineDuration = Date.now() - pipelineStart;

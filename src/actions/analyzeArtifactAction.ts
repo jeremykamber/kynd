@@ -1,7 +1,9 @@
 "use server";
 import { createStreamableValue, type StreamableValue } from "@ai-sdk/rsc";
 import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUseCase";
-import { ArtifactIntakeAdapter, type ArtifactInput } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
+import { ArtifactIntakeAdapter } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
+import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
+import { validateTextArtifact } from "@/domain/entities/ArtifactIntakeLimits";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
@@ -35,6 +37,13 @@ export async function analyzeArtifactAction(
     researchQuestion: string,
     requestId?: string,
 ) {
+    // The form validates first; this rejects a hand-crafted call before any
+    // run state is created, on both the local and the VPS path.
+    if (input.type === "text") {
+        const textProblem = validateTextArtifact(input);
+        if (textProblem) throw new Error(textProblem);
+    }
+
     if (shouldRunLocally()) {
         return runLocally(input, personas, businessGoal, researchQuestion, requestId);
     }

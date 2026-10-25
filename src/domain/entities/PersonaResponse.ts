@@ -15,7 +15,8 @@ import { COGNITIVE_STAGES } from "./CognitiveStage";
 export interface PersonaResponse {
   id: string;
   artifactUrl?: string;
-  screenshotBase64: string;
+  /** Absent for text runs — there is no screenshot to embed. */
+  screenshotBase64?: string;
   rawAnalysis: string;
   overview: string;
   /**
@@ -66,7 +67,7 @@ export function validatePersonaResponse(response: PersonaResponse): boolean {
   if (!response || typeof response !== "object") return false;
 
   if (!response.id || typeof response.id !== "string") return false;
-  if (!response.screenshotBase64 || typeof response.screenshotBase64 !== "string") return false;
+  if (response.screenshotBase64 !== undefined && typeof response.screenshotBase64 !== "string") return false;
   if (!response.rawAnalysis || typeof response.rawAnalysis !== "string") return false;
   if (!response.overview || typeof response.overview !== "string") return false;
   if (typeof response.researchQuestionAnswer !== "string") return false;

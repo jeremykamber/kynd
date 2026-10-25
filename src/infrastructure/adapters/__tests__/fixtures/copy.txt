@@ -1,0 +1,3 @@
+Kynd turns a brief, a deck, or a landing page into a simulated usability session.
+Paste the text, pick an audience, and read what ten different people noticed first.
+No scheduling. No incentives. No three-week wait.

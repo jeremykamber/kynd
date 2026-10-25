@@ -14,6 +14,11 @@
  *   bun scripts/verify-output.ts artifact --url https://example.com --description "..." --count 3
  *   bun scripts/verify-output.ts artifact --url https://example.com --personas-file ./personas.json
  *   bun scripts/verify-output.ts artifact --image ./screenshot.png --description "..." --count 3
+ *   bun scripts/verify-output.ts artifact --text ./brief.md --personas-file ./personas.json
+ *   bun scripts/verify-output.ts artifact --file ./deck.pdf --file ./brief.docx --personas-file ./personas.json
+ *
+ * `--file` extracts through the same module the form uses, so the harness
+ * exercises the real DOCX/PPTX/PDF/text path rather than a copy of it.
  *
  * Persona mode defaults to `strategy` (single LLM call, fast). Use
  * `--mode legacy` to run the app's default multi-call pipeline, or
@@ -28,6 +33,7 @@
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
+import type { ArtifactInput } from '@/domain/entities/ArtifactInput';
 
 const OUT_DIR = path.resolve(process.cwd(), '.sisyphus', 'verify');
 
@@ -50,12 +56,14 @@ function parseArgs(argv: string[]): Record<string, unknown> {
     if (a.startsWith('--')) {
       const key = a.slice(2);
       const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        args[key] = next;
-        i++;
-      } else {
-        args[key] = true;
-      }
+      const value = next && !next.startsWith('--') ? next : true;
+      if (value !== true) i++;
+      // Repeated flags collect (`--file a.pdf --file b.docx`); a single use
+      // stays a scalar so existing call sites read unchanged.
+      const existing = args[key];
+      if (existing === undefined) args[key] = value;
+      else if (Array.isArray(existing)) existing.push(value);
+      else args[key] = [existing, value];
     } else {
       (args._ as string[]).push(a);
     }
@@ -306,11 +314,22 @@ async function runPersonaMode(args: Record<string, unknown>): Promise<void> {
   console.log(`\nsaved: ${outPath}`);
 }
 
+function asList(value: unknown): string[] {
+  if (value === undefined || value === true) return [];
+  return Array.isArray(value) ? value.map(String) : [String(value)];
+}
+
 async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
   const url = args.url as string | undefined;
   const image = args.image as string | undefined;
-  if (!url && !image) fail('artifact mode requires --url <url> or --image <path>');
-  if (url && image) fail('provide only one of --url or --image');
+  const textPath = typeof args.text === 'string' ? args.text : undefined;
+  const filePaths = asList(args.file);
+  const sourcesProvided = [Boolean(url), Boolean(image), Boolean(textPath), filePaths.length > 0]
+    .filter(Boolean).length;
+  if (sourcesProvided === 0) {
+    fail('artifact mode requires one of --url <url>, --image <path>, --text <path>, or --file <path> (repeatable)');
+  }
+  if (sourcesProvided > 1) fail('provide exactly one artifact source');
 
   const businessGoal = String(args['business-goal'] ?? 'Understand how this artifact persuades its audience.');
   const researchQuestion = String(args['research-question'] ?? 'What prevents visitors from taking the desired action?');
@@ -332,9 +351,32 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
     report('persona', personaChecks);
   }
 
-  const input = image
-    ? { type: 'screenshot' as const, imageBase64: (await fs.promises.readFile(path.resolve(String(image)))).toString('base64'), url: path.basename(String(image)) }
-    : { type: 'url' as const, url: String(url) };
+  let input: ArtifactInput;
+  if (image) {
+    input = {
+      type: 'screenshot',
+      imageBase64: (await fs.promises.readFile(path.resolve(String(image)))).toString('base64'),
+      url: path.basename(String(image)),
+    };
+  } else if (textPath || filePaths.length > 0) {
+    const { extractArtifactText } = await import('@/infrastructure/adapters/ArtifactTextExtractor');
+    const files = textPath
+      ? [{ name: path.basename(textPath), size: 0, arrayBuffer: async () => (await fs.promises.readFile(path.resolve(textPath))).buffer as ArrayBuffer }]
+      : await Promise.all(filePaths.map(async (filePath) => {
+          const bytes = await fs.promises.readFile(path.resolve(filePath));
+          return {
+            name: path.basename(filePath),
+            size: bytes.byteLength,
+            arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+          };
+        }));
+    const extracted = await extractArtifactText(files);
+    input = { type: 'text', text: extracted.text, label: extracted.label, files: extracted.files.map((f) => f.name) };
+  } else {
+    input = { type: 'url', url: String(url) };
+  }
+
+  const sourceDescription = input.type === 'text' ? `text "${input.label}" (${input.text.length} chars)` : input.type;
 
   const { AnalyzeArtifactUseCase } = await import('@/application/usecases/AnalyzeArtifactUseCase');
   const { ArtifactIntakeAdapter } = await import('@/infrastructure/adapters/ArtifactIntakeAdapter');
@@ -348,7 +390,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
   const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llm);
 
   const runId = `verify-${Date.now()}`;
-  console.log(`\n[artifact] analyzing ${input.type} (${image ? path.basename(String(image)) : url}) with ${personas.length} personas...`);
+  console.log(`\n[artifact] analyzing ${sourceDescription} (${image ? path.basename(String(image)) : url ?? ''}) with ${personas.length} personas...`);
 
   const responses = await useCase.execute(
     input,
@@ -376,7 +418,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
       mode: 'artifact',
       createdAt: new Date().toISOString(),
       runId,
-      input: { type: input.type, url: input.url },
+      input,
       businessGoal,
       researchQuestion,
       personas: { count: personas.length, names: personas.map((p) => p.name) },
@@ -406,7 +448,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
       mode: 'artifact',
       createdAt: new Date().toISOString(),
       runId,
-      input: { type: input.type, url: input.url },
+      input,
       businessGoal,
       researchQuestion,
       personas: { count: personas.length, names: personas.map((p) => p.name) },

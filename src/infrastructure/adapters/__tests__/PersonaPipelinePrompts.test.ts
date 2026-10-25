@@ -87,7 +87,7 @@ describe('buildPersonaExtractionSystemPrompt (System 2 — Anthropologist)', () 
   })
 
   it('enforces third person, the blocked-stage state machine, canonical stage order, complete-sentence quotes, and first-person user questions', () => {
-    const prompt = buildPersonaExtractionSystemPrompt(makePersona(), 'monologue', 'rq', 'Jobright')
+    const prompt = buildPersonaExtractionSystemPrompt(makePersona(), 'monologue', 'rq', { kind: 'site', name: 'Jobright' })
     expect(prompt).toContain('Write strictly in the THIRD PERSON')
     expect(prompt).toContain('every LATER stage is "not reached"')
     expect(prompt).toContain('"Not reached — abandoned at <earlier stage>."')
@@ -95,6 +95,32 @@ describe('buildPersonaExtractionSystemPrompt (System 2 — Anthropologist)', () 
     expect(prompt).toContain('COMPLETE sentences copied from the transcript')
     expect(prompt).toContain('questions THE USER was left asking')
     expect(prompt).toContain('named "Jobright"')
+  })
+
+  it('names a document as a document, not a site', () => {
+    const prompt = buildPersonaExtractionSystemPrompt(makePersona(), 'monologue', 'rq', { kind: 'document', name: 'seed-brief.md' })
+    expect(prompt).toContain('The document being evaluated is named "seed-brief.md"')
+    expect(prompt).not.toContain('site/product')
+  })
+})
+
+describe('document framing (text artifacts)', () => {
+  it('swaps the visit framing for reading, and keeps every voice rule', () => {
+    const prompt = buildVisceralMonologueSystemPrompt(makePersona(), 'Why do founders hesitate?', { kind: 'document', name: 'seed-brief.md' })
+    expect(prompt).toContain('You are reading a document, not browsing a website.')
+    expect(prompt).toContain('The document you are reading is called "seed-brief.md"')
+    expect(prompt).not.toContain('This is a website visit')
+    // The behavioural rules that make the monologue usable are untouched.
+    expect(prompt).toContain('Never use consultant words')
+    expect(prompt).toContain('React, don\'t report')
+    expect(prompt).toContain('You do NOT summarize the document')
+    expect(prompt.trimEnd().endsWith('Start wherever your attention catches first:')).toBe(true)
+  })
+
+  it('keeps the website framing by default', () => {
+    const prompt = buildVisceralMonologueSystemPrompt(makePersona(), 'rq')
+    expect(prompt).toContain('This is a website visit')
+    expect(prompt).not.toContain('reading a document')
   })
 })
 

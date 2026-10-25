@@ -1,22 +1,26 @@
 import type { ArtifactIntake } from "@/domain/entities/ArtifactIntake";
+import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
+import {
+  PASTED_TEXT_LABEL,
+  validateTextArtifact,
+} from "@/domain/entities/ArtifactIntakeLimits";
 import type { BrowserServicePort } from "@/domain/ports/BrowserServicePort";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
-
-export type ArtifactInput =
-  | { type: "url"; url: string }
-  | { type: "screenshot"; imageBase64: string; url?: string };
 
 export type IntakeProgress = "NAVIGATING" | "CAPTURING" | "PROCESSING" | "COMPLETE";
 
 export type IntakeProgressCallback = (progress: IntakeProgress) => void;
 
 /**
- * Front door of the artifact pipeline: normalizes a URL or an uploaded
- * screenshot into an ArtifactIntake the rest of the run consumes. Talks to the
- * BrowserServicePort (Playwright) for URL capture and to LlmServicePort for the
- * page summary, which it kicks off without blocking capture. Reports coarse
- * progress to the caller and optionally traces through AnalysisLogger.
+ * Front door of the artifact pipeline: normalizes a URL, an uploaded
+ * screenshot, or already-extracted document text into an ArtifactIntake the
+ * rest of the run consumes. Talks to the BrowserServicePort (Playwright) for
+ * URL capture and to LlmServicePort for the page summary, which it kicks off
+ * without blocking capture. Text intake touches neither, so it completes the
+ * progress flow immediately. Reports coarse progress to the caller and
+ * optionally traces through AnalysisLogger — counts and lengths, never the
+ * artifact's content.
  */
 export class ArtifactIntakeAdapter {
   constructor(
@@ -39,7 +43,26 @@ export class ArtifactIntakeAdapter {
   ): Promise<ArtifactIntake> {
     const log = runId ? AnalysisLogger.forRun(runId) : null;
 
-    log?.info("ArtifactIntakeAdapter", "Starting intake", { inputType: input.type });
+    log?.info("ArtifactIntakeAdapter", "Starting intake", {
+      inputType: input.type,
+      ...(input.type === "text"
+        ? { textLength: input.text.length, fileCount: input.files?.length ?? 0 }
+        : {}),
+    });
+
+    if (input.type === "text") {
+      // Re-validated here even though the form checks first: a hand-crafted
+      // call must not start a run with an empty or oversized document.
+      const textProblem = validateTextArtifact(input);
+      if (textProblem) {
+        throw new Error(textProblem);
+      }
+      onProgress?.("COMPLETE");
+      return {
+        text: input.text,
+        label: input.label?.trim() || PASTED_TEXT_LABEL,
+      };
+    }
 
     if (input.type === "url") {
       const { screenshotBase64, pageHtml, url } = await this.captureUrl(input.url, onProgress, runId);
@@ -121,4 +144,3 @@ function stripDataUrlPrefix(dataUrl: string): string {
   if (commaIndex === -1) return dataUrl;
   return dataUrl.slice(commaIndex + 1);
 }
-

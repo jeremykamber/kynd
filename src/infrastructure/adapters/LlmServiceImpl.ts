@@ -366,8 +366,9 @@ export class LlmServiceImpl implements LlmServicePort {
     }
 
     /**
-     * One cheap vision-model call that turns the research context + the
-     * captured artifact into a short, specific simulation title. This is a
+     * One cheap call that turns the research context + the captured artifact
+     * into a short, specific simulation title: the vision model sees a
+     * screenshot, the text model reads a document's text. This is a
      * nice-to-have: callers wrap it in try/catch and fall back to the heuristic
      * name when the model is unavailable or the screenshot is too large.
      */
@@ -378,16 +379,23 @@ export class LlmServiceImpl implements LlmServicePort {
             artifactUrl?: string;
             pageSummary?: string;
             screenshotBase64?: string;
+            artifactText?: string;
+            artifactLabel?: string;
         },
         options: { runId?: string } = {},
     ): Promise<string> {
-        const { businessGoal, researchQuestion, artifactUrl, pageSummary, screenshotBase64 } = context;
+        const { businessGoal, researchQuestion, artifactUrl, pageSummary, screenshotBase64, artifactText, artifactLabel } = context;
 
+        // Only the opening of a document explains what it is; the title never
+        // needs the whole 80k-char artifact.
         const taskText = [
             businessGoal ? `Business goal: ${businessGoal}` : null,
             researchQuestion ? `Research question: ${researchQuestion}` : null,
             artifactUrl ? `Target site: ${artifactUrl}` : null,
             pageSummary ? `What's on the page: ${pageSummary.slice(0, 1200)}` : null,
+            artifactText
+                ? `Document: ${artifactLabel ?? "untitled"}\nFirst part of the text: ${artifactText.slice(0, 3000)}`
+                : null,
         ]
             .filter(Boolean)
             .join("\n");
@@ -424,7 +432,7 @@ export class LlmServiceImpl implements LlmServicePort {
                 { role: "user", content },
             ],
             {
-                model: this.visionModel,
+                model: screenshotBase64 ? this.visionModel : this.textModel,
                 temperature: 0.4,
                 max_tokens: 40,
                 purpose: "simulation-title",

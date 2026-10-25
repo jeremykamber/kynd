@@ -11,7 +11,8 @@ import { RateLimiterMemory } from "rate-limiter-flexible";
 import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUseCase";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
-import type { ArtifactInput } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
+import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
+import { validateTextArtifact } from "@/domain/entities/ArtifactIntakeLimits";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { cancellationManager } from "@/infrastructure/RequestCancellationManager";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -51,9 +52,23 @@ export async function POST(req: NextRequest) {
 
     if (!input) {
         return NextResponse.json({
-            error: "No artifact input provided. Supply a URL or screenshot.",
+            error: "No artifact input provided. Supply a URL, a screenshot, or document text.",
             runId: id,
         }, { status: 400 });
+    }
+
+    if (!["url", "screenshot", "text"].includes(input.type)) {
+        return NextResponse.json({
+            error: `Unknown artifact input type "${input.type}".`,
+            runId: id,
+        }, { status: 400 });
+    }
+
+    if (input.type === "text") {
+        const textProblem = validateTextArtifact(input);
+        if (textProblem) {
+            return NextResponse.json({ error: textProblem, runId: id }, { status: 400 });
+        }
     }
 
     if (input.type === "url" && !input.url?.trim()) {

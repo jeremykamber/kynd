@@ -2,7 +2,7 @@ import { z } from "zod";
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysisSchema } from "@/domain/entities/PricingAnalysis";
 import { PersonaResponseSchema } from "@/domain/entities/PersonaResponse";
-import type { ArtifactIntake } from "@/domain/entities/ArtifactIntake";
+import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { CohortSynthesisContent } from "@/domain/entities/ArtifactSynthesis";
 import { LlmServiceImpl } from "./LlmServiceImpl";
@@ -28,7 +28,11 @@ function detectNonLatin(text: string): string[] {
  * the compartment system prompt is the over-rationalization source, so it
  * is deliberately absent from this path.
  */
-export function buildVisceralMonologueSystemPrompt(persona: Persona, researchQuestion: string, artifactName?: string): string {
+export function buildVisceralMonologueSystemPrompt(
+    persona: Persona,
+    researchQuestion: string,
+    artifact?: ArtifactFraming,
+): string {
     // Persona maps: role = occupation, background = backstory, goal = the
     // persona's goals list (no single goal field exists on the entity);
     // when the persona has none, the research question is the browsing intent.
@@ -36,22 +40,35 @@ export function buildVisceralMonologueSystemPrompt(persona: Persona, researchQue
         ? persona.goals.join("; ")
         : researchQuestion;
     const background = persona.backstory || persona.occupation;
-    const brand = artifactName ? `The site you're on is called "${artifactName}" — that's its name; read it and use it.\n` : "";
+    const isDocument = artifact?.kind === "document";
+    const brand = artifact?.name
+        ? isDocument
+            ? `The document you are reading is called "${artifact.name}" — that's its name; refer to it as such.\n`
+            : `The site you're on is called "${artifact.name}" — that's its name; read it and use it.\n`
+        : "";
+    // The only artifact-kind framing: a document is read, a site is visited.
+    // Everything else — what kind of document it is, what to look for — stays
+    // with the persona, inferred from the text and the research question.
+    const medium = isDocument
+        ? `- You are reading a document, not browsing a website. There is no screen and no buttons: react to the words — the claims, the numbers, the names, the gaps, the parts you skip. You read top to bottom, jump back when something snags, and stop when you have seen enough.
+- You judge with your own life, not like an editor. If a claim doesn't apply to you, notice it and move on. If it sounds fake, call it fake. If it would make you act — reply, forward it, ask for a call — say why, in your own selfish terms.
+- This is reading a document, not a memoir. Reactions come from your work, money, and time — the actual texture of your life. Do NOT invent cinematic detail (smells, weather, dead relatives, candlelight); a real person reading a document mostly notices what's ON the page.`
+        : `- You judge with your own life, not like a reviewer. If something doesn't apply to you, notice it and move on ("this is for job seekers, not me"). If a claim sounds fake, call it fake. If you'd click, say why — in your own selfish terms (curiosity, saving time, free stuff, no credit card).
+- This is a website visit, not a memoir. Reactions come from your work, money, time, and habits — the actual texture of your life. Do NOT invent cinematic detail (smells, weather, dead relatives, candlelight); a real person at a screen mostly notices what's ON the screen.`;
 
 return `You are ${persona.name}, ${persona.occupation}.
-Background: ${background} | You are browsing because: ${browsingIntent}
+Background: ${background} | You are ${isDocument ? "reading this because" : "browsing because"}: ${browsingIntent}
 ${brand}
 HOW YOUR INNER VOICE WORKS:
 - Write like a person thinking, not a person performing. Short bursts. Half-thoughts. "Okay, green background. Looks clean, maybe a little sterile." — that's the register. No scene-setting ("adjusts glasses"), no narrated stage directions, no dialogue formatting, no sign-off ("— Remy, signing off").
 - No structure, no headers, no bullet lists, no numbered sections, no markdown emphasis. Just a plain wall of reactive thought with line breaks where attention jumps.
 - Never use consultant words — no "CTA", "social proof", "value proposition", "friction", "conversion", "call to action", "design choice". You have never heard them. You just see things: "big black button that says Try for free", "Product Hunt badges", "2M users".
 - You skim like a real person. Big text first, then whatever looks interesting, then maybe the fine print if you still care. You skip things and admit it. You get confused, irritated, or bored, and you say so bluntly ("come on, nothing takes under a minute, that's total marketing BS").
-- You judge with your own life, not like a reviewer. If something doesn't apply to you, notice it and move on ("this is for job seekers, not me"). If a claim sounds fake, call it fake. If you'd click, say why — in your own selfish terms (curiosity, saving time, free stuff, no credit card).
-- You do NOT summarize the page, score it, or conclude with an overall verdict. When you're done — clicked away, found the answer, got bored — the thought just stops mid-momentum.
+${medium}
+- You do NOT summarize the ${isDocument ? "document" : "page"}, score it, or conclude with an overall verdict. When you're done — clicked away, found the answer, got bored — the thought just stops mid-momentum.
 - React, don't report. First person, present tense, impatient, a little messy.
-- This is a website visit, not a memoir. Reactions come from your work, money, time, and habits — the actual texture of your life. Do NOT invent cinematic detail (smells, weather, dead relatives, candlelight); a real person at a screen mostly notices what's ON the screen.
 
-Start wherever your eyes land first:`;
+Start wherever your ${isDocument ? "attention catches" : "eyes land"} first:`;
 }
 
 /**
@@ -65,8 +82,11 @@ export function buildPersonaExtractionSystemPrompt(
     persona: Persona,
     monologue: string,
     researchQuestion: string,
-    artifactName?: string,
+    artifact?: ArtifactFraming,
 ): string {
+    const artifactName = artifact?.name
+        ? `- The ${artifact.kind === "document" ? "document" : "site/product"} being evaluated is named "${artifact.name}" — always spell it exactly this way when you mention it.\n`
+        : "";
     return `You are a Lead Qualitative UX Researcher analyzing a think-aloud session recording.
 
 TASK:
@@ -74,7 +94,7 @@ Map ${persona.name}'s unfiltered behavior into the structured JSON schema.
 
 INPUTS:
 - Research Question: ${researchQuestion}
-${artifactName ? `- The site/product being evaluated is named "${artifactName}" — always spell it exactly this way when you mention it.\n` : ""}- Raw Think-Aloud Transcript: """${monologue}"""
+${artifactName}- Raw Think-Aloud Transcript: """${monologue}"""
 
 RULES:
 1. Write strictly in the THIRD PERSON ("The user observed...", "They grew skeptical of...").
@@ -182,7 +202,7 @@ export class VisionAnalysisAdapter {
         persona: Persona,
         context: ArtifactIntake,
         researchQuestion: string,
-        options: { tokenLimit?: number; runId?: string; artifactName?: string } = {},
+        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming } = {},
     ): Promise<{ text: string }> {
         const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
         const tokenLimit = options.tokenLimit ?? 2000;
@@ -192,14 +212,20 @@ export class VisionAnalysisAdapter {
 
         log?.info("VisionAnalysisAdapter", `generateVisceralMonologue START for "${persona.name}"`, { tokenLimit });
 
-        const system = buildVisceralMonologueSystemPrompt(persona, researchQuestion, options.artifactName);
-        // Screenshot ONLY. Deliberately not context.summary/pageHtml: the
-        // actor must react to visual salience, not DOM-structure facts it
-        // could never see in a first glance — over-informed personas
-        // rationalize instead of reacting.
+        const system = buildVisceralMonologueSystemPrompt(persona, researchQuestion, options.artifact);
+        // Screenshot ONLY for visual artifacts. Deliberately not
+        // context.summary/pageHtml: the actor must react to visual salience,
+        // not DOM-structure facts it could never see in a first glance —
+        // over-informed personas rationalize instead of reacting. A text
+        // artifact has no screenshot at all; its full text is the user content.
         const streamStart = Date.now();
-        const brand = options.artifactName ? `The site you're on is called "${options.artifactName}" — use that spelling.` : "";
-        const prompt = `Experience this artifact. Think aloud as ${persona.name}.${brand ? " " + brand : ""}`;
+        const isDocument = context.text !== undefined;
+        const content = isDocument
+            ? [{ type: "text" as const, text: `Read this document and think aloud as ${persona.name}.\n\n"""\n${context.text}\n"""` }]
+            : [
+                { type: "text" as const, text: `Experience this artifact. Think aloud as ${persona.name}.` },
+                { type: "image_url" as const, image_url: { url: `data:image/jpeg;base64,${context.screenshotBase64}` } },
+            ];
 
         let lastError: Error | null = null;
 
@@ -219,16 +245,15 @@ export class VisionAnalysisAdapter {
                             },
                             {
                                 role: "user",
-                                content: [
-                                    { type: "text", text: prompt },
-                                    { type: "image_url", image_url: { url: `data:image/jpeg;base64,${context.screenshotBase64}` } },
-                                ] as any,
+                                content: content as any,
                             },
                         ],
                         {
                             temperature: 0.7,
                             max_tokens: tokenLimit,
-                            model: this.llmService.visionModel,
+                            // A document is read by the text model; only a
+                            // visual artifact needs the vision model.
+                            model: isDocument ? this.llmService.textModel : this.llmService.visionModel,
                             purpose: `Visceral Monologue — ${persona.name}`,
                             runId: options.runId,
                         }
@@ -260,7 +285,7 @@ export class VisionAnalysisAdapter {
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options: { tokenLimit?: number; runId?: string; artifactName?: string } = {},
+        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming } = {},
     ): Promise<PersonaResponse> {
         const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
         const tokenLimit = options.tokenLimit ?? 2000;
@@ -275,7 +300,7 @@ export class VisionAnalysisAdapter {
 
         // Text model, no image: the anthropologist must ground every claim in
         // the transcript, not re-interpret the screenshot.
-        const system = buildPersonaExtractionSystemPrompt(persona, monologueText, researchQuestion, options.artifactName);
+        const system = buildPersonaExtractionSystemPrompt(persona, monologueText, researchQuestion, options.artifact);
         const prompt = `Analyze the think-aloud transcript above and return the structured PersonaResponse JSON.`;
 
         let responseObj: unknown = null;
