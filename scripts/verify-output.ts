@@ -34,6 +34,7 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import type { ArtifactInput } from '@/domain/entities/ArtifactInput';
+import { withoutQuotedSpans } from '@/domain/entities/PersonaResponse';
 
 const OUT_DIR = path.resolve(process.cwd(), '.sisyphus', 'verify');
 
@@ -249,8 +250,9 @@ function checkMonologues(responses: any[]): { pass: string[]; fail: string[] } {
     const hits = BANNED_JARGON.filter((j) => lower.includes(j));
     if (hits.length === 0) pass.push(`${personaName}: no UX jargon`);
     else fail.push(`${personaName}: jargon found: ${hits.join(', ')}`);
-    // Third-person extraction: the structured report must not speak as the persona.
-    const structured = [r?.overview ?? '', r?.researchQuestionAnswer ?? ''].join(' ');
+    // Third-person extraction: the structured report must not speak as the
+    // persona. Quoted artifact copy ("show me one") is quotation, not voice.
+    const structured = withoutQuotedSpans([r?.overview ?? '', r?.researchQuestionAnswer ?? ''].join(' '));
     const firstPerson = /\b(I|I'm|I've|my|me)\b/i.test(structured);
     if (structured && firstPerson) fail.push(`${personaName}: extraction speaks in first person`);
     else if (structured) pass.push(`${personaName}: third person`);

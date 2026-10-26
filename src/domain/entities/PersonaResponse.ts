@@ -73,13 +73,23 @@ export const PersonaResponseSchema = z.object({
  * detected here: deciding that "freelancer" contradicts "Head of Marketing"
  * needs the artifact and the persona model, which this function does not see.
  */
+/** Everything inside quotation marks is quoted speech, not the writer's voice. */
+export function withoutQuotedSpans(text: string): string {
+  return text
+    .replace(/"[^"]*"/g, " ")
+    .replace(/“[^”]*”/g, " ")
+    .replace(/‘[^’]*’/g, " ")
+    .replace(/'[^']*'/g, " ");
+}
+
 export function personaIdentityViolations(
   response: PersonaResponse,
   fallbackName?: string,
 ): string[] {
   const name = response.personaProfile?.name ?? fallbackName ?? "";
   const summary = [response.overview ?? "", response.researchQuestionAnswer ?? ""];
-  const joined = summary.join(" ");
+  // A verbatim quote of the artifact ("show me one") is evidence, not voice.
+  const joined = withoutQuotedSpans(summary.join(" "));
   const violations: string[] = [];
 
   if (name && !joined.toLowerCase().includes(name.toLowerCase())) {

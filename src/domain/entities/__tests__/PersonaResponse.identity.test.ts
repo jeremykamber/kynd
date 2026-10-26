@@ -49,6 +49,25 @@ describe("personaIdentityViolations", () => {
     expect(violations.join(" | ")).toMatch(/first person/);
   });
 
+  it("does not flag a verbatim quote of the artifact's own first-person copy", () => {
+    const violations = personaIdentityViolations(
+      response({
+        researchQuestionAnswer:
+          'Sky would stop at the citation claim, where the artifact says "show me one" and no evidence follows.',
+      }),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("still flags first person outside the quotation", () => {
+    const violations = personaIdentityViolations(
+      response({
+        researchQuestionAnswer: 'Sky would stop there, and I would not try it either.',
+      }),
+    );
+    expect(violations.join(" | ")).toMatch(/first person/);
+  });
+
   it("falls back to the caller's persona name when the profile is absent", () => {
     const violations = personaIdentityViolations(
       response({
