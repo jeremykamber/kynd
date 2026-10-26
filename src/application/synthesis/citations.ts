@@ -3,6 +3,7 @@ import type {
   SynthesizedFinding,
   UnresolvedFinding,
 } from "@/domain/entities/ArtifactSynthesis";
+import { restatePersonaQuantifiers } from "@/application/synthesis/claims";
 
 /**
  * The single home of citation knowledge: how an LLM anchor phrase becomes a
@@ -104,9 +105,11 @@ export function groundSynthesisCitations(
     // Explicit reconstruction (not spread) guarantees evidenceLocators and
     // anything else the LLM added cannot survive into user-facing content.
     return {
-      observation: finding.observation,
-      evidence: finding.evidence,
-      impact: finding.impact,
+      // Prose quantifiers become the derived count; the model's "all three"
+      // cannot outlive a single citation.
+      observation: restatePersonaQuantifiers(finding.observation, affectedPersonaCount, transcripts.length),
+      evidence: restatePersonaQuantifiers(finding.evidence, affectedPersonaCount, transcripts.length),
+      impact: restatePersonaQuantifiers(finding.impact, affectedPersonaCount, transcripts.length),
       confidence: finding.confidence,
       affectedPersonaCount,
       totalPersonaCount: transcripts.length,
