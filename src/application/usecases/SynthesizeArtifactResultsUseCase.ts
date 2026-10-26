@@ -2,10 +2,7 @@ import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
 import { groundSynthesisCitations } from "@/application/synthesis/citations";
-import {
-  composeResearchQuestionAnswer,
-  restatePersonaQuantifiers,
-} from "@/application/synthesis/claims";
+import { composeResearchQuestionAnswer } from "@/application/synthesis/claims";
 
 /**
  * Cross-persona cohort synthesis over RAW monologue transcripts.
@@ -50,14 +47,6 @@ export class SynthesizeArtifactResultsUseCase {
       transcripts,
     );
 
-    // The model's prose keeps its narrative, but no quantifier survives
-    // unbacked: each becomes the count its citation set actually holds.
-    const overview = restatePersonaQuantifiers(
-      content.overview,
-      groundedFindings.reduce((max, f) => Math.max(max, f.affectedPersonaCount), 0),
-      transcripts.length,
-    );
-
     // The cohort answer is composed from the personas' own answers: the model
     // inverted it in real runs (all five said yes, the synthesis said most said
     // no), and a per-persona answer is already the authoritative record.
@@ -70,7 +59,7 @@ export class SynthesizeArtifactResultsUseCase {
     );
 
     return {
-      overview,
+      overview: content.overview,
       researchQuestionAnswer,
       topFindings: groundedFindings,
       disagreements: content.disagreements,
