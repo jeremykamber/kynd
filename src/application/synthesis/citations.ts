@@ -18,7 +18,9 @@ const SENTENCE_ENDERS = [".", "!", "?", "\n"] as const;
  * just...") — a fragment presented as the persona's sentence.
  */
 function isEllipsisDot(text: string, index: number): boolean {
-  return text[index] === "." && (text[index - 1] === "." || text[index + 1] === ".");
+  if (text[index] !== ".") return false;
+  // A pause ("…") or a decimal ("1.4", "$8.5k") is not a sentence end.
+  return text[index - 1] === "." || text[index + 1] === "." || /\d/.test(text[index + 1] ?? "");
 }
 
 /** Leading/trailing quote marks are artifacts of the surrounding transcript. */

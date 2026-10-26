@@ -51,3 +51,11 @@ describe("composeResearchQuestionAnswer", () => {
     expect(composeResearchQuestionAnswer([], "q")).toBe("");
   });
 });
+
+describe("restatePersonaQuantifiers — agreement", () => {
+  it("does not duplicate 'personas' when the phrase already had it", () => {
+    expect(restatePersonaQuantifiers("All three personas flagged the cap.", 3, 3)).toBe(
+      "3 of 3 personas flagged the cap.",
+    );
+  });
+});

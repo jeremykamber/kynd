@@ -37,7 +37,8 @@ export function restatePersonaQuantifiers(
   const claim = `${affected} of ${total} personas`;
 
   return text
-    .replace(new RegExp(`\\ball (?:of the |the )?${COUNT}\\b`, 'gi'), claim)
+    // "all three personas" must not become "3 of 3 personas personas".
+    .replace(new RegExp(`\\ball (?:of the |the )?${COUNT}( personas)?\\b`, 'gi'), claim)
     .replace(/\ball (?:of the )?(?:personas|participants)\b/gi, claim)
     .replace(/\ball of them\b/gi, claim)
     // "nearly everyone" first: the bare "everyone" rule would leave "Nearly …".

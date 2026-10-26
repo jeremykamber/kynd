@@ -268,3 +268,12 @@ describe("groundSynthesisCitations", () => {
     }
   });
 });
+
+describe("extractVerbatimQuote — decimals and escapes", () => {
+  it("does not end a sentence at a decimal point", () => {
+    const t = "What's 1.4 even mean — 1.4 views each, so most analyses get viewed once?\\nThen I moved on.";
+    expect(extractVerbatimQuote(t, "1.4 even mean")).toBe(
+      "What's 1.4 even mean — 1.4 views each, so most analyses get viewed once?",
+    );
+  });
+});
