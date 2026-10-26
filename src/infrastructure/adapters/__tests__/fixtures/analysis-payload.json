@@ -1,0 +1,9 @@
+{
+  "artifact": "pricing page",
+  "businessGoal": "Increase trial starts from the pricing page",
+  "findings": [
+    { "id": "f1", "note": "The annual toggle resets when you change tabs." },
+    { "id": "f2", "note": "Only one plan lists the per-seat price." }
+  ],
+  "testers": 5
+}

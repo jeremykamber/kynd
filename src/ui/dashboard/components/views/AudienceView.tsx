@@ -59,7 +59,7 @@ export function AudienceView({ personas, analysisFlow }: AudienceViewProps) {
       <div className="flex justify-end pt-4">
         <button
           type="button"
-          disabled={analysisFlow.isPending || (!analysisFlow.artifactUrl && !analysisFlow.artifactImageBase64)}
+          disabled={analysisFlow.isPending || !analysisFlow.artifactSource}
           onClick={() => analysisFlow.handleAnalyzeArtifact(personas)}
           className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-8 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
         >

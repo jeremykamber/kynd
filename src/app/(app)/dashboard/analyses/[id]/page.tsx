@@ -17,6 +17,7 @@ import { exportAnalysisAsPdf } from '@/lib/exportPdf'
 import type { Persona } from '@/domain/entities/Persona'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { MajorFinding } from '@/domain/entities/MajorFinding'
+import { analysisInputKind, analysisSourceLabel } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
 import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
@@ -345,7 +346,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
             <StatusBadge status={analysis.status} />
           </div>
           <p className="text-sm text-muted-foreground">
-            {analysis.url} · {analysis.personaCount} personas
+            {analysisSourceLabel(analysis) ?? analysis.url} · {analysis.personaCount} personas
             {analysis.batchName && ` · Batch: ${analysis.batchName}`}
             {analysis.createdAt && (
               <>
@@ -424,6 +425,56 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+/**
+ * What a text run was analyzed from: its label, the documents in selection
+ * order, and the extracted text itself. Rendered instead of the screenshot
+ * (and of the "waiting for the first capture" placeholder) wherever a visual
+ * run would show its artifact.
+ */
+function SourceCard({ analysis }: { analysis: ArtifactAnalysis }) {
+  const label = analysisSourceLabel(analysis)
+  const files = analysis.sourceFiles ?? []
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Source</CardTitle>
+        <CardDescription>{label ?? 'Text artifact'}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {files.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {files.map((name) => (
+              <li key={name} className="flex items-start gap-2 text-sm leading-snug text-foreground/80">
+                <FileTextIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="break-all">{name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {analysis.text ? (
+          <details className="group">
+            <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+              <ChevronRightIcon className="h-3 w-3 transition-transform group-open:rotate-90" />
+              Read the analyzed text
+              <span className="font-mono tabular-nums text-muted-foreground/70">
+                {analysis.text.length.toLocaleString('en-US')} characters
+              </span>
+            </summary>
+            <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/30 p-4 text-sm leading-relaxed text-foreground/80">
+              {analysis.text}
+            </pre>
+          </details>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            This run predates source capture, so its text is not stored with the record.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function InProgressView({ analysis }: { analysis: ArtifactAnalysis }) {
   const currentStep = getCurrentStep(analysis.currentStep)
   const total = analysis.totalResponses ?? analysis.personaCount
@@ -436,6 +487,7 @@ function InProgressView({ analysis }: { analysis: ArtifactAnalysis }) {
       : analysis.currentStep === 'ANALYZING'
         ? 'Simulating persona responses'
         : 'Initializing'
+  const isTextRun = analysisInputKind(analysis) === 'text'
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -460,6 +512,9 @@ function InProgressView({ analysis }: { analysis: ArtifactAnalysis }) {
         </CardContent>
       </Card>
 
+      {isTextRun ? (
+        <SourceCard analysis={analysis} />
+      ) : (
       <Card className="overflow-hidden">
         <CardHeader className="border-b">
           <CardTitle>Agent view</CardTitle>
@@ -482,6 +537,7 @@ function InProgressView({ analysis }: { analysis: ArtifactAnalysis }) {
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   )
 }
@@ -942,15 +998,19 @@ function CompletedView({
         </div>
       </div>
 
-      {analysis.screenshot && (
-        <div className="rounded-lg overflow-hidden border border-border">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`data:image/jpeg;base64,${analysis.screenshot}`}
-            alt="Captured page"
-            className="w-full"
-          />
-        </div>
+      {analysisInputKind(analysis) === 'text' ? (
+        <SourceCard analysis={analysis} />
+      ) : (
+        analysis.screenshot && (
+          <div className="rounded-lg overflow-hidden border border-border">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`data:image/jpeg;base64,${analysis.screenshot}`}
+              alt="Captured page"
+              className="w-full"
+            />
+          </div>
+        )
       )}
 
       {chatTarget && (

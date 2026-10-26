@@ -1,7 +1,9 @@
 "use server";
 import { createStreamableValue, type StreamableValue } from "@ai-sdk/rsc";
 import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUseCase";
-import { ArtifactIntakeAdapter, type ArtifactInput } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
+import { ArtifactIntakeAdapter } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
+import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
+import { validateTextArtifact } from "@/domain/entities/ArtifactIntakeLimits";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
@@ -35,6 +37,21 @@ export async function analyzeArtifactAction(
     researchQuestion: string,
     requestId?: string,
 ) {
+    // The form validates first; this rejects a hand-crafted call before any
+    // run state is created, on both the local and the VPS path. The rejection
+    // travels through the action's own ERROR channel rather than as a thrown
+    // error: Next redacts thrown action errors in production, which would
+    // replace the trim instruction with an opaque digest.
+    if (input.type === "text") {
+        const textProblem = validateTextArtifact(input);
+        if (textProblem) {
+            const id = requestId || `analysis-${Date.now()}`;
+            const stream = createStreamableValue<any>({ step: "STARTING", requestId: id });
+            stream.done({ step: "ERROR", error: textProblem, requestId: id });
+            return { streamData: stream.value, requestId: id };
+        }
+    }
+
     if (shouldRunLocally()) {
         return runLocally(input, personas, businessGoal, researchQuestion, requestId);
     }
@@ -89,9 +106,8 @@ async function runLocally(
             }
 
             log.info("analyzeArtifactAction", "Instantiating dependencies...");
-            const browserService = RemotePlaywrightAdapter.createFromEnv();
-            const llmService = LlmServiceImpl.createFromEnv("openrouter");
-            const intakeAdapter = new ArtifactIntakeAdapter(browserService, llmService);
+                const llmService = LlmServiceImpl.createFromEnv("openrouter");
+            const intakeAdapter = new ArtifactIntakeAdapter(() => RemotePlaywrightAdapter.createFromEnv(), llmService);
             const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llmService);
 
             log.info("analyzeArtifactAction", "Calling useCase.execute()...");

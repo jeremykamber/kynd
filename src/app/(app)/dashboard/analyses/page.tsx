@@ -6,14 +6,32 @@ import { usePersonaStore } from '@/ui/stores/personaStore'
 import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon, PlusIcon, UploadIcon, ImageIcon, LinkIcon, TargetIcon, HelpCircleIcon, FlaskConicalIcon } from 'lucide-react'
+import { ClockIcon, GlobeIcon, UsersIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon, PlusIcon, UploadIcon, ImageIcon, LinkIcon, TargetIcon, HelpCircleIcon, FlaskConicalIcon, FileTextIcon } from 'lucide-react'
 import { Persona } from '@/domain/entities/Persona'
+import { ArtifactTextError } from '@/domain/entities/ArtifactIntakeLimits'
+import { analysisInputKind, analysisSourceLabel } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
+import type { ArtifactInput } from '@/domain/entities/ArtifactInput'
+import {
+  ACCEPTED_DOCUMENT_EXTENSIONS,
+  ACCEPTED_DOCUMENT_HINT,
+  ACCEPTED_IMAGE_HINT,
+  ACCEPTED_IMAGE_TYPES,
+  MAX_DOCUMENTS,
+  MAX_TEXT_CHARS,
+  PASTED_TEXT_LABEL,
+  formatCharacterCount,
+  validateDocumentSelection,
+  validateImageFile,
+  validateTextLength,
+} from '@/domain/entities/ArtifactIntakeLimits'
+import type { ExtractedArtifactText } from '@/lib/artifactText'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { InlineRenamable } from '@/components/custom/InlineRenamable'
 import { DESTRUCTIVE_CARD_CONTROL_CLASS } from '@/lib/utils'
 
@@ -30,6 +48,10 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
   }[analysis.status]
 
   const StatusIcon = statusConfig.icon
+  const sourceKind = analysisInputKind(analysis)
+  const sourceLabel = analysisSourceLabel(analysis)
+  const SourceIcon = sourceKind === 'url' ? GlobeIcon : sourceKind === 'screenshot' ? ImageIcon : FileTextIcon
+  const sourceText = sourceKind === 'url' ? analysis.url : sourceLabel ?? ''
 
   return (
     <div className="relative group">
@@ -62,8 +84,8 @@ function AnalysisCard({ analysis }: { analysis: ArtifactAnalysis }) {
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono tabular-nums text-muted-foreground">
             <span className="flex items-center gap-1 min-w-0">
-              <GlobeIcon className="h-3 w-3 shrink-0" />
-              <span className="truncate">{analysis.url}</span>
+              <SourceIcon className="h-3 w-3 shrink-0" />
+              <span className="truncate">{sourceText}</span>
             </span>
             <span className="flex items-center gap-1">
               <UsersIcon className="h-3 w-3" />
@@ -128,13 +150,23 @@ export const TEST_ANALYSIS_PRESET = {
   researchQuestion: 'Why doesn\'t the user get the free version?',
 } as const
 
-function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], imageBase64?: string, businessGoal?: string, researchQuestion?: string, batchId?: string) => void }) {
+function NewAnalysisForm({
+  onRun,
+}: {
+  onRun: (
+    input: ArtifactInput,
+    personas: Persona[],
+    businessGoal?: string,
+    researchQuestion?: string,
+    batchId?: string,
+  ) => void
+}) {
   const batches = usePersonaStore((s) => s.batches)
   const [selectedBatchId, setSelectedBatchId] = useState<string>('')
-  const [url, setUrl] = useState('')
+  const [inputMode, setInputMode] = useState<'url' | 'upload' | 'text'>('url')
   const [businessGoal, setBusinessGoal] = useState('')
   const [researchQuestion, setResearchQuestion] = useState('')
-  const [inputMode, setInputMode] = useState<'url' | 'screenshot'>('url')
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   // Sync selected batch when batches hydrate or change
   useEffect(() => {
@@ -143,6 +175,143 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
     }
   }, [batches, selectedBatchId])
   const selectedBatch = batches.find((b) => b.id === selectedBatchId)
+
+  // URL
+  const [url, setUrl] = useState('')
+
+  // Upload — one image, or up to five documents whose text is extracted here.
+  // The two kinds are mutually exclusive, so selecting one clears the other.
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageBase64, setImageBase64] = useState<string | null>(null)
+  const [documents, setDocuments] = useState<File[]>([])
+  const [documentText, setDocumentText] = useState<ExtractedArtifactText | null>(null)
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const documentInputRef = useRef<HTMLInputElement>(null)
+  // Extraction is async; only the newest request may write selection state, so
+  // a slow parse cannot resurrect documents the user already removed or
+  // re-enable the run with a stale text.
+  const extractionIdRef = useRef(0)
+
+  // Text
+  const [pastedText, setPastedText] = useState('')
+
+  const clearImage = useCallback(() => {
+    setImageFile(null)
+    setImagePreview(null)
+    setImageBase64(null)
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }, [])
+
+  const selectImage = useCallback((file: File) => {
+    if (isExtracting) return
+    const problem = validateImageFile(file)
+    if (problem) {
+      setValidationError(problem)
+      return
+    }
+    // An image replaces the document selection, and any in-flight extraction
+    // of the old one must not write back.
+    extractionIdRef.current++
+    setValidationError(null)
+    setDocuments([])
+    setDocumentText(null)
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setImageBase64(null)
+
+    const reader = new FileReader()
+    reader.onload = () => setImageBase64(reader.result as string)
+    reader.onerror = () => setValidationError('Failed to read file. Please try again.')
+    reader.readAsDataURL(file)
+  }, [isExtracting])
+
+  /**
+   * Validates the new selection, then extracts it. Extraction runs in the
+   * browser so no document bytes ever reach the server action; the module is
+   * imported on first use so a URL or screenshot run never downloads a parser.
+   */
+  const applyDocuments = useCallback(async (next: File[]) => {
+    if (isExtracting) return
+    const problem = validateDocumentSelection(next)
+    if (problem) {
+      setValidationError(problem)
+      return
+    }
+
+    const requestId = ++extractionIdRef.current
+    setValidationError(null)
+    setIsExtracting(true)
+    try {
+      // Imported on first document use so a URL or screenshot run never
+      // downloads a parser.
+      const { extractArtifactText } = await import('@/lib/artifactText')
+      const extracted = await extractArtifactText(next)
+      if (requestId !== extractionIdRef.current) return
+      // Swap on success only: a failed parse leaves the previous selection —
+      // including a working screenshot — exactly as it was.
+      clearImage()
+      setDocuments(next)
+      setDocumentText(extracted)
+    } catch (err) {
+      if (requestId !== extractionIdRef.current) return
+      // User-correctable failures carry a written message; parser internals
+      // ("Invalid PDF structure") do not, so they are reported generically and
+      // kept in the console for diagnosis.
+      if (err instanceof ArtifactTextError) {
+        setValidationError(err.message)
+      } else {
+        console.error('[artifact-upload] extraction failed', err)
+        setValidationError(
+          `Could not read ${next.map((file) => file.name).join(', ')} — re-export it as a PDF or DOCX, or upload a screenshot instead.`,
+        )
+      }
+    } finally {
+      if (requestId === extractionIdRef.current) setIsExtracting(false)
+    }
+  }, [clearImage, isExtracting])
+
+  const addDocuments = useCallback((files: File[]) => {
+    if (files.length === 0 || isExtracting) return
+    void applyDocuments([...documents, ...files])
+  }, [applyDocuments, documents, isExtracting])
+
+  const removeDocument = useCallback((name: string) => {
+    if (isExtracting) return
+    const next = documents.filter((file) => file.name !== name)
+    if (next.length === 0) {
+      setDocuments([])
+      setDocumentText(null)
+      setValidationError(null)
+      return
+    }
+    void applyDocuments(next)
+  }, [applyDocuments, documents, isExtracting])
+
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) selectImage(file)
+  }, [selectImage])
+
+  const handleDocumentInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    addDocuments(Array.from(e.target.files ?? []))
+    // Reset so picking the same file again still fires a change.
+    e.target.value = ''
+  }, [addDocuments])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+    if (files.length > 1 || documents.length > 0 || !(ACCEPTED_IMAGE_TYPES as readonly string[]).includes(files[0].type)) {
+      addDocuments(files)
+      return
+    }
+    selectImage(files[0])
+  }, [addDocuments, documents.length, selectImage])
 
   // Fills the form from the preset, then runs it when a batch is available;
   // without a batch the prefill still lands and the user submits manually.
@@ -154,89 +323,28 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
     const batch = batches.find((b) => b.id === selectedBatchId) ?? batches[0]
     if (batch) {
       setSelectedBatchId(batch.id)
-      onRun(TEST_ANALYSIS_PRESET.url, batch.personas, undefined, TEST_ANALYSIS_PRESET.businessGoal, TEST_ANALYSIS_PRESET.researchQuestion, batch.id)
+      onRun({ type: 'url', url: TEST_ANALYSIS_PRESET.url }, batch.personas, TEST_ANALYSIS_PRESET.businessGoal, TEST_ANALYSIS_PRESET.researchQuestion, batch.id)
     }
   }
 
-  const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
-  const [imageBase64, setImageBase64] = useState<string | null>(null)
-  const [validationError, setValidationError] = useState<string | null>(null)
-  const [isDragOver, setIsDragOver] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const imageBase64Ref = useRef<string | null>(null)
+  const pastedLength = pastedText.length
+  const pastedTextProblem = validateTextLength(pastedLength)
 
-  const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
-  const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
-
-  const validateAndReadFile = useCallback((file: File) => {
-    setValidationError(null)
-
-    if (!ACCEPTED_TYPES.includes(file.type as any)) {
-      setValidationError('Only PNG, JPG, and WEBP images are accepted.')
-      return
-    }
-    if (file.size > MAX_SIZE_BYTES) {
-      setValidationError('Image must be under 10 MB.')
-      return
-    }
-
-    setScreenshotFile(file)
-    setScreenshotPreview(URL.createObjectURL(file))
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      setImageBase64(result)
-      imageBase64Ref.current = result
-    }
-    reader.onerror = () => {
-      setValidationError('Failed to read file. Please try again.')
-    }
-    reader.readAsDataURL(file)
-  }, [])
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-  }, [])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    const file = e.dataTransfer.files[0]
-    if (file) validateAndReadFile(file)
-  }, [validateAndReadFile])
-
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) validateAndReadFile(file)
-  }, [validateAndReadFile])
-
-  const removeScreenshot = useCallback(() => {
-    setScreenshotFile(null)
-    setScreenshotPreview(null)
-    setImageBase64(null)
-    imageBase64Ref.current = null
-    setValidationError(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [])
+  const runInput: ArtifactInput | null = inputMode === 'url'
+    ? (url.trim() ? { type: 'url', url: url.trim() } : null)
+    : inputMode === 'upload'
+      ? (imageBase64
+        ? { type: 'screenshot', imageBase64 }
+        : documentText
+          ? { type: 'text', text: documentText.text, label: documentText.label, files: documentText.files.map((f) => f.name) }
+          : null)
+      : pastedText.trim() && !pastedTextProblem
+        ? { type: 'text', text: pastedText, label: PASTED_TEXT_LABEL }
+        : null
 
   const handleSubmit = () => {
-    if (!selectedBatch) return
-
-    if (inputMode === 'url') {
-      if (!url.trim()) return
-      onRun(url, selectedBatch.personas, undefined, businessGoal, researchQuestion, selectedBatchId)
-    } else {
-      if (!imageBase64Ref.current) return
-      onRun('Screenshot Upload', selectedBatch.personas, imageBase64Ref.current, businessGoal, researchQuestion, selectedBatchId)
-    }
+    if (!selectedBatch || !runInput) return
+    onRun(runInput, selectedBatch.personas, businessGoal, researchQuestion, selectedBatchId)
   }
 
   if (batches.length === 0) {
@@ -255,7 +363,7 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
   return (
     <Card>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex flex-col gap-2 flex-1">
             <label htmlFor="batch-select" className="text-sm font-medium">Persona Batch</label>
             <Select value={selectedBatchId} onValueChange={setSelectedBatchId}>
@@ -275,7 +383,7 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
             type="button"
             variant="outline"
             size="sm"
-            className="mt-7 shrink-0"
+            className="shrink-0 sm:mt-7"
             onClick={prefillTestAnalysis}
             title={`Prefills ${TEST_ANALYSIS_PRESET.url} with a matching goal and research question, then starts the run`}
           >
@@ -283,101 +391,172 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
             Run test analysis
           </Button>
         </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-1 rounded-lg bg-muted p-1">
-            <button
-              type="button"
-              onClick={() => setInputMode('url')}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                inputMode === 'url'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
+
+        <Tabs value={inputMode} onValueChange={(value) => setInputMode(value as 'url' | 'upload' | 'text')}>
+          <TabsList className="gap-1 rounded-lg bg-muted p-1">
+            <TabsTrigger value="url" className="flex-1">
               <LinkIcon className="h-3.5 w-3.5" />
               URL
-            </button>
-            <button
-              type="button"
-              onClick={() => setInputMode('screenshot')}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                inputMode === 'screenshot'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <ImageIcon className="h-3.5 w-3.5" />
-              Screenshot
-            </button>
-          </div>
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="flex-1">
+              <UploadIcon className="h-3.5 w-3.5" />
+              Upload
+            </TabsTrigger>
+            <TabsTrigger value="text" className="flex-1">
+              <FileTextIcon className="h-3.5 w-3.5" />
+              Text
+            </TabsTrigger>
+          </TabsList>
 
-          {inputMode === 'url' ? (
-            <div className="flex flex-col gap-2">
-              <label htmlFor="artifact-url" className="text-sm font-medium">Artifact URL</label>
-              <Input
-                id="artifact-url"
-                type="url"
-                placeholder="https://example.com"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-              />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Artifact Screenshot</label>
-              {!screenshotFile ? (
+          <TabsContent value="url" className="flex flex-col gap-2">
+            <label htmlFor="artifact-url" className="text-sm font-medium">Artifact URL</label>
+            <Input
+              id="artifact-url"
+              type="url"
+              placeholder="https://example.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          </TabsContent>
+
+          <TabsContent value="upload" className="flex flex-col gap-3">
+            <span className="text-sm font-medium">Artifact Upload</span>
+
+            {imageFile ? (
+              <div className="flex items-center gap-3 rounded-lg border p-3">
+                {imagePreview && (
+                  <img
+                    src={imagePreview}
+                    alt="Screenshot preview"
+                    className="h-14 w-14 rounded object-cover"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{imageFile.name}</p>
+                  <p className="text-xs font-mono tabular-nums text-muted-foreground">
+                    {(imageFile.size / 1024).toFixed(0)} KB
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-base text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground cursor-pointer ${
-                    isDragOver ? 'border-primary bg-primary/5' : ''
-                  }`}
+                  onClick={() => { clearImage(); setValidationError(null) }}
+                  className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors"
+                  aria-label="Remove screenshot"
                 >
-                  <UploadIcon className="h-6 w-6" />
-                  Drop a screenshot or click to browse
-                  <span className="text-xs text-muted-foreground/70">PNG, JPG, or WEBP — under 10 MB</span>
+                  <XIcon className="h-4 w-4" />
                 </button>
-              ) : (
-                <div className="flex items-center gap-3 rounded-lg border p-3">
-                  {screenshotPreview && (
-                    <img
-                      src={screenshotPreview}
-                      alt="Screenshot preview"
-                      className="h-14 w-14 rounded object-cover"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{screenshotFile.name}</p>
-                    <p className="text-xs font-mono tabular-nums text-muted-foreground">
-                      {(screenshotFile.size / 1024).toFixed(0)} KB
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={removeScreenshot}
-                    className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors"
-                    aria-label="Remove screenshot"
-                  >
-                    <XIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={handleFileInput}
-                className="hidden"
-              />
-              {validationError && (
-                <p className="text-xs text-destructive">{validationError}</p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={isExtracting}
+                onClick={() => (documents.length > 0 || documentText ? documentInputRef.current?.click() : imageInputRef.current?.click())}
+                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
+                onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false) }}
+                onDrop={handleDrop}
+                className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-base text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground cursor-pointer ${
+                  isDragOver ? 'border-primary bg-primary/5' : ''
+                }`}
+              >
+                <UploadIcon className="h-6 w-6" />
+                Drop a file or click to browse
+                <span className="text-xs text-muted-foreground/70">
+                  One image ({ACCEPTED_IMAGE_HINT}) or up to {MAX_DOCUMENTS} documents ({ACCEPTED_DOCUMENT_HINT})
+                </span>
+              </button>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" size="sm" disabled={isExtracting} onClick={() => imageInputRef.current?.click()}>
+                <ImageIcon data-icon="inline-start" />
+                Choose image
+              </Button>
+              <Button type="button" variant="outline" size="sm" disabled={isExtracting} onClick={() => documentInputRef.current?.click()}>
+                <FileTextIcon data-icon="inline-start" />
+                Add documents
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Images and documents cannot be combined in one run.
+              </span>
+            </div>
+
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept={ACCEPTED_IMAGE_TYPES.join(',')}
+              onChange={handleFileInput}
+              disabled={isExtracting}
+              className="hidden"
+            />
+            <input
+              ref={documentInputRef}
+              type="file"
+              multiple
+              accept={ACCEPTED_DOCUMENT_EXTENSIONS.join(',')}
+              onChange={handleDocumentInput}
+              disabled={isExtracting}
+              className="hidden"
+            />
+
+            {documents.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <ul className="flex flex-col gap-2">
+                  {documents.map((file) => (
+                    <li key={file.name} className="flex items-center gap-3 rounded-lg border p-3">
+                      <FileTextIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{file.name}</p>
+                        <p className="text-xs font-mono tabular-nums text-muted-foreground">
+                          {(file.size / 1024).toFixed(0)} KB
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isExtracting}
+                        onClick={() => removeDocument(file.name)}
+                        className="rounded-md p-1 text-muted-foreground hover:text-destructive transition-colors"
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <XIcon className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs font-mono tabular-nums text-muted-foreground">
+                  {isExtracting
+                    ? 'Extracting text…'
+                    : `${documents.length} of ${MAX_DOCUMENTS} documents · ${formatCharacterCount(documentText?.text.length ?? 0)} characters`}
+                </p>
+              </div>
+            )}
+
+            {validationError && (
+              <p className="text-xs text-destructive" role="alert">{validationError}</p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="text" className="flex flex-col gap-2">
+            <label htmlFor="artifact-text" className="text-sm font-medium">Artifact Text</label>
+            <Textarea
+              id="artifact-text"
+              placeholder="Paste a feature brief, feature list, landing-page copy, YouTube script, or pitch-deck text…"
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              // A pasted document must not stretch the form: scroll inside the
+              // field so the counter, the cap error and the Run button stay on
+              // screen.
+              className="min-h-40 max-h-64 overflow-y-auto text-sm"
+            />
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-mono tabular-nums text-muted-foreground">
+                {formatCharacterCount(pastedLength)} / {formatCharacterCount(MAX_TEXT_CHARS)} characters
+              </span>
+              {pastedTextProblem && (
+                <span className="text-xs text-destructive" role="alert">{pastedTextProblem}</span>
               )}
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
 
         <div className="flex flex-col gap-2">
           <label htmlFor="business-goal" className="text-sm font-medium flex items-center gap-1.5">
@@ -408,14 +587,10 @@ function NewAnalysisForm({ onRun }: { onRun: (url: string, personas: Persona[], 
         </div>
 
         <Button
-          disabled={
-            inputMode === 'url'
-              ? !url.trim()
-              : !imageBase64Ref.current
-          }
+          disabled={!selectedBatch || !runInput || isExtracting}
           onClick={handleSubmit}
         >
-          Run Analysis
+          {isExtracting ? 'Extracting text…' : 'Run Analysis'}
         </Button>
       </CardContent>
     </Card>
@@ -449,12 +624,14 @@ function AnalysesPageContent() {
   const completed = analyses.filter((s) => s.status === 'COMPLETED')
   const failed = analyses.filter((s) => s.status === 'ERROR' || s.status === 'CANCELLED')
 
-  const handleRunAnalysis = (url: string, personas: Persona[], imageBase64?: string, businessGoal?: string, researchQuestion?: string, batchId?: string) => {
-    const input = imageBase64
-      ? { type: 'screenshot' as const, imageBase64, url }
-      : { type: 'url' as const, url }
-    analysisFlow.setArtifactUrl(url)
-    if (imageBase64) analysisFlow.setArtifactImageBase64(imageBase64)
+  const handleRunAnalysis = (
+    input: ArtifactInput,
+    personas: Persona[],
+    businessGoal?: string,
+    researchQuestion?: string,
+    batchId?: string,
+  ) => {
+    analysisFlow.setArtifactSource(input)
     if (businessGoal) analysisFlow.setBusinessGoal(businessGoal)
     if (researchQuestion) analysisFlow.setResearchQuestion(researchQuestion)
     analysisFlow.handleAnalyzeArtifact(personas, input, businessGoal, researchQuestion, batchId)
@@ -462,7 +639,7 @@ function AnalysesPageContent() {
   }
 
   return (
-    <div className="flex flex-col gap-8 w-full h-full animate-in fade-in duration-500">
+    <div className="flex flex-col gap-8 w-full h-full animate-in fade-in duration-500 pb-24 lg:pb-16">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold tracking-tight">Analyses</h1>

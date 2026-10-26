@@ -1,0 +1,6 @@
+feature,description,status
+Shared analyses,Send a read-only report link to a teammate,shipped
+Persona interviews,Generate personas from uploaded transcripts,beta
+Document artifacts,Analyze a brief or deck instead of a URL,planned
+PDF export,Download the full report as a PDF,shipped
+Cohort compare,Put two persona batches side by side,planned

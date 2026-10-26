@@ -1,8 +1,8 @@
 # Kynd Architecture
 
 Kynd is an AI user-testing tool. It builds **personas** (from a market description or from real
-interview transcripts), then runs those personas against an **artifact** — a live URL or a
-screenshot — and produces a structured behavioral report.
+interview transcripts), then runs those personas against an **artifact** — a live URL, a screenshot,
+or a document's text — and produces a structured behavioral report.
 
 This document is the map: the layers, the dependency rules, the real ports and use cases, and
 where each flow lives. Subsystem deep dives are linked at the bottom; they are the authority on
@@ -59,8 +59,7 @@ infrastructure    Adapters implementing ports (LLM, browser, RAG, storage, loggi
 
 Three edges above are intent, not enforcement — fix these before citing the table as a rule:
 
-- `ui/stores/{analysis,persona,debate}Store.ts` import `infrastructure/services/indexedDBStorage`,
-  and `ui/hooks/useAnalysisFlow.ts` imports the `ArtifactInput` type from an adapter.
+- `ui/stores/{analysis,persona,debate}Store.ts` import `infrastructure/services/indexedDBStorage`.
 - `src/app/api/report/route.ts`, the synchronous public report endpoint, builds
   `RemotePlaywrightAdapter`, `LlmServiceImpl`, and `AnalysisLogger` itself.
 - `infrastructure` imports `application/interviewPipeline` for real: `ngramUtils` at runtime and
@@ -116,7 +115,9 @@ src/
 | `PersonaProvenance` / `BehavioralDimension` | Evidence tier per attribute; context-specific behavioral axes |
 | `PersonaResponse` | One persona's complete analysis output (journey, findings, friction, questions) |
 | `CognitiveStage` / `StageJourney` / `MajorFinding` | The five-stage journey and its findings |
-| `ArtifactIntake` | Normalized input: screenshot + HTML + summary |
+| `ArtifactIntake` | Normalized input: screenshot **or** extracted text, plus HTML + summary |
+| `ArtifactInput` | What the caller submits: URL, screenshot, or already-extracted text |
+| `ArtifactIntakeLimits` | Accepted formats, size and character caps, and their messages |
 | `ArtifactAnalysis` | Container for one analysis run |
 | `ArtifactSynthesis` | Cross-persona output: top findings, disagreements, friction |
 | `PersonaProfile` | Presentation-layer snapshot used by reports and chat |
@@ -213,7 +214,7 @@ Full specification:
 analyses page → useAnalysisFlow → analyzeArtifactAction
   → AnalyzeArtifactUseCase
       intake      ArtifactIntakeAdapter (URL → RemotePlaywrightAdapter + HtmlSummarizer,
-                                       or screenshot → pass-through)
+                                       screenshot or extracted text → pass-through)
       per persona VisionAnalysisAdapter: generateVisceralMonologue → extractPersonaResponse
       synthesis   SynthesizeArtifactResultsUseCase → ArtifactSynthesis
   → analysisStore (Zustand + IndexedDB)
@@ -252,7 +253,8 @@ debate runs turn-based rounds through `DebateAdapter`.
 
 ## Testing
 
-- `src/**/__tests__/` — unit and integration tests, co-located with the code.
+- `src/**/__tests__/` — unit and integration tests, co-located with the code. Binary
+  document fixtures live in `src/infrastructure/adapters/__tests__/fixtures/`.
 - `test/*.test.ts`, `test/*.spec.ts` — cross-layer and browser E2E; specs spawn `next dev`, so
   files run serially.
 - `bun test` runs everything; `bun run release` runs the deterministic gate.
