@@ -78,6 +78,15 @@ Start wherever your ${isDocument ? "attention catches" : "eyes land"} first:`;
  * Rule 4 exists because validatePersonaResponse enforces exactly 5 ordered
  * stages; a skipped stage is expressed through its outcome, never by omission.
  */
+/**
+ * Structured extraction needs more output room than the monologue it reads:
+ * 2,000 tokens truncates a verbose report mid-JSON (observed: one persona
+ * failing every retry with "could not parse the response" while the rest of
+ * the cohort parsed), and a truncated stream looks identical to a model error.
+ * The caller's tokenLimit is the monologue budget, so it cannot be reused here.
+ */
+const EXTRACTION_MIN_OUTPUT_TOKENS = 8_000;
+
 export function buildPersonaExtractionSystemPrompt(
     persona: Persona,
     monologue: string,
@@ -328,6 +337,12 @@ export class VisionAnalysisAdapter {
                 // under load. provider.chat + the hook's reasoning off is
                 // ~10x faster on identical prompts and schemas.
                 const controller = new AbortController();
+                // The caller's tokenLimit is the monologue budget, which is too
+                // small for the structured report: a verbose persona (7 findings
+                // plus five stages) truncates mid-JSON and the SDK reports
+                // "could not parse the response" on every retry. Give the
+                // extraction its own floor instead of inheriting the cap.
+                const outputTokenBudget = Math.max(tokenLimit, EXTRACTION_MIN_OUTPUT_TOKENS);
                 const streamResult = streamObject({
                     model: this.llmService.provider.chat(this.llmService.textModel),
                     schema: PersonaResponseSchema,
@@ -340,7 +355,7 @@ export class VisionAnalysisAdapter {
                     // ignored, so the provider fell back to the model maximum
                     // (131,072 tokens) and OpenRouter refused the call for
                     // insufficient credit before a single token was generated.
-                    maxOutputTokens: tokenLimit,
+                    maxOutputTokens: outputTokenBudget,
                     abortSignal: controller.signal,
                 } as unknown as Parameters<typeof streamObject>[0]);
 

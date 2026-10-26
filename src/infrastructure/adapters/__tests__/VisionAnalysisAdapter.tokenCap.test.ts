@@ -11,6 +11,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { LlmServiceImpl } from '../LlmServiceImpl';
 
 const TOKEN_LIMIT = 2_000;
+/** The adapter's floor: the structured report does not fit in 2,000 tokens. */
+const EXTRACTION_FLOOR = 8_000;
 
 type Captured = { url: string; body: any };
 
@@ -58,7 +60,25 @@ describe('extractPersonaResponse - outbound token cap', () => {
     const extraction = captured.find((c) => c.url.includes('/chat/completions'));
     expect(extraction, 'no chat/completions request was sent').toBeDefined();
     const sent = extraction!.body.max_tokens ?? extraction!.body.max_completion_tokens;
-    expect(sent).toBe(TOKEN_LIMIT);
+    // The caller's cap is the monologue budget; the report gets at least the
+    // floor, and never the model maximum.
+    expect(sent).toBe(EXTRACTION_FLOOR);
     expect(sent).not.toBe(131_072);
+  }, 30_000);
+
+  it('keeps a caller budget above the floor', async () => {
+    process.env.OPENROUTER_API_KEY ??= 'test-key';
+    const svc = LlmServiceImpl.createFromEnv('openrouter');
+    const persona = { id: 'p1', name: 'Ada', occupation: 'PM' } as any;
+
+    await expect(
+      svc.extractPersonaResponse(persona, 'I scan the headline.', 'Does it land?', {
+        tokenLimit: 20_000,
+      }),
+    ).rejects.toBeTruthy();
+
+    const extraction = captured.find((c) => c.url.includes('/chat/completions'));
+    const sent = extraction!.body.max_tokens ?? extraction!.body.max_completion_tokens;
+    expect(sent).toBe(20_000);
   }, 30_000);
 });
