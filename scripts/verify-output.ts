@@ -35,6 +35,7 @@ import fs from 'fs';
 import path from 'path';
 import type { ArtifactInput } from '@/domain/entities/ArtifactInput';
 import { withoutQuotedSpans } from '@/domain/entities/PersonaResponse';
+import { MONOLOGUE_BANNED_TERMS } from '@/infrastructure/adapters/VisionAnalysisAdapter';
 
 const OUT_DIR = path.resolve(process.cwd(), '.sisyphus', 'verify');
 
@@ -232,8 +233,9 @@ function report(label: string, checks: { pass: string[]; fail: string[] }): void
 let failedChecks = 0;
 
 // Banned UX-consultant jargon — the Visceral Actor must never produce these.
-// Mirrors the operating rules in buildVisceralMonologueSystemPrompt.
-const BANNED_JARGON = ['cta', 'social proof', 'value proposition', 'value prop', 'friction', 'conversion funnel', 'user journey map'];
+// The list is owned by the adapter (which also re-prompts on a hit); the
+// harness only reports it.
+const BANNED_JARGON = MONOLOGUE_BANNED_TERMS;
 
 function checkMonologues(responses: any[]): { pass: string[]; fail: string[] } {
   const pass: string[] = [];

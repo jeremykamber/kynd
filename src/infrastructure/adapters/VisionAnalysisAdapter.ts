@@ -87,6 +87,19 @@ Start wherever your ${isDocument ? "attention catches" : "eyes land"} first:`;
  */
 const EXTRACTION_MIN_OUTPUT_TOKENS = 8_000;
 
+/**
+ * The Visceral Actor must sound like a person, not a UX consultant; the
+ * monologue prompt already bans these terms. Real runs still slip ("friction"
+ * in one of eight persona monologues), so the loop re-prompts when it hears
+ * one instead of accepting the framing.
+ */
+export const MONOLOGUE_BANNED_TERMS = ['cta', 'social proof', 'value proposition', 'value prop', 'friction', 'conversion funnel', 'user journey map'];
+
+export function bannedMonologueTerms(text: string): string[] {
+    const lower = text.toLowerCase();
+    return MONOLOGUE_BANNED_TERMS.filter((term) => lower.includes(term));
+}
+
 export function buildPersonaExtractionSystemPrompt(
     persona: Persona,
     monologue: string,
@@ -246,6 +259,7 @@ export class VisionAnalysisAdapter {
             ];
 
         let lastError: Error | null = null;
+        let correction: string | null = null;
 
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
             if (attempt > 0) {
@@ -263,7 +277,12 @@ export class VisionAnalysisAdapter {
                             },
                             {
                                 role: "user",
-                                content: content as any,
+                                content: correction
+                                    ? ([
+                                        ...(content as any[]),
+                                        { type: "text", text: correction },
+                                    ] as any)
+                                    : (content as any),
                             },
                         ],
                         {
@@ -280,6 +299,16 @@ export class VisionAnalysisAdapter {
                         setTimeout(() => reject(new Error(`Visceral monologue timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
                     ),
                 ]);
+
+                const banned = bannedMonologueTerms(text);
+                if (banned.length > 0 && attempt < MAX_RETRIES) {
+                    log?.warn("VisionAnalysisAdapter", `generateVisceralMonologue jargon in "${persona.name}"`, {
+                        attempt: attempt + 1,
+                        banned,
+                    });
+                    correction = `Rewrite the monologue. Never use these words: ${banned.join(", ")}. Speak the way a person thinks: describe what you see and how it lands, not what a researcher would call it.`;
+                    continue;
+                }
 
                 log?.info("VisionAnalysisAdapter", `generateVisceralMonologue completed for "${persona.name}"`, {
                     durationMs: Date.now() - streamStart,
