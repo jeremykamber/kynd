@@ -319,9 +319,12 @@ export class VisionAnalysisAdapter {
         // Text model, no image: the anthropologist must ground every claim in
         // the transcript, not re-interpret the screenshot.
         const system = buildPersonaExtractionSystemPrompt(persona, monologueText, researchQuestion, options.artifact);
-        const prompt = `Analyze the think-aloud transcript above and return the structured PersonaResponse JSON.`;
+        const basePrompt = `Analyze the think-aloud transcript above and return the structured PersonaResponse JSON.`;
 
         let responseObj: unknown = null;
+        // Carried into the next attempt: a retry with the identical prompt
+        // reproduced the same identity slip three times in real runs.
+        let correction: string | null = null;
 
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
             if (attempt > 0) {
@@ -349,7 +352,7 @@ export class VisionAnalysisAdapter {
                     schemaName: "PersonaResponse",
                     schemaDescription: "A third-person qualitative analysis of a persona's think-aloud session across five cognitive stages.",
                     system,
-                    messages: [{ role: "user", content: prompt }],
+                    messages: [{ role: "user", content: correction ? `${basePrompt}\n\n${correction}` : basePrompt }],
                     temperature: 0.1,
                     // AI SDK v6 renamed this option. `maxTokens` (v5) is
                     // ignored, so the provider fell back to the model maximum
@@ -413,6 +416,7 @@ export class VisionAnalysisAdapter {
                         attempt: attempt + 1,
                         violations,
                     });
+                    correction = `Your previous answer broke the identity rules: ${violations.join("; ")}. Rewrite the whole JSON so that overview and researchQuestionAnswer both name ${persona.name} explicitly, refer to ${persona.name} in the third person, and never use "the user" or a first-person pronoun in those two fields.`;
                     if (attempt === MAX_RETRIES) break;
                     continue;
                 }
