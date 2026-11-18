@@ -22,7 +22,7 @@ describe("ArtifactIntakeAdapter URL intake", () => {
       close: vi.fn().mockResolvedValue(undefined),
     } as unknown as BrowserServicePort;
 
-    const adapter = new ArtifactIntakeAdapter(browser, makeLlm());
+    const adapter = new ArtifactIntakeAdapter(() => browser, makeLlm());
 
     await expect(
       adapter.intake({ type: "url", url: "https://nonexistent.example" }),

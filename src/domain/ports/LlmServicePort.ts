@@ -2,7 +2,7 @@ import { Persona } from "../entities/Persona";
 import { PricingAnalysis } from "../entities/PricingAnalysis";
 import { PersonaResponse } from "../entities/PersonaResponse";
 import { ArtifactSynthesis, CohortSynthesisContent } from "../entities/ArtifactSynthesis";
-import { ArtifactIntake } from "../entities/ArtifactIntake";
+import { ArtifactFraming, ArtifactIntake } from "../entities/ArtifactIntake";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 import type { ResearchPersonaConfig, StrategyPersonaConfig, ClusterPersonaConfig } from "../dtos/PersonaGenerationConfig";
 
@@ -184,9 +184,11 @@ export interface LlmServicePort {
      * System 1 — the Actor. Generates a visceral, first-person stream-of-
      * consciousness monologue of the persona experiencing the artifact,
      * grounded in the screenshot ONLY (visual salience over DOM structure).
-     * @param context The captured artifact; only the screenshot is read.
+     * @param context The captured artifact; a visual artifact contributes its
+     *   screenshot, a text artifact its extracted text.
      * @param researchQuestion The question the analysis must stay relevant to.
      * @param options.tokenLimit Caps the generated monologue length.
+     * @param options.artifact How to address the artifact (site or document).
      * @returns The monologue text (may contain no page summary — this stage
      *   deliberately never sees DOM structure).
      */
@@ -194,7 +196,7 @@ export interface LlmServicePort {
         persona: Persona,
         context: ArtifactIntake,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifactName?: string }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
     ): Promise<{ text: string }>;
 
     /**
@@ -209,7 +211,7 @@ export interface LlmServicePort {
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifactName?: string }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
     ): Promise<PersonaResponse>;
 
 
@@ -286,10 +288,10 @@ export interface LlmServicePort {
 
     /**
      * Generates a short, human-friendly title for a simulation from the research
-     * context and the captured artifact. Uses the cheap vision model so it can
-     * "see" the artifact (screenshot + page summary) the same way the analysis
-     * does. Nice-to-have: callers must tolerate failure and fall back to the
-     * heuristic name (generateSimulationName).
+     * context and the captured artifact. Uses the vision model to "see" a
+     * screenshot, or the text model to read a document's text — the same
+     * artifact the analysis itself saw. Nice-to-have: callers must tolerate
+     * failure and fall back to the heuristic name (generateAnalysisName).
      */
     generateSimulationTitle(
         context: {
@@ -298,6 +300,10 @@ export interface LlmServicePort {
             artifactUrl?: string;
             pageSummary?: string;
             screenshotBase64?: string;
+            /** Extracted document text; present for text runs, which have no screenshot. */
+            artifactText?: string;
+            /** Display label for the document ("brief.pdf" or joined names). */
+            artifactLabel?: string;
         },
         options?: { runId?: string },
     ): Promise<string>;

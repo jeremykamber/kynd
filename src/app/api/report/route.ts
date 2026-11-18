@@ -78,10 +78,9 @@ export async function POST(req: Request) {
         });
 
         console.log(`[REPORT API] Instantiating dependencies...`);
-        const browserService = RemotePlaywrightAdapter.createFromEnv();
         const llmService = LlmServiceImpl.createFromEnv("openrouter");
         const { ArtifactIntakeAdapter } = await import("@/infrastructure/adapters/ArtifactIntakeAdapter");
-        const intakeAdapter = new ArtifactIntakeAdapter(browserService, llmService);
+        const intakeAdapter = new ArtifactIntakeAdapter(() => RemotePlaywrightAdapter.createFromEnv(), llmService);
         const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llmService);
 
         const executeStart = Date.now();

@@ -1,5 +1,6 @@
 import React from 'react'
 import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer'
+import { analysisSourceLabel } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactSynthesis, SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
@@ -374,7 +375,7 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
         <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
             <Text style={styles.metaLabel}>Target Artifact</Text>
-            <Text style={styles.metaValue}>{analysis.url}</Text>
+            <Text style={styles.metaValue}>{analysisSourceLabel(analysis) ?? analysis.url}</Text>
           </View>
           <View style={styles.metaItem}>
             <Text style={styles.metaLabel}>Audience Batch</Text>

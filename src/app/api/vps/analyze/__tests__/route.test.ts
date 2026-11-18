@@ -116,6 +116,70 @@ describe("POST /api/vps/analyze", () => {
     expect(body).toHaveProperty("runId");
   });
 
+  it("returns runId on a text artifact within the cap", async () => {
+    const { POST } = await import("../route");
+    const req = new NextRequest("http://localhost:3000/api/vps/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { type: "text", text: "A feature brief.", label: "brief.md", files: ["brief.md"] },
+        personas: [mockPersona],
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty("runId");
+  });
+
+  it("returns 400 for empty text", async () => {
+    const { POST } = await import("../route");
+    const req = new NextRequest("http://localhost:3000/api/vps/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { type: "text", text: "   " },
+        personas: [mockPersona],
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Pasted text is empty");
+  });
+
+  it("returns 400 for text over the 80,000-character cap instead of truncating", async () => {
+    const { POST } = await import("../route");
+    const req = new NextRequest("http://localhost:3000/api/vps/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { type: "text", text: "x".repeat(80_001) },
+        personas: [mockPersona],
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("80,000 limit");
+  });
+
+  it("returns 400 for an unknown input type", async () => {
+    const { POST } = await import("../route");
+    const req = new NextRequest("http://localhost:3000/api/vps/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { type: "video", url: "https://example.com/clip.mp4" },
+        personas: [mockPersona],
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Unknown artifact input type");
+  });
+
   it("returns 429 when rate limited", async () => {
     mockRateLimiterConsume.mockRejectedValueOnce(new Error("Too fast"));
     const { POST } = await import("../route");

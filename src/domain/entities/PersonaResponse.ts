@@ -15,7 +15,8 @@ import { COGNITIVE_STAGES } from "./CognitiveStage";
 export interface PersonaResponse {
   id: string;
   artifactUrl?: string;
-  screenshotBase64: string;
+  /** Absent for text runs — there is no screenshot to embed. */
+  screenshotBase64?: string;
   rawAnalysis: string;
   overview: string;
   /**
@@ -58,6 +59,52 @@ export const PersonaResponseSchema = z.object({
 });
 
 /**
+ * Identity drift the report cannot recover from: the summary layers must say
+ * whose session they describe. Observed in real runs: "The user reviewed
+ * feature-brief.docx…" in 2 of 8 responses (no name to attribute the finding
+ * to), and summaries that spoke as the persona.
+ *
+ * Mechanical on purpose — three rules, no judgement:
+ * 1. the persona's name appears in the overview and the RQ answer;
+ * 2. the summary never calls them "the user" (that loses the attribution);
+ * 3. the summary never slips into the first person.
+ *
+ * Role/pronoun transfer from the artifact's own copy is prompted against, not
+ * detected here: deciding that "freelancer" contradicts "Head of Marketing"
+ * needs the artifact and the persona model, which this function does not see.
+ */
+/** Everything inside quotation marks is quoted speech, not the writer's voice. */
+export function withoutQuotedSpans(text: string): string {
+  return text
+    .replace(/"[^"]*"/g, " ")
+    .replace(/“[^”]*”/g, " ")
+    .replace(/‘[^’]*’/g, " ")
+    .replace(/'[^']*'/g, " ");
+}
+
+export function personaIdentityViolations(
+  response: PersonaResponse,
+  fallbackName?: string,
+): string[] {
+  const name = response.personaProfile?.name ?? fallbackName ?? "";
+  const summary = [response.overview ?? "", response.researchQuestionAnswer ?? ""];
+  // A verbatim quote of the artifact ("show me one") is evidence, not voice.
+  const joined = withoutQuotedSpans(summary.join(" "));
+  const violations: string[] = [];
+
+  if (name && !joined.toLowerCase().includes(name.toLowerCase())) {
+    violations.push(`does not name the persona (${name})`);
+  }
+  if (/\bthe user\b/i.test(joined)) {
+    violations.push('refers to "the user" instead of the persona');
+  }
+  if (/\b(I|I'm|I've|my|me)\b/i.test(joined)) {
+    violations.push("speaks in the first person");
+  }
+  return violations;
+}
+
+/**
  * Checks a value has every required PersonaResponse field and a journey that
  * covers all five cognitive stages once, in order. Optional fields and the
  * artifact/persona identity fields are not cross-checked.
@@ -66,7 +113,7 @@ export function validatePersonaResponse(response: PersonaResponse): boolean {
   if (!response || typeof response !== "object") return false;
 
   if (!response.id || typeof response.id !== "string") return false;
-  if (!response.screenshotBase64 || typeof response.screenshotBase64 !== "string") return false;
+  if (response.screenshotBase64 !== undefined && typeof response.screenshotBase64 !== "string") return false;
   if (!response.rawAnalysis || typeof response.rawAnalysis !== "string") return false;
   if (!response.overview || typeof response.overview !== "string") return false;
   if (typeof response.researchQuestionAnswer !== "string") return false;
