@@ -5,13 +5,11 @@ import { useAnalysisFlow } from '@/ui/hooks/useAnalysisFlow'
 import type { AnalysisProgress } from '@/ui/hooks/useAnalysisFlow'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { Persona } from '@/domain/entities/Persona'
-import type { ArtifactInput } from '@/infrastructure/adapters/ArtifactIntakeAdapter'
+import type { ArtifactInput } from '@/domain/entities/ArtifactInput'
 
 interface AnalysisContextValue {
-  artifactUrl: string
-  setArtifactUrl: Dispatch<SetStateAction<string>>
-  artifactImageBase64: string | null
-  setArtifactImageBase64: Dispatch<SetStateAction<string | null>>
+  artifactSource: ArtifactInput | null
+  setArtifactSource: Dispatch<SetStateAction<ArtifactInput | null>>
   businessGoal: string
   setBusinessGoal: Dispatch<SetStateAction<string>>
   researchQuestion: string
@@ -29,7 +27,7 @@ interface AnalysisContextValue {
 const AnalysisContext = createContext<AnalysisContextValue | null>(null)
 
 /**
- * Provides the artifact-analysis flow (artifact URL/image, goal, research
+ * Provides the artifact-analysis flow (pending artifact source, goal, research
  * question, results, progress) to the subtree. The value is `useAnalysisFlow`;
  * consumers must read it through `useAnalysis`, which throws outside the
  * provider.

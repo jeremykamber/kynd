@@ -13,6 +13,10 @@ import { usePersonaStore } from '@/ui/stores/personaStore'
  * and it clears the mobile bottom tab bar, which owns the bottom edge below
  * `lg`. Navigating with `?new=1` tells /dashboard/analyses to open its "Run New
  * Analysis" form, so the click has a visible effect from any dashboard route.
+ *
+ * It is not rendered on /dashboard/analyses: that page already owns "Run New
+ * Analysis" at the top, and a second control with the same label floated over
+ * the form's own fields and its submit button on both viewports.
  */
 export function FloatingAnalysisButton() {
   const router = useRouter()
@@ -20,6 +24,7 @@ export function FloatingAnalysisButton() {
   const hasBatches = usePersonaStore((s) => s.batches.length > 0)
 
   if (!(pathname?.startsWith('/dashboard') ?? false)) return null
+  if (pathname === '/dashboard/analyses') return null
 
   return (
     <button

@@ -138,9 +138,8 @@ async function runBenchmark() {
     console.log("[2/2] Analyzing artifact...");
     const startAnalysis = Date.now();
 
-    const browserService = RemotePlaywrightAdapter.createFromEnv();
     const { ArtifactIntakeAdapter } = await import("@/infrastructure/adapters/ArtifactIntakeAdapter");
-    const intakeAdapter = new ArtifactIntakeAdapter(browserService, llmService);
+    const intakeAdapter = new ArtifactIntakeAdapter(() => RemotePlaywrightAdapter.createFromEnv(), llmService);
     const analysisUseCase = new AnalyzeArtifactUseCase(intakeAdapter, llmService);
     
     let analysisTime = 0;
@@ -154,7 +153,6 @@ async function runBenchmark() {
       console.error(`      Analysis error after ${formatTime(analysisTime)}: ${error.message}\n`);
     }
 
-    await browserService.close();
 
     console.log("=== Results ===");
     console.log(`Persona Generation: ${formatTime(personasTime)}`);
@@ -165,10 +163,9 @@ async function runBenchmark() {
     const startAnalysis = Date.now();
 
     const personas = createMockPersonas();
-    const browserService = RemotePlaywrightAdapter.createFromEnv();
     const llmService = LlmServiceImpl.createFromEnv("openrouter");
     const { ArtifactIntakeAdapter } = await import("@/infrastructure/adapters/ArtifactIntakeAdapter");
-    const intakeAdapter = new ArtifactIntakeAdapter(browserService, llmService);
+    const intakeAdapter = new ArtifactIntakeAdapter(() => RemotePlaywrightAdapter.createFromEnv(), llmService);
     const analysisUseCase = new AnalyzeArtifactUseCase(intakeAdapter, llmService);
     
     let analysisTime = 0;
@@ -182,7 +179,6 @@ async function runBenchmark() {
       console.error(`      Analysis error after ${formatTime(analysisTime)}: ${error.message}\n`);
     }
 
-    await browserService.close();
 
     console.log("=== Results ===");
     console.log(`Artifact Analysis (mock): ${formatTime(analysisTime)}`);

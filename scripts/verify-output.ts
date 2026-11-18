@@ -14,6 +14,11 @@
  *   bun scripts/verify-output.ts artifact --url https://example.com --description "..." --count 3
  *   bun scripts/verify-output.ts artifact --url https://example.com --personas-file ./personas.json
  *   bun scripts/verify-output.ts artifact --image ./screenshot.png --description "..." --count 3
+ *   bun scripts/verify-output.ts artifact --text ./brief.md --personas-file ./personas.json
+ *   bun scripts/verify-output.ts artifact --file ./deck.pdf --file ./brief.docx --personas-file ./personas.json
+ *
+ * `--file` extracts through the same module the form uses, so the harness
+ * exercises the real DOCX/PPTX/PDF/text path rather than a copy of it.
  *
  * Persona mode defaults to `strategy` (single LLM call, fast). Use
  * `--mode legacy` to run the app's default multi-call pipeline, or
@@ -28,6 +33,9 @@
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
+import type { ArtifactInput } from '@/domain/entities/ArtifactInput';
+import { withoutQuotedSpans } from '@/domain/entities/PersonaResponse';
+import { MONOLOGUE_BANNED_TERMS } from '@/infrastructure/adapters/VisionAnalysisAdapter';
 
 const OUT_DIR = path.resolve(process.cwd(), '.sisyphus', 'verify');
 
@@ -50,12 +58,14 @@ function parseArgs(argv: string[]): Record<string, unknown> {
     if (a.startsWith('--')) {
       const key = a.slice(2);
       const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        args[key] = next;
-        i++;
-      } else {
-        args[key] = true;
-      }
+      const value = next && !next.startsWith('--') ? next : true;
+      if (value !== true) i++;
+      // Repeated flags collect (`--file a.pdf --file b.docx`); a single use
+      // stays a scalar so existing call sites read unchanged.
+      const existing = args[key];
+      if (existing === undefined) args[key] = value;
+      else if (Array.isArray(existing)) existing.push(value);
+      else args[key] = [existing, value];
     } else {
       (args._ as string[]).push(a);
     }
@@ -124,7 +134,10 @@ function checkPersonas(personas: any[]): { pass: string[]; fail: string[] } {
   return { pass, fail };
 }
 
-function checkResponses(responses: any[]): { pass: string[]; fail: string[] } {
+/** Fields whose contract is "present as an array", empty allowed. */
+const ARRAY_RESPONSE_FIELDS = new Set(['majorFindings', 'pointsOfFriction', 'unansweredQuestions']);
+
+function checkResponses(responses: any[], inputType: string): { pass: string[]; fail: string[] } {
   const pass: string[] = [];
   const fail: string[] = [];
 
@@ -154,13 +167,20 @@ function checkResponses(responses: any[]): { pass: string[]; fail: string[] } {
       );
     }
 
+    // screenshotBase64 is deliberately absent for text artifacts only; visual
+    // runs must still carry the screenshot they were analyzed from.
+    // Arrays must be arrays, not non-empty: the extraction prompt explicitly
+    // allows an empty unansweredQuestions list, and demanding content would
+    // make a correct run fail (or push the model to invent findings).
     const requiredResponseFields = [
       'overview', 'researchQuestionAnswer', 'majorFindings', 'pointsOfFriction',
-      'unansweredQuestions', 'screenshotBase64', 'rawAnalysis',
+      'unansweredQuestions', 'rawAnalysis',
+      ...(inputType === 'text' ? [] : ['screenshotBase64']),
     ];
-    const missing = requiredResponseFields.filter((f) => {
-      const v = r?.[f];
-      return v === undefined || v === null || (Array.isArray(v) && v.length === 0);
+    const missing = requiredResponseFields.filter((field) => {
+      const value = r?.[field];
+      if (ARRAY_RESPONSE_FIELDS.has(field)) return !Array.isArray(value);
+      return typeof value !== 'string' || value.trim() === '';
     });
     if (missing.length === 0) {
       pass.push(`${personaName}: all response fields present`);
@@ -203,12 +223,19 @@ function checkSynthesis(synthesis: any, totalPersonaCount: number): { pass: stri
 function report(label: string, checks: { pass: string[]; fail: string[] }): void {
   console.log(`\n[${label}]`);
   for (const line of checks.pass) console.log(`  PASS  ${line}`);
-  for (const line of checks.fail) console.log(`  FAIL  ${line}`);
+  for (const line of checks.fail) {
+    console.log(`  FAIL  ${line}`);
+    failedChecks += 1;
+  }
 }
 
+/** A run that fails any check must not look like a green run to a caller. */
+let failedChecks = 0;
+
 // Banned UX-consultant jargon — the Visceral Actor must never produce these.
-// Mirrors the operating rules in buildVisceralMonologueSystemPrompt.
-const BANNED_JARGON = ['cta', 'social proof', 'value proposition', 'value prop', 'friction', 'conversion funnel', 'user journey map'];
+// The list is owned by the adapter (which also re-prompts on a hit); the
+// harness only reports it.
+const BANNED_JARGON = MONOLOGUE_BANNED_TERMS;
 
 function checkMonologues(responses: any[]): { pass: string[]; fail: string[] } {
   const pass: string[] = [];
@@ -225,8 +252,9 @@ function checkMonologues(responses: any[]): { pass: string[]; fail: string[] } {
     const hits = BANNED_JARGON.filter((j) => lower.includes(j));
     if (hits.length === 0) pass.push(`${personaName}: no UX jargon`);
     else fail.push(`${personaName}: jargon found: ${hits.join(', ')}`);
-    // Third-person extraction: the structured report must not speak as the persona.
-    const structured = [r?.overview ?? '', r?.researchQuestionAnswer ?? ''].join(' ');
+    // Third-person extraction: the structured report must not speak as the
+    // persona. Quoted artifact copy ("show me one") is quotation, not voice.
+    const structured = withoutQuotedSpans([r?.overview ?? '', r?.researchQuestionAnswer ?? ''].join(' '));
     const firstPerson = /\b(I|I'm|I've|my|me)\b/i.test(structured);
     if (structured && firstPerson) fail.push(`${personaName}: extraction speaks in first person`);
     else if (structured) pass.push(`${personaName}: third person`);
@@ -306,11 +334,22 @@ async function runPersonaMode(args: Record<string, unknown>): Promise<void> {
   console.log(`\nsaved: ${outPath}`);
 }
 
+function asList(value: unknown): string[] {
+  if (value === undefined || value === true) return [];
+  return Array.isArray(value) ? value.map(String) : [String(value)];
+}
+
 async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
   const url = args.url as string | undefined;
   const image = args.image as string | undefined;
-  if (!url && !image) fail('artifact mode requires --url <url> or --image <path>');
-  if (url && image) fail('provide only one of --url or --image');
+  const textPath = typeof args.text === 'string' ? args.text : undefined;
+  const filePaths = asList(args.file);
+  const sourcesProvided = [Boolean(url), Boolean(image), Boolean(textPath), filePaths.length > 0]
+    .filter(Boolean).length;
+  if (sourcesProvided === 0) {
+    fail('artifact mode requires one of --url <url>, --image <path>, --text <path>, or --file <path> (repeatable)');
+  }
+  if (sourcesProvided > 1) fail('provide exactly one artifact source');
 
   const businessGoal = String(args['business-goal'] ?? 'Understand how this artifact persuades its audience.');
   const researchQuestion = String(args['research-question'] ?? 'What prevents visitors from taking the desired action?');
@@ -332,9 +371,32 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
     report('persona', personaChecks);
   }
 
-  const input = image
-    ? { type: 'screenshot' as const, imageBase64: (await fs.promises.readFile(path.resolve(String(image)))).toString('base64'), url: path.basename(String(image)) }
-    : { type: 'url' as const, url: String(url) };
+  let input: ArtifactInput;
+  if (image) {
+    input = {
+      type: 'screenshot',
+      imageBase64: (await fs.promises.readFile(path.resolve(String(image)))).toString('base64'),
+      url: path.basename(String(image)),
+    };
+  } else if (textPath || filePaths.length > 0) {
+    const { extractArtifactText } = await import('@/lib/artifactText');
+    const files = textPath
+      ? [{ name: path.basename(textPath), size: 0, arrayBuffer: async () => (await fs.promises.readFile(path.resolve(textPath))).buffer as ArrayBuffer }]
+      : await Promise.all(filePaths.map(async (filePath) => {
+          const bytes = await fs.promises.readFile(path.resolve(filePath));
+          return {
+            name: path.basename(filePath),
+            size: bytes.byteLength,
+            arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+          };
+        }));
+    const extracted = await extractArtifactText(files);
+    input = { type: 'text', text: extracted.text, label: extracted.label, files: extracted.files.map((f) => f.name) };
+  } else {
+    input = { type: 'url', url: String(url) };
+  }
+
+  const sourceDescription = input.type === 'text' ? `text "${input.label}" (${input.text.length} chars)` : input.type;
 
   const { AnalyzeArtifactUseCase } = await import('@/application/usecases/AnalyzeArtifactUseCase');
   const { ArtifactIntakeAdapter } = await import('@/infrastructure/adapters/ArtifactIntakeAdapter');
@@ -343,12 +405,11 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
   const { SynthesizeArtifactResultsUseCase } = await import('@/application/usecases/SynthesizeArtifactResultsUseCase');
 
   const llm = LlmServiceImpl.createFromEnv('openrouter');
-  const browserService = RemotePlaywrightAdapter.createFromEnv();
-  const intakeAdapter = new ArtifactIntakeAdapter(browserService, llm);
+  const intakeAdapter = new ArtifactIntakeAdapter(() => RemotePlaywrightAdapter.createFromEnv(), llm);
   const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llm);
 
   const runId = `verify-${Date.now()}`;
-  console.log(`\n[artifact] analyzing ${input.type} (${image ? path.basename(String(image)) : url}) with ${personas.length} personas...`);
+  console.log(`\n[artifact] analyzing ${sourceDescription} (${image ? path.basename(String(image)) : url ?? ''}) with ${personas.length} personas...`);
 
   const responses = await useCase.execute(
     input,
@@ -376,7 +437,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
       mode: 'artifact',
       createdAt: new Date().toISOString(),
       runId,
-      input: { type: input.type, url: input.url },
+      input,
       businessGoal,
       researchQuestion,
       personas: { count: personas.length, names: personas.map((p) => p.name) },
@@ -395,7 +456,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
     return null;
   }) : null;
 
-  report('artifact', checkResponses(responses));
+  report('artifact', checkResponses(responses, input.type));
   report('monologues', checkMonologues(responses));
   report('synthesis', checkSynthesis(synthesis, responses.length));
   report('citations', checkCitations(synthesis, responses));
@@ -406,7 +467,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
       mode: 'artifact',
       createdAt: new Date().toISOString(),
       runId,
-      input: { type: input.type, url: input.url },
+      input,
       businessGoal,
       researchQuestion,
       personas: { count: personas.length, names: personas.map((p) => p.name) },
@@ -435,6 +496,11 @@ async function main(): Promise<void> {
       break;
     default:
       fail('usage: verify-output.ts <persona|artifact> [--description "..."] [--count N] [--url <url> | --image <path>] [--personas-file <path>] [--out <path>]');
+  }
+
+  if (failedChecks > 0) {
+    console.error(`\n[verify-output] ${failedChecks} check(s) failed`);
+    process.exit(1);
   }
 }
 

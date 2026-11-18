@@ -168,7 +168,7 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
       close: vi.fn().mockResolvedValue(undefined),
     } as unknown as BrowserServicePort
     const intakeAdapter = new ArtifactIntakeAdapter(
-      failingBrowser,
+      () => failingBrowser,
       { summarizeHtml: vi.fn() } as unknown as LlmServicePort,
     )
     const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llm)

@@ -14,7 +14,8 @@ import "dotenv/config";
 import { AnalyzeArtifactUseCase, type AnalysisProgress } from "../src/application/usecases/AnalyzeArtifactUseCase";
 import { RemotePlaywrightAdapter } from "../src/infrastructure/adapters/RemotePlaywrightAdapter";
 import { LlmServiceImpl } from "../src/infrastructure/adapters/LlmServiceImpl";
-import { ArtifactIntakeAdapter, type ArtifactInput } from "../src/infrastructure/adapters/ArtifactIntakeAdapter";
+import { ArtifactIntakeAdapter } from "../src/infrastructure/adapters/ArtifactIntakeAdapter";
+import type { ArtifactInput } from "../src/domain/entities/ArtifactInput";
 import { SynthesizeArtifactResultsUseCase } from "../src/application/usecases/SynthesizeArtifactResultsUseCase";
 import { AnalysisLogger } from "../src/infrastructure/AnalysisLogger";
 import type { Persona } from "../src/domain/entities/Persona";
@@ -87,9 +88,8 @@ async function main(): Promise<void> {
 
   const t0 = Date.now();
 
-  const browserService = RemotePlaywrightAdapter.createFromEnv();
   const llmService = LlmServiceImpl.createFromEnv("openrouter");
-  const intakeAdapter = new ArtifactIntakeAdapter(browserService, llmService);
+  const intakeAdapter = new ArtifactIntakeAdapter(() => RemotePlaywrightAdapter.createFromEnv(), llmService);
   const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llmService);
 
   const intakeStart = Date.now();
@@ -103,7 +103,7 @@ async function main(): Promise<void> {
 
   const personasStart = Date.now();
   const responses = await useCase.execute(
-    { type: "screenshot", imageBase64: intake.screenshotBase64, url: intake.url },
+    { type: "screenshot", imageBase64: intake.screenshotBase64 ?? "", url: intake.url },
     PERSONAS,
     BUSINESS_GOAL,
     RESEARCH_QUESTION,
