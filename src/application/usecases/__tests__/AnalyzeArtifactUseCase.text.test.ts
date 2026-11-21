@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AnalyzeArtifactUseCase } from '../AnalyzeArtifactUseCase'
-import { ArtifactIntakeAdapter } from '@/infrastructure/adapters/ArtifactIntakeAdapter'
+import type { ArtifactIntakePort } from '@/domain/ports/ArtifactIntakePort'
 import type { LlmServicePort } from '@/domain/ports/LlmServicePort'
 import type { Persona } from '@/domain/entities/Persona'
 import type { ArtifactIntake } from '@/domain/entities/ArtifactIntake'
@@ -54,7 +54,7 @@ const textIntake: ArtifactIntake = {
 
 function makeUseCase(llm: LlmServicePort, intake: ArtifactIntake) {
   return new AnalyzeArtifactUseCase(
-    { intake: vi.fn().mockResolvedValue(intake) } as unknown as ArtifactIntakeAdapter,
+    { intake: vi.fn().mockResolvedValue(intake) } as unknown as ArtifactIntakePort,
     llm,
   )
 }
