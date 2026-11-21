@@ -64,8 +64,10 @@ less in order to change the system safely.
 Refactoring is a sequence of small, behaviour-preserving transformations, each verified. The rhythm
 matters more than the catalogue: **test, small change, test, small change, test.**
 
-1. **Confirm the gate is green before you start.** Run `bun run test` once on the untouched tree so
-   you know a later failure is yours.
+1. **Know the baseline before you start.** The harness records the failing tests on the untouched
+   base commit and compares your run against it. A failure that already exists there is not yours
+   to fix; do not change unrelated code for it. A failure you introduce is fatal. Run
+   `bun run test` yourself if you need to see the current state.
 2. **Find a smell, name it.** Duplicated code, long method, large class, long parameter list,
    divergent change, shotgun surgery, feature envy, data clumps, primitive obsession, switch
    statements, lazy class, speculative generality, temporary field, message chains, middle man,

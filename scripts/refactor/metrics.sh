@@ -39,10 +39,16 @@ if [ "$COVERAGE" = "1" ] && [ -d node_modules/@vitest/coverage-v8 ]; then
   # browser endpoint must not abort metrics; CRAP then reports complexity only.
   # Test output can include raw fixture bytes (a DOCX fixture prints itself).
   # It is useless in a prompt, so it goes to its own log and never into $OUT.
+  # The same run records the baseline test report. The release gate later
+  # compares its own failures with this file, so a failure that already exists
+  # on the untouched base is not blamed on the branch.
   if bunx vitest run --coverage --coverage.reporter=json \
       --coverage.reportsDirectory=coverage --coverage.include='src/**' \
+      --reporter=json --outputFile="$WORKTREE/.refactor/work/baseline-tests.json" \
       --silent > "$WORKTREE/.refactor/work/coverage-run.log" 2>&1; then
     printf 'coverage run: ok (output in .refactor/work/coverage-run.log)\n' >> "$OUT"
+  elif [ -f "$COVERAGE_JSON" ] && [ -s "$WORKTREE/.refactor/work/baseline-tests.json" ]; then
+    printf 'coverage run: tests failed on the base tree; coverage and baseline report kept\n' >> "$OUT"
   else
     printf 'coverage run: failed (metrics continue without coverage; see .refactor/work/coverage-run.log)\n' >> "$OUT"
     rm -f "$COVERAGE_JSON"

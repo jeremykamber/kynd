@@ -87,7 +87,7 @@ The harness, not the agent, decides whether work is published. In order:
 | Leftover edits are committed automatically, then counted | — |
 | Forbidden paths untouched (`package.json`, `bun.lock`, `.env*`, `infra/`, `.github/`, `scripts/refactor/`, `next.config.ts`) | no PR, branch kept |
 | Assertion count did not decrease in `test/` and `src/**/__tests__` | no PR, branch kept |
-| `bun run release` (`next build && vitest run`) | no PR, branch kept |
+| `bun run build` and the full vitest suite, compared with the baseline failures recorded on the untouched base | new failure or build error: no PR, branch kept |
 | `bun run lint` | advisory only |
 | Rebase onto current `dev` succeeds, and `bun run release` passes again | no PR, branch kept |
 | `gh pr create` | branch kept, error in the run log |
@@ -162,4 +162,12 @@ Dev dependencies, used only by the metrics and PR steps:
 run continues with complexity-only metrics.
 
 `scripts/refactor/depth.ts` reports the longest import chain, fan-in, fan-out and cycles.
+`scripts/refactor/compare-tests.py` separates a pre-existing test failure from a regression.
 `scripts/refactor/make-pr-body.py` builds the PR description and its Mermaid graphs.
+
+## Pre-existing failures
+
+Some repositories start a run with a failing test. The metrics step records the failing test
+identities on the untouched base commit. The release gate compares its own failures with that
+baseline: a failure that exists on both sides is reported in the PR and does not block it, and any
+new failure blocks it. If the baseline report is missing, the gate is strict: zero failures.

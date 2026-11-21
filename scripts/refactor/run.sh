@@ -476,20 +476,45 @@ if [ "${HEAD_ASSERTIONS:-0}" -lt "${BASE_ASSERTIONS:-0}" ]; then
 fi
 
 LINT_RESULT="passed"
+run_test_gate() {
+  # The repo's release gate is `next build && vitest run`. We split it so the
+  # test result is machine-readable, then compare failures with the baseline
+  # recorded on the untouched worktree. Pre-existing failures are allowed; new
+  # failures fail the gate.
+  local label="${1:-release}"
+  log "building: bun run build"
+  run_with_timeout 3600 "$label-build" bun run build >> "$RUN_LOG" 2>&1 || return 1
+
+  log "running the full vitest suite with a JSON report"
+  run_with_timeout 5400 "$label-tests" bunx vitest run \
+    --reporter=json --outputFile="$WORKTREE/.refactor/work/head-tests.json" \
+    >> "$RUN_LOG" 2>&1 || true
+
+  local gate_output gate_status
+  gate_output="$(python3 "$REPO_ROOT/scripts/refactor/compare-tests.py" \
+    --baseline "$WORKTREE/.refactor/work/baseline-tests.json" \
+    --head "$WORKTREE/.refactor/work/head-tests.json" \
+    --summary "$WORKTREE/.refactor/work/test-gate.json" 2>&1)"
+  gate_status=$?
+  printf '%s\n' "$gate_output" | tee -a "$RUN_LOG"
+  return "$gate_status"
+}
+
 log "running lint (advisory)"
 if ! run_with_timeout 1800 lint bun run lint >> "$RUN_LOG" 2>&1; then
   LINT_RESULT="reported problems (advisory)"
   log "lint reported problems (advisory)"
 fi
 
-log "running release gate: bun run release"
-if ! run_with_timeout 5400 release bun run release >> "$RUN_LOG" 2>&1; then
-  log "GATE FAILED: bun run release did not pass"
+log "running the release gate: bun run build + full vitest suite"
+if ! run_test_gate release; then
+  log "GATE FAILED: the release gate reported a new test failure or the build failed"
   write_state "$BASE_SHA" "failed:release" "$BASE_SHA"
   log "branch left for review: $BRANCH"
   exit 1
 fi
 log "release gate passed"
+PRE_EXISTING="$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1])).get('headFailures', [])))" "$WORKTREE/.refactor/work/test-gate.json" 2>/dev/null || echo 0)"
 
 # Evidence for the PR body. The body must not claim a gate that did not run.
 cat > "$WORKTREE/.refactor/work/gates.json" <<JSON
@@ -499,6 +524,8 @@ cat > "$WORKTREE/.refactor/work/gates.json" <<JSON
   "forbiddenPaths": "passed",
   "assertionsBefore": ${BASE_ASSERTIONS:-0},
   "assertionsAfter": ${HEAD_ASSERTIONS:-0},
+  "preExistingFailures": ${PRE_EXISTING:-0},
+  "newFailures": 0,
   "head": "$(git rev-parse HEAD)",
   "base": "$BASE_SHA"
 }
@@ -518,7 +545,7 @@ if ! git merge-base --is-ancestor origin/dev HEAD; then
     exit 1
   fi
   log "re-running release gate after rebase"
-  if ! run_with_timeout 5400 release-after-rebase bun run release >> "$RUN_LOG" 2>&1; then
+  if ! run_test_gate rebase; then
     log "GATE FAILED after rebase"
     write_state "$BASE_SHA" "failed:release-after-rebase" "$BASE_SHA"
     exit 1

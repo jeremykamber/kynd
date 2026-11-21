@@ -370,9 +370,16 @@ def build(worktree: Path, base_sha: str, body_path: Path, title_path: Path) -> N
     lines.append("")
     lines.append("## What did not change")
     lines.append("")
-    if gates.get("release") == "passed":
+    pre_existing = int(gates.get("preExistingFailures") or 0)
+    if gates.get("release") == "passed" and pre_existing:
         lines.append(
-            "- Behaviour: `bun run release` (`next build` + full vitest suite) passed on "
+            "- Release gate: `next build` passed and the vitest suite added no failures on "
+            f"`{str(gates.get('head', head))[:10]}`. "
+            f"{pre_existing} test(s) fail identically on the base commit."
+        )
+    elif gates.get("release") == "passed":
+        lines.append(
+            "- Release gate: `next build` and the full vitest suite passed on "
             f"`{str(gates.get('head', head))[:10]}`."
         )
     else:
