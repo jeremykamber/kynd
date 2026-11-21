@@ -523,6 +523,9 @@ if ! git merge-base --is-ancestor origin/dev HEAD; then
     write_state "$BASE_SHA" "failed:release-after-rebase" "$BASE_SHA"
     exit 1
   fi
+  # The branch now sits on the newer dev tip. Report against that base so the
+  # PR body shows only this branch's diff.
+  BASE_SHA="$(git rev-parse origin/dev)"
 fi
 
 if ! git push -q -u origin "$BRANCH" >> "$RUN_LOG" 2>&1; then
