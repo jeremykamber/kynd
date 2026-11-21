@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
 import { MinimalCard } from '@/components/custom/MinimalCard'
-import { DEMO_PERSONA_BATCH } from '@/domain/entities/MockPersonas'
+import { DEMO_PERSONA_BATCH } from '@/ui/dashboard/demoPersonaBatch'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import Link from 'next/link'
 import { ArrowRightIcon } from 'lucide-react'
