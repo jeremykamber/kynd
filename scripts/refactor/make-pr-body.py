@@ -256,10 +256,41 @@ def fence(code: str) -> str:
     return "```mermaid\n" + code + "\n```"
 
 
+def long_sentences(text: str, limit: int = 20) -> list[tuple[int, str]]:
+    """Sentences above the writing skill's length budget."""
+    found: list[tuple[int, str]] = []
+    for sentence in re.split(r"(?<=[.!?])\s+", text.strip()):
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        words = len(sentence.split())
+        if words > limit:
+            found.append((words, sentence))
+    return found
+
+
+def report_style(result: dict) -> None:
+    """Warn, do not rewrite: the model's prose is the model's to fix.
+
+    The run log is the place to see this. A style warning does not block a PR.
+    """
+    fields: list[tuple[str, str]] = [
+        ("summary", result.get("summary") or ""),
+        ("designChange", result.get("designChange") or ""),
+    ]
+    for item in result.get("reviewGuide") or []:
+        if isinstance(item, dict):
+            fields.append((f"reviewGuide[{item.get('path', '?')}].why", item.get("why") or ""))
+    for name, text in fields:
+        for words, sentence in long_sentences(text):
+            print(f"style-warning: {name}: {words} words: {sentence}")
+
+
 def build(worktree: Path, base_sha: str, body_path: Path, title_path: Path) -> None:
     head = git(worktree, "rev-parse", "HEAD")
     result = read_json(worktree / ".refactor" / "work" / "result.json")
     gates = read_json(worktree / ".refactor" / "work" / "gates.json")
+    report_style(result)
     log_entry = newest_log_entry(worktree / ".refactor" / "LOG.md")
 
     changed = [

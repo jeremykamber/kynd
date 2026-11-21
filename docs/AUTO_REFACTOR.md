@@ -47,6 +47,11 @@ imagination:
 The graph is measured. If the branch did not change module boundaries, the body says so instead of
 showing two identical diagrams.
 
+The prose comes from the model, so the prompt makes it read the global `writing` skill before it
+writes `result.json`, then reread the three fields and split any sentence over twenty words.
+`make-pr-body.py` prints a `style-warning:` line to the run log for each model-written sentence that
+is still too long. It never rewrites the model's prose and never blocks the PR.
+
 The job opens at most one steward PR at a time. While a PR is open, the daily fire exits with the
 PR URL. Merge or close it to let the next run proceed.
 

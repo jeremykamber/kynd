@@ -230,10 +230,21 @@ The harness opens a pull request for this branch. It generates the before/after 
 and the structural delta table from measured imports and git history; do not draw diagrams and do
 not hand-write numbers. Your job is the prose that explains them.
 
-Write for the repo owner, who is technical but did not watch you work. Plain English. One idea per
-sentence. Active voice. About twenty words per sentence. No marketing, no jargon, no adjectives
-that carry no information. Name the real files and the real modules. Lead with the outcome, then
-the reason, then the evidence.
+Write for the repo owner, who is technical but did not watch you work. Before you write it, read
+`~/.pi/agent/skills/writing/SKILL.md` (the global `writing` skill) and follow it. It is the same
+skill that governs every reply and document in this setup, and the PR is one of them.
+
+Plain English. One idea per sentence, about twenty words. Active voice, actor named. No marketing,
+no jargon, no adjective that does not classify. Name the real files and modules. Lead with the
+outcome, then the reason, then the evidence.
+
+Then reread your three fields once and fix them:
+
+- Split every sentence over twenty words.
+- Replace an internal term with the word a new engineer would use (`seam` becomes `interface`,
+  `intake port` becomes `port`).
+- Name the actor in every sentence that has one.
+- Cut every adjective that tells the reader what to think instead of classifying the noun.
 
 Write `.refactor/work/result.json`:
 
