@@ -23,23 +23,23 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Trailing slashes matter: "src/app" would also match "src/application".
 LAYERS = (
-    ("src/app", "app (routes)"),
-    ("src/actions", "actions"),
-    ("src/application", "application"),
-    ("src/domain", "domain"),
-    ("src/infrastructure", "infrastructure"),
-    ("src/ui", "ui"),
-    ("src/components", "components"),
-    ("src/hooks", "hooks"),
-    ("src/lib", "lib"),
-    ("src/data", "data"),
-    ("src/templates", "templates"),
-    ("src/types", "types"),
+    ("src/app/", "app (routes)"),
+    ("src/actions/", "actions"),
+    ("src/application/", "application"),
+    ("src/domain/", "domain"),
+    ("src/infrastructure/", "infrastructure"),
+    ("src/ui/", "ui"),
+    ("src/components/", "components"),
+    ("src/hooks/", "hooks"),
+    ("src/lib/", "lib"),
+    ("src/data/", "data"),
+    ("src/templates/", "templates"),
 )
 
-MAX_NODES = 34
-MAX_EDGES = 70
+MAX_NODES = 24
+MAX_EDGES = 50
 
 
 def run(args: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -63,10 +63,10 @@ def layer_of(key: str) -> str:
 
 
 def label_of(key: str) -> str:
-    short = key.removeprefix("src/")
-    if len(short) > 48:
-        parts = short.split("/")
-        short = "/".join(parts[-2:])
+    parts = key.removeprefix("src/").split("/")
+    # The subgraph already names the layer, so the last two segments are enough
+    # and they keep every label the same shape.
+    short = "/".join(parts[-2:]) if len(parts) > 2 else "/".join(parts)
     return short.replace('"', "'")
 
 
@@ -285,12 +285,18 @@ def build(worktree: Path, base_sha: str, body_path: Path, title_path: Path) -> N
         run(["git", "worktree", "remove", "--force", str(base_wt)], worktree, check=False)
         run(["git", "worktree", "prune"], worktree, check=False)
 
-    touched = {canonical(path) for path in changed_src}
+    # The graph shows the modules that moved and the edges between them. Adding
+    # one hop of context is only worth it when the touched set is too small to
+    # show a shape; a high-fan-in module would otherwise pull in half the app.
+    diagram_sources = [path for path in changed_src if "/__tests__/" not in path]
+    touched = {canonical(path) for path in diagram_sources}
     context = set(touched)
-    for source, target in before_edges | after_edges:
-        if source in touched or target in touched:
-            context.add(source)
-            context.add(target)
+    mutual = {e for e in before_edges | after_edges if e[0] in context and e[1] in context}
+    if len(context) < 3 or not mutual:
+        for source, target in before_edges | after_edges:
+            if source in touched or target in touched:
+                context.add(source)
+                context.add(target)
     context = {key for key in context if key.startswith("src/")}
 
     before_slice = (before_nodes & context, {e for e in before_edges if e[0] in context and e[1] in context})
