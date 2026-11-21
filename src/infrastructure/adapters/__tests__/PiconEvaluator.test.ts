@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { PiconEvaluator } from "../PiconEvaluator";
-import type { LlmServiceImpl } from "../LlmServiceImpl";
+import type { LlmRuntime } from "../LlmRuntime";
 import type { Persona } from "@/domain/entities/Persona";
 
 const basePersona: Persona = {
@@ -71,7 +71,7 @@ describe("PiconEvaluator", () => {
       }
     });
     // Partial mock of the LLM service: only the completion primitive is used.
-    const evaluator = new PiconEvaluator({ createChatCompletion } as unknown as LlmServiceImpl);
+    const evaluator = new PiconEvaluator({ createChatCompletion } as unknown as LlmRuntime);
 
     const result = await evaluator.evaluate(basePersona);
 

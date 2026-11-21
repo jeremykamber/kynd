@@ -5,7 +5,7 @@ import { PersonaResponseSchema, personaIdentityViolations } from "@/domain/entit
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { CohortSynthesisContent } from "@/domain/entities/ArtifactSynthesis";
-import { LlmServiceImpl } from "./LlmServiceImpl";
+import type { LlmRuntime } from "./LlmRuntime";
 import { streamObject } from "ai";
 import { PricingLocation } from "@/domain/ports/LlmServicePort";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -214,12 +214,12 @@ const CohortSynthesisSchema = z.object({
  * monologue), then the same text is mapped to a PersonaResponse — plus cohort
  * synthesis across all transcripts. Prompts come from the exported
  * buildVisceralMonologueSystemPrompt/buildPersonaExtractionSystemPrompt
- * functions; completions and the vision LLM call go to its owning
- * LlmServiceImpl (and through it the OpenAI-compatible provider). Internal to
+ * functions; completions and the vision LLM call go to the
+ * LlmRuntime (and through it the OpenAI-compatible provider). Internal to
  * the LLM adapter, not a port implementation.
  */
 export class VisionAnalysisAdapter {
-    constructor(private llmService: LlmServiceImpl) {}
+    constructor(private runtime: LlmRuntime) {}
 
     async generateVisceralMonologue(
         persona: Persona,
@@ -269,7 +269,7 @@ export class VisionAnalysisAdapter {
 
             try {
                 const text = await Promise.race([
-                    this.llmService.createChatCompletion(
+                    this.runtime.createChatCompletion(
                         [
                             {
                                 role: "system",
@@ -290,7 +290,7 @@ export class VisionAnalysisAdapter {
                             max_tokens: tokenLimit,
                             // A document is read by the text model; only a
                             // visual artifact needs the vision model.
-                            model: isDocument ? this.llmService.textModel : this.llmService.visionModel,
+                            model: isDocument ? this.runtime.textModel : this.runtime.visionModel,
                             purpose: `Visceral Monologue — ${persona.name}`,
                             runId: options.runId,
                         }
@@ -376,7 +376,7 @@ export class VisionAnalysisAdapter {
                 // extraction its own floor instead of inheriting the cap.
                 const outputTokenBudget = Math.max(tokenLimit, EXTRACTION_MIN_OUTPUT_TOKENS);
                 const streamResult = streamObject({
-                    model: this.llmService.provider.chat(this.llmService.textModel),
+                    model: this.runtime.provider.chat(this.runtime.textModel),
                     schema: PersonaResponseSchema,
                     schemaName: "PersonaResponse",
                     schemaDescription: "A third-person qualitative analysis of a persona's think-aloud session across five cognitive stages.",
@@ -481,11 +481,11 @@ export class VisionAnalysisAdapter {
         options?: { runId?: string },
     ): Promise<string> {
         return Promise.race([
-            this.llmService.createChatCompletion(
+            this.runtime.createChatCompletion(
                 [{ role: "user", content: prompt }],
                 {
                     temperature: 0.3,
-                    model: this.llmService.textModel,
+                    model: this.runtime.textModel,
                     response_format: { type: "json_object" },
                     purpose,
                     runId: options?.runId,

@@ -1,5 +1,5 @@
 import { Persona } from "@/domain/entities/Persona";
-import { LlmServiceImpl } from "./LlmServiceImpl";
+import type { LlmRuntime } from "./LlmRuntime";
 
 export interface PiconResult {
   internalConsistency: number;
@@ -37,10 +37,10 @@ export interface PiconTurn {
  * for Evaluating Persona Agent Consistency" — arXiv:2603.25620.
  *
  * Prompts, retest comparison, and score parsing live here; completions run on
- * LlmServiceImpl. Internal to the LLM adapter, not a port implementation.
+ * LlmRuntime. Internal to the LLM adapter, not a port implementation.
  */
 export class PiconEvaluator {
-  constructor(private llmService: LlmServiceImpl) {}
+  constructor(private runtime: LlmRuntime) {}
 
   /** Run a full PICon evaluation across all three consistency dimensions. */
   async evaluate(persona: Persona): Promise<PiconResult> {
@@ -99,7 +99,7 @@ export class PiconEvaluator {
         ? `\n(Referencing your earlier answer about: ${q.dependsOn.join(", ")})`
         : "";
 
-      const response = await this.llmService.createChatCompletion(
+      const response = await this.runtime.createChatCompletion(
         [
           {
             role: "system",
@@ -132,7 +132,7 @@ export class PiconEvaluator {
 
     const turns: PiconTurn[] = [];
     for (let i = 0; i < retestQuestions.length; i++) {
-      const response = await this.llmService.createChatCompletion(
+      const response = await this.runtime.createChatCompletion(
         [
           {
             role: "system",
@@ -168,7 +168,7 @@ For each pair of potentially contradictory statements, identify them. Then outpu
   "score": number (0-1, higher = more consistent)
 }`;
 
-    const result = await this.llmService.createChatCompletion(
+    const result = await this.runtime.createChatCompletion(
       [{ role: "system", content: system }, { role: "user", content: transcript }],
       { temperature: 0.2, purpose: "PICon Internal Consistency", response_format: { type: "json_object" } },
     );
@@ -214,7 +214,7 @@ For each claim in the interview that should be verifiable against the backstory,
   "score": number (0-1, higher = more consistent)
 }`;
 
-    const result = await this.llmService.createChatCompletion(
+    const result = await this.runtime.createChatCompletion(
       [{ role: "system", content: system }, { role: "user", content: transcript }],
       { temperature: 0.2, purpose: "PICon External Consistency", response_format: { type: "json_object" } },
     );
@@ -266,7 +266,7 @@ For each pair, determine if they are CONSISTENT (same factual claims, same opini
       (c, i) => `PAIR ${i + 1}:\nQ: ${c.question}\nFirst: ${c.firstAnswer}\nSecond: ${c.secondAnswer}`,
     ).join("\n\n");
 
-    const result = await this.llmService.createChatCompletion(
+    const result = await this.runtime.createChatCompletion(
       [{ role: "system", content: system }, { role: "user", content: user }],
       { temperature: 0.2, purpose: "PICon Retest Consistency", response_format: { type: "json_object" } },
     );

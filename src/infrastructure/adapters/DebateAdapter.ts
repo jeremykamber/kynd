@@ -1,7 +1,7 @@
 import type { Persona } from "@/domain/entities/Persona";
 import type { DebateStreamEvent, DebateMessage } from "@/domain/entities/DebateRoom";
 import type { IDebateServicePort } from "@/domain/ports/IDebateServicePort";
-import { LlmServiceImpl } from "./LlmServiceImpl";
+import type { LlmRuntime } from "./LlmRuntime";
 import { DebatePromptCompiler } from "./DebatePromptCompiler";
 import OpenAI from "openai";
 
@@ -10,14 +10,14 @@ import OpenAI from "openai";
  * every participant streams a turn that sees the proposal and the transcript so
  * far. Stateless — call executeDebate() per debate session.
  * Implements IDebateServicePort; prompt assembly belongs to
- * DebatePromptCompiler and every completion goes to LlmServiceImpl (and through
+ * DebatePromptCompiler and every completion goes to the LlmRuntime (and through
  * it the OpenAI-compatible provider).
  */
 export class DebateAdapter implements IDebateServicePort {
   private promptCompiler: DebatePromptCompiler;
 
   constructor(
-    private llmService: LlmServiceImpl,
+    private runtime: LlmRuntime,
     promptCompiler?: DebatePromptCompiler,
   ) {
     this.promptCompiler = promptCompiler ?? new DebatePromptCompiler();
@@ -72,7 +72,7 @@ export class DebateAdapter implements IDebateServicePort {
           ];
 
           let fullResponse = "";
-          for await (const chunk of this.llmService.createChatCompletionStream(
+          for await (const chunk of this.runtime.createChatCompletionStream(
             messages,
             {
               temperature: 0.7,

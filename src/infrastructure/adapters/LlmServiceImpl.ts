@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import pLimit from "p-limit";
 import { LlmServicePort, PricingLocation, PersonaPhaseCallback, ChatAnalysisContext } from "@/domain/ports/LlmServicePort";
 import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
+import type { LlmCompletionOptions, LlmMessages, LlmRuntime } from "./LlmRuntime";
 import { PersonaAdapter } from "./PersonaAdapter";
 import { VisionAnalysisAdapter } from "./VisionAnalysisAdapter";
 import { ChatAdapter } from "./ChatAdapter";
@@ -91,7 +92,7 @@ function withReasoningDisabled(
  * looking for prompt wording should follow the sub-adapter named by the port
  * method.
  */
-export class LlmServiceImpl implements LlmServicePort {
+export class LlmServiceImpl implements LlmServicePort, LlmRuntime {
     public client: OpenAI;
     public provider: OpenAIProvider;
     public textModel: string;
@@ -270,22 +271,8 @@ export class LlmServiceImpl implements LlmServicePort {
     }
 
     public async createChatCompletion(
-        messages: any,
-        options: {
-            temperature?: number;
-            max_tokens?: number | null;
-            response_format?: { type: "json_object" | "text" };
-            model?: string;
-            purpose?: string;
-            runId?: string;
-            /**
-             * Disable chain-of-thought for this call even when the model's
-             * reasoning is normally on (deepseek). Persona generation needs
-             * direct answers — CoT burns the output budget and can return
-             * empty content on reasoning-heavy calls.
-             */
-            disableReasoning?: boolean;
-        },
+        messages: LlmMessages,
+        options: LlmCompletionOptions,
     ): Promise<string> {
         return this.withRetry(async () => {
             const reqId = ++LlmServiceImpl.requestCount;
@@ -412,12 +399,12 @@ export class LlmServiceImpl implements LlmServicePort {
             "- Return ONLY the question — no quotes, no prefix, no explanation.",
         ].join("\n");
 
-        const content = [
+        const content: OpenAI.Chat.ChatCompletionContentPart[] = [
             { type: "text", text: `${instruction}\n\n${taskText}` },
             ...(screenshotBase64
                 ? [
                       {
-                          type: "image_url",
+                          type: "image_url" as const,
                           image_url: {
                               url: `data:image/png;base64,${screenshotBase64}`,
                           },
@@ -499,14 +486,7 @@ export class LlmServiceImpl implements LlmServicePort {
 
     public async *createChatCompletionStream(
         messages: OpenAI.Chat.ChatCompletionMessageParam[],
-        options: {
-            temperature?: number;
-            max_tokens?: number | null;
-            response_format?: { type: "json_object" | "text" };
-            model?: string;
-            purpose?: string;
-            runId?: string;
-        },
+        options: LlmCompletionOptions,
     ): AsyncIterable<string> {
         let reqId = 0;
         const stream = await this.withRetry(async () => {

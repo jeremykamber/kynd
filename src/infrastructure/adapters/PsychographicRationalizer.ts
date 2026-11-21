@@ -1,5 +1,5 @@
 import { Persona } from "@/domain/entities/Persona";
-import { LlmServiceImpl } from "./LlmServiceImpl";
+import type { LlmRuntime } from "./LlmRuntime";
 
 export interface PsychologicalScaffold {
   label: string;
@@ -24,14 +24,14 @@ export interface PbjRationale {
  * Reference: Joshi et al. (2025) "Improving LLM Personas via Rationalization
  * with Psychological Scaffolds" — Findings of EMNLP 2025.
  *
- * Prompts live here; completions run on LlmServiceImpl (and through it the
+ * Prompts live here; completions run on the LlmRuntime (and through it the
  * OpenAI-compatible provider). Internal to the LLM adapter, not a port
  * implementation.
  */
 export class PsychographicRationalizer {
   private scaffolds: PsychologicalScaffold[];
 
-  constructor(private llmService: LlmServiceImpl) {
+  constructor(private runtime: LlmRuntime) {
     this.scaffolds = this.buildScaffolds();
   }
 
@@ -86,7 +86,7 @@ export class PsychographicRationalizer {
             "",
             `Explain the psychological roots of each trait level using the Big Five framework. Focus on cause-and-effect: "This person has high X because...". Where interview evidence is available, reference specific statements or experiences that shaped these traits. Then explain how these traits connect to their stated values and fears.`,
           ].join("\n");
-          return this.llmService.createChatCompletion(
+          return this.runtime.createChatCompletion(
             [{ role: "system", content: system }, { role: "user", content: user }],
             { purpose: "PB&J Big Five Scaffold", temperature: 0.5, disableReasoning: true },
           );
@@ -114,7 +114,7 @@ export class PsychographicRationalizer {
             "",
             `Describe their default decision-making process when evaluating a new tool or service. How do their Big Five traits drive their decision style? How do their values and fears manifest in the specific things they look for and the red flags they watch out for? Where evidence is available, reference specific statements or experiences.`,
           ].join("\n");
-          return this.llmService.createChatCompletion(
+          return this.runtime.createChatCompletion(
             [{ role: "system", content: system }, { role: "user", content: user }],
             { purpose: "PB&J Decision Scaffold", temperature: 0.5, disableReasoning: true },
           );
@@ -140,7 +140,7 @@ export class PsychographicRationalizer {
             "",
             "Explain what they fundamentally value when making decisions about tools and services. How do they weigh cost vs quality? What makes them trust (or distrust) a vendor? Connect their values and fears back to their Big Five profile. Where evidence is available, reference specific statements or experiences.",
           ].join("\n");
-          return this.llmService.createChatCompletion(
+          return this.runtime.createChatCompletion(
             [{ role: "system", content: system }, { role: "user", content: user }],
             { purpose: "PB&J Values Scaffold", temperature: 0.5, disableReasoning: true },
           );

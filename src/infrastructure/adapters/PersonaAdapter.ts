@@ -1,5 +1,5 @@
 import { Persona, PersonaSchema } from "@/domain/entities/Persona";
-import { LlmServiceImpl } from "./LlmServiceImpl";
+import type { LlmRuntime } from "./LlmRuntime";
 import { streamText, Output } from "ai";
 import { z } from "zod";
 import { stripCodeFence } from "./llmUtils";
@@ -82,12 +82,12 @@ const PersonaProfileSchema = z.object({
  * an interview-derived config, or an existing persona into Persona records:
  * initial batches, per-persona backstories, trait inference, variations, and
  * counterfactual probes. It builds its own prompts inline, validates model
- * output against Zod schemas, and delegates every completion to its owning
- * LlmServiceImpl (and through it the OpenAI-compatible provider). Not a port
+ * output against Zod schemas, and delegates every completion to the
+ * LlmRuntime (and through it the OpenAI-compatible provider). Not a port
  * implementation — it is internal to the LLM adapter.
  */
 export class PersonaAdapter {
-  constructor(private llmService: LlmServiceImpl) { }
+  constructor(private runtime: LlmRuntime) { }
 
   /**
    * Shared helper: parse LLM JSON response into persona records.
@@ -481,7 +481,7 @@ export class PersonaAdapter {
       /**
        * Model override for this call. Defaults to the small-text model; the
        * strategy-mode profile call pins its own (see
-       * `LlmServiceImpl.strategyProfileModel`) because its verbatim contract
+       * `LlmRuntime.strategyProfileModel`) because its verbatim contract
        * is what v4.1 regressed on.
        */
       model?: string;
@@ -516,7 +516,7 @@ export class PersonaAdapter {
           // provider() factory routes to OpenRouter's /responses endpoint,
           // which is pathologically slow for deepseek (90-240s+ for this
           // call) and unreachable by the reasoning-disable fetch hook.
-          model: this.llmService.provider.chat(model ?? this.llmService.smallTextModel),
+          model: this.runtime.provider.chat(model ?? this.runtime.smallTextModel),
           output: Output.array({ element: schema }),
           system,
           prompt: user + retryNudge,
@@ -688,13 +688,13 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
 
     const user = `Create EXACTLY ${personaCount} diverse personas for: "${personaDescription}". The array must contain precisely ${personaCount} elements — count before returning. Ensure a spectrum of decision-making styles and value systems.`;
 
-    const content = await this.llmService.createChatCompletion(
+    const content = await this.runtime.createChatCompletion(
       [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
       {
-        model: this.llmService.smallTextModel,
+        model: this.runtime.smallTextModel,
         temperature: 0.7,
         purpose: "Generate Personas",
       },
@@ -849,7 +849,7 @@ CRITICAL REQUIREMENTS:
 Return ONLY valid JSON.`;
 
     const { partialOutputStream } = streamText({
-      model: this.llmService.provider(this.llmService.smallTextModel),
+      model: this.runtime.provider(this.runtime.smallTextModel),
       output: Output.array({
         element: PersonaSchema,
       }),
@@ -909,7 +909,7 @@ CRITICAL REQUIREMENTS (Deep Binding research):
 This should feel like a real person's actual life story—messy, detailed, with depth.
 Return plain text only. No labels, no markdown, no metadata. NO SUMMARIES OR HEADERS.`;
 
-    const part1 = await this.llmService.createChatCompletion(
+    const part1 = await this.runtime.createChatCompletion(
       [
         { role: "system", content: system },
         {
@@ -923,7 +923,7 @@ Start the life story from the beginning. Write in first person. Be specific with
     );
     onProgress?.(++completedParts, totalParts);
 
-    const part2 = await this.llmService.createChatCompletion(
+    const part2 = await this.runtime.createChatCompletion(
       [
         { role: "system", content: system },
         {
@@ -935,7 +935,7 @@ Start the life story from the beginning. Write in first person. Be specific with
     );
     onProgress?.(++completedParts, totalParts);
 
-    const part3 = await this.llmService.createChatCompletion(
+    const part3 = await this.runtime.createChatCompletion(
       [
         { role: "system", content: system },
         {
@@ -947,7 +947,7 @@ Start the life story from the beginning. Write in first person. Be specific with
     );
     onProgress?.(++completedParts, totalParts);
 
-    const part4 = await this.llmService.createChatCompletion(
+    const part4 = await this.runtime.createChatCompletion(
       [
         { role: "system", content: system },
         {
@@ -995,7 +995,7 @@ This should feel like a real person's actual life story—messy, detailed, with 
 Return plain text only. No labels, no markdown, no metadata. NO SUMMARIES OR HEADERS.`;
 
     let part1 = "";
-    for await (const chunk of this.llmService.createChatCompletionStream(
+    for await (const chunk of this.runtime.createChatCompletionStream(
       [
         { role: "system", content: system },
         {
@@ -1013,7 +1013,7 @@ Start the life story from the beginning. Write in first person. Be specific with
     yield "\n\n";
 
     let part2 = "";
-    for await (const chunk of this.llmService.createChatCompletionStream(
+    for await (const chunk of this.runtime.createChatCompletionStream(
       [
         { role: "system", content: system },
         {
@@ -1029,7 +1029,7 @@ Start the life story from the beginning. Write in first person. Be specific with
     yield "\n\n";
 
     let part3 = "";
-    for await (const chunk of this.llmService.createChatCompletionStream(
+    for await (const chunk of this.runtime.createChatCompletionStream(
       [
         { role: "system", content: system },
         {
@@ -1044,7 +1044,7 @@ Start the life story from the beginning. Write in first person. Be specific with
     }
     yield "\n\n";
 
-    for await (const chunk of this.llmService.createChatCompletionStream(
+    for await (const chunk of this.runtime.createChatCompletionStream(
       [
         { role: "system", content: system },
         {
@@ -1065,7 +1065,7 @@ Start the life story from the beginning. Write in first person. Be specific with
     const personaText = typeof personaOrDescription === "string" ? personaOrDescription : JSON.stringify(personaOrDescription);
     const system = this.getAbbreviatedBackstorySystemPrompt();
 
-    return await this.llmService.createChatCompletion(
+    return await this.runtime.createChatCompletion(
       [
         { role: "system", content: system },
         { role: "user", content: `Generate a rich but concise backstory for this persona:\n${personaText}` },
@@ -1081,7 +1081,7 @@ Start the life story from the beginning. Write in first person. Be specific with
     const personaText = typeof personaOrDescription === "string" ? personaOrDescription : JSON.stringify(personaOrDescription);
     const system = this.getAbbreviatedBackstorySystemPrompt();
 
-    yield* this.llmService.createChatCompletionStream(
+    yield* this.runtime.createChatCompletionStream(
       [
         { role: "system", content: system },
         { role: "user", content: `Generate a rich but concise backstory for this persona:\n${personaText}` },
@@ -1113,13 +1113,13 @@ Return a JSON array of strings, one backstory per persona.`;
 
 ${personasText}`;
 
-    const result = await this.llmService.createChatCompletion(
+    const result = await this.runtime.createChatCompletion(
       [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
       { 
-        model: this.llmService.smallTextModel,
+        model: this.runtime.smallTextModel,
         temperature: 0.3,
         purpose: "Batch Abbreviated Backstories",
       },
@@ -1213,13 +1213,13 @@ Return ONLY valid JSON array without explanatory text or markdown code blocks.`;
     const user = `Generate ${count} distinct persona variations based on the reference persona "${referencePersona.name}" (${referencePersona.occupation}) with the specified Big Five adjustments and variation level ${adjustments.variationLevel}/100.`;
 
     console.log("[PersonaAdapter.generateVariationPersonas] Calling LLM with temperature:", 0.7 + (adjustments.variationLevel / 100) * 0.2);
-    const content = await this.llmService.createChatCompletion(
+    const content = await this.runtime.createChatCompletion(
       [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
       {
-        model: this.llmService.smallTextModel,
+        model: this.runtime.smallTextModel,
         temperature: 0.7 + (adjustments.variationLevel / 100) * 0.2, // Scale temp with variation
         purpose: "Generate Variation Personas",
       },
@@ -1310,13 +1310,13 @@ Base your analysis on explicit life experiences, attitudes toward money/risk, an
 
     const user = `Infer the personality traits for this backstory:\n\n${backstory}`;
 
-    const result = await this.llmService.createChatCompletion(
+    const result = await this.runtime.createChatCompletion(
       [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
       {
-        model: this.llmService.smallTextModel,
+        model: this.runtime.smallTextModel,
         temperature: 0.3,
         purpose: "Infer Traits from Backstory",
       },
@@ -1623,7 +1623,7 @@ RULES:
 - English only.`;
     const user = `Audience description: "${description.trim()}"${contextNotes ? `\n\nAdditional context from the user: ${contextNotes}` : ""}`;
     try {
-      const brief = (await this.llmService.createChatCompletion(
+      const brief = (await this.runtime.createChatCompletion(
         [{ role: "system", content: system }, { role: "user", content: user }],
         { temperature: 0.4, max_tokens: 900, purpose: "Strategy brief expansion" },
       ))?.trim();
@@ -1858,7 +1858,7 @@ ${config.contextNotes ? `Additional context: ${config.contextNotes}` : ""}`;
       {
         // The one call that runs the pinned snapshot: its verbatim evidence
         // contract is what v4.1 fails on terse ICP descriptions.
-        model: this.llmService.strategyProfileModel,
+        model: this.runtime.strategyProfileModel,
         schema: PersonaProfileSchema,
         requiredFields: PersonaAdapter.STRATEGY_PROFILE_REQUIRED_FIELDS,
         distinctFields: ['valueEvidence', 'fearEvidence'],
@@ -1887,12 +1887,12 @@ ${config.contextNotes ? `Additional context: ${config.contextNotes}` : ""}`;
     let lastError: unknown;
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
-        const story = await this.llmService.createChatCompletion(
+        const story = await this.runtime.createChatCompletion(
           [
             { role: "system", content: system },
             { role: "user", content: user },
           ],
-          { model: this.llmService.smallTextModel, temperature: 0.7, purpose: "Persona Backstory", disableReasoning: true },
+          { model: this.runtime.smallTextModel, temperature: 0.7, purpose: "Persona Backstory", disableReasoning: true },
         );
         const cleaned = stripCodeFence(story).trim();
         if (!cleaned) throw new Error("empty backstory");
@@ -1945,13 +1945,13 @@ Minimum cluster size: ${config.minClusterSize}
 ${config.personaDescription ? `Description hint: ${config.personaDescription}` : ""}`;
 
     try {
-      const content = await this.llmService.createChatCompletion(
+      const content = await this.runtime.createChatCompletion(
         [
           { role: "system", content: system },
           { role: "user", content: user },
         ],
         {
-          model: this.llmService.smallTextModel,
+          model: this.runtime.smallTextModel,
           temperature: 0.6,
           purpose: "Generate Cluster Personas",
         },
@@ -2023,13 +2023,13 @@ ${JSON.stringify(persona, null, 2)}
 Return ONLY the failing details. If none fail, return { "failingDetails": [] }.`;
 
     try {
-      const content = await this.llmService.createChatCompletion(
+      const content = await this.runtime.createChatCompletion(
         [
           { role: "system", content: system },
           { role: "user", content: user },
         ],
         {
-          model: this.llmService.smallTextModel,
+          model: this.runtime.smallTextModel,
           temperature: 0.3,
           purpose: "Counterfactual Test",
         },

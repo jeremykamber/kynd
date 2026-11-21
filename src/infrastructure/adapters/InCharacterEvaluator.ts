@@ -1,5 +1,5 @@
 import { Persona } from "@/domain/entities/Persona";
-import { LlmServiceImpl } from "./LlmServiceImpl";
+import type { LlmRuntime } from "./LlmRuntime";
 
 export interface InCharacterResult {
   traitScores: Record<string, number>;
@@ -23,13 +23,13 @@ export interface InterviewQuestion {
  * Reference: Wang et al. (2024a) "InCharacter: Evaluating Personality Fidelity
  * in Role-Playing Agents through Psychological Interviews" — ACL 2024.
  *
- * Prompts and score parsing live here; completions run on LlmServiceImpl.
+ * Prompts and score parsing live here; completions run on the LlmRuntime.
  * Internal to the LLM adapter, not a port implementation.
  */
 export class InCharacterEvaluator {
   private interviewQuestions: InterviewQuestion[];
 
-  constructor(private llmService: LlmServiceImpl) {
+  constructor(private runtime: LlmRuntime) {
     this.interviewQuestions = this.buildInterviewProtocol();
   }
 
@@ -74,7 +74,7 @@ export class InCharacterEvaluator {
     const answers: string[] = [];
 
     for (const q of questions) {
-      const response = await this.llmService.createChatCompletion(
+      const response = await this.runtime.createChatCompletion(
         [
           {
             role: "system",
@@ -113,7 +113,7 @@ IMPORTANT: Base your assessment ONLY on what the persona actually said in the in
 
     const user = `INTERVIEW TRANSCRIPT:\n\n${transcript}\n\nProvide your expert psychological assessment.`;
 
-    return this.llmService.createChatCompletion(
+    return this.runtime.createChatCompletion(
       [{ role: "system", content: system }, { role: "user", content: user }],
       { temperature: 0.3, purpose: "InCharacter Expert Evaluation" },
     );

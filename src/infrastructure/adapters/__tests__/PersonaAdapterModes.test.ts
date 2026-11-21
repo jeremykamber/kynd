@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PersonaAdapter } from "../PersonaAdapter";
-import type { LlmServiceImpl } from "../LlmServiceImpl";
 import { GENDERLESS_NAMES } from "@/data/genderless_names";
 
 // Research/strategy generation uses schema-enforced structured output

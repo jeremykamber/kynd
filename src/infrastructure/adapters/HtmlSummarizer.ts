@@ -1,4 +1,4 @@
-import { LlmServiceImpl } from "./LlmServiceImpl";
+import type { LlmRuntime } from "./LlmRuntime";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
 /**
@@ -6,11 +6,11 @@ import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
  * links, offerings, features, fine print) via a single LLM call. Summarization
  * is off the persona pipeline's critical path — its only consumer is the
  * artifact title; see ArtifactIntakeAdapter for why it is deferred. Prompts and
- * parsing live here; the completion goes to LlmServiceImpl. Internal to the LLM
+ * parsing live here; the completion goes to the LlmRuntime. Internal to the LLM
  * adapter, not a port implementation.
  */
 export class HtmlSummarizer {
-  constructor(private llmService: LlmServiceImpl) { }
+  constructor(private runtime: LlmRuntime) { }
 
   async summarizeHtml(html: string, runId?: string): Promise<string> {
     const log = runId ? AnalysisLogger.forRun(runId) : null;
@@ -41,15 +41,15 @@ Return ONLY the markdown summary. DO NOT include any conversational preamble.`;
 
     log?.info("HtmlSummarizer", "Sending HTML to LLM for compaction...", {
       promptLength: prompt.length,
-      model: this.llmService.extractionModel,
+      model: this.runtime.extractionModel,
     });
 
     const llmStart = Date.now();
-    const content = await this.llmService.createChatCompletion(
+    const content = await this.runtime.createChatCompletion(
       [{ role: "user", content: prompt }],
       {
         temperature: 0.1,
-        model: this.llmService.extractionModel,
+        model: this.runtime.extractionModel,
         purpose: "HTML Compacting",
       }
     );
