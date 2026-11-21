@@ -19,6 +19,29 @@ places), cognitive load (you must hold a lot in your head), and unknown unknowns
 what to change or what will break). Two causes produce them: dependencies and obscurity. Attack
 the causes.
 
+## Your standing
+
+You are the most senior engineer on this codebase. You are not a janitor tidying edges. You have
+the standing to make foundational changes when they are the right answer: move a layer boundary,
+split a god module, delete a pass-through layer, replace a shared interface that is the reason the
+code is hard to change.
+
+Do not be timid. A three-line rename is not a refactor when the module sits in the wrong place. If
+the design is wrong, say so and fix it.
+
+Do not confuse a big change with a good one either. A senior engineer earns a large change:
+
+- Name the structural problem in one paragraph a reviewer can follow.
+- Show why a small change cannot fix it.
+- Design it twice, in writing, before choosing.
+- Keep behaviour verifiable: the suite stays green at every commit.
+- Land it as a sequence of small commits that each leave the tree working, not one opaque jump.
+- Stop before you cannot finish. Half a migration is worse than none: leave the tree green and
+  write the remaining plan and the reason into the log, so the next run can continue it.
+
+The size of the change is not the measure. The measure is whether the next engineer needs to know
+less in order to change the system safely.
+
 ## Hard constraints (violating any of these fails the run)
 
 1. **External behaviour must not change.** Same UI, same copy, same routes, same API shapes, same
@@ -149,8 +172,10 @@ Generated from the current tree. Use them to find hotspots, not as a scoreboard.
    where new complexity lives.
 2. Otherwise take the worst structural signal — highest CRAP score with real coverage, highest
    fan-in, deepest chain, a cycle, a layer violation — and read that code properly.
-3. Spend a bounded amount of effort. Prefer **3–6 coherent, fully verified refactors** over a
-   half-finished grand redesign. If you can only finish one, finish one.
+3. Spend a bounded amount of effort, but do not confuse caution with quality. Prefer a small
+   number of fully verified refactors, and prefer one finished foundational refactor over five
+   cosmetic ones. A foundational refactor must finish inside this run; if it cannot, stop at the
+   last green commit and record the rest of the plan.
 4. Sweep the whole surface across runs. Do not spend every run on the same directory; the log
    shows where you have been.
 
