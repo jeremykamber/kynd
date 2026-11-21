@@ -77,7 +77,7 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
             Define your target market
           </h1>
           <p className="text-sm text-muted-foreground">
-            Tell us about who you're trying to reach. Kynd will build personas that represent your audience.
+            Tell us about who you&apos;re trying to reach. Kynd will build personas that represent your audience.
           </p>
         </div>
         <Button
