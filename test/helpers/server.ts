@@ -6,7 +6,15 @@ import { spawn, type ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 
-export const PORTS_TO_TRY = [3000, 3001, 3100, 3207];
+// Automated runs set E2E_PORTS so a browser spec never reuses a dev server
+// that a human (or another worktree) already runs on the usual ports. When it
+// is set, the helper owns its port: it never reuses an existing server.
+const ENV_PORTS = (process.env.E2E_PORTS ?? '')
+  .split(',')
+  .map((port) => Number(port.trim()))
+  .filter((port) => Number.isInteger(port) && port > 0);
+
+export const PORTS_TO_TRY = ENV_PORTS.length > 0 ? ENV_PORTS : [3000, 3001, 3100, 3207];
 export const SCREENSHOT_DIR = path.resolve(process.cwd(), '.sisyphus', 'evidence');
 export const SERVER_TIMEOUT = 120_000; // 2 min
 export const TEST_TIMEOUT = 60_000; // 1 min
@@ -21,25 +29,30 @@ export async function findOrStartServer(opts: { preferredPort?: number } = {}): 
   url: string;
   process: ChildProcess | null;
 }> {
-  const candidates = opts.preferredPort
-    ? [...new Set([opts.preferredPort, ...PORTS_TO_TRY])]
-    : PORTS_TO_TRY;
+  const isolated = ENV_PORTS.length > 0;
+  const candidates =
+    opts.preferredPort && !isolated
+      ? [...new Set([opts.preferredPort, ...PORTS_TO_TRY])]
+      : PORTS_TO_TRY;
 
-  // Reuse an already-running dev server if one is up (faster iteration).
-  for (const port of candidates) {
-    const url = `http://localhost:${port}`;
-    try {
-      const res = await fetch(url);
-      if (res.ok) {
-        return { url, process: null };
+  // Reuse an already-running dev server if one is up (faster iteration), unless
+  // this run is isolated and therefore must own the server it tests.
+  if (!isolated) {
+    for (const port of candidates) {
+      const url = `http://localhost:${port}`;
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          return { url, process: null };
+        }
+      } catch {
+        // port not in use
       }
-    } catch {
-      // port not in use
     }
   }
 
   // No existing server — start one on the dedicated (preferred) port.
-  const port = opts.preferredPort ?? PORTS_TO_TRY[PORTS_TO_TRY.length - 1];
+  const port = isolated ? PORTS_TO_TRY[0] : (opts.preferredPort ?? PORTS_TO_TRY[PORTS_TO_TRY.length - 1]);
   const url = `http://localhost:${port}`;
   const server = spawn('bun', ['run', 'next', 'dev', '-p', String(port)], {
     env: { ...process.env },

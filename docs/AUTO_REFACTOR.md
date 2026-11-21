@@ -165,6 +165,13 @@ run continues with complexity-only metrics.
 `scripts/refactor/compare-tests.py` separates a pre-existing test failure from a regression.
 `scripts/refactor/make-pr-body.py` builds the PR description and its Mermaid graphs.
 
+## Browser test isolation
+
+The browser specs normally reuse any dev server on `3000/3001/3100/3207`. Under the steward that
+would test whatever a human has running, not the branch. `run.sh` exports `E2E_PORTS`
+(4310-4313 by default); `test/helpers/server.ts` then starts its own server and never reuses an
+existing one. The same environment reaches the agent, so its own test runs are isolated too.
+
 ## Pre-existing failures
 
 Some repositories start a run with a failing test. The metrics step records the failing test

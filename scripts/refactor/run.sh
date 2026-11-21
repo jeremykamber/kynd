@@ -52,6 +52,10 @@ INTERVAL_HOURS="${REFACTOR_INTERVAL_HOURS:-72}"
 MODEL="${REFACTOR_MODEL:-opencode-go/deepseek-v4.1-flash}"
 AGENT_TIMEOUT="${REFACTOR_AGENT_TIMEOUT:-21600}"
 PUBLISH="${REFACTOR_PUBLISH:-pr}"
+# Browser specs reuse any dev server on the default ports, which would test a
+# human's checkout instead of this worktree. A dedicated port range prevents
+# that; the test helper treats E2E_PORTS as "own the server, never reuse".
+export E2E_PORTS="${E2E_PORTS:-4310,4311,4312,4313}"
 BOOK_PSD="${REFACTOR_BOOK_PSD:-/Users/jeremykamber/core/3_resources/books/psd.txt}"
 BOOK_FOWLER="${REFACTOR_BOOK_FOWLER:-/Users/jeremykamber/core/3_resources/books/Refactoring - Improving The Design Of Existing Code (1st Edition) By Martin Fowler, Kent Beck, John Brant, William Opdyke, Don Roberts, Erich Gamma.txt}"
 

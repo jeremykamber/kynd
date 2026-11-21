@@ -133,6 +133,8 @@ change anything, and obey them:
 Verification commands:
 
 - `bun run test` — full vitest suite, including browser specs. Slow but authoritative.
+  The harness sets `E2E_PORTS`; the browser helper then starts its own dev server and never
+  reuses one on the usual ports, so a test run cannot accidentally test a different checkout.
 - `bun run release` — `next build && vitest run`. This is the release gate; the harness runs it
   again after you finish, so make it pass.
 - `bun run lint` — eslint.
