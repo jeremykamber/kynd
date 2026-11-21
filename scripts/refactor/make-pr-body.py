@@ -395,41 +395,44 @@ def build(worktree: Path, base_sha: str, body_path: Path, title_path: Path) -> N
     lines.append(f"| longest import chain | {longest_chain(before_edges)} | {longest_chain(after_edges)} |")
     lines.append(f"| test assertions | {assertions_before} | {assertions_after} |")
     lines.append("")
-    lines.append(
-        "Fan-in of the touched modules (how many modules depend on each): "
-        + ", ".join(
-            f"`{label_of(key)}` {before_fan_in.get(key, 0)}→{after_fan_in.get(key, 0)}"
-            for key in sorted(touched)[:8]
-            if key in before_nodes or key in after_nodes
-        )
-        or "n/a"
-    )
+    fan_in_keys = [
+        key
+        for key in sorted(touched)
+        if key in before_nodes or key in after_nodes
+    ][:8]
+    if fan_in_keys:
+        lines.append("Fan-in (modules that import each touched module):")
+        lines.append("")
+        lines.append("| module | before | after |")
+        lines.append("| --- | --- | --- |")
+        for key in fan_in_keys:
+            lines.append(
+                f"| `{label_of(key)}` | {before_fan_in.get(key, 0)} | {after_fan_in.get(key, 0)} |"
+            )
+    else:
+        lines.append("Fan-in: not available.")
     lines.append("")
     lines.append("## What did not change")
     lines.append("")
     pre_existing = int(gates.get("preExistingFailures") or 0)
+    head_short = str(gates.get("head", head))[:10]
     if gates.get("release") == "passed" and pre_existing:
         lines.append(
-            "- Release gate: `next build` passed and the vitest suite added no failures on "
-            f"`{str(gates.get('head', head))[:10]}`. "
-            f"{pre_existing} test(s) fail identically on the base commit."
+            f"- `next build` and the full vitest suite passed on `{head_short}`, apart from "
+            f"{pre_existing} failure(s) that also fail on the base commit."
         )
     elif gates.get("release") == "passed":
-        lines.append(
-            "- Release gate: `next build` and the full vitest suite passed on "
-            f"`{str(gates.get('head', head))[:10]}`."
-        )
+        lines.append(f"- `next build` and the full vitest suite passed on `{head_short}`.")
     else:
         lines.append("- Behaviour: the release gate is not recorded for this branch; verify before merging.")
     if gates.get("assertionsBefore") is not None and gates.get("assertionsAfter") is not None:
         lines.append(
-            f"- Tests: assertions went from {gates['assertionsBefore']} to {gates['assertionsAfter']}; "
-            "none were removed."
+            f"- Assertions: {gates['assertionsBefore']} before, {gates['assertionsAfter']} after."
         )
     else:
         lines.append("- Tests: assertion count did not decrease.")
     if gates.get("forbiddenPaths") == "passed":
-        lines.append("- No dependency was added. Deployment, secrets and CI config were untouched.")
+        lines.append("- No dependency, deployment file, secret, or CI config changed.")
     lines.append("")
 
     lines.append("## Where to start reading")
