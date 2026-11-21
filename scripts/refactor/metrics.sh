@@ -37,12 +37,14 @@ rm -f "$COVERAGE_JSON"
 if [ "$COVERAGE" = "1" ] && [ -d node_modules/@vitest/coverage-v8 ]; then
   # The suite also drives the browser specs, so this is slow. An unavailable
   # browser endpoint must not abort metrics; CRAP then reports complexity only.
+  # Test output can include raw fixture bytes (a DOCX fixture prints itself).
+  # It is useless in a prompt, so it goes to its own log and never into $OUT.
   if bunx vitest run --coverage --coverage.reporter=json \
       --coverage.reportsDirectory=coverage --coverage.include='src/**' \
-      >> "$OUT" 2>&1; then
-    printf 'coverage run: ok\n' >> "$OUT"
+      --silent > "$WORKTREE/.refactor/work/coverage-run.log" 2>&1; then
+    printf 'coverage run: ok (output in .refactor/work/coverage-run.log)\n' >> "$OUT"
   else
-    printf 'coverage run: failed (metrics continue without coverage)\n' >> "$OUT"
+    printf 'coverage run: failed (metrics continue without coverage; see .refactor/work/coverage-run.log)\n' >> "$OUT"
     rm -f "$COVERAGE_JSON"
   fi
 else
@@ -89,5 +91,18 @@ fi
 section "hotspots: largest source files"
 find src -type f \( -name '*.ts' -o -name '*.tsx' \) -not -path '*/__tests__/*' -not -name '*.test.ts' -not -name '*.test.tsx' \
   -exec wc -l {} + 2>/dev/null | sort -rn | sed -n '2,16p' >> "$OUT"
+
+# Final guard: keep the briefing text plain. Drop ANSI colour and any control
+# bytes a tool leaked, so the prompt stays readable and greppable.
+python3 - "$OUT" <<'PYCLEAN'
+import sys
+path = sys.argv[1]
+data = open(path, "rb").read().decode("utf-8", "replace")
+out = []
+for ch in data:
+    if ch == "\n" or ch == "\t" or ch >= " ":
+        out.append(ch)
+open(path, "w", encoding="utf-8").write("".join(out).replace("\r", "\n"))
+PYCLEAN
 
 printf '\nmetrics written to %s\n' "$OUT"
