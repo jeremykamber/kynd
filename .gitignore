@@ -45,10 +45,11 @@ infra/*
 thoughts/
 prs/
 
-# Automated refactor job: generated briefings, run logs, locks.
-# .refactor/LOG.md and .refactor/state.json stay tracked on purpose.
+# Automated refactor job: generated briefings, run logs, locks, local state.
+# .refactor/LOG.md stays tracked on purpose; it travels with the pull request.
 .refactor/work/
 .refactor/runs/
+.refactor/state.json
 
 # Agent session artifacts and tool state
 .sisyphus/

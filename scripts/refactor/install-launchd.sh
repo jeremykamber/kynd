@@ -66,6 +66,9 @@ cat > "$PLIST" <<PLIST
 
   <key>ProgramArguments</key>
   <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-i</string>
+    <string>-s</string>
     <string>/bin/bash</string>
     <string>-lc</string>
     <string>exec "$RUNNER"</string>
@@ -98,6 +101,9 @@ cat > "$PLIST" <<PLIST
   <key>ProcessType</key>
   <string>Background</string>
 
+  <key>ThrottleInterval</key>
+  <integer>300</integer>
+
   <key>LowPriorityIO</key>
   <true/>
 
@@ -120,6 +126,7 @@ launchctl enable "$DOMAIN/$LABEL" >/dev/null 2>&1 || true
 echo "Installed $LABEL"
 echo "  fires:    daily at $(printf '%02d:%02d' "$HOUR" "$MINUTE") local time"
 echo "  runs:     at most once per ${INTERVAL}h (gate in run.sh)"
+echo "  publishes: a pull request into dev (REFACTOR_PUBLISH=pr)"
 echo "  plist:    $PLIST"
 echo "  output:   $LOG_DIR/refactor-launchd.log and $REPO_ROOT/.refactor/runs/"
 echo

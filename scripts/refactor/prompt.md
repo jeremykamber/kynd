@@ -29,8 +29,9 @@ the causes.
 3. **No new dependencies.** Do not edit `package.json` or `bun.lock`.
 4. **Do not touch** `.env*`, `infra/**`, `.github/**`, `scripts/refactor/**`, deployment config, or
    secrets.
-5. **Stay on this worktree.** Commit on the current branch. Do not push, do not merge, do not
-   checkout or reset `dev`/`main`, do not rewrite published history.
+5. **Stay on this worktree.** Commit on the current branch. Do not push, do not open or merge a
+   pull request, do not checkout or reset `dev`/`main`, do not rewrite published history. The
+   harness pushes the branch and opens the PR for you.
 6. **Leave the tree clean.** Every change is committed with a conventional commit message.
 7. **When unsure, stop.** If you cannot convince yourself that behaviour is preserved, revert that
    step and write the doubt into the log. A logged doubt is worth more than a risky merge.
@@ -194,27 +195,48 @@ Append to `.refactor/LOG.md` (never rewrite earlier entries):
 
 Commit the log entry with the code, or as `docs(refactor): log <title>` immediately after.
 
-### 3. Result file
+### 3. Result file and pull-request prose
+
+The harness opens a pull request for this branch. It generates the before/after dependency graph
+and the structural delta table from measured imports and git history; do not draw diagrams and do
+not hand-write numbers. Your job is the prose that explains them.
+
+Write for the repo owner, who is technical but did not watch you work. Plain English. One idea per
+sentence. Active voice. About twenty words per sentence. No marketing, no jargon, no adjectives
+that carry no information. Name the real files and the real modules. Lead with the outcome, then
+the reason, then the evidence.
 
 Write `.refactor/work/result.json`:
 
 ```json
 {
   "outcome": "refactored",
-  "summary": "one or two sentences",
+  "prTitle": "refactor(application): collapse the persona polling wrapper into one use case",
+  "summary": "Two sentences at most. What is different now, and why it matters.",
+  "designChange": "Three short sentences: the old shape, the new shape, why the new one is easier to change. This must agree with the measured graph.",
+  "reviewGuide": [
+    {"path": "src/application/...", "why": "read this first because it now owns the policy"}
+  ],
   "areas": ["src/application/..."],
   "risk": "low"
 }
 ```
 
-Use `"outcome": "no-op"` when you decided not to change code. `risk` is `low`, `medium` or
-`high` from the reviewer's point of view: `high` means a reviewer should read every line.
+- `outcome`: `"refactored"`, or `"no-op"` when you decided not to change code.
+- `prTitle`: one imperative phrase, at most 72 characters.
+- `summary`: what a reviewer must understand in ten seconds.
+- `designChange`: the conceptual change. If you split, merged, moved or removed a module, say so.
+  If the module boundaries are unchanged, say what changed inside them instead.
+- `reviewGuide`: two to four entries, in reading order.
+- `risk`: `low`, `medium` or `high` from the reviewer's point of view. `high` means every line
+  needs a read.
 
 ## Restated, because it matters
 
-- Behaviour unchanged. Tests never weakened. No new dependencies. No pushes or merges.
+- Behaviour unchanged. Tests never weakened. No new dependencies. No pushes and no PRs.
 - Small verified steps. Backtrack when unsure. Stop when the value is gone.
 - The log is the memory of this job. A refactor with no recorded reason is not finished.
+- The PR description is the human face of the run. The graph is measured; your prose explains it.
 
 ---
 
@@ -235,5 +257,6 @@ Use `"outcome": "no-op"` when you decided not to change code. `risk` is `low`, `
 - [ ] `git status` is clean and every change is committed on this branch.
 - [ ] `bun run release` passes on the final commit.
 - [ ] `.refactor/LOG.md` has exactly one new entry for this run, with reasons and doubts.
-- [ ] `.refactor/work/result.json` exists and its `outcome` matches what you did.
+- [ ] `.refactor/work/result.json` exists, its `outcome` matches what you did, and
+      `prTitle`, `summary` and `designChange` are filled in plain English.
 - [ ] No forbidden path was touched; no test was weakened; no dependency was added.

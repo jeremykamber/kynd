@@ -42,7 +42,7 @@ Tests are part of every change, not an afterthought. A stale test that passes by
 
 ## Automated refactor steward
 
-A launchd job refactors this repo about every three days and merges only when its gates pass.
+A launchd job refactors this repo about every three days and opens a pull request only when its gates pass.
 Read `docs/AUTO_REFACTOR.md` before changing `scripts/refactor/**` or `.refactor/LOG.md`.
 `.refactor/LOG.md` is the steward's memory: read it before a refactor so earlier decisions and
 open doubts are respected, and append an entry when you finish one.

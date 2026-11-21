@@ -1,8 +1,8 @@
 # Automated refactor steward
 
-A launchd job runs a refactoring pass on Kynd about every three days. It works on a throwaway
-worktree branched from `dev`, verifies itself, and merges only when every gate passes. It never
-adds features.
+A launchd job runs a refactoring pass on Kynd about every three days. It works in a throwaway
+worktree branched from the latest `origin/dev`, verifies itself, and opens a pull request. It never
+merges and never touches the checkout a human works in. It never adds features.
 
 The goal is one thing: **less complexity**. The steward reduces dependencies and obscurity so the
 code is easier to change. It does not chase metrics, formatting, or comment volume.
@@ -10,15 +10,15 @@ code is easier to change. It does not chase metrics, formatting, or comment volu
 ## How it works
 
 ```text
-launchd (daily 03:17)
+launchd (daily 03:17, caffeinate)
   └─ scripts/refactor/run.sh
-       1. deterministic gate ── nothing new on dev? exit. no tokens spent.
-       2. worktree from origin/dev + bun install
+       1. deterministic gate ── nothing new? open PR? exit. no tokens spent.
+       2. worktree from origin/dev + bun install   (the human checkout is untouched)
        3. metrics: crap scores, dependency-cruiser, import depth, layer leaks
        4. Pi run with both design books inlined in the prompt
        5. independent gates: bun run release, forbidden paths, test count
-       6. merge to dev when green
-       7. append .refactor/LOG.md, record .refactor/state.json
+       6. push refactor/auto-<stamp>, open a PR into dev
+       7. write local run state; the log entry travels on the branch
 ```
 
 The books are inserted as raw text into the prompt, not referenced by path:
@@ -29,61 +29,84 @@ The books are inserted as raw text into the prompt, not referenced by path:
 Both together are about 250k tokens. The default model has a 1M context, so the whole text fits
 alongside the codebase work. Paths are set in `run.sh` (`REFACTOR_BOOK_PSD`, `REFACTOR_BOOK_FOWLER`).
 
-## Schedule
+## The pull request
 
-The LaunchAgent fires **daily at 03:17 local time**. `run.sh` enforces the real interval:
+Each run opens one PR into `dev`. The description is built from measurements, not from the model's
+imagination:
+
+| Section | Source |
+| --- | --- |
+| What changed | model, from `.refactor/work/result.json` |
+| The design change | model, in plain English |
+| Before / after graph | dependency-cruiser at the base commit and at the branch head, limited to the touched modules and one hop of context, rendered as Mermaid |
+| Structural delta | module count, import edges, cycles, longest chain, assertions, change size |
+| What did not change | the release gate result on the final commit |
+| Where to start reading | model, two to four files in reading order |
+| Trade-offs and doubts | the log entry |
+
+The graph is measured. If the branch did not change module boundaries, the body says so instead of
+showing two identical diagrams.
+
+The job opens at most one steward PR at a time. While a PR is open, the daily fire exits with the
+PR URL. Merge or close it to let the next run proceed.
+
+## Schedule and sleep
+
+The LaunchAgent fires **daily at 03:17 local time**. `run.sh` enforces the interval:
 `REFACTOR_INTERVAL_HOURS` (default `72`).
 
 Daily trigger plus an interval gate is deliberate. A `*/3` day-of-month cron expression drifts
 across month boundaries, and a single fire every 72 h can land a minute early and skip a whole
 cycle. With a daily trigger, a skipped day is retried the next day.
 
-launchd also handles sleep better than cron: a fire missed while the Mac is asleep runs once on
-wake, and per-job logs are built in. launchd is the supported scheduler on macOS; `cron` needs a
-Full Disk Access grant on current releases.
+launchd runs a missed calendar fire once on wake, so a sleeping laptop still runs the job. The job
+runs under `caffeinate -i -s`, so an open laptop does not idle-sleep during a run. A closed lid
+still suspends the machine; the process resumes on wake. If the model call dies in that suspend,
+the harness clears its attempt stamp so the next daily fire retries instead of waiting three days.
 
 ## Deterministic stop (no LLM call)
 
-`run.sh` exits before starting Pi in three cases:
+`run.sh` exits before starting Pi when any of these is true:
 
 1. The last attempt is younger than the interval.
-2. `origin/dev` has no commits since the last recorded run, ignoring
-   `.refactor/state.json` itself.
-3. Another run holds the lock.
+2. A steward PR is already open.
+3. `origin/dev` has no commits since the last recorded run.
+4. Another run holds the lock.
 
-Case 2 is the important one: if nothing merged to `dev`, there is nothing new to refactor. This
-check costs one `git fetch` and one `git log`.
+Checks 1 and 3 cost one `git fetch` and one `git log`. Check 2 costs one `gh pr list`.
 
 The agent can also decide to stop. If the diff is docs-only, formatting-only, or offers no honest
-target, it reports `no-op` and makes no commit.
+target, it reports `no-op`, makes no commit, and no PR is opened.
 
-## Gates before merge
+## Gates before a PR opens
 
-The harness, not the agent, decides whether work merges. In order:
+The harness, not the agent, decides whether work is published. In order:
 
 | Gate | Failure |
 | --- | --- |
-| Not dirty: leftover edits are committed automatically, then counted | — |
-| Forbidden paths untouched (`package.json`, `bun.lock`, `.env*`, `infra/`, `.github/`, `scripts/refactor/`, `next.config.ts`) | no merge, branch kept |
-| Assertion count did not decrease in `test/` and `src/**/__tests__` | no merge, branch kept |
-| `bun run release` (`next build && vitest run`) | no merge, branch kept |
+| Leftover edits are committed automatically, then counted | — |
+| Forbidden paths untouched (`package.json`, `bun.lock`, `.env*`, `infra/`, `.github/`, `scripts/refactor/`, `next.config.ts`) | no PR, branch kept |
+| Assertion count did not decrease in `test/` and `src/**/__tests__` | no PR, branch kept |
+| `bun run release` (`next build && vitest run`) | no PR, branch kept |
 | `bun run lint` | advisory only |
-| Rebase onto current `dev` succeeds, and `bun run release` passes again | no merge, branch kept |
+| Rebase onto current `dev` succeeds, and `bun run release` passes again | no PR, branch kept |
+| `gh pr create` | branch kept, error in the run log |
 
-A green run pushes to `dev` as a normal fast-forward. It does **not** deploy to the VPS. The repo
-rule to pull `dev` on the VPS and restart PM2 stays a human step; a refactor changes structure,
-not behaviour, but production deploys are not this job's decision.
+Nothing is deployed. Merging the PR is your decision.
 
 ## Records
 
 | Path | Tracked | Purpose |
 | --- | --- | --- |
-| `.refactor/LOG.md` | yes | One entry per run: smell, change, reason, alternatives, doubts, what was noticed but not fixed. Read on every run so the steward does not loop. |
-| `.refactor/state.json` | yes | Last merged dev SHA and last run time. The deterministic stop reads this. |
+| `.refactor/LOG.md` | yes, on the branch | One entry per run: smell, change, reason, alternatives, doubts, what was noticed but not fixed. Travels with the PR, so it reaches `dev` when you merge. |
+| `.refactor/work/state.json` | no | Last processed `dev` SHA, last outcome, last PR URL. Machine-local; the gate reads it. |
 | `.refactor/runs/<stamp>.log` | no | Full transcript of gates, builds, and the agent's final message. |
+| `.refactor/runs/<stamp>-pr-body.md` | no | A copy of the PR description as opened. |
 | `.refactor/work/` | no | Generated briefing, metrics, raw diff, `result.json`, lock. |
 
 `LOG.md` is the part that matters. A refactor without a recorded reason is treated as unfinished.
+Because the log arrives with the PR, an unmerged branch is invisible to the next run by design: the
+steward does not redo or pile up work.
 
 ## Commands
 
@@ -95,7 +118,7 @@ scripts/refactor/install-launchd.sh
 scripts/refactor/install-launchd.sh --status
 launchctl print gui/$(id -u)/com.kynd.refactor
 
-# run now, ignoring the 72h gate
+# run now, ignoring the interval, PR and change gates
 launchctl kickstart -k gui/$(id -u)/com.kynd.refactor
 # or
 scripts/refactor/run.sh --force
@@ -114,29 +137,29 @@ Useful knobs (`run.sh`):
 | `REFACTOR_INTERVAL_HOURS` | `72` | Minimum hours between attempts |
 | `REFACTOR_MODEL` | `opencode-go/deepseek-v4.1-flash` | Model with a context large enough for both books |
 | `REFACTOR_AGENT_TIMEOUT` | `21600` | Seconds before the agent is terminated |
-| `REFACTOR_MERGE` | `auto` | `never` leaves a reviewable branch instead of pushing |
+| `REFACTOR_PUBLISH` | `pr` | `never` pushes the branch only; `merge` merges to `dev` (opt-in) |
 | `REFACTOR_METRICS_COVERAGE` | `1` | `0` skips the coverage run; CRAP then reports complexity only |
 
 ## When a run fails
 
 The worktree stays at `.worktrees/refactor-<stamp>` and the branch stays at
-`refactor/auto-<stamp>`. Read `$WORKTREE/.refactor/work/result.json`, the agent output, and the
-run log. Fix by hand, or delete the worktree and branch and let the next scheduled run retry.
+`refactor/auto-<stamp>`. Read the run log and `$WORKTREE/.refactor/work/result.json`, then fix by
+hand or delete both and let the next fire retry.
 
-The interval gate uses a local attempt stamp, so a crash does not cause a retry storm the next
-night. `--force` overrides it.
+The interval gate uses a local attempt stamp, so a crash does not cause a retry storm. An agent
+failure clears the stamp on purpose, so the next daily fire retries. `--force` overrides everything.
 
 Worktrees older than 14 days are removed automatically at the start of a run.
 
 ## Tooling added for this job
 
-These are dev dependencies, used only by the metrics step:
+Dev dependencies, used only by the metrics and PR steps:
 
-- `dependency-cruiser` — coupling, instability, cycles, layer violations.
+- `dependency-cruiser` — coupling, instability, cycles, layer violations, and the PR graph.
 - `@vitest/coverage-v8` — coverage JSON, which turns `crap` complexity numbers into CRAP scores.
 
-`crap` itself is an external binary (`~/.local/bin/crap`, Python + lizard). When it is missing,
-the run continues with complexity-only metrics.
+`crap` itself is an external binary (`~/.local/bin/crap`, Python + lizard). When it is missing, the
+run continues with complexity-only metrics.
 
-`scripts/refactor/depth.ts` reads the dependency graph and reports the longest import chain,
-fan-in, fan-out and cycles.
+`scripts/refactor/depth.ts` reports the longest import chain, fan-in, fan-out and cycles.
+`scripts/refactor/make-pr-body.py` builds the PR description and its Mermaid graphs.
