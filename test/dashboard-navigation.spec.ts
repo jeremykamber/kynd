@@ -45,6 +45,22 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
     expect(response?.ok()).toBe(true);
   });
 
+  // The landing page advertises shipped features only. These two strings were
+  // removed because gaze maps and pricing validation are not in the app.
+  it('advertises shipped features and not roadmap ones', async () => {
+    await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+    const body = (await page.locator('main').innerText()).toLowerCase();
+
+    expect(body).toContain('five stages');
+    expect(body).toContain('screenshot');
+    expect(body).toContain('interview transcripts');
+    expect(body).toContain('pdf');
+    expect(body).toContain('hypotheses');
+
+    expect(body).not.toContain('gaze');
+    expect(body).not.toContain('validate pricing');
+  });
+
   it('shows the setup view with survey form for a fresh user', async () => {
     await page.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
 
