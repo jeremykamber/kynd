@@ -53,7 +53,7 @@
     --card-foreground: oklch(0.95 0 0);
     --popover: oklch(0.18 0.008 265);
     --popover-foreground: oklch(0.95 0 0);
-    --primary: oklch(0.62 0.2 230);
+    --primary: #0B72C4;
     --primary-foreground: oklch(0.98 0 0);
     --secondary: oklch(0.20 0.008 265);
     --secondary-foreground: oklch(0.95 0 0);
@@ -143,7 +143,8 @@
 
 @utility micro-label {
     font-family: var(--font-geist-mono);
-    font-size: 0.6875rem; /* 11px */
+    font-size: 0.6875rem;
+    /* 11px */
     line-height: 1;
     font-weight: 500;
     text-transform: uppercase;
@@ -151,6 +152,7 @@
 }
 
 @layer base {
+
     /* Root stays at the browser default so the type scale honours the user's
      * own text-size setting. The scale lives in DESIGN.md → Typography. */
     html {
