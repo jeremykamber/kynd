@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useDebateStore } from "@/ui/stores/debateStore";
 import { DebateMessageBubble } from "./DebateMessageBubble";
+import { stripReasoning } from "@/ui/dashboard/components/chat/parseMessageContent";
 import { Send, CopyIcon, CheckIcon } from "lucide-react";
 
 /**
@@ -36,7 +37,7 @@ export function DebateRoom() {
 
   const handleCopyTranscript = async () => {
     const transcript = activeDebate.messages
-      .map((m) => `[${m.personaName}]: ${m.content}`)
+      .map((m) => `[${m.personaName}]: ${stripReasoning(m.content)}`)
       .join("\n\n");
     await navigator.clipboard.writeText(transcript);
     setCopied(true);

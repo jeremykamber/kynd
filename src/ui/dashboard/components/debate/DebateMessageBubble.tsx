@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { DebateMessage } from "@/domain/entities/DebateRoom";
+import { parseMessageContent } from "@/ui/dashboard/components/chat/parseMessageContent";
 
 interface DebateMessageBubbleProps {
   message: DebateMessage;
@@ -66,13 +67,17 @@ export function DebateMessageBubble({
       )}
 
       <div
-        className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap text-foreground ${
+        className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words min-w-0 text-foreground ${
           isUser
-            ? "rounded-tr-sm bg-primary/10 border border-primary/20"
+            ? "rounded-tr-sm bg-primary/10 border border-primary/20 whitespace-pre-wrap"
             : "rounded-tl-sm bg-card border border-border/40"
         }`}
       >
-        {message.content || (isStreaming ? "…" : "")}
+        {message.content
+          ? parseMessageContent(message.content)
+          : isStreaming
+            ? "…"
+            : ""}
       </div>
 
       {isUser && (

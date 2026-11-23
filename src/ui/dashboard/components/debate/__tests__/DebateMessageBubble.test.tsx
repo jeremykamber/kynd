@@ -64,4 +64,48 @@ describe("DebateMessageBubble", () => {
     // Should show a typing indicator
     expect(screen.getByTestId("typing-indicator")).toBeTruthy();
   });
+
+  it("collapses reasoning and shows only the answer, never the raw tags", () => {
+    const { container } = render(
+      <DebateMessageBubble
+        message={{
+          id: "4",
+          personaId: "p1",
+          personaName: "Alice Chen",
+          role: "participant",
+          round: 1,
+          content: "<<REASONING>>internal plan<</REASONING>>The actual answer",
+          order: 0,
+        }}
+        occupation="CTO"
+      />,
+    );
+
+    expect(container.textContent).toContain("The actual answer");
+    expect(container.textContent).toContain("Thinking");
+    expect(container.textContent).not.toContain("<<REASONING>>");
+    expect(container.textContent).not.toContain("<</REASONING>>");
+  });
+
+  it("does not leak tag text while a reasoning block is still streaming unclosed", () => {
+    const { container } = render(
+      <DebateMessageBubble
+        message={{
+          id: "5",
+          personaId: "p1",
+          personaName: "Alice Chen",
+          role: "participant",
+          round: 1,
+          content: "<<REASONING>>still deliberating, no closing tag yet",
+          order: 0,
+        }}
+        occupation="CTO"
+        isStreaming
+      />,
+    );
+
+    expect(container.textContent).toContain("Thinking");
+    expect(container.textContent).not.toContain("<<REASONING>>");
+    expect(container.textContent).not.toContain("<</REASONING>>");
+  });
 });

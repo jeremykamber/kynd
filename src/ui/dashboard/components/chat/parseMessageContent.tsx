@@ -30,6 +30,22 @@ function extractReasoningSegments(content: string): ReasoningSegment[] {
   return segments
 }
 
+/**
+ * Removes `<<REASONING>>…<</REASONING>>` blocks from content, leaving only the
+ * visible answer. An unclosed opener discards the rest of the string, matching
+ * the collapsed-mid-stream rendering. Keeps copied transcripts WYSIWYG.
+ */
+export function stripReasoning(content: string): string {
+  let result = ""
+  let cursor = 0
+  for (const seg of extractReasoningSegments(content)) {
+    result += content.slice(cursor, seg.start)
+    cursor = seg.end
+  }
+  result += content.slice(cursor)
+  return result.trim()
+}
+
 interface MemoryFootnote {
   index: number
   text: string
