@@ -1,4 +1,10 @@
-import { PersonaBatch } from "@/ui/stores/personaStore";
+import type { PersonaBatch } from "@/ui/stores/personaStore";
+import { neutralNames } from "@/data/genderless_names";
+
+const DEMO_PERSONA_BATCH_LABEL = "B2B SaaS Founders & Developers";
+
+const [demoFirstName = "Persona", demoSecondName = "Persona", demoThirdName = "Persona"] =
+  neutralNames(DEMO_PERSONA_BATCH_LABEL, 3);
 
 /**
  * Built-in demo persona batch used by the setup screen's example flow; not
@@ -6,13 +12,13 @@ import { PersonaBatch } from "@/ui/stores/personaStore";
  */
 export const DEMO_PERSONA_BATCH: PersonaBatch = {
   id: "demo-batch",
-  label: "B2B SaaS Founders & Developers",
+  label: DEMO_PERSONA_BATCH_LABEL,
   source: "description",
   createdAt: new Date().toISOString(),
   personas: [
   {
     id: "mock-1",
-    name: "Sarah Miller",
+    name: demoFirstName,
     age: 34,
     occupation: "Founder & CEO, SaaS Startup",
     educationLevel: "MBA",
@@ -35,7 +41,7 @@ export const DEMO_PERSONA_BATCH: PersonaBatch = {
   },
   {
     id: "mock-2",
-    name: "David Chen",
+    name: demoSecondName,
     age: 28,
     occupation: "Independent Web Developer",
     educationLevel: "B.S. in Computer Science",
@@ -58,7 +64,7 @@ export const DEMO_PERSONA_BATCH: PersonaBatch = {
   },
   {
     id: "mock-3",
-    name: "Elena Rodriguez",
+    name: demoThirdName,
     age: 45,
     occupation: "Marketing Director, Mid-size Enterprise",
     educationLevel: "MA in Communication",

@@ -3,7 +3,7 @@ import type { LlmRuntime } from "./LlmRuntime";
 import { streamText, Output } from "ai";
 import { z } from "zod";
 import { stripCodeFence } from "./llmUtils";
-import { GENDERLESS_NAMES } from "@/data/genderless_names";
+import { neutralNames } from "@/data/genderless_names";
 import pLimit from "p-limit";
 import type { PersonaPhaseCallback } from "@/domain/ports/LlmServicePort";
 import type {
@@ -118,34 +118,6 @@ export class PersonaAdapter {
       console.warn(`[PersonaAdapter] ${context} returned ${parsed.length} personas, truncating to ${expectedCount}`);
     }
     return parsed.slice(0, expectedCount) as Record<string, unknown>[];
-  }
-
-  /**
-   * Deterministic, seed-stable assignment of curated gender-neutral names:
-   * FNV-1a hash of the seed text + mulberry32 shuffle so the same seed yields
-   * the same name order. Returns the first `count` names.
-   */
-  private static neutralNames(seedText: string, count: number): string[] {
-    let h = 2166136261 >>> 0;
-    for (let i = 0; i < seedText.length; i++) {
-      h ^= seedText.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    const rnd = (() => {
-      let a = h >>> 0;
-      return () => {
-        a = a + 0x6D2B79F5 | 0;
-        let t = Math.imul(a ^ a >>> 15, 1 | a);
-        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
-      };
-    })();
-    const copy = GENDERLESS_NAMES.slice();
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(rnd() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy.slice(0, count);
   }
 
   /**
@@ -734,7 +706,7 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
       // Deterministically pick neutral, curated names from GENDERLESS_NAMES so the LLM
       // does not invent potentially biased names on the fly. We seed the shuffle
       // with the personaDescription so the same input yields stable name assignments.
-      const chosenNames = PersonaAdapter.neutralNames(personaDescription || "", personas.length);
+      const chosenNames = neutralNames(personaDescription || "", personas.length);
 
       return personas.map(
         (p: Record<string, unknown>, idx: number) =>
@@ -1353,7 +1325,7 @@ Base your analysis on explicit life experiences, attitudes toward money/risk, an
     const records = await this.generateResearchProfiles(config, onRetry);
     onPhase?.("profiles", { completed: 1, total: 1 });
 
-    const chosenNames = PersonaAdapter.neutralNames(config.personaDescription, records.length);
+    const chosenNames = neutralNames(config.personaDescription, records.length);
     const profiles = records.map((p, idx) => {
       const valueEvidence = Array.isArray(p.valueEvidence) ? (p.valueEvidence as string[]).map(PersonaAdapter.cleanQuote) : undefined;
       const fearEvidence = Array.isArray(p.fearEvidence) ? (p.fearEvidence as string[]).map(PersonaAdapter.cleanQuote) : undefined;
@@ -1663,7 +1635,7 @@ RULES:
 
     // Names are assigned between the phases, so the backstory call knows the
     // persona's name and can write a named third-person narrative.
-    const chosenNames = PersonaAdapter.neutralNames(config.personaDescription, records.length);
+    const chosenNames = neutralNames(config.personaDescription, records.length);
     const profiles = records.map((p, idx) => {
       const valueEvidence = Array.isArray(p.valueEvidence) ? (p.valueEvidence as string[]).map(PersonaAdapter.cleanQuote) : undefined;
       const fearEvidence = Array.isArray(p.fearEvidence) ? (p.fearEvidence as string[]).map(PersonaAdapter.cleanQuote) : undefined;

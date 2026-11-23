@@ -7,6 +7,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 import type { ChildProcess } from 'child_process';
 import { findOrStartServer, SCREENSHOT_DIR, ensureScreenshotDir, SERVER_TIMEOUT } from './helpers/server';
+import { neutralNames } from '@/data/genderless_names';
 import path from 'path';
 
 const TEST_TIMEOUT = 30_000;
@@ -222,7 +223,9 @@ describe('Dashboard Navigation — E2E', { timeout: TEST_TIMEOUT }, () => {
 
     // The demo batch opens in the main content area (there is no sidebar).
     expect(await isVisible('main:has-text("B2B SaaS Founders & Developers")')).toBe(true);
-    expect(await isVisible('main:has-text("Sarah Miller")')).toBe(true);
+    for (const name of neutralNames('B2B SaaS Founders & Developers', 3)) {
+      expect(await isVisible(`main:has-text("${name}")`)).toBe(true);
+    }
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'dashboard-demo-batch.png'),
       fullPage: true,
