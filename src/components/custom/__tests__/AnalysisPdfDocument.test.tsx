@@ -51,9 +51,6 @@ const mockResponses: PersonaResponse[] = [
     customerJourney: [
       { stage: 'interpretation', description: 'Understood the hero text.', sentiment: 'positive', outcome: 'succeeded' },
       { stage: 'understanding', description: 'Could not find SSO pricing.', sentiment: 'negative', outcome: 'blocked' },
-      { stage: 'belief', description: 'Not reached. Abandoned at understanding.', sentiment: 'negative', outcome: 'stopped' },
-      { stage: 'motivation', description: 'Not reached. Abandoned at understanding.', sentiment: 'negative', outcome: 'stopped' },
-      { stage: 'action', description: 'Not reached. Abandoned at understanding.', sentiment: 'negative', outcome: 'stopped' },
     ],
     majorFindings: [
       {
@@ -148,6 +145,13 @@ describe('AnalysisPdfDocument', () => {
     expect(text).not.toContain('Executive Overview')
     expect(text).not.toContain('Key Findings')
     expect(text).not.toContain('Primary Points of Friction')
+  })
+
+  it('projects a sparse journey to the five-stage table', () => {
+    const text = renderedText(AnalysisPdfDocument({ analysis: baseAnalysis }))
+
+    expect(text.match(/Not reached/g)).toHaveLength(3)
+    expect(text).toContain('Abandoned at understanding.')
   })
 
   it('discloses that the report is simulated, before the findings', () => {

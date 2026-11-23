@@ -101,6 +101,37 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
     expect(responses[0].overview).toBe('ok')
   })
 
+  it('stores only the stages the persona reached', async () => {
+    vi.mocked(llm.extractPersonaResponse).mockResolvedValue({
+      id: 'resp-ada',
+      rawAnalysis: 'raw',
+      overview: 'ok',
+      customerJourney: [
+        { stage: 'interpretation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'understanding', description: 'd', sentiment: 'negative', outcome: 'blocked' },
+        { stage: 'belief', description: 'd', sentiment: 'neutral', outcome: 'stopped' },
+        { stage: 'motivation', description: 'd', sentiment: 'neutral', outcome: 'stopped' },
+        { stage: 'action', description: 'd', sentiment: 'neutral', outcome: 'stopped' },
+      ],
+      researchQuestionAnswer: 'answer',
+      majorFindings: [],
+      pointsOfFriction: [],
+      unansweredQuestions: [],
+    })
+
+    const responses = await makeUseCase(llm).execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(responses[0].customerJourney.map((stage) => stage.stage)).toEqual([
+      'interpretation',
+      'understanding',
+    ])
+  })
+
   it('falls back to a shape-valid response when the monologue call fails', async () => {
     vi.mocked(llm.generateVisceralMonologue).mockRejectedValue(new Error('vlm down'))
     const useCase = makeUseCase(llm)
@@ -114,7 +145,7 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
     expect(responses).toHaveLength(1)
     const failed = responses[0]
     expect(failed.rawAnalysis).toBe('Analysis failed: vlm down')
-    expect(failed.customerJourney).toHaveLength(5)
+    expect(failed.customerJourney).toHaveLength(1)
     expect(failed.pointsOfFriction).toContain('vlm down')
   })
 

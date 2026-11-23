@@ -1,5 +1,6 @@
 import { Persona } from "@/domain/entities/Persona";
 import { PersonaResponse } from "@/domain/entities/PersonaResponse";
+import { completeJourney } from "@/domain/entities/StageJourney";
 import { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import { ChatAnalysisContext } from "@/domain/ports/LlmServicePort";
 import { PersonaPromptCompiler } from "./PersonaPromptCompiler";
@@ -133,7 +134,7 @@ STAY IN CHARACTER.`;
           `Overview: ${r.overview || "—"}`,
         ];
         if (r.customerJourney?.length) {
-          lines.push(`Journey: ${r.customerJourney.map((s) => `${s.stage} (${s.sentiment}, ${s.outcome})`).join(" → ")}`);
+          lines.push(`Journey: ${completeJourney(r.customerJourney).map((s) => `${s.stage} (${s.sentiment}, ${s.outcome})`).join(" → ")}`);
         }
         if (r.majorFindings?.length) {
           lines.push(`Findings: ${r.majorFindings.map((f) => f.observation).join("; ")}`);
@@ -225,7 +226,7 @@ function isPersonaResponse(analysis: ChatAnalysisContext): analysis is PersonaRe
 function buildPersonaResponseContext(analysis: PersonaResponse): string {
   const journey =
     analysis.customerJourney?.length
-      ? analysis.customerJourney
+      ? completeJourney(analysis.customerJourney)
           .map(
             (s) =>
               `- ${s.stage}: ${s.description} (felt ${s.sentiment}, ${s.outcome})` +

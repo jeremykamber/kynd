@@ -152,18 +152,32 @@ function checkResponses(responses: any[], inputType: string): { pass: string[]; 
   pass.push(`completed: ${completed} / failed: ${failed}`);
 
   for (const [i, r] of responses.entries()) {
-    const journey = r?.customerJourney ?? [];
-    const stages = journey.map((s: any) => s?.stage);
-    const ordered = COGNITIVE_STAGES.every((s, idx) => stages[idx] === s);
+    type HarnessStage = {
+      stage?: unknown;
+      description?: unknown;
+      sentiment?: unknown;
+      outcome?: unknown;
+    };
+    const journey = (r?.customerJourney ?? []) as HarnessStage[];
+    const stages = journey.map((s) => s.stage);
+    const ordered =
+      journey.length >= 1 &&
+      journey.length <= COGNITIVE_STAGES.length &&
+      stages.every((stage, idx) => stage === COGNITIVE_STAGES[idx]);
+    const terminal = journey.findIndex(
+      (s) => s.outcome === "blocked" || s.outcome === "stopped"
+    );
+    const endsAtStop =
+      journey.length === COGNITIVE_STAGES.length || terminal === journey.length - 1;
     const hasAllFields = journey.every(
-      (s: any) => s?.description && s?.sentiment && s?.outcome
+      (s) => Boolean(s.description && s.sentiment && s.outcome)
     );
     const personaName = r?.personaProfile?.name ?? `#${i + 1}`;
-    if (ordered && hasAllFields && journey.length === COGNITIVE_STAGES.length) {
-      pass.push(`${personaName}: 5/5 stages in order, all fields present`);
+    if (ordered && endsAtStop && hasAllFields) {
+      pass.push(`${personaName}: ${journey.length}/5 stages reached, in order, all fields present`);
     } else {
       fail.push(
-        `${personaName}: stages=${journey.length} ordered=${ordered} completeFields=${hasAllFields}`
+        `${personaName}: stages=${journey.length} ordered=${ordered} endsAtStop=${endsAtStop} completeFields=${hasAllFields}`
       );
     }
 

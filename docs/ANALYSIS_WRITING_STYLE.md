@@ -57,8 +57,11 @@ Each stage has a description and an outcome: `succeeded`, `blocked`, or
 - A succeeded stage describes what enabled the persona to move on. It does not
   describe a failure.
 - A blocked or stopped stage names the blocker and where the journey ended.
-- Once a stage is blocked or stopped, every later stage is `stopped` and its
-  description starts "Not reached".
+- The stored journey contains only the stages the persona reached. It ends at
+  the first blocked or stopped stage; later stages are omitted, not written as
+  placeholder prose.
+- The report projects the omitted stages as "Not reached" for the reader. The
+  model never invents them.
 - Negative sentiment can still succeed. The rule is about the outcome, not the
   mood: a persona can dislike the page and still understand it well enough to
   continue.

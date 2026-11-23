@@ -122,11 +122,8 @@ ${artifactName}- Raw Think-Aloud Transcript: """${monologue}"""
 RULES:
 1. Write strictly in the THIRD PERSON ("The user observed...", "They grew skeptical of...").
 2. Ground every statement entirely in the transcript. Never invent UI elements not mentioned in it.
-3. State machine — process stages in order and let outcomes cascade:
-   - If the user was blocked or stopped at a stage, every LATER stage is "not reached": outcome "stopped", sentiment "neutral", description starting "Not reached. Abandoned at <earlier stage>." followed by the specific reason from the transcript.
-   - Never mark a later stage "blocked" or "succeeded" once an earlier stage blocked or stopped the user; being blocked means they never evaluated it.
-   - Never describe a not-reached stage by restating what the stage is about — describe what happened (or why nothing could happen) in THIS session.
-4. The five journey stages MUST all appear in canonical order (interpretation, understanding, belief, motivation, action); skipping is expressed through outcomes, not omission.
+3. The journey contains only the stages the persona actually reached. Process them in canonical order and end at the first stage whose outcome is "blocked" or "stopped". Omit every later stage; do not write a placeholder for a stage the persona never evaluated.
+4. If the journey ends before action, its last stage MUST be "blocked" or "stopped". A journey shorter than five stages that ends "succeeded" is invalid. A persona that reached all five stages returns all five, in canonical order (interpretation, understanding, belief, motivation, action).
 5. Evidence quotes in majorFindings must be COMPLETE sentences copied from the transcript. Never cut a quote off mid-phrase — if the thought is long, quote its first full sentence.
 6. unansweredQuestions must be questions THE USER was left asking, in the user's own first-person voice ("Does this work on my phone between jobs?"), not researcher hypotheses about the user ("Would the user have...?"). If the transcript shows no open questions, return an empty list.
 7. Name the persona in overview and researchQuestionAnswer ("${persona.name}…"). Never write "the user" in those two fields, and never adopt a name, role, occupation, or pronoun that the artifact assigns to someone — the persona's identity comes from their profile, not from the artifact's copy.
@@ -457,7 +454,7 @@ export class VisionAnalysisAdapter {
                             ? `Your previous answer broke the identity rules: ${identity.join("; ")}. Rewrite the whole JSON so that overview and researchQuestionAnswer both name ${persona.name} explicitly, refer to ${persona.name} in the third person, and never use "the user" or a first-person pronoun in those two fields.`
                             : "",
                         journey.length
-                            ? `Your previous answer's journey contradicts its own outcomes: ${journey.join("; ")}. Rewrite the whole JSON so each stage's description agrees with its outcome. If a stage succeeded, describe what enabled the persona to continue. If a stage was blocked or stopped, state the blocker and mark every later stage "stopped" with a description that starts "Not reached".`
+                            ? `Your previous answer's journey contradicts its own outcomes: ${journey.join("; ")}. Rewrite the whole JSON so each stage's description agrees with its outcome. If a stage succeeded, describe what enabled the persona to continue. If a stage was blocked or stopped, end the journey at that stage and omit every later stage.`
                             : "",
                     ].filter(Boolean).join(" ");
                     if (attempt === MAX_RETRIES) break;

@@ -51,7 +51,7 @@ const MajorFindingSchema = z.object({
 
 export const PersonaResponseSchema = z.object({
   overview: z.string().describe("High-level summary of this persona's response to the artifact, covering their full journey and key takeaways."),
-  customerJourney: z.array(StageJourneySchema).describe("The persona's experience across all five cognitive stages in order."),
+  customerJourney: z.array(StageJourneySchema).min(1).max(COGNITIVE_STAGES.length).describe("The stages the persona reached, in canonical order, ending at the stage where it stopped or was blocked. A persona that completed all five stages returns all five."),
   researchQuestionAnswer: z.string().describe("Direct answer to the research question, grounded in evidence from this persona's analysis."),
   majorFindings: z.array(MajorFindingSchema).describe("Key findings from this persona's response. Each finding has an observation, evidence, impact, and confidence level."),
   pointsOfFriction: z.array(z.string()).describe("Moments where the persona failed to progress through the cognitive journey — what confused, frustrated, or stopped them."),
@@ -154,16 +154,25 @@ export function validatePersonaResponse(response: PersonaResponse): boolean {
   if (!response.overview || typeof response.overview !== "string") return false;
   if (typeof response.researchQuestionAnswer !== "string") return false;
 
-  if (!Array.isArray(response.customerJourney) || response.customerJourney.length !== COGNITIVE_STAGES.length) return false;
+  const journey = response.customerJourney;
+  if (!Array.isArray(journey) || journey.length < 1 || journey.length > COGNITIVE_STAGES.length) return false;
   if (!Array.isArray(response.majorFindings)) return false;
   if (!Array.isArray(response.pointsOfFriction)) return false;
   if (!Array.isArray(response.unansweredQuestions)) return false;
 
-  // Enforce stage ordering: each stage must appear exactly once, in the correct order
-  for (let i = 0; i < COGNITIVE_STAGES.length; i++) {
-    const stage = response.customerJourney[i];
+  // Enforce stage ordering: the journey is a prefix of the canonical order.
+  for (let i = 0; i < journey.length; i++) {
+    const stage = journey[i];
     if (!stage || stage.stage !== COGNITIVE_STAGES[i]) return false;
     if (!stage.description || !stage.sentiment || !stage.outcome) return false;
+  }
+
+  // A sparse journey ends at the stop. A full five-stage journey may still
+  // carry later stopped stages from older persisted analyses; completeJourney
+  // projects those for rendering, and new writes truncate them.
+  if (journey.length < COGNITIVE_STAGES.length) {
+    const terminal = journey.findIndex((stage) => stage.outcome === "blocked" || stage.outcome === "stopped");
+    if (terminal !== journey.length - 1) return false;
   }
 
   for (const finding of response.majorFindings) {

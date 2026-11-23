@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { journeyContradictions, type PersonaResponse } from "../PersonaResponse";
+import {
+  journeyContradictions,
+  PersonaResponseSchema,
+  validatePersonaResponse,
+  type PersonaResponse,
+} from "../PersonaResponse";
+import { COGNITIVE_STAGES } from "../CognitiveStage";
 
 type Stage = PersonaResponse["customerJourney"][number];
 
@@ -25,6 +31,63 @@ function response(journey: Stage[]): PersonaResponse {
     personaProfile: { name: "Sky", occupation: "Head of Marketing" } as PersonaResponse["personaProfile"],
   };
 }
+
+function schemaResponse(journey: Stage[]) {
+  return {
+    overview: "Sky reviewed the brief.",
+    customerJourney: journey,
+    researchQuestionAnswer: "Sky would approve.",
+    majorFindings: [],
+    pointsOfFriction: [],
+    unansweredQuestions: [],
+  };
+}
+
+describe("sparse journey validation", () => {
+  it("accepts a journey that ends at the stage where the persona stopped", () => {
+    const journey = [
+      stage("interpretation", "Understood the offer.", "succeeded"),
+      stage("understanding", "Stopped at the hidden price.", "stopped"),
+    ];
+
+    expect(validatePersonaResponse(response(journey))).toBe(true);
+    expect(PersonaResponseSchema.safeParse(schemaResponse(journey)).success).toBe(true);
+  });
+
+  it("rejects a sparse journey that ends while still succeeding", () => {
+    const journey = [
+      stage("interpretation", "Understood the offer.", "succeeded"),
+      stage("understanding", "Understood the plan.", "succeeded"),
+    ];
+
+    expect(validatePersonaResponse(response(journey))).toBe(false);
+  });
+
+  it("rejects empty and over-long journeys", () => {
+    const empty: Stage[] = [];
+    const six = [
+      ...COGNITIVE_STAGES.map((name) => stage(name, `${name} passed.`, "succeeded")),
+      stage("interpretation", "Repeated stage.", "succeeded"),
+    ];
+
+    expect(PersonaResponseSchema.safeParse(schemaResponse(empty)).success).toBe(false);
+    expect(PersonaResponseSchema.safeParse(schemaResponse(six)).success).toBe(false);
+    expect(validatePersonaResponse(response(empty))).toBe(false);
+    expect(validatePersonaResponse(response(six))).toBe(false);
+  });
+
+  it("keeps accepting a stored five-stage journey with later stopped stages", () => {
+    const journey = [
+      stage("interpretation", "Understood the offer.", "succeeded"),
+      stage("understanding", "Could not find the price.", "blocked"),
+      stage("belief", "Not reached.", "stopped"),
+      stage("motivation", "Not reached.", "stopped"),
+      stage("action", "Not reached.", "stopped"),
+    ];
+
+    expect(validatePersonaResponse(response(journey))).toBe(true);
+  });
+});
 
 describe("journeyContradictions", () => {
   it("accepts a succeeded stage with a negative mood but no stop", () => {

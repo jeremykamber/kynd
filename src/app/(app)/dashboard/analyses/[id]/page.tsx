@@ -21,7 +21,7 @@ import { analysisInputKind, analysisSourceLabel } from '@/domain/entities/Artifa
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
 import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
-import type { StageJourney, StageOutcome } from '@/domain/entities/StageJourney'
+import { completeJourney, type StageJourney, type StageOutcome } from '@/domain/entities/StageJourney'
 import { cn } from '@/lib/utils'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
@@ -112,17 +112,18 @@ function journeyVerdict(journey: StageJourney[]): { label: string; title: string
  * instead of implying the model evaluated them.
  */
 function JourneyPath({ journey }: { journey: StageJourney[] }) {
-  const abandonedAt = journey.findIndex((s) => s.outcome === 'blocked' || s.outcome === 'stopped')
-  const reached = abandonedAt === -1 ? journey.length : abandonedAt + 1
+  const stages = completeJourney(journey)
+  const abandonedAt = stages.findIndex((s) => s.outcome === 'blocked' || s.outcome === 'stopped')
+  const reached = abandonedAt === -1 ? stages.length : abandonedAt + 1
 
   return (
     <ol className="flex flex-col">
-      {journey.map((stage, i) => {
+      {stages.map((stage, i) => {
         const isReached = i < reached
         const isTerminal = i === abandonedAt
         const meta = OUTCOME_META[stage.outcome]
         const Icon = meta.icon
-        const isLast = i === journey.length - 1
+        const isLast = i === stages.length - 1
 
         return (
           <li key={stage.stage} className="flex gap-3">

@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 import type { ChildProcess } from 'child_process';
+import type { StageJourney } from '@/domain/entities/StageJourney';
 import { findOrStartServer, SCREENSHOT_DIR, ensureScreenshotDir, SERVER_TIMEOUT } from './helpers/server';
 import path from 'path';
 
@@ -17,23 +18,40 @@ const SIM_ID = 'seeded-sim-1';
 const SIM_NAME = 'Pricing page — example.com';
 const STAGES = ['interpretation', 'understanding', 'belief', 'motivation', 'action'] as const;
 
-function buildStage(stage: string, i: number) {
+function buildStage(stage: StageJourney['stage'], i: number): StageJourney {
   return {
     stage,
     description: `Stage ${i + 1} (${stage}): what this persona experienced.`,
-    sentiment: 'neutral' as const,
-    outcome: 'succeeded' as const,
+    sentiment: 'neutral',
+    outcome: 'succeeded',
     transition: `Transitioned because of signal ${i + 1}.`,
   };
 }
 
-function buildPersonaResponse(id: string, name: string, occupation: string) {
+function buildSparseJourney(): StageJourney[] {
+  return [
+    buildStage('interpretation', 0),
+    {
+      stage: 'understanding',
+      description: 'Could not find SSO pricing.',
+      sentiment: 'negative',
+      outcome: 'blocked',
+    },
+  ];
+}
+
+function buildPersonaResponse(
+  id: string,
+  name: string,
+  occupation: string,
+  journey: StageJourney[] = STAGES.map(buildStage),
+) {
   return {
     id,
     screenshotBase64: 'data:image/png;base64,AAAA',
     rawAnalysis: `Raw cognitive stream for ${name}.`,
     overview: `${name} found the page clear but hesitated on price transparency.`,
-    customerJourney: STAGES.map(buildStage),
+    customerJourney: journey,
     researchQuestionAnswer: `${name} would continue but wants pricing upfront.`,
     majorFindings: [
       { observation: 'Pricing was unclear', evidence: `${name} paused at the pricing section.`, impact: 'Reduced trust in the offer.' },
@@ -93,7 +111,10 @@ function buildPersistedState() {
           completedAt: new Date().toISOString(),
           completedResponses: 2,
           totalResponses: 2,
-          responses: [buildPersonaResponse('r-1', 'Sarah Chen', 'Senior Engineer'), buildPersonaResponse('r-2', 'Marcus Lee', 'Product Manager')],
+          responses: [
+            buildPersonaResponse('r-1', 'Sarah Chen', 'Senior Engineer'),
+            buildPersonaResponse('r-2', 'Marcus Lee', 'Product Manager', buildSparseJourney()),
+          ],
           synthesis: buildSynthesis(),
         },
       ],
@@ -190,6 +211,23 @@ describe('Artifact Analysis Detail — E2E', { timeout: TEST_TIMEOUT }, () => {
 
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, 'analysis-detail-desktop.png'),
+      fullPage: true,
+    });
+    await page.close();
+  });
+
+  it('projects a sparse journey onto the five-stage path', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await seedAnalysisStore(page);
+    await page.goto(`${BASE_URL}/dashboard/analyses/${SIM_ID}`, { waitUntil: 'networkidle', timeout: TEST_TIMEOUT });
+
+    await page.locator('button:has-text("Marcus Lee")').first().click();
+
+    expect(await page.getByText('Not reached', { exact: true }).count()).toBe(3);
+    expect(await isVisible(page, 'text=Could not find SSO pricing.')).toBe(true);
+
+    await page.screenshot({
+      path: path.join(SCREENSHOT_DIR, 'analysis-detail-sparse-journey.png'),
       fullPage: true,
     });
     await page.close();
