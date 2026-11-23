@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 /**
@@ -12,19 +13,22 @@ export default function MarketingLayout({
   return (
     <div className="flex flex-col min-h-screen selection:bg-primary/20">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 max-w-screen-xl items-center justify-between px-4 md:px-8">
-          <Link href="/" className="flex items-center space-x-2 shrink-0">
-            <img src="/kynd_logo.svg" alt="Kynd" className="h-8 w-8" />
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6 md:px-8">
+          <Link
+            href="/"
+            className="flex h-11 shrink-0 items-center space-x-2 rounded-md focus-ring"
+          >
+            <Image src="/kynd_logo.svg" alt="" width={32} height={32} className="h-8 w-8" priority />
             <span className="font-semibold tracking-tight text-lg select-none">
               Kynd
             </span>
           </Link>
           <nav className="flex items-center gap-4 text-sm font-medium md:gap-6">
             <Link
-              href="#features"
-              className="transition-colors hover:text-primary text-muted-foreground"
+              href="#how-it-works"
+              className="inline-flex h-11 items-center rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground focus-ring"
             >
-              Features
+              How it works
             </Link>
             {/*
               TODO(KYND-0009): re-enable once a pricing section or page exists —
@@ -39,7 +43,7 @@ export default function MarketingLayout({
             */}
             <Link
               href="/dashboard"
-              className="transition-colors text-foreground hover:text-primary font-semibold"
+              className="inline-flex h-11 items-center rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground focus-ring"
             >
               Dashboard
             </Link>
@@ -48,10 +52,10 @@ export default function MarketingLayout({
       </header>
       <main className="flex-1 flex flex-col">{children}</main>
       <footer className="border-t border-border/40 py-16 bg-background">
-        <div className="container mx-auto max-w-screen-xl px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-6 px-6 md:flex-row md:px-8">
           <div className="flex flex-col items-center md:items-start gap-3">
             <div className="flex items-center gap-2">
-              <img src="/kynd_logo.svg" alt="Kynd" className="h-6 w-6" />
+              <Image src="/kynd_logo.svg" alt="" width={24} height={24} className="h-6 w-6" />
               <span className="font-semibold tracking-tight text-lg select-none">
                 Kynd
               </span>

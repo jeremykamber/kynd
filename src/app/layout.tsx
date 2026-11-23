@@ -19,9 +19,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Kynd',
   description: 'AI-driven persona generation and analysis.',
-  icons: {
-    icon: '/kynd_logo.svg',
-  },
 };
 
 /**

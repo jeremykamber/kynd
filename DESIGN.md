@@ -6,7 +6,7 @@ colors:
   foreground: oklch(0.95 0 0)
   card: oklch(0.14 0.01 265)
   card-foreground: oklch(0.95 0 0)
-  primary: oklch(0.62 0.2 230)
+  primary: '#0B72C4'
   primary-foreground: oklch(0.98 0 0)
   secondary: oklch(0.16 0.01 265)
   secondary-foreground: oklch(0.95 0 0)
@@ -154,7 +154,7 @@ A restrained palette built around cool charcoal neutrals and a single cerulean b
 - **Instrument Charcoal** (`oklch(0.12 0.01 265)`): Background. Deep cool charcoal with a faint blue tilt — never pure black.
 - **Panel Surface** (`oklch(0.14 0.01 265)`): Card and elevated surface backgrounds. One step above background, distinguishable by lightness, not shadow.
 - **Raised Surface** (`oklch(0.16 0.01 265)`): Secondary surfaces, sidebar, hovered cards.
-- **Cerulean Blue** (`oklch(0.62 0.2 230)`): Primary accent. A warm cerulean blue used sparingly for interactive elements, active states, and data highlights. Never decorative.
+- **Cerulean Blue** (`#0B72C4`): Primary accent. A warm cerulean blue used sparingly for interactive elements, active states, and data highlights. Never decorative.
 - **Instrument White** (`oklch(0.95 0 0)`): Primary text, headings, high-importance labels.
 - **Instrument Grey** (`oklch(0.65 0.01 265)`): Secondary text, metadata, placeholders.
 - **Panel Edge** (`oklch(0.2 0.01 265)`): Borders and dividers. Thin, crisp, present but not dominant.
@@ -435,6 +435,7 @@ Actions that are secondary to the primary interaction are hidden at rest and rev
 
 - **Do** let surfaces separate by lightness alone — one OKLCH step between background, card, and raised surface is enough.
 - **Do** use Cerulean Blue sparingly: one element per viewport at most. If your eye lands on two blue elements, remove one.
+- **Do** give keyboard focus a visible ring with the `focus-ring` utility (`2px` foreground outline, `2px` offset). `--ring` is a surface tint; on its own it is too dark to read as focus.
 - **Do** render all numeric data in Geist Mono with `font-variant-numeric: tabular-nums`.
 - **Do** use borders (thin, `1px`, Panel Edge) to define surface boundaries.
 - **Do** keep transitions at 150ms with `cubic-bezier(0.16, 1, 0.3, 1)` — snappy, no bounce, no drift.

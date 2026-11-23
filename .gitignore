@@ -45,6 +45,12 @@ infra/*
 thoughts/
 prs/
 
+# Automated refactor job: generated briefings, run logs, locks, local state.
+# .refactor/LOG.md stays tracked on purpose; it travels with the pull request.
+.refactor/work/
+.refactor/runs/
+.refactor/state.json
+
 # Agent session artifacts and tool state
 .sisyphus/
 .impeccable/
@@ -74,3 +80,7 @@ deep_binding_of_llm_virtual_personas.*
 .ai/contexts/**/designs/
 .ai/contexts/**/verification/
 .ai/contexts/**/understanding.md
+
+# Python bytecode from scripts/refactor/build-prompt.py
+__pycache__/
+*.pyc

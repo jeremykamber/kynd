@@ -40,6 +40,13 @@ Tests are part of every change, not an afterthought. A stale test that passes by
 - **Removed features** → delete their tests. Don't leave dead tests behind.
 - After the change, run the affected test file(s) — and `bun run release` before pushing — and leave the suite green.
 
+## Automated refactor steward
+
+A launchd job refactors this repo about every three days and opens a pull request only when its gates pass.
+Read `docs/AUTO_REFACTOR.md` before changing `scripts/refactor/**` or `.refactor/LOG.md`.
+`.refactor/LOG.md` is the steward's memory: read it before a refactor so earlier decisions and
+open doubts are respected, and append an entry when you finish one.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
