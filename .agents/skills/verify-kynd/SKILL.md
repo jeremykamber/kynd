@@ -1,13 +1,39 @@
 ---
 name: verify-kynd
-description: Runs Kynd's real output pipelines (persona generation, artifact analysis) against the live LLM stack, saves the raw output, and judges it against the product's schema and pipeline invariants. Use whenever you implement or change prompts, the persona pipeline, the artifact analysis pipeline, or any LLM output structure — and before demoing or shipping when you want an AI check of actual generated output.
+description: Drives Kynd's completed report in a real browser and runs its live output pipelines (persona generation, artifact analysis). Use whenever you change the report UI, prompts, the persona pipeline, the artifact analysis pipeline, or any LLM output structure, and before demoing or shipping.
 ---
 
 # verify-kynd
 
-Run the real pipeline, grab the output, judge it against requirements. Replaces the manual "run an analysis → copy the JSON → paste it into an AI → ask for a take" loop.
+Drive the report in a browser, run the live pipeline, and judge the output against the requirements. Replaces the manual "run an analysis → copy the JSON → paste it into an AI → ask for a take" loop.
 
-**Division of labor:** the script checks structure (counts, required fields, stage order). You check semantics — whether the output actually satisfies the requirements. The script is a harness; you are the judge; the user is the final reviewer.
+**Division of labor:** the browser drive proves what the user sees. The pipeline script checks structure (counts, required fields, stage order). You check semantics: whether the output actually satisfies the requirements. The script is a harness; you are the judge; the user is the final reviewer.
+
+## Start with the feature map
+
+`features/README.md` is the index of user-facing features, the harness for each, and the end state that proves it. Read the row for the change before choosing a command. The map keeps the drive from testing only the path that happened to be top of mind.
+
+## Browser drive (primary for the report page)
+
+For any change to the analysis report, drive the real page first:
+
+```bash
+E2E_PORTS=3214 bun scripts/verify-app.ts
+```
+
+The drive launches the app, seeds a completed analysis in IndexedDB, opens the report in Chromium, expands a sparse journey, asserts `Blocked at understanding` and three `Not reached` rows, and writes:
+
+- `.ai/threads/verify-app/after-top.png`
+- `.ai/threads/verify-app/after-journey.png`
+- `.ai/threads/verify-app/after-desktop.webm`
+
+It covers the five parts: launch (`test/helpers/server.ts`), doctor (visible-text assertions and no page errors), drive (click the persona), evidence (two screenshots and a video), cleanup (close the browser and kill the server).
+
+The report feature file has the step-by-step drive and the gotchas: `features/analysis-report.md`.
+
+## Live output pipeline
+
+The CLI proves the model output; it does not prove the page renders. Run it for prompt or schema changes, then run the browser drive for the page.
 
 ## Setup
 
@@ -67,7 +93,7 @@ For each persona, judge:
 
 For each persona response, judge:
 
-1. **Five stages** — exactly `interpretation → understanding → belief → motivation → action`, in order. A failed persona may have 5 placeholder stages (all `stopped`) — that's allowed, but every response must have exactly 5.
+1. **Journey shape** — one to five stages, a prefix of `interpretation → understanding → belief → motivation → action`, in order. A shorter journey must end `blocked` or `stopped`; a persona that completed the journey has all five stages. A failed persona has one `stopped` stage. The report projects omitted stages as "Not reached".
 2. **Stage descriptions** — what the persona *thought/felt* at that stage, NOT what they saw on the page. Flag descriptions that are just observations ("the page has a blue button") without cognition.
 3. **Sentiment/outcome/transition** — present and coherent per stage.
 4. **Groundedness** — findings and frictions reference the actual artifact content (specific claims, sections, wording), not generic critique that would apply to any page.
