@@ -2,19 +2,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useDebateStore } from "@/ui/stores/debateStore";
 import type { Persona } from "@/domain/entities/Persona";
+import type { DebateStreamEvent } from "@/domain/entities/DebateRoom";
+import { createStreamableValue } from "../../__tests__/streamableValueTestUtils";
 
 // Mock the server action at module level
 vi.mock("@/actions/debateAction", () => ({
   debateAction: vi.fn(),
 }));
 
-vi.mock("@ai-sdk/rsc", () => ({
-  readStreamableValue: vi.fn((streamData: any) => streamData),
-}));
-
 import { useDebate } from "../useDebate";
 import { debateAction } from "@/actions/debateAction";
-import { readStreamableValue } from "@ai-sdk/rsc";
 
 const mockPersona: Persona = {
   id: "p1", name: "Alice Chen", age: 38,
@@ -27,21 +24,30 @@ const mockPersona: Persona = {
   pricingSensitivity: 60, typicalBudget: "$100/mo",
 };
 
-// Helper to create a mock stream that yields events
-function createMockStream(events: any[]) {
-  return {
-    [Symbol.asyncIterator]: () => {
-      let i = 0;
-      return {
-        next: async () => {
-          if (i < events.length) {
-            return { value: events[i++], done: false };
-          }
-          return { value: undefined, done: true };
-        },
-      };
-    },
-  };
+/**
+ * Runs `startDebate` against a genuine AI-SDK streamable value. The action mock
+ * captures `stream.value` the moment it is called (as the real server action
+ * does), then the events are pushed through the stream's `update`/`done`.
+ */
+async function runDebate(events: DebateStreamEvent[]) {
+  const stream = createStreamableValue<DebateStreamEvent>();
+  vi.mocked(debateAction).mockImplementation(async () => ({
+    streamData: stream.value,
+  }));
+
+  const { result } = renderHook(() => useDebate());
+
+  let finished!: Promise<string>;
+  await act(async () => {
+    finished = result.current.startDebate("Test proposal", [mockPersona], 1);
+    for (const event of events) stream.update(event);
+    stream.done();
+  });
+  await act(async () => {
+    await finished;
+  });
+
+  return useDebateStore.getState();
 }
 
 describe("useDebate", () => {
@@ -54,11 +60,11 @@ describe("useDebate", () => {
     vi.clearAllMocks();
   });
 
-  it("starts a debate adds it to the store and streams events", async () => {
-    const mockStream = createMockStream([
+  it("folds events read through the AI-SDK stream protocol into the store", async () => {
+    const state = await runDebate([
       { type: "debate_start", proposal: "Test", participants: ["Alice"] },
       { type: "round_start", round: 1, totalRounds: 1 },
-      { type: "persona_start", personaId: "p1", personaName: "Alice" },
+      { type: "persona_start", personaId: "p1", personaName: "Alice Chen" },
       { type: "chunk", personaId: "p1", text: "Hello " },
       { type: "chunk", personaId: "p1", text: "world" },
       { type: "persona_end", personaId: "p1" },
@@ -66,39 +72,21 @@ describe("useDebate", () => {
       { type: "debate_end" },
     ]);
 
-    vi.mocked(debateAction).mockResolvedValue({
-      streamData: mockStream as any,
-    });
-
-    const { result } = renderHook(() => useDebate());
-
-    await act(async () => {
-      await result.current.startDebate("Test proposal", [mockPersona], 1);
-    });
-
-    const state = useDebateStore.getState();
     expect(state.debates).toHaveLength(1);
     expect(state.debates[0].proposal).toBe("Test proposal");
     expect(state.debates[0].status).toBe("completed");
+    expect(state.debates[0].currentRound).toBe(1);
+    expect(state.debates[0].messages).toHaveLength(1);
+    expect(state.debates[0].messages[0].content).toBe("Hello world");
+    expect(state.isStreaming).toBe(false);
   });
 
   it("marks debate as error when stream returns error event", async () => {
-    const mockStream = createMockStream([
+    const state = await runDebate([
       { type: "debate_start", proposal: "Test", participants: ["Alice"] },
       { type: "error", message: "LLM failed" },
     ]);
 
-    vi.mocked(debateAction).mockResolvedValue({
-      streamData: mockStream as any,
-    });
-
-    const { result } = renderHook(() => useDebate());
-
-    await act(async () => {
-      await result.current.startDebate("Test", [mockPersona], 1);
-    });
-
-    const state = useDebateStore.getState();
     expect(state.debates[0].status).toBe("error");
     expect(state.debates[0].error).toBe("LLM failed");
   });

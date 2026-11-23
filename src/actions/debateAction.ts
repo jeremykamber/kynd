@@ -1,6 +1,6 @@
 "use server";
 
-import { createStreamableValue } from "@ai-sdk/rsc";
+import { createStreamableValue, type StreamableValue } from "@ai-sdk/rsc";
 import { DebateAdapter } from "@/infrastructure/adapters/DebateAdapter";
 import { DebatePromptCompiler } from "@/infrastructure/adapters/DebatePromptCompiler";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
@@ -13,7 +13,7 @@ async function runLocally(
   proposal: string,
   participants: Persona[],
   totalRounds: number,
-) {
+): Promise<{ streamData: StreamableValue<DebateStreamEvent> }> {
   const stream = createStreamableValue<DebateStreamEvent>();
 
   (async () => {
@@ -35,14 +35,14 @@ async function runLocally(
     }
   })();
 
-  return { streamData: stream.value as unknown as AsyncIterable<DebateStreamEvent> };
+  return { streamData: stream.value };
 }
 
 async function runRemote(
   proposal: string,
   participants: Persona[],
   totalRounds: number,
-) {
+): Promise<{ streamData: StreamableValue<DebateStreamEvent> }> {
   const stream = createStreamableValue<DebateStreamEvent>();
 
   (async () => {
@@ -89,7 +89,7 @@ async function runRemote(
     }
   })();
 
-  return { streamData: stream.value as unknown as AsyncIterable<DebateStreamEvent> };
+  return { streamData: stream.value };
 }
 
 /**
@@ -101,7 +101,7 @@ export async function debateAction(
   proposal: string,
   participants: Persona[],
   totalRounds: number,
-) {
+): Promise<{ streamData: StreamableValue<DebateStreamEvent> }> {
   if (shouldRunLocally()) return runLocally(proposal, participants, totalRounds);
   return runRemote(proposal, participants, totalRounds);
 }
