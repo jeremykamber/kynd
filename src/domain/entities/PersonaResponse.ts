@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { PersonaProfile } from "./PersonaProfile";
-import type { StageJourney } from "./StageJourney";
+import { journeyTerminalIndex, type StageJourney } from "./StageJourney";
 import type { MajorFinding } from "./MajorFinding";
 import type { CognitiveStage } from "./CognitiveStage";
 import { COGNITIVE_STAGES } from "./CognitiveStage";
@@ -20,9 +20,10 @@ export interface PersonaResponse {
   rawAnalysis: string;
   overview: string;
   /**
-   * Exactly one entry per stage, in `COGNITIVE_STAGES` order; validation
-   * rejects a journey that is shorter, longer, out of order, or repeats a
-   * stage.
+   * A prefix of `COGNITIVE_STAGES` in order, ending at the first blocked or
+   * stopped stage. A persona that completed the journey has all five stages;
+   * a shorter journey must end blocked or stopped. Validation rejects a
+   * journey that is out of order, repeats a stage, or is longer than five.
    */
   customerJourney: StageJourney[];
   researchQuestionAnswer: string;
@@ -51,7 +52,7 @@ const MajorFindingSchema = z.object({
 
 export const PersonaResponseSchema = z.object({
   overview: z.string().describe("High-level summary of this persona's response to the artifact, covering their full journey and key takeaways."),
-  customerJourney: z.array(StageJourneySchema).describe("The persona's experience across all five cognitive stages in order."),
+  customerJourney: z.array(StageJourneySchema).min(1).max(COGNITIVE_STAGES.length).describe("The stages the persona reached, in canonical order, ending at the stage where it stopped or was blocked. A persona that completed all five stages returns all five."),
   researchQuestionAnswer: z.string().describe("Direct answer to the research question, grounded in evidence from this persona's analysis."),
   majorFindings: z.array(MajorFindingSchema).describe("Key findings from this persona's response. Each finding has an observation, evidence, impact, and confidence level."),
   pointsOfFriction: z.array(z.string()).describe("Moments where the persona failed to progress through the cognitive journey — what confused, frustrated, or stopped them."),
@@ -105,9 +106,49 @@ export function personaIdentityViolations(
 }
 
 /**
+ * The journey must agree with itself: a succeeded stage cannot describe
+ * stopping, and once a stage is blocked or stopped every later stage is
+ * stopped. Observed drift: a persona "stopped at the price" in motivation and
+ * then "succeeded" at action, so the report claimed both.
+ *
+ * The phrase list is deliberately narrow. Negative sentiment is allowed on a
+ * succeeded stage (a persona can dislike the page and still understand it), and
+ * incidental words like "blocked" inside a success story are not flagged.
+ */
+const JOURNEY_STOP_PHRASE =
+  /\b(stopped (?:at|here|short)|gave up|abandoned|could not continue|couldn't continue|did not continue|didn't continue|failed to proceed|never reached)\b/i;
+
+export function journeyContradictions(response: PersonaResponse): string[] {
+  const violations: string[] = [];
+  const terminalIndex = journeyTerminalIndex(response.customerJourney);
+
+  for (const [index, stage] of response.customerJourney.entries()) {
+    const prose = `${stage.description} ${stage.transition ?? ""}`;
+
+    if (stage.outcome === "succeeded" && JOURNEY_STOP_PHRASE.test(prose)) {
+      violations.push(`stage "${stage.stage}" says it succeeded but describes stopping`);
+    }
+
+    if (terminalIndex !== -1 && index > terminalIndex && stage.outcome !== "stopped") {
+      violations.push(`stage "${stage.stage}" follows an ended journey but is "${stage.outcome}"`);
+    }
+  }
+
+  if (
+    response.customerJourney.length < COGNITIVE_STAGES.length &&
+    terminalIndex === -1
+  ) {
+    violations.push("a journey shorter than five stages must end blocked or stopped");
+  }
+
+  return violations;
+}
+
+/**
  * Checks a value has every required PersonaResponse field and a journey that
- * covers all five cognitive stages once, in order. Optional fields and the
- * artifact/persona identity fields are not cross-checked.
+ * is a prefix of `COGNITIVE_STAGES`, in order, ending blocked or stopped when
+ * shorter than five. Optional fields and the artifact/persona identity fields
+ * are not cross-checked.
  */
 export function validatePersonaResponse(response: PersonaResponse): boolean {
   if (!response || typeof response !== "object") return false;
@@ -118,16 +159,24 @@ export function validatePersonaResponse(response: PersonaResponse): boolean {
   if (!response.overview || typeof response.overview !== "string") return false;
   if (typeof response.researchQuestionAnswer !== "string") return false;
 
-  if (!Array.isArray(response.customerJourney) || response.customerJourney.length !== COGNITIVE_STAGES.length) return false;
+  const journey = response.customerJourney;
+  if (!Array.isArray(journey) || journey.length < 1 || journey.length > COGNITIVE_STAGES.length) return false;
   if (!Array.isArray(response.majorFindings)) return false;
   if (!Array.isArray(response.pointsOfFriction)) return false;
   if (!Array.isArray(response.unansweredQuestions)) return false;
 
-  // Enforce stage ordering: each stage must appear exactly once, in the correct order
-  for (let i = 0; i < COGNITIVE_STAGES.length; i++) {
-    const stage = response.customerJourney[i];
+  // Enforce stage ordering: the journey is a prefix of the canonical order.
+  for (let i = 0; i < journey.length; i++) {
+    const stage = journey[i];
     if (!stage || stage.stage !== COGNITIVE_STAGES[i]) return false;
     if (!stage.description || !stage.sentiment || !stage.outcome) return false;
+  }
+
+  // A sparse journey ends at the stop. A full five-stage journey may still
+  // carry later stopped stages from older persisted analyses; completeJourney
+  // projects those for rendering, and new writes truncate them.
+  if (journey.length < COGNITIVE_STAGES.length) {
+    if (journeyTerminalIndex(journey) !== journey.length - 1) return false;
   }
 
   for (const finding of response.majorFindings) {

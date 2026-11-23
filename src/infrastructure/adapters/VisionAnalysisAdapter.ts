@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { Persona } from "@/domain/entities/Persona";
 import { PricingAnalysisSchema } from "@/domain/entities/PricingAnalysis";
-import { PersonaResponseSchema, personaIdentityViolations } from "@/domain/entities/PersonaResponse";
+import { PersonaResponseSchema, personaIdentityViolations, journeyContradictions } from "@/domain/entities/PersonaResponse";
+import { ANALYSIS_WRITING_RULES } from "@/application/prompts/analysisWritingStyle";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { CohortSynthesisContent } from "@/domain/entities/ArtifactSynthesis";
@@ -75,8 +76,8 @@ Start wherever your ${isDocument ? "attention catches" : "eyes land"} first:`;
  * System 2 — the Anthropologist. Exported so tests can assert on the prompt
  * contract without LLM mocks. Sees the raw monologue text ONLY — no image,
  * no page summary — so every statement is grounded in what the persona said.
- * Rule 4 exists because validatePersonaResponse enforces exactly 5 ordered
- * stages; a skipped stage is expressed through its outcome, never by omission.
+ * Rule 4 exists because validatePersonaResponse enforces a canonical prefix
+ * ending at the stopping stage; later stages are omitted, never invented.
  */
 /**
  * Structured extraction needs more output room than the monologue it reads:
@@ -121,14 +122,14 @@ ${artifactName}- Raw Think-Aloud Transcript: """${monologue}"""
 RULES:
 1. Write strictly in the THIRD PERSON ("The user observed...", "They grew skeptical of...").
 2. Ground every statement entirely in the transcript. Never invent UI elements not mentioned in it.
-3. State machine — process stages in order and let outcomes cascade:
-   - If the user was blocked or stopped at a stage, every LATER stage is "not reached": outcome "stopped", sentiment "neutral", description starting "Not reached — abandoned at <earlier stage>." followed by the specific reason from the transcript.
-   - Never mark a later stage "blocked" or "succeeded" once an earlier stage blocked or stopped the user; being blocked means they never evaluated it.
-   - Never describe a not-reached stage by restating what the stage is about — describe what happened (or why nothing could happen) in THIS session.
-4. The five journey stages MUST all appear in canonical order (interpretation, understanding, belief, motivation, action); skipping is expressed through outcomes, not omission.
+3. The journey contains only the stages the persona actually reached. Process them in canonical order and end at the first stage whose outcome is "blocked" or "stopped". Omit every later stage; do not write a placeholder for a stage the persona never evaluated.
+4. If the journey ends before action, its last stage MUST be "blocked" or "stopped". A journey shorter than five stages that ends "succeeded" is invalid. A persona that reached all five stages returns all five, in canonical order (interpretation, understanding, belief, motivation, action).
 5. Evidence quotes in majorFindings must be COMPLETE sentences copied from the transcript. Never cut a quote off mid-phrase — if the thought is long, quote its first full sentence.
 6. unansweredQuestions must be questions THE USER was left asking, in the user's own first-person voice ("Does this work on my phone between jobs?"), not researcher hypotheses about the user ("Would the user have...?"). If the transcript shows no open questions, return an empty list.
-7. Name the persona in overview and researchQuestionAnswer ("${persona.name}…"). Never write "the user" in those two fields, and never adopt a name, role, occupation, or pronoun that the artifact assigns to someone — the persona's identity comes from their profile, not from the artifact's copy.`;
+7. Name the persona in overview and researchQuestionAnswer ("${persona.name}…"). Never write "the user" in those two fields, and never adopt a name, role, occupation, or pronoun that the artifact assigns to someone — the persona's identity comes from their profile, not from the artifact's copy.
+
+WRITING STYLE (applies to every prose field):
+${ANALYSIS_WRITING_RULES}`;
 }
 
 /**
@@ -431,21 +432,31 @@ export class VisionAnalysisAdapter {
                 });
 
                 if (responseObj) {
-                    // One corrective retry when the summary layers lose the
-                    // persona's identity (no name, "the user", first person).
-                    // After that the response is kept: a labelled-but-imperfect
-                    // report beats a missing persona, and the violation is
-                    // logged for the run report.
-                    const violations = personaIdentityViolations(
+                    // One corrective retry when the report contradicts itself:
+                    // identity drift in the summaries, or a journey whose
+                    // descriptions disagree with its outcomes. After that the
+                    // response is kept: a labelled-but-imperfect report beats a
+                    // missing persona, and the violation is logged for the run
+                    // report.
+                    const identity = personaIdentityViolations(
                         responseObj as PersonaResponse,
                         persona.name,
                     );
-                    if (violations.length === 0) break;
-                    log?.warn("VisionAnalysisAdapter", `extractPersonaResponse identity drift for "${persona.name}"`, {
+                    const journey = journeyContradictions(responseObj as PersonaResponse);
+                    if (identity.length === 0 && journey.length === 0) break;
+                    log?.warn("VisionAnalysisAdapter", `extractPersonaResponse consistency drift for "${persona.name}"`, {
                         attempt: attempt + 1,
-                        violations,
+                        identity,
+                        journey,
                     });
-                    correction = `Your previous answer broke the identity rules: ${violations.join("; ")}. Rewrite the whole JSON so that overview and researchQuestionAnswer both name ${persona.name} explicitly, refer to ${persona.name} in the third person, and never use "the user" or a first-person pronoun in those two fields.`;
+                    correction = [
+                        identity.length
+                            ? `Your previous answer broke the identity rules: ${identity.join("; ")}. Rewrite the whole JSON so that overview and researchQuestionAnswer both name ${persona.name} explicitly, refer to ${persona.name} in the third person, and never use "the user" or a first-person pronoun in those two fields.`
+                            : "",
+                        journey.length
+                            ? `Your previous answer's journey contradicts its own outcomes: ${journey.join("; ")}. Rewrite the whole JSON so each stage's description agrees with its outcome. If a stage succeeded, describe what enabled the persona to continue. If a stage was blocked or stopped, end the journey at that stage and omit every later stage.`
+                            : "",
+                    ].filter(Boolean).join(" ");
                     if (attempt === MAX_RETRIES) break;
                     continue;
                 }
@@ -511,7 +522,10 @@ export class VisionAnalysisAdapter {
     async generateCohortSynthesis(
         researchQuestion: string,
         transcripts: Array<{ personaId: string; personaName: string; transcript: string }>,
-        options?: { runId?: string },
+        options?: {
+            runId?: string;
+            personaAnswers?: Array<{ personaId: string; personaName: string; answer: string }>;
+        },
     ): Promise<CohortSynthesisContent> {
         const log = options?.runId ? AnalysisLogger.forRun(options.runId) : null;
 
@@ -520,9 +534,19 @@ export class VisionAnalysisAdapter {
                 `=== Persona ${i + 1}: ${t.personaName} (id: ${t.personaId}) ===\n"""${t.transcript}"""`)
             .join("\n\n");
 
+        const personaAnswers = options?.personaAnswers ?? [];
+        const answerSections = personaAnswers.length
+            ? personaAnswers
+                .map((a) => `- ${a.personaName} (id: ${a.personaId}): ${a.answer.trim()}`)
+                .join("\n")
+            : "(no per-persona answers were supplied)";
+
         const prompt = `You are synthesizing simulated customer research. Below are the complete reasoning transcripts of ${transcripts.length} simulated personas who interacted with a product.
 
 Research Question: ${researchQuestion}
+
+PERSONA ANSWERS (the authoritative per-persona record; the cohort answer must agree with it):
+${answerSections}
 
 Your job: produce a cross-persona synthesis of what this cohort experienced.
 
@@ -554,12 +578,15 @@ REQUIRED OUTPUT SHAPE (JSON object):
 }
 
 FIELD RULES:
-- overview: one paragraph on what the GROUP collectively experienced.
-- researchQuestionAnswer: one paragraph directly answering the research question from the evidence.
+- overview: one short paragraph on what the GROUP collectively experienced.
+- researchQuestionAnswer: 2-4 sentences. Answer the research question for the whole cohort, using the per-persona answers above as the record. Do not list each persona or repeat their answers verbatim. If the cohort split, state the split and the reason. If the cohort agreed, say so plainly and name the main condition. Do not claim "all", "most", or "none" unless the answers support it.
 - topFindings: 3-5 patterns MULTIPLE personas experienced. Group language only, no persona names. evidenceLocators: 1-3 per finding, each a 5-8 word CONTINUOUS phrase copied EXACTLY (verbatim, same casing) from ONE persona's transcript that best evidences the finding, with that persona's id.
 - disagreements: topics where personas' reactions genuinely DIVERGED (one acted, another bounced or doubted) — a split with each view and its persona count. Prefer 1-3 entries; empty ONLY if the transcripts show no divergence at all.
 - biggestFrictions: 2-3 specific moments where personas hesitated, doubted, or nearly dropped — quote the element that caused it ("the unexplained score", "the AI-agent promise"). Every cohort has friction; if the homepage converts perfectly, name what ALMOST stopped them.
 - affectedPersonaCount: honest count of personas whose transcripts show the pattern.
+
+WRITING STYLE (applies to every prose field):
+${ANALYSIS_WRITING_RULES}
 
 CRITICAL RULES:
 1. Findings, overview and answers use group language ("Most personas...", "Several...") — no persona names.

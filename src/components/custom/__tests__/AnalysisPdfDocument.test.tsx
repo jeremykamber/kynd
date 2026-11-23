@@ -5,7 +5,7 @@ import { AnalysisPdfDocument } from '../AnalysisPdfDocument'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { ArtifactSynthesis } from '@/domain/entities/ArtifactSynthesis'
-import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
+import { REPORT_DISCLAIMER } from '@/lib/reportDisclosure'
 
 const mockResponses: PersonaResponse[] = [
   {
@@ -13,7 +13,7 @@ const mockResponses: PersonaResponse[] = [
     personaId: 'p-1',
     screenshotBase64: '',
     rawAnalysis: 'Raw trace...',
-    overview: 'The user understood the core value proposition quickly.',
+    overview: 'Alex Rivera understood the core value proposition quickly.',
     researchQuestionAnswer: 'Pricing is clear but extra fees caused hesitation.',
     customerJourney: [
       { stage: 'interpretation', description: 'Understood the headline.', sentiment: 'positive', outcome: 'succeeded' },
@@ -46,14 +46,11 @@ const mockResponses: PersonaResponse[] = [
     personaId: 'p-2',
     screenshotBase64: '',
     rawAnalysis: 'Raw trace 2...',
-    overview: 'User felt the enterprise tier lacked feature transparency.',
+    overview: 'Jordan Chen felt the enterprise tier lacked feature transparency.',
     researchQuestionAnswer: 'Enterprise contact form felt like a blocker.',
     customerJourney: [
       { stage: 'interpretation', description: 'Understood the hero text.', sentiment: 'positive', outcome: 'succeeded' },
       { stage: 'understanding', description: 'Could not find SSO pricing.', sentiment: 'negative', outcome: 'blocked' },
-      { stage: 'belief', description: 'Trusted brand reputation.', sentiment: 'positive', outcome: 'succeeded' },
-      { stage: 'motivation', description: 'Wanted security compliance sheet.', sentiment: 'neutral', outcome: 'succeeded' },
-      { stage: 'action', description: 'Did not click talk to sales.', sentiment: 'negative', outcome: 'stopped' },
     ],
     majorFindings: [
       {
@@ -150,14 +147,19 @@ describe('AnalysisPdfDocument', () => {
     expect(text).not.toContain('Primary Points of Friction')
   })
 
-  it('discloses what Kynd is and that the report is simulated, before the findings', () => {
+  it('projects a sparse journey to the five-stage table', () => {
     const text = renderedText(AnalysisPdfDocument({ analysis: baseAnalysis }))
 
-    const intro = text.indexOf(REPORT_INTRO)
+    expect(text.match(/Not reached/g)).toHaveLength(3)
+    expect(text).toContain('Abandoned at understanding.')
+  })
+
+  it('discloses that the report is simulated, before the findings', () => {
+    const text = renderedText(AnalysisPdfDocument({ analysis: baseAnalysis }))
+
     const note = text.indexOf(REPORT_DISCLAIMER)
-    expect(intro).toBeGreaterThan(-1)
-    expect(note).toBeGreaterThan(intro)
-    // Both sit above the first thing a reader would take as a result.
+    expect(note).toBeGreaterThan(-1)
+    // The note sits above the first thing a reader would take as a result.
     expect(text.indexOf('Core Research Finding')).toBeGreaterThan(note)
 
     // Simulated users are never presented as people who were observed.

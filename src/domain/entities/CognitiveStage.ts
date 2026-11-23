@@ -3,8 +3,9 @@
  * artifact: what it thinks the artifact is, whether it understands it,
  * whether it believes it, whether it cares, and what it does next.
  *
- * `COGNITIVE_STAGES` is the canonical order and length; a response's journey
- * is only valid when it contains exactly these stages, in this order.
+ * `COGNITIVE_STAGES` is the canonical order. A response's journey is a prefix
+ * of these stages in order, ending at the stage where the persona stopped. A
+ * persona that completed the journey returns all five.
  */
 export type CognitiveStage =
   | 'interpretation'

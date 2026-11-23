@@ -166,7 +166,7 @@ for the authoritative type.
 | `screenshotBase64` | `string` | Captured viewport as base64 JPEG |
 | `rawAnalysis` | `string` | Raw stream content for this persona |
 | `overview` | `string` | High-level summary of the persona's full journey |
-| `customerJourney` | `StageJourney[]` | Experience across all five cognitive stages, in order |
+| `customerJourney` | `StageJourney[]` | Stages the persona reached, in canonical order, ending blocked or stopped; five entries when it completed the journey |
 | `researchQuestionAnswer` | `string` | Answer to the research question, grounded in this persona's analysis |
 | `majorFindings` | `MajorFinding[]` | Key findings (observation, evidence, impact) |
 | `pointsOfFriction` | `string[]` | Moments the persona failed to progress |

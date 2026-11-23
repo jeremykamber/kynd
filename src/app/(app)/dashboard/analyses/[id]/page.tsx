@@ -11,7 +11,7 @@ import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, ChevronDownIcon, ChevronRightIcon, UsersIcon, MessageCircleIcon, DownloadIcon, Loader2Icon, FileTextIcon, HelpCircleIcon } from 'lucide-react'
-import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
+import { REPORT_DISCLAIMER } from '@/lib/reportDisclosure'
 import { toast } from 'sonner'
 import { exportAnalysisAsPdf } from '@/lib/exportPdf'
 import type { Persona } from '@/domain/entities/Persona'
@@ -21,7 +21,7 @@ import { analysisInputKind, analysisSourceLabel } from '@/domain/entities/Artifa
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
 import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
-import type { StageJourney, StageOutcome } from '@/domain/entities/StageJourney'
+import { completeJourney, journeyTerminalIndex, type StageJourney, type StageOutcome } from '@/domain/entities/StageJourney'
 import { cn } from '@/lib/utils'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
@@ -96,11 +96,12 @@ const OUTCOME_META: Record<StageOutcome, { label: string; title: string; icon: t
 
 /** One-glance verdict for the collapsed persona row. */
 function journeyVerdict(journey: StageJourney[]): { label: string; title: string; className: string } {
-  const at = journey.findIndex((s) => s.outcome === 'blocked' || s.outcome === 'stopped')
+  const stages = completeJourney(journey)
+  const at = journeyTerminalIndex(stages)
   if (at === -1) {
     return { label: 'Reached the end', title: 'This persona completed all five stages.', className: 'text-success' }
   }
-  const stage = journey[at]
+  const stage = stages[at]
   const meta = OUTCOME_META[stage.outcome]
   return { label: `${meta.label.replace(' here', '')} at ${stage.stage}`, title: meta.title, className: meta.className }
 }
@@ -112,17 +113,18 @@ function journeyVerdict(journey: StageJourney[]): { label: string; title: string
  * instead of implying the model evaluated them.
  */
 function JourneyPath({ journey }: { journey: StageJourney[] }) {
-  const abandonedAt = journey.findIndex((s) => s.outcome === 'blocked' || s.outcome === 'stopped')
-  const reached = abandonedAt === -1 ? journey.length : abandonedAt + 1
+  const stages = completeJourney(journey)
+  const abandonedAt = journeyTerminalIndex(stages)
+  const reached = abandonedAt === -1 ? stages.length : abandonedAt + 1
 
   return (
     <ol className="flex flex-col">
-      {journey.map((stage, i) => {
+      {stages.map((stage, i) => {
         const isReached = i < reached
         const isTerminal = i === abandonedAt
         const meta = OUTCOME_META[stage.outcome]
         const Icon = meta.icon
-        const isLast = i === journey.length - 1
+        const isLast = i === stages.length - 1
 
         return (
           <li key={stage.stage} className="flex gap-3">
@@ -676,32 +678,20 @@ function CompletedView({
 
   return (
     <div className="flex flex-col gap-10">
-      {/* What Kynd is, then the one qualification the findings need — both
-          before the reader forms an expectation of the numbers below. */}
-      <div className="flex flex-col gap-3">
-        <p className="max-w-prose text-base leading-relaxed text-foreground/80">{REPORT_INTRO}</p>
-        <p className="max-w-prose text-base leading-relaxed text-muted-foreground">{REPORT_DISCLAIMER}</p>
-      </div>
+      {/* The one qualification the findings need before the reader forms an
+          expectation of the numbers below. */}
+      <p className="max-w-prose text-base leading-relaxed text-muted-foreground">{REPORT_DISCLAIMER}</p>
 
       {/* ── Executive Synthesis ─────────────────────────────── */}
       {synthesis && (
         <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              <span className="font-mono tabular-nums text-foreground/80">{synthesis.completedCount}</span> of{' '}
-              <span className="font-mono tabular-nums text-foreground/80">{synthesis.totalPersonaCount}</span> personas completed
-              {synthesis.failedCount > 0 && (
-                <span className="text-destructive"> · {synthesis.failedCount} failed</span>
-              )}
-            </p>
-            <button
-              onClick={() => setIsPanelChatOpen(true)}
-              className="inline-flex h-9 w-fit items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <UsersIcon className="h-3.5 w-3.5" />
-              Ask the whole audience
-            </button>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-mono tabular-nums text-foreground/80">{synthesis.completedCount}</span> of{' '}
+            <span className="font-mono tabular-nums text-foreground/80">{synthesis.totalPersonaCount}</span> personas completed
+            {synthesis.failedCount > 0 && (
+              <span className="text-destructive"> · {synthesis.failedCount} failed</span>
+            )}
+          </p>
 
           {synthesis.researchQuestionAnswer && (
             /*
@@ -719,6 +709,16 @@ function CompletedView({
               <p className="max-w-prose text-base leading-relaxed text-foreground/90">{synthesis.researchQuestionAnswer}</p>
             </div>
           )}
+
+          {/* The action follows the answer it acts on, left-aligned, so the
+              reader sees the result before the next step. */}
+          <button
+            onClick={() => setIsPanelChatOpen(true)}
+            className="inline-flex h-9 w-fit items-center justify-center gap-2 self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <UsersIcon className="h-3.5 w-3.5" />
+            Ask the whole audience
+          </button>
 
           {synthesis.topFindings.length > 0 && (
             <section className="flex flex-col gap-4">

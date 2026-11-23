@@ -232,7 +232,11 @@ export interface LlmServicePort {
     generateCohortSynthesis(
         researchQuestion: string,
         transcripts: Array<{ personaId: string; personaName: string; transcript: string }>,
-        options?: { runId?: string }
+        options?: {
+            runId?: string;
+            /** The per-persona answers. The cohort answer must agree with this record. */
+            personaAnswers?: Array<{ personaId: string; personaName: string; answer: string }>;
+        }
     ): Promise<CohortSynthesisContent>;
 
     /**

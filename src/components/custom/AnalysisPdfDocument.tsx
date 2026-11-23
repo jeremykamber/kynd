@@ -4,7 +4,8 @@ import { analysisSourceLabel } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactSynthesis, SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
-import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
+import { completeJourney } from '@/domain/entities/StageJourney'
+import { REPORT_DISCLAIMER } from '@/lib/reportDisclosure'
 
 // ── Typography & Palette ───────────────────────────────────────────────────
 // Simple, clean, editorial design with high legibility and quiet accents.
@@ -61,12 +62,6 @@ const styles = StyleSheet.create({
   },
   disclosureBox: {
     marginBottom: 14,
-  },
-  disclosureIntro: {
-    fontSize: 8.5,
-    color: colors.primaryLight,
-    lineHeight: 1.45,
-    marginBottom: 4,
   },
   disclosureNote: {
     fontSize: 7.5,
@@ -364,10 +359,9 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
           </View>
         </View>
 
-        {/* What Kynd is, then the one qualification the findings need — both
-            before the reader forms an expectation of the numbers below. */}
+        {/* The one qualification the findings need before the reader forms an
+            expectation of the numbers below. */}
         <View style={styles.disclosureBox} wrap={false}>
-          <Text style={styles.disclosureIntro}>{REPORT_INTRO}</Text>
           <Text style={styles.disclosureNote}>{REPORT_DISCLAIMER}</Text>
         </View>
 
@@ -468,6 +462,9 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
             const profile = resp.personaProfile
             const name = profile?.name || `Persona ${pIdx + 1}`
             const role = profile?.occupation || ''
+            const journey = resp.customerJourney?.length
+              ? completeJourney(resp.customerJourney)
+              : []
 
             return (
               <View key={resp.id || pIdx} style={styles.personaCard} wrap={false}>
@@ -494,9 +491,9 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
                 )}
 
                 {/* 5-Stage Cognitive Journey */}
-                {resp.customerJourney && resp.customerJourney.length > 0 && (
+                {journey.length > 0 && (
                   <View style={styles.journeyTable}>
-                    {resp.customerJourney.map((stg, sIdx) => {
+                    {journey.map((stg, sIdx) => {
                       const isSuccess = stg.outcome === 'succeeded'
                       const isBlocked = stg.outcome === 'blocked'
                       const badgeBg = isSuccess
@@ -518,7 +515,7 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
                           key={sIdx}
                           style={[
                             styles.journeyRow,
-                            sIdx === resp.customerJourney.length - 1 ? { borderBottomWidth: 0 } : {},
+                            sIdx === journey.length - 1 ? { borderBottomWidth: 0 } : {},
                           ]}
                         >
                           <Text style={styles.journeyStageName}>{stg.stage}</Text>

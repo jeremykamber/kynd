@@ -1,6 +1,7 @@
 import type { Persona } from "@/domain/entities/Persona";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import { validatePersonaResponse } from "@/domain/entities/PersonaResponse";
+import { journeyTerminalIndex } from "@/domain/entities/StageJourney";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
 import { AnalysisProgressStep } from "@/domain/entities/ArtifactAnalysis";
@@ -275,12 +276,12 @@ export class AnalyzeArtifactUseCase {
               personaId: persona.id,
             };
 
+            fullResponse.customerJourney = truncateJourneyAtStop(fullResponse.customerJourney);
             if (!validatePersonaResponse(fullResponse)) {
-              log.warn("AnalyzeArtifactUseCase", `${personaLog} Validation failed — normalizing journey outcomes`, {
+              log.warn("AnalyzeArtifactUseCase", `${personaLog} Validation failed after truncating the journey`, {
                 hasOverview: !!fullResponse.overview,
                 stagesCount: fullResponse.customerJourney.length,
               });
-              fullResponse.customerJourney = normalizeJourneyOutcomes(fullResponse.customerJourney);
             }
 
             return fullResponse;
@@ -306,12 +307,8 @@ export class AnalyzeArtifactUseCase {
               overview: "Analysis could not be completed.",
               customerJourney: [
                 { stage: "interpretation", description: `Analysis failed: ${errMsg}`, sentiment: "negative", outcome: "stopped" },
-                { stage: "understanding", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-                { stage: "belief", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-                { stage: "motivation", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-                { stage: "action", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
               ],
-              researchQuestionAnswer: "Analysis failed — no answer available.",
+              researchQuestionAnswer: "Analysis failed. No answer available.",
               majorFindings: [],
               pointsOfFriction: [errMsg],
               unansweredQuestions: [],
@@ -349,26 +346,13 @@ export class AnalyzeArtifactUseCase {
 }
 
 /**
- * Enforces the journey state machine in code: once a stage blocked or
- * stopped the user, every later stage is "not reached" — outcome "stopped",
- * neutral sentiment, and a description naming the abandonment point instead
- * of the model re-describing what the stage would have been about. Stages
- * before the first block are untouched, and a run that reached the end
- * passes through unchanged.
+ * Stores only the stages the persona reached. Once a stage blocked or stopped
+ * the journey, every later stage was never evaluated; the renderer projects
+ * those with completeJourney. A complete journey passes through unchanged.
  */
-function normalizeJourneyOutcomes(
+function truncateJourneyAtStop(
   journey: PersonaResponse["customerJourney"],
 ): PersonaResponse["customerJourney"] {
-  const blockedIndex = journey.findIndex((s) => s.outcome === "blocked" || s.outcome === "stopped");
-  if (blockedIndex === -1 || blockedIndex === journey.length - 1) return journey;
-  const abandonAt = journey[blockedIndex].stage;
-  return journey.map((stage, i) => {
-    if (i <= blockedIndex) return stage;
-    return {
-      ...stage,
-      outcome: "stopped" as const,
-      sentiment: "neutral" as const,
-      description: `Not reached — abandoned at ${abandonAt}.`,
-    };
-  });
+  const stoppedAt = journeyTerminalIndex(journey);
+  return stoppedAt === -1 ? journey : journey.slice(0, stoppedAt + 1);
 }

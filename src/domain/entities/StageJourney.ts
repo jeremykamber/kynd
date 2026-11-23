@@ -1,4 +1,4 @@
-import type { CognitiveStage } from './CognitiveStage';
+import { COGNITIVE_STAGES, type CognitiveStage } from './CognitiveStage';
 
 /** How the persona felt while passing through a stage. */
 export type StageSentiment = 'positive' | 'neutral' | 'negative';
@@ -18,4 +18,41 @@ export interface StageJourney {
   outcome: StageOutcome;
   /** What moved the persona to the next stage, or why it stopped. */
   transition?: string;
+}
+
+/** Index of the stage that ended the journey, or -1 when it reached the end. */
+export function journeyTerminalIndex(journey: StageJourney[]): number {
+  return journey.findIndex(
+    (stage) => stage.outcome === 'blocked' || stage.outcome === 'stopped',
+  );
+}
+
+/**
+ * The five-stage view of a journey that may be stored sparse. A persona only
+ * evaluates stages until it stops; the tail is projected as not reached so a
+ * renderer never has to invent those stages or infer where the path ended.
+ *
+ * A complete journey is returned unchanged. A legacy five-stage journey with
+ * later stopped stages is also returned unchanged; the renderer already treats
+ * stages after the first stop as not reached.
+ */
+export function completeJourney(journey: StageJourney[]): StageJourney[] {
+  if (journey.length >= COGNITIVE_STAGES.length) return journey;
+
+  const terminalIndex = journeyTerminalIndex(journey);
+  const reached = terminalIndex === -1 ? journey.length : terminalIndex + 1;
+  const reachedStages = journey.slice(0, reached);
+  const abandonedAt = reachedStages[reachedStages.length - 1]?.stage;
+
+  return COGNITIVE_STAGES.map(
+    (stage, index): StageJourney =>
+      reachedStages[index] ?? {
+        stage,
+        description: abandonedAt
+          ? `Not reached. Abandoned at ${abandonedAt}.`
+          : 'Not reached.',
+        sentiment: 'neutral',
+        outcome: 'stopped',
+      },
+  );
 }
