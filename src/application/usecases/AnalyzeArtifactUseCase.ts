@@ -6,7 +6,7 @@ import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
 import { AnalysisProgressStep } from "@/domain/entities/ArtifactAnalysis";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
 
-import { ArtifactIntakeAdapter, type IntakeProgress } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
+import type { ArtifactIntakePort, IntakeProgress } from "@/domain/ports/ArtifactIntakePort";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
 /**
@@ -57,7 +57,7 @@ export function artifactNameFrom(url: string | undefined): string | null {
  */
 export class AnalyzeArtifactUseCase {
   constructor(
-    private readonly intakeAdapter: ArtifactIntakeAdapter,
+    private readonly intakeAdapter: ArtifactIntakePort,
     private readonly llmService: LlmServicePort,
   ) {}
 

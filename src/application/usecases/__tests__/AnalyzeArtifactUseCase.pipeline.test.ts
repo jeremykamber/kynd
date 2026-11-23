@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AnalyzeArtifactUseCase } from '../AnalyzeArtifactUseCase'
 import type { AnalysisProgress } from '../AnalyzeArtifactUseCase'
+import type { ArtifactIntakePort } from '@/domain/ports/ArtifactIntakePort'
+// The failing-browser case wires the real adapter: it asserts the intake error
+// surfaces as a user-facing message, which a stub cannot prove.
 import { ArtifactIntakeAdapter } from '@/infrastructure/adapters/ArtifactIntakeAdapter'
 import type { LlmServicePort } from '@/domain/ports/LlmServicePort'
 import type { BrowserServicePort } from '@/domain/ports/BrowserServicePort'
@@ -56,7 +59,7 @@ const intake = {
 }
 
 function makeUseCase(llm: LlmServicePort) {
-  return new AnalyzeArtifactUseCase({ intake: vi.fn().mockResolvedValue(intake) } as unknown as ArtifactIntakeAdapter, llm)
+  return new AnalyzeArtifactUseCase({ intake: vi.fn().mockResolvedValue(intake) } as unknown as ArtifactIntakePort, llm)
 }
 
 describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {

@@ -1,4 +1,4 @@
-import { LlmServiceImpl } from "./LlmServiceImpl";
+import type { LlmRuntime } from "./LlmRuntime";
 import { ExtractedInterviewSignals, ExtractedSignal } from "@/application/interviewPipeline/types";
 import { stripCodeFence } from "./llmUtils";
 
@@ -8,11 +8,11 @@ const SYSTEM_PROMPT = `You are analyzing a user interview transcript. Extract ob
  * Extracts observable signals (behaviors, goals, pains, values, decision
  * patterns) from a raw interview transcript in one LLM call; never infers
  * psychometric traits. Output is validated against ExtractedInterviewSignals
- * here, and the completion goes to LlmServiceImpl. Internal to the LLM adapter,
+ * here, and the completion goes to the LlmRuntime. Internal to the LLM adapter,
  * not a port implementation.
  */
 export class InterviewSignalExtractor {
-  constructor(private llmService: LlmServiceImpl) {}
+  constructor(private runtime: LlmRuntime) {}
 
   /**
    * Extracts structured signals from an interview transcript.
@@ -21,7 +21,7 @@ export class InterviewSignalExtractor {
   async extract(transcript: string, interviewId: string): Promise<ExtractedInterviewSignals> {
     const userPrompt = this.buildPrompt(transcript, interviewId);
 
-    const content = await this.llmService.createChatCompletion(
+    const content = await this.runtime.createChatCompletion(
       [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },

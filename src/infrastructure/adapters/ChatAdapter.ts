@@ -2,7 +2,7 @@ import { Persona } from "@/domain/entities/Persona";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import { ChatAnalysisContext } from "@/domain/ports/LlmServicePort";
-import { LlmServiceImpl } from "./LlmServiceImpl";
+import type { LlmRuntime } from "./LlmRuntime";
 import { ChatPromptCompiler } from "./ChatPromptCompiler";
 import { IdRagStore } from "./IdRagStore";
 import { IdRagService } from "./IdRagService";
@@ -12,7 +12,7 @@ import { IdRagService } from "./IdRagService";
  * replies grounded in the persona's analysis and ID-RAG memory, guards prompts
  * outside the persona's domain, and answers panel-synthesis questions over a
  * whole cohort. Message assembly belongs to ChatPromptCompiler; every model
- * call goes to its owning LlmServiceImpl (and through it the
+ * call goes to the LlmRuntime (and through it the
  * OpenAI-compatible provider). Internal to the LLM adapter, not a port
  * implementation.
  */
@@ -24,7 +24,7 @@ export class ChatAdapter {
   private turnCounts: Map<string, number> = new Map();
   private static readonly REGROUND_INTERVAL = 4; // every 4th turn
 
-  constructor(private llmService: LlmServiceImpl) {
+  constructor(private runtime: LlmRuntime) {
     this.chatPromptCompiler = new ChatPromptCompiler();
     this.ragStore = new IdRagStore();
     this.ragService = new IdRagService(this.ragStore);
@@ -74,7 +74,7 @@ export class ChatAdapter {
       needsRegrounding,
     });
 
-    for await (const chunk of this.llmService.createChatCompletionStream(messages, {
+    for await (const chunk of this.runtime.createChatCompletionStream(messages, {
       temperature: 0.7,
       purpose: "Streaming Chat"
     })) {
@@ -96,10 +96,10 @@ export class ChatAdapter {
         Respond ONLY with a JSON object: { "isValid": boolean, "reason": "string" }`;
 
     try {
-      const response = await this.llmService.createChatCompletion(
+      const response = await this.runtime.createChatCompletion(
         [{ role: "system", content: system }, { role: "user", content: `MESSAGE: "${prompt}"` }],
         {
-          model: this.llmService.smallTextModel,
+          model: this.runtime.smallTextModel,
           response_format: { type: "json_object" },
           temperature: 0,
           purpose: "Guardrail Check"
@@ -135,7 +135,7 @@ export class ChatAdapter {
       history,
     });
 
-    for await (const chunk of this.llmService.createChatCompletionStream(messages, {
+    for await (const chunk of this.runtime.createChatCompletionStream(messages, {
       temperature: 0.7,
       purpose: "Panel Synthesis Chat",
     })) {

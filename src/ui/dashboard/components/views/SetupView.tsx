@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { usePersonaFlow } from '@/ui/hooks/usePersonaFlow'
 import { MinimalCard } from '@/components/custom/MinimalCard'
-import { DEMO_PERSONA_BATCH } from '@/domain/entities/MockPersonas'
+import { DEMO_PERSONA_BATCH } from '@/ui/dashboard/demoPersonaBatch'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import Link from 'next/link'
 import { ArrowRightIcon } from 'lucide-react'
@@ -77,7 +77,7 @@ export function SetupView({ personaFlow, onBack }: SetupViewProps) {
             Define your target market
           </h1>
           <p className="text-sm text-muted-foreground">
-            Tell us about who you're trying to reach. Kynd will build personas that represent your audience.
+            Tell us about who you&apos;re trying to reach. Kynd will build personas that represent your audience.
           </p>
         </div>
         <Button

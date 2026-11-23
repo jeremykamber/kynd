@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { PersonaAdapter } from '../PersonaAdapter'
-import { LlmServiceImpl } from '../LlmServiceImpl'
+import type { LlmRuntime } from '../LlmRuntime'
 import { Persona } from '@/domain/entities/Persona'
 
 describe('PersonaAdapter', () => {
@@ -42,7 +42,7 @@ describe('PersonaAdapter', () => {
       provider: vi.fn(),
       textModel: 'test-model',
     }
-    adapter = new PersonaAdapter(mockLlm as unknown as LlmServiceImpl)
+    adapter = new PersonaAdapter(mockLlm as unknown as LlmRuntime)
   })
 
   describe('generateVariationPersonas', () => {

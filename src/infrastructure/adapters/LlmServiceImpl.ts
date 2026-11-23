@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 import pLimit from "p-limit";
-import { LlmServicePort, PricingLocation, PersonaPhaseCallback, ChatAnalysisContext } from "@/domain/ports/LlmServicePort";
+import { LlmServicePort, PersonaPhaseCallback, ChatAnalysisContext } from "@/domain/ports/LlmServicePort";
 import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
+import type { LlmCompletionOptions, LlmMessages, LlmRuntime } from "./LlmRuntime";
 import { PersonaAdapter } from "./PersonaAdapter";
 import { VisionAnalysisAdapter } from "./VisionAnalysisAdapter";
 import { ChatAdapter } from "./ChatAdapter";
@@ -9,14 +10,35 @@ import { HtmlSummarizer } from "./HtmlSummarizer";
 import { InterviewSignalExtractor } from "./InterviewSignalExtractor";
 import { PsychographicRationalizer } from "./PsychographicRationalizer";
 import { Persona } from "@/domain/entities/Persona";
-import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
-import { StreamOfConsciousness } from "@/domain/entities/StreamOfConsciousness";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 import type { ResearchPersonaConfig, StrategyPersonaConfig, ClusterPersonaConfig } from "@/domain/dtos/PersonaGenerationConfig";
+
+/**
+ * Chat-completions request body. OpenRouter suppresses chain-of-thought with a
+ * `reasoning` field the OpenAI SDK does not model, and our option types keep
+ * `response_format` looser than the SDK's discriminated union, so the body is
+ * declared here and asserted into the SDK's type at the one call site.
+ */
+type CompletionRequest = {
+    model: string;
+    messages: LlmMessages;
+    temperature: number;
+    max_tokens?: number;
+    response_format?: { type: "json_object" | "text" };
+    stream?: boolean;
+    reasoning?: { enabled: boolean };
+};
+
+/** Fields OpenRouter adds to a message or a streamed delta beyond the SDK type. */
+type ReasoningFields = {
+    reasoning?: string;
+    reasoning_content?: string;
+    reasoning_details?: { text?: string }[];
+};
 
 function shouldDisableThinkingForModel(model: string): boolean {
     return model.toLowerCase().includes("qwen");
@@ -91,7 +113,7 @@ function withReasoningDisabled(
  * looking for prompt wording should follow the sub-adapter named by the port
  * method.
  */
-export class LlmServiceImpl implements LlmServicePort {
+export class LlmServiceImpl implements LlmServicePort, LlmRuntime {
     public client: OpenAI;
     public provider: OpenAIProvider;
     public textModel: string;
@@ -270,22 +292,8 @@ export class LlmServiceImpl implements LlmServicePort {
     }
 
     public async createChatCompletion(
-        messages: any,
-        options: {
-            temperature?: number;
-            max_tokens?: number | null;
-            response_format?: { type: "json_object" | "text" };
-            model?: string;
-            purpose?: string;
-            runId?: string;
-            /**
-             * Disable chain-of-thought for this call even when the model's
-             * reasoning is normally on (deepseek). Persona generation needs
-             * direct answers — CoT burns the output budget and can return
-             * empty content on reasoning-heavy calls.
-             */
-            disableReasoning?: boolean;
-        },
+        messages: LlmMessages,
+        options: LlmCompletionOptions,
     ): Promise<string> {
         return this.withRetry(async () => {
             const reqId = ++LlmServiceImpl.requestCount;
@@ -313,7 +321,7 @@ export class LlmServiceImpl implements LlmServicePort {
             );
             const startTime = Date.now();
 
-            const requestParams: any = {
+            const requestParams: CompletionRequest = {
                 model,
                 messages,
                 temperature: options.temperature ?? 0.7,
@@ -331,7 +339,9 @@ export class LlmServiceImpl implements LlmServicePort {
             }
 
             const resp = await LlmServiceImpl.limiter(() =>
-                this.client.chat.completions.create(requestParams),
+                this.client.chat.completions.create(
+                    requestParams as unknown as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming,
+                ),
             );
 
             const responseContent = resp?.choices?.[0]?.message?.content || "";
@@ -348,9 +358,10 @@ export class LlmServiceImpl implements LlmServicePort {
             });
 
             // Capture and log reasoning tokens if present (DeepSeek V4 Flash)
-            const reasoning =
-                (resp?.choices?.[0]?.message as any)?.reasoning ||
-                (resp?.choices?.[0]?.message as any)?.reasoning_content;
+            const message = resp?.choices?.[0]?.message as
+                | (OpenAI.Chat.ChatCompletionMessage & ReasoningFields)
+                | undefined;
+            const reasoning = message?.reasoning || message?.reasoning_content;
             if (reasoning) {
                 console.log(
                     `[LlmService] [Req #${reqId}] [${purpose}] Reasoning (${reasoning.length} chars): ${reasoning.slice(0, 300)}...`,
@@ -412,12 +423,12 @@ export class LlmServiceImpl implements LlmServicePort {
             "- Return ONLY the question — no quotes, no prefix, no explanation.",
         ].join("\n");
 
-        const content = [
+        const content: OpenAI.Chat.ChatCompletionContentPart[] = [
             { type: "text", text: `${instruction}\n\n${taskText}` },
             ...(screenshotBase64
                 ? [
                       {
-                          type: "image_url",
+                          type: "image_url" as const,
                           image_url: {
                               url: `data:image/png;base64,${screenshotBase64}`,
                           },
@@ -499,14 +510,7 @@ export class LlmServiceImpl implements LlmServicePort {
 
     public async *createChatCompletionStream(
         messages: OpenAI.Chat.ChatCompletionMessageParam[],
-        options: {
-            temperature?: number;
-            max_tokens?: number | null;
-            response_format?: { type: "json_object" | "text" };
-            model?: string;
-            purpose?: string;
-            runId?: string;
-        },
+        options: LlmCompletionOptions,
     ): AsyncIterable<string> {
         let reqId = 0;
         const stream = await this.withRetry(async () => {
@@ -524,7 +528,7 @@ export class LlmServiceImpl implements LlmServicePort {
                 temperature: options.temperature ?? 0.7,
             });
 
-            const requestParams: any = {
+            const requestParams: CompletionRequest = {
                 model,
                 messages,
                 temperature: options.temperature ?? 0.7,
@@ -537,7 +541,9 @@ export class LlmServiceImpl implements LlmServicePort {
                 requestParams.reasoning = { enabled: false };
             }
 
-            return await this.client.chat.completions.create(requestParams);
+            return await this.client.chat.completions.create(
+                requestParams as unknown as OpenAI.Chat.ChatCompletionCreateParamsStreaming,
+            );
         });
 
         const chunkStream = stream as unknown as AsyncIterable<OpenAI.Chat.ChatCompletionChunk>;
@@ -547,7 +553,9 @@ export class LlmServiceImpl implements LlmServicePort {
         let chunkCount = 0;
         for await (const chunk of chunkStream) {
             chunkCount++;
-            const delta = chunk.choices[0]?.delta as any;
+            const delta = chunk.choices[0]?.delta as
+                | (OpenAI.Chat.ChatCompletionChunk.Choice.Delta & ReasoningFields)
+                | undefined;
             if (!debugLogged && delta && chunk.choices[0]?.finish_reason === null) {
                 console.log(`[LlmService] [Req #${reqId}] FIRST RAW CHUNK:`, JSON.stringify(chunk).slice(0, 500));
                 debugLogged = true;
@@ -557,7 +565,7 @@ export class LlmServiceImpl implements LlmServicePort {
                 delta?.reasoning_content ||
                 delta?.reasoning ||
                 (delta?.reasoning_details?.[0]?.text) ||
-                (Array.isArray(delta?.reasoning_details) ? delta.reasoning_details.map((r: any) => r.text || "").join("") : null);
+                (Array.isArray(delta?.reasoning_details) ? delta.reasoning_details.map((r) => r.text || "").join("") : null);
             if (reasoning) {
                 reasoningAccum += reasoning;
             }
@@ -749,7 +757,7 @@ export class LlmServiceImpl implements LlmServicePort {
         persona: Persona,
         analysis: ChatAnalysisContext,
         msg: string,
-        history: any,
+        history: { role: "user" | "assistant"; content: string }[],
     ): Promise<string> {
         let full = "";
         for await (const chunk of this.chatWithPersonaStream(
@@ -763,7 +771,7 @@ export class LlmServiceImpl implements LlmServicePort {
         return full;
     }
 
-    async decideNextStep(): Promise<any> {
+    async decideNextStep(): Promise<never> {
         throw new Error("decideNextStep is not implemented in this MVP branch.");
     }
 }

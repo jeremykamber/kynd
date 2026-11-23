@@ -6,11 +6,11 @@ import {
 } from "@/domain/entities/ArtifactIntakeLimits";
 import type { BrowserServicePort } from "@/domain/ports/BrowserServicePort";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
+import type {
+  ArtifactIntakePort,
+  IntakeProgressCallback,
+} from "@/domain/ports/ArtifactIntakePort";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
-
-export type IntakeProgress = "NAVIGATING" | "CAPTURING" | "PROCESSING" | "COMPLETE";
-
-export type IntakeProgressCallback = (progress: IntakeProgress) => void;
 
 /**
  * Front door of the artifact pipeline: normalizes a URL, an uploaded
@@ -22,7 +22,7 @@ export type IntakeProgressCallback = (progress: IntakeProgress) => void;
  * optionally traces through AnalysisLogger — counts and lengths, never the
  * artifact's content.
  */
-export class ArtifactIntakeAdapter {
+export class ArtifactIntakeAdapter implements ArtifactIntakePort {
   /**
    * The browser arrives through a factory, not an instance: a text run never
    * opens one, so it must not pay to construct (or configure) Playwright.

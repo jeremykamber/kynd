@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { PsychographicRationalizer } from "../PsychographicRationalizer";
-import type { LlmServiceImpl } from "../LlmServiceImpl";
+import type { LlmRuntime } from "../LlmRuntime";
 import type { Persona } from "@/domain/entities/Persona";
 
 const basePersona: Persona = {
@@ -38,7 +38,7 @@ describe("PsychographicRationalizer", () => {
           rationaleByPurpose[options.purpose] ?? "unknown scaffold",
         ),
     };
-    const enhancer = new PsychographicRationalizer(mockLlm as unknown as LlmServiceImpl);
+    const enhancer = new PsychographicRationalizer(mockLlm as unknown as LlmRuntime);
     const rationales = await enhancer.generateAllRationales(basePersona);
 
     // All three scaffolds contribute, each rationale attached to its own

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { InCharacterEvaluator } from "../InCharacterEvaluator";
-import type { LlmServiceImpl } from "../LlmServiceImpl";
+import type { LlmRuntime } from "../LlmRuntime";
 import type { Persona } from "@/domain/entities/Persona";
 
 const basePersona: Persona = {
@@ -29,7 +29,7 @@ describe("InCharacterEvaluator", () => {
       (messages: ChatMessage[], options: { purpose?: string }) => Promise<string>
     >(async () => "I like trying new tools.");
     // Partial mock of the LLM service: only the completion primitive is used.
-    const evaluator = new InCharacterEvaluator({ createChatCompletion } as unknown as LlmServiceImpl);
+    const evaluator = new InCharacterEvaluator({ createChatCompletion } as unknown as LlmRuntime);
 
     await evaluator.runInterview(basePersona);
 

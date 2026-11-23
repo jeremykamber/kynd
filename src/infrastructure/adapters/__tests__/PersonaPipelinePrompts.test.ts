@@ -5,7 +5,7 @@ import {
   buildVisceralMonologueSystemPrompt,
   buildPersonaExtractionSystemPrompt,
 } from '../VisionAnalysisAdapter'
-import { LlmServiceImpl } from '../LlmServiceImpl'
+import type { LlmRuntime } from '../LlmRuntime'
 import { PersonaResponseSchema } from '@/domain/entities/PersonaResponse'
 import type { Persona } from '@/domain/entities/Persona'
 
@@ -157,7 +157,7 @@ describe('VisionAnalysisAdapter Observer-Actor pipeline wiring', () => {
       textModel: 'deepseek-test',
       provider: { chat: vi.fn().mockReturnValue({}) },
       createChatCompletion,
-    } as unknown as LlmServiceImpl)
+    } as unknown as LlmRuntime)
   })
 
   it('System 1 sends the screenshot ONLY — intake summary/pageHtml never reach the actor', async () => {
