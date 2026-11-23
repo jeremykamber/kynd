@@ -11,7 +11,7 @@ import { InterviewSignalExtractor } from "./InterviewSignalExtractor";
 import { PsychographicRationalizer } from "./PsychographicRationalizer";
 import { Persona } from "@/domain/entities/Persona";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
-import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
+import type { ArtifactSynthesis, CohortSynthesisContent } from "@/domain/entities/ArtifactSynthesis";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -626,8 +626,11 @@ export class LlmServiceImpl implements LlmServicePort, LlmRuntime {
     async generateCohortSynthesis(
         researchQuestion: string,
         transcripts: Array<{ personaId: string; personaName: string; transcript: string }>,
-        options?: { runId?: string }
-    ): Promise<import("@/domain/entities/ArtifactSynthesis").CohortSynthesisContent> {
+        options?: {
+            runId?: string;
+            personaAnswers?: Array<{ personaId: string; personaName: string; answer: string }>;
+        }
+    ): Promise<CohortSynthesisContent> {
         return this.visionAdapter.generateCohortSynthesis(researchQuestion, transcripts, options);
     }
 

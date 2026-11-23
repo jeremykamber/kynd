@@ -2,7 +2,6 @@ import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
 import { groundSynthesisCitations } from "@/application/synthesis/citations";
-import { composeResearchQuestionAnswer } from "@/application/synthesis/claims";
 
 /**
  * Cross-persona cohort synthesis over RAW monologue transcripts.
@@ -36,10 +35,16 @@ export class SynthesizeArtifactResultsUseCase {
       transcript: r.rawAnalysis,
     }));
 
+    const personaAnswers = completedResponses.map((r) => ({
+      personaId: r.personaId ?? r.id,
+      personaName: r.personaProfile?.name ?? "Unnamed persona",
+      answer: r.researchQuestionAnswer,
+    }));
+
     const content = await this.llmService.generateCohortSynthesis(
       researchQuestion,
       transcripts,
-      options,
+      { ...options, personaAnswers },
     );
 
     const groundedFindings = groundSynthesisCitations(
@@ -47,16 +52,11 @@ export class SynthesizeArtifactResultsUseCase {
       transcripts,
     );
 
-    // The cohort answer is composed from the personas' own answers: the model
-    // inverted it in real runs (all five said yes, the synthesis said most said
-    // no), and a per-persona answer is already the authoritative record.
-    const researchQuestionAnswer = composeResearchQuestionAnswer(
-      completedResponses.map((r) => ({
-        personaName: r.personaProfile?.name ?? "Unnamed persona",
-        answer: r.researchQuestionAnswer,
-      })),
-      researchQuestion,
-    );
+    // The synthesis model writes the cohort answer from the per-persona
+    // answers it was given. A missing answer falls back to the group overview
+    // rather than repeating the per-persona record verbatim.
+    const researchQuestionAnswer =
+      content.researchQuestionAnswer.trim() || content.overview.trim();
 
     return {
       overview: content.overview,

@@ -4,7 +4,7 @@ import { analysisSourceLabel } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactSynthesis, SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
-import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
+import { REPORT_DISCLAIMER } from '@/lib/reportDisclosure'
 
 // ── Typography & Palette ───────────────────────────────────────────────────
 // Simple, clean, editorial design with high legibility and quiet accents.
@@ -61,12 +61,6 @@ const styles = StyleSheet.create({
   },
   disclosureBox: {
     marginBottom: 14,
-  },
-  disclosureIntro: {
-    fontSize: 8.5,
-    color: colors.primaryLight,
-    lineHeight: 1.45,
-    marginBottom: 4,
   },
   disclosureNote: {
     fontSize: 7.5,
@@ -364,10 +358,9 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
           </View>
         </View>
 
-        {/* What Kynd is, then the one qualification the findings need — both
-            before the reader forms an expectation of the numbers below. */}
+        {/* The one qualification the findings need before the reader forms an
+            expectation of the numbers below. */}
         <View style={styles.disclosureBox} wrap={false}>
-          <Text style={styles.disclosureIntro}>{REPORT_INTRO}</Text>
           <Text style={styles.disclosureNote}>{REPORT_DISCLAIMER}</Text>
         </View>
 

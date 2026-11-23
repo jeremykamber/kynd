@@ -11,7 +11,7 @@ import { FeedbackButton } from '@/components/custom/FeedbackButton'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { ArrowLeftIcon, ClockIcon, CheckCircleIcon, XCircleIcon, AlertTriangleIcon, ChevronDownIcon, ChevronRightIcon, UsersIcon, MessageCircleIcon, DownloadIcon, Loader2Icon, FileTextIcon, HelpCircleIcon } from 'lucide-react'
-import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
+import { REPORT_DISCLAIMER } from '@/lib/reportDisclosure'
 import { toast } from 'sonner'
 import { exportAnalysisAsPdf } from '@/lib/exportPdf'
 import type { Persona } from '@/domain/entities/Persona'
@@ -676,32 +676,20 @@ function CompletedView({
 
   return (
     <div className="flex flex-col gap-10">
-      {/* What Kynd is, then the one qualification the findings need — both
-          before the reader forms an expectation of the numbers below. */}
-      <div className="flex flex-col gap-3">
-        <p className="max-w-prose text-base leading-relaxed text-foreground/80">{REPORT_INTRO}</p>
-        <p className="max-w-prose text-base leading-relaxed text-muted-foreground">{REPORT_DISCLAIMER}</p>
-      </div>
+      {/* The one qualification the findings need before the reader forms an
+          expectation of the numbers below. */}
+      <p className="max-w-prose text-base leading-relaxed text-muted-foreground">{REPORT_DISCLAIMER}</p>
 
       {/* ── Executive Synthesis ─────────────────────────────── */}
       {synthesis && (
         <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              <span className="font-mono tabular-nums text-foreground/80">{synthesis.completedCount}</span> of{' '}
-              <span className="font-mono tabular-nums text-foreground/80">{synthesis.totalPersonaCount}</span> personas completed
-              {synthesis.failedCount > 0 && (
-                <span className="text-destructive"> · {synthesis.failedCount} failed</span>
-              )}
-            </p>
-            <button
-              onClick={() => setIsPanelChatOpen(true)}
-              className="inline-flex h-9 w-fit items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <UsersIcon className="h-3.5 w-3.5" />
-              Ask the whole audience
-            </button>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-mono tabular-nums text-foreground/80">{synthesis.completedCount}</span> of{' '}
+            <span className="font-mono tabular-nums text-foreground/80">{synthesis.totalPersonaCount}</span> personas completed
+            {synthesis.failedCount > 0 && (
+              <span className="text-destructive"> · {synthesis.failedCount} failed</span>
+            )}
+          </p>
 
           {synthesis.researchQuestionAnswer && (
             /*
@@ -719,6 +707,16 @@ function CompletedView({
               <p className="max-w-prose text-base leading-relaxed text-foreground/90">{synthesis.researchQuestionAnswer}</p>
             </div>
           )}
+
+          {/* The action follows the answer it acts on, left-aligned, so the
+              reader sees the result before the next step. */}
+          <button
+            onClick={() => setIsPanelChatOpen(true)}
+            className="inline-flex h-9 w-fit items-center justify-center gap-2 self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <UsersIcon className="h-3.5 w-3.5" />
+            Ask the whole audience
+          </button>
 
           {synthesis.topFindings.length > 0 && (
             <section className="flex flex-col gap-4">

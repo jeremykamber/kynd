@@ -90,11 +90,19 @@ describe('buildPersonaExtractionSystemPrompt (System 2 — Anthropologist)', () 
     const prompt = buildPersonaExtractionSystemPrompt(makePersona(), 'monologue', 'rq', { kind: 'site', name: 'Jobright' })
     expect(prompt).toContain('Write strictly in the THIRD PERSON')
     expect(prompt).toContain('every LATER stage is "not reached"')
-    expect(prompt).toContain('"Not reached — abandoned at <earlier stage>."')
+    expect(prompt).toContain('"Not reached. Abandoned at <earlier stage>."')
     expect(prompt).toContain('(interpretation, understanding, belief, motivation, action)')
     expect(prompt).toContain('COMPLETE sentences copied from the transcript')
     expect(prompt).toContain('questions THE USER was left asking')
     expect(prompt).toContain('named "Jobright"')
+  })
+
+  it('applies the house writing style to report prose', () => {
+    const prompt = buildPersonaExtractionSystemPrompt(makePersona(), 'monologue', 'rq')
+    expect(prompt).toContain('WRITING STYLE (applies to every prose field)')
+    expect(prompt).toContain('Do not use em dashes')
+    expect(prompt).toContain('Do not give recommendations')
+    expect(prompt).toContain('Write in the third person about the personas')
   })
 
   it('names a document as a document, not a site', () => {

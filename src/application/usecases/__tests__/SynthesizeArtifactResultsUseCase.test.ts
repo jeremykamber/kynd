@@ -107,6 +107,43 @@ describe("SynthesizeArtifactResultsUseCase", () => {
     ]);
   });
 
+  it("gives the model the per-persona answers and keeps its synthesized answer", async () => {
+    const answered = [
+      buildResponse({
+        personaId: "p-1",
+        researchQuestionAnswer: "Sarah would approve once the cap is named.",
+      }),
+      buildResponse({
+        personaId: "p-2",
+        researchQuestionAnswer: "Miguel needs the export button before he trusts the dashboard.",
+      }),
+    ];
+    const port = buildPort();
+    const synthesis = await new SynthesizeArtifactResultsUseCase(port).execute(
+      answered,
+      "What blocks approval?",
+    );
+
+    const [, , options] = vi.mocked(port.generateCohortSynthesis).mock.calls[0];
+    expect(options?.personaAnswers).toEqual([
+      { personaId: "p-1", personaName: "Sarah Chen", answer: "Sarah would approve once the cap is named." },
+      { personaId: "p-2", personaName: "Sarah Chen", answer: "Miguel needs the export button before he trusts the dashboard." },
+    ]);
+    expect(synthesis.researchQuestionAnswer).toBe("Pricing opacity blocks conversion.");
+    expect(synthesis.researchQuestionAnswer).not.toContain("Sarah would approve");
+  });
+
+  it("falls back to the group overview when the model returns no cohort answer", async () => {
+    const port = buildPort({
+      generateCohortSynthesis: vi.fn().mockResolvedValue({
+        ...LLM_CONTENT,
+        researchQuestionAnswer: "",
+      }),
+    });
+    const synthesis = await new SynthesizeArtifactResultsUseCase(port).execute(responses, "q");
+    expect(synthesis.researchQuestionAnswer).toBe(LLM_CONTENT.overview);
+  });
+
   it("falls back to response id and a placeholder name when profile fields are missing", async () => {
     const bare = [buildResponse({ personaId: undefined, personaProfile: undefined })];
     const port = buildPort();

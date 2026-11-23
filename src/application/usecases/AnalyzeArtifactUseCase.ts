@@ -306,12 +306,12 @@ export class AnalyzeArtifactUseCase {
               overview: "Analysis could not be completed.",
               customerJourney: [
                 { stage: "interpretation", description: `Analysis failed: ${errMsg}`, sentiment: "negative", outcome: "stopped" },
-                { stage: "understanding", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-                { stage: "belief", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-                { stage: "motivation", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
-                { stage: "action", description: "Not reached — analysis failed.", sentiment: "negative", outcome: "stopped" },
+                { stage: "understanding", description: "Not reached. Analysis failed.", sentiment: "negative", outcome: "stopped" },
+                { stage: "belief", description: "Not reached. Analysis failed.", sentiment: "negative", outcome: "stopped" },
+                { stage: "motivation", description: "Not reached. Analysis failed.", sentiment: "negative", outcome: "stopped" },
+                { stage: "action", description: "Not reached. Analysis failed.", sentiment: "negative", outcome: "stopped" },
               ],
-              researchQuestionAnswer: "Analysis failed — no answer available.",
+              researchQuestionAnswer: "Analysis failed. No answer available.",
               majorFindings: [],
               pointsOfFriction: [errMsg],
               unansweredQuestions: [],
@@ -368,7 +368,7 @@ function normalizeJourneyOutcomes(
       ...stage,
       outcome: "stopped" as const,
       sentiment: "neutral" as const,
-      description: `Not reached — abandoned at ${abandonAt}.`,
+      description: `Not reached. Abandoned at ${abandonAt}.`,
     };
   });
 }

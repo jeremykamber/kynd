@@ -105,6 +105,42 @@ export function personaIdentityViolations(
 }
 
 /**
+ * The journey must agree with itself: a succeeded stage cannot describe
+ * stopping, and once a stage is blocked or stopped every later stage is
+ * stopped. Observed drift: a persona "stopped at the price" in motivation and
+ * then "succeeded" at action, so the report claimed both.
+ *
+ * The phrase list is deliberately narrow. Negative sentiment is allowed on a
+ * succeeded stage (a persona can dislike the page and still understand it), and
+ * incidental words like "blocked" inside a success story are not flagged.
+ */
+const JOURNEY_STOP_PHRASE =
+  /\b(stopped (?:at|here|short)|gave up|abandoned|could not continue|couldn't continue|did not continue|didn't continue|failed to proceed|never reached)\b/i;
+
+export function journeyContradictions(response: PersonaResponse): string[] {
+  const violations: string[] = [];
+  let journeyEnded = false;
+
+  for (const stage of response.customerJourney) {
+    const prose = `${stage.description} ${stage.transition ?? ""}`;
+
+    if (stage.outcome === "succeeded" && JOURNEY_STOP_PHRASE.test(prose)) {
+      violations.push(`stage "${stage.stage}" says it succeeded but describes stopping`);
+    }
+
+    if (journeyEnded && stage.outcome !== "stopped") {
+      violations.push(`stage "${stage.stage}" follows an ended journey but is "${stage.outcome}"`);
+    }
+
+    if (stage.outcome === "blocked" || stage.outcome === "stopped") {
+      journeyEnded = true;
+    }
+  }
+
+  return violations;
+}
+
+/**
  * Checks a value has every required PersonaResponse field and a journey that
  * covers all five cognitive stages once, in order. Optional fields and the
  * artifact/persona identity fields are not cross-checked.
