@@ -1,6 +1,7 @@
 import type { Persona } from "@/domain/entities/Persona";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import { validatePersonaResponse } from "@/domain/entities/PersonaResponse";
+import { journeyTerminalIndex } from "@/domain/entities/StageJourney";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
 import { AnalysisProgressStep } from "@/domain/entities/ArtifactAnalysis";
@@ -352,6 +353,6 @@ export class AnalyzeArtifactUseCase {
 function truncateJourneyAtStop(
   journey: PersonaResponse["customerJourney"],
 ): PersonaResponse["customerJourney"] {
-  const stoppedAt = journey.findIndex((s) => s.outcome === "blocked" || s.outcome === "stopped");
+  const stoppedAt = journeyTerminalIndex(journey);
   return stoppedAt === -1 ? journey : journey.slice(0, stoppedAt + 1);
 }

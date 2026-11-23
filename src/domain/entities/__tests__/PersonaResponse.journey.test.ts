@@ -96,9 +96,21 @@ describe("journeyContradictions", () => {
         stage("interpretation", "Understood the offer.", "succeeded", "positive"),
         stage("understanding", "Disliked the price but understood the plan.", "succeeded", "negative"),
         stage("belief", "Trusted the brand.", "succeeded", "neutral"),
+        stage("motivation", "Wanted to try it.", "succeeded", "positive"),
+        stage("action", "Started the trial.", "succeeded", "positive"),
       ]),
     );
     expect(violations).toEqual([]);
+  });
+
+  it("flags a sparse journey that ends succeeded", () => {
+    const violations = journeyContradictions(
+      response([
+        stage("interpretation", "Understood the offer.", "succeeded", "positive"),
+        stage("understanding", "Understood the plan.", "succeeded", "positive"),
+      ]),
+    );
+    expect(violations).toEqual(["a journey shorter than five stages must end blocked or stopped"]);
   });
 
   it("flags a succeeded stage whose description says the persona stopped", () => {
@@ -106,6 +118,9 @@ describe("journeyContradictions", () => {
       response([
         stage("interpretation", "Understood the offer.", "succeeded", "positive"),
         stage("understanding", "Stopped at the price because the cap was hidden.", "succeeded", "negative"),
+        stage("belief", "Trusted the brand.", "succeeded", "neutral"),
+        stage("motivation", "Wanted to try it.", "succeeded", "positive"),
+        stage("action", "Started the trial.", "succeeded", "positive"),
       ]),
     );
     expect(violations).toEqual(['stage "understanding" says it succeeded but describes stopping']);

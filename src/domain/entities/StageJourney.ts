@@ -20,6 +20,13 @@ export interface StageJourney {
   transition?: string;
 }
 
+/** Index of the stage that ended the journey, or -1 when it reached the end. */
+export function journeyTerminalIndex(journey: StageJourney[]): number {
+  return journey.findIndex(
+    (stage) => stage.outcome === 'blocked' || stage.outcome === 'stopped',
+  );
+}
+
 /**
  * The five-stage view of a journey that may be stored sparse. A persona only
  * evaluates stages until it stops; the tail is projected as not reached so a
@@ -32,9 +39,7 @@ export interface StageJourney {
 export function completeJourney(journey: StageJourney[]): StageJourney[] {
   if (journey.length >= COGNITIVE_STAGES.length) return journey;
 
-  const terminalIndex = journey.findIndex(
-    (stage) => stage.outcome === 'blocked' || stage.outcome === 'stopped',
-  );
+  const terminalIndex = journeyTerminalIndex(journey);
   const reached = terminalIndex === -1 ? journey.length : terminalIndex + 1;
   const reachedStages = journey.slice(0, reached);
   const abandonedAt = reachedStages[reachedStages.length - 1]?.stage;

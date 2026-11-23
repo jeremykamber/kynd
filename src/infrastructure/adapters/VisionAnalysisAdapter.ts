@@ -76,8 +76,8 @@ Start wherever your ${isDocument ? "attention catches" : "eyes land"} first:`;
  * System 2 — the Anthropologist. Exported so tests can assert on the prompt
  * contract without LLM mocks. Sees the raw monologue text ONLY — no image,
  * no page summary — so every statement is grounded in what the persona said.
- * Rule 4 exists because validatePersonaResponse enforces exactly 5 ordered
- * stages; a skipped stage is expressed through its outcome, never by omission.
+ * Rule 4 exists because validatePersonaResponse enforces a canonical prefix
+ * ending at the stopping stage; later stages are omitted, never invented.
  */
 /**
  * Structured extraction needs more output room than the monologue it reads:

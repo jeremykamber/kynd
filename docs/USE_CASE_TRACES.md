@@ -297,8 +297,8 @@ execute(input, personas, businessGoal, researchQuestion, onProgress, abortSignal
   │       │   → VisionAnalysisAdapter.extractPersonaResponse() → PersonaResponse
   │       │     (System 2 — the Anthropologist: transcript only, third-person extraction)
   │       ├─ Assemble full PersonaResponse: rawAnalysis + personaProfile snapshot
-  │       ├─ validatePersonaResponse() — on failure, normalizeJourneyOutcomes()
-  │       └─ On error → placeholder response with 5 `stopped` stages
+  │       ├─ truncateJourneyAtStop() then validatePersonaResponse() — a failure is logged, not normalized
+  │       └─ On error → placeholder response with one `stopped` stage
   │
   └── Return PersonaResponse[] (Promise.allSettled; zero responses → throw)
 

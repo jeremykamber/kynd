@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { PersonaProfile } from "./PersonaProfile";
-import type { StageJourney } from "./StageJourney";
+import { journeyTerminalIndex, type StageJourney } from "./StageJourney";
 import type { MajorFinding } from "./MajorFinding";
 import type { CognitiveStage } from "./CognitiveStage";
 import { COGNITIVE_STAGES } from "./CognitiveStage";
@@ -20,9 +20,10 @@ export interface PersonaResponse {
   rawAnalysis: string;
   overview: string;
   /**
-   * Exactly one entry per stage, in `COGNITIVE_STAGES` order; validation
-   * rejects a journey that is shorter, longer, out of order, or repeats a
-   * stage.
+   * A prefix of `COGNITIVE_STAGES` in order, ending at the first blocked or
+   * stopped stage. A persona that completed the journey has all five stages;
+   * a shorter journey must end blocked or stopped. Validation rejects a
+   * journey that is out of order, repeats a stage, or is longer than five.
    */
   customerJourney: StageJourney[];
   researchQuestionAnswer: string;
@@ -119,22 +120,25 @@ const JOURNEY_STOP_PHRASE =
 
 export function journeyContradictions(response: PersonaResponse): string[] {
   const violations: string[] = [];
-  let journeyEnded = false;
+  const terminalIndex = journeyTerminalIndex(response.customerJourney);
 
-  for (const stage of response.customerJourney) {
+  for (const [index, stage] of response.customerJourney.entries()) {
     const prose = `${stage.description} ${stage.transition ?? ""}`;
 
     if (stage.outcome === "succeeded" && JOURNEY_STOP_PHRASE.test(prose)) {
       violations.push(`stage "${stage.stage}" says it succeeded but describes stopping`);
     }
 
-    if (journeyEnded && stage.outcome !== "stopped") {
+    if (terminalIndex !== -1 && index > terminalIndex && stage.outcome !== "stopped") {
       violations.push(`stage "${stage.stage}" follows an ended journey but is "${stage.outcome}"`);
     }
+  }
 
-    if (stage.outcome === "blocked" || stage.outcome === "stopped") {
-      journeyEnded = true;
-    }
+  if (
+    response.customerJourney.length < COGNITIVE_STAGES.length &&
+    terminalIndex === -1
+  ) {
+    violations.push("a journey shorter than five stages must end blocked or stopped");
   }
 
   return violations;
@@ -142,8 +146,9 @@ export function journeyContradictions(response: PersonaResponse): string[] {
 
 /**
  * Checks a value has every required PersonaResponse field and a journey that
- * covers all five cognitive stages once, in order. Optional fields and the
- * artifact/persona identity fields are not cross-checked.
+ * is a prefix of `COGNITIVE_STAGES`, in order, ending blocked or stopped when
+ * shorter than five. Optional fields and the artifact/persona identity fields
+ * are not cross-checked.
  */
 export function validatePersonaResponse(response: PersonaResponse): boolean {
   if (!response || typeof response !== "object") return false;
@@ -171,8 +176,7 @@ export function validatePersonaResponse(response: PersonaResponse): boolean {
   // carry later stopped stages from older persisted analyses; completeJourney
   // projects those for rendering, and new writes truncate them.
   if (journey.length < COGNITIVE_STAGES.length) {
-    const terminal = journey.findIndex((stage) => stage.outcome === "blocked" || stage.outcome === "stopped");
-    if (terminal !== journey.length - 1) return false;
+    if (journeyTerminalIndex(journey) !== journey.length - 1) return false;
   }
 
   for (const finding of response.majorFindings) {

@@ -21,7 +21,7 @@ import { analysisInputKind, analysisSourceLabel } from '@/domain/entities/Artifa
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
 import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
-import { completeJourney, type StageJourney, type StageOutcome } from '@/domain/entities/StageJourney'
+import { completeJourney, journeyTerminalIndex, type StageJourney, type StageOutcome } from '@/domain/entities/StageJourney'
 import { cn } from '@/lib/utils'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
@@ -96,11 +96,12 @@ const OUTCOME_META: Record<StageOutcome, { label: string; title: string; icon: t
 
 /** One-glance verdict for the collapsed persona row. */
 function journeyVerdict(journey: StageJourney[]): { label: string; title: string; className: string } {
-  const at = journey.findIndex((s) => s.outcome === 'blocked' || s.outcome === 'stopped')
+  const stages = completeJourney(journey)
+  const at = journeyTerminalIndex(stages)
   if (at === -1) {
     return { label: 'Reached the end', title: 'This persona completed all five stages.', className: 'text-success' }
   }
-  const stage = journey[at]
+  const stage = stages[at]
   const meta = OUTCOME_META[stage.outcome]
   return { label: `${meta.label.replace(' here', '')} at ${stage.stage}`, title: meta.title, className: meta.className }
 }
@@ -113,7 +114,7 @@ function journeyVerdict(journey: StageJourney[]): { label: string; title: string
  */
 function JourneyPath({ journey }: { journey: StageJourney[] }) {
   const stages = completeJourney(journey)
-  const abandonedAt = stages.findIndex((s) => s.outcome === 'blocked' || s.outcome === 'stopped')
+  const abandonedAt = journeyTerminalIndex(stages)
   const reached = abandonedAt === -1 ? stages.length : abandonedAt + 1
 
   return (

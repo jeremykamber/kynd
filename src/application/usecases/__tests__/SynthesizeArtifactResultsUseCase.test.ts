@@ -116,6 +116,15 @@ describe("SynthesizeArtifactResultsUseCase", () => {
       buildResponse({
         personaId: "p-2",
         researchQuestionAnswer: "Miguel needs the export button before he trusts the dashboard.",
+        personaProfile: {
+          name: "Miguel Torres",
+          occupation: "Data Analyst",
+          bigFive: { conscientiousness: 60, neuroticism: 40, openness: 60, extraversion: 60, agreeableness: 50 },
+          values: [],
+          fears: [],
+          communicationStyle: "direct",
+          decisionStyle: "data-driven",
+        },
       }),
     ];
     const port = buildPort();
@@ -127,7 +136,7 @@ describe("SynthesizeArtifactResultsUseCase", () => {
     const [, , options] = vi.mocked(port.generateCohortSynthesis).mock.calls[0];
     expect(options?.personaAnswers).toEqual([
       { personaId: "p-1", personaName: "Sarah Chen", answer: "Sarah would approve once the cap is named." },
-      { personaId: "p-2", personaName: "Sarah Chen", answer: "Miguel needs the export button before he trusts the dashboard." },
+      { personaId: "p-2", personaName: "Miguel Torres", answer: "Miguel needs the export button before he trusts the dashboard." },
     ]);
     expect(synthesis.researchQuestionAnswer).toBe("Pricing opacity blocks conversion.");
     expect(synthesis.researchQuestionAnswer).not.toContain("Sarah would approve");
