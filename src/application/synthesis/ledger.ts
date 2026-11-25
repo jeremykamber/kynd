@@ -9,6 +9,7 @@ import type {
 import { CLAIM_STANCES, SUPPORT_LEVELS } from '@/domain/entities/PersonaClaim';
 import type { Verdict } from '@/domain/entities/Verdict';
 import { emptyVerdictCounts, normalizeVerdict } from '@/domain/entities/Verdict';
+import type { DecisionRole } from '@/domain/entities/DecisionRole';
 
 export interface LedgerResponse {
   personaId: string;
@@ -16,6 +17,8 @@ export interface LedgerResponse {
   transcript: string;
   claims?: Array<PersonaClaim & { id?: string }>;
   verdict?: Verdict | string;
+  decisionRole?: DecisionRole;
+  occupation?: string;
 }
 
 export interface BuildClaimLedgerInput {
@@ -31,6 +34,8 @@ interface ClaimWithPersona {
   claim: PersonaClaim;
   personaName: string;
   transcript: string;
+  decisionRole?: DecisionRole;
+  occupation?: string;
 }
 
 function isClaimStance(value: unknown): value is ClaimStance {
@@ -91,7 +96,13 @@ export function collectVerbatimClaims(responses: LedgerResponse[]): {
         });
         return;
       }
-      kept.push({ claim, personaName: response.personaName, transcript: response.transcript });
+      kept.push({
+        claim,
+        personaName: response.personaName,
+        transcript: response.transcript,
+        ...(response.decisionRole ? { decisionRole: response.decisionRole } : {}),
+        ...(response.occupation ? { occupation: response.occupation } : {}),
+      });
     });
   }
 
@@ -207,12 +218,22 @@ export function buildClaimLedger(input: BuildClaimLedgerInput): ClaimLedger {
         `Duplicate-persona conflict in "${groupTopics.get(key)}": ${[...new Set(counts.conflicts)].join(', ')} claimed both sides; the later claim wins.`,
       );
     }
+    const usedQuotes = new Set<string>();
     const citations = [...counts.winners.values()].map((claim) => {
-      const entry = entries.find((candidate) => candidate.claim.id === claim.id) ?? entries[0];
+      // A persona can hold several supported claims in one group. Prefer a
+      // quote this finding has not shown yet, so two personas who happened to
+      // say the same sentence are not printed as one quote copied twice.
+      const candidates = entries.filter((candidate) => candidate.claim.personaId === claim.personaId);
+      const entry = candidates.find((candidate) => !usedQuotes.has(candidate.claim.quote))
+        ?? candidates.find((candidate) => candidate.claim.id === claim.id)
+        ?? entries[0];
+      usedQuotes.add(entry.claim.quote);
       return {
         personaId: claim.personaId,
         personaName: entry.personaName,
-        quote: claim.quote,
+        quote: entry.claim.quote,
+        ...(entry.decisionRole ? { decisionRole: entry.decisionRole } : {}),
+        ...(entry.occupation ? { occupation: entry.occupation } : {}),
       };
     });
     const firstStage = claims.find((claim) => claim.stage)?.stage;

@@ -63,6 +63,18 @@ export function planForWriter(plan: SynthesisPlan): SynthesisPlan {
   };
 }
 
+const VAGUE_COHORT_OPENING =
+  /^(?:several|multiple|many|some|a few|various|a handful of)\s+(?:of\s+)?(?:the\s+)?personas\b/i;
+
+/**
+ * The writer is told to use counts, but a vague opener is the exact failure
+ * reviewers read as "one voice in five costumes". The count is code-owned, so
+ * replace the opener rather than trusting the sentence.
+ */
+export function exactCohortOpening(text: string, personaCount: number, completedCount: number): string {
+  return text.trim().replace(VAGUE_COHORT_OPENING, `${personaCount} of ${completedCount} personas`);
+}
+
 function confidenceFor(personaCount: number, completedCount: number): SynthesizedFinding['confidence'] {
   const ratio = completedCount > 0 ? personaCount / completedCount : 0;
   if (ratio >= 0.75) return 'strongly supported';
@@ -104,9 +116,9 @@ export function buildArtifactSynthesis(plan: SynthesisPlan, draft: SynthesisDraf
     const written = draftFindings.get(group.id);
     const evidence = group.citations[0]?.quote ?? group.topic;
     return {
-      observation: written?.observation?.trim() || group.topic,
+      observation: exactCohortOpening(written?.observation || group.topic, group.personaCount, plan.completedCount),
       evidence,
-      impact: written?.impact?.trim() || '',
+      impact: exactCohortOpening(written?.impact || '', group.personaCount, plan.completedCount),
       confidence: confidenceFor(group.personaCount, plan.completedCount),
       affectedPersonaCount: group.personaCount,
       totalPersonaCount: plan.completedCount,
@@ -135,7 +147,9 @@ export function buildArtifactSynthesis(plan: SynthesisPlan, draft: SynthesisDraf
 
   // One friction per plan group, in plan order, so a validator warning can
   // address the same index the reader sees.
-  const frictions = plan.frictions.map((group) => draftFrictions.get(group.id) || group.topic);
+  const frictions = plan.frictions.map((group) =>
+    exactCohortOpening(draftFrictions.get(group.id) || group.topic, group.personaCount, plan.completedCount),
+  );
 
   return {
     overview: String(draft.overview ?? '').trim(),

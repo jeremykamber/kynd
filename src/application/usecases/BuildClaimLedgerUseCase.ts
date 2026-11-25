@@ -17,6 +17,12 @@ function toLedgerResponse(response: PersonaResponse): LedgerResponse {
     transcript: response.rawAnalysis,
     claims: response.claims,
     verdict: response.verdict,
+    ...(response.decisionFrame?.decisionRole
+      ? { decisionRole: response.decisionFrame.decisionRole }
+      : response.personaProfile?.decisionRole
+        ? { decisionRole: response.personaProfile.decisionRole }
+        : {}),
+    ...(response.personaProfile?.occupation ? { occupation: response.personaProfile.occupation } : {}),
   };
 }
 

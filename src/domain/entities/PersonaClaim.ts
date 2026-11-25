@@ -1,4 +1,5 @@
 import type { CognitiveStage } from './CognitiveStage';
+import type { DecisionRole } from './DecisionRole';
 
 /**
  * One assertion a persona makes, with one verbatim quotation from its
@@ -48,6 +49,9 @@ export interface ClaimCitation {
   personaId: string;
   personaName: string;
   quote: string;
+  /** The role the cited persona played, so prose can differentiate without names. */
+  decisionRole?: DecisionRole;
+  occupation?: string;
 }
 
 export interface ClaimLedger {

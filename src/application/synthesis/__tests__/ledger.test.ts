@@ -100,6 +100,47 @@ describe("buildClaimLedger", () => {
     expect(ledger.groups[0].citations).toHaveLength(1);
   });
 
+  it("shows a different quote per persona when two said the same sentence", () => {
+    const same = "That is not an answer, it is a gate.";
+    const unique = "I nearly choked at the price.";
+    const ledger = buildClaimLedger({
+      responses: [
+        response({
+          personaId: "p-1",
+          personaName: "Maya",
+          decisionRole: "blocker",
+          occupation: "Head of Product",
+          transcript: `${unique} ${same}`,
+          claims: [
+            { id: "p-1:0", personaId: "p-1", topic: "data policy", observation: "The policy is a gate.", stance: "opposes", quote: unique },
+            { id: "p-1:1", personaId: "p-1", topic: "data policy", observation: "The policy is a gate.", stance: "opposes", quote: same },
+          ],
+        }),
+        response({
+          personaId: "p-2",
+          personaName: "Daniel",
+          transcript: `${same}`,
+          claims: [
+            { id: "p-2:0", personaId: "p-2", topic: "data policy", observation: "The policy is a gate.", stance: "opposes", quote: same },
+          ],
+        }),
+      ],
+      supports: [
+        { claimId: "p-1:0", level: "support", reason: "ok" },
+        { claimId: "p-1:1", level: "support", reason: "ok" },
+        { claimId: "p-2:0", level: "support", reason: "ok" },
+      ],
+      clusters: [{ topic: "data policy", claimIds: ["p-1:0", "p-1:1", "p-2:0"] }],
+      failedCount: 0,
+      totalPersonaCount: 2,
+    });
+
+    const quotes = ledger.groups[0].citations.map((citation) => citation.quote);
+    expect(new Set(quotes).size).toBe(2);
+    expect(ledger.groups[0].citations.find((citation) => citation.personaId === "p-1")?.decisionRole).toBe("blocker");
+    expect(ledger.groups[0].citations.find((citation) => citation.personaId === "p-1")?.occupation).toBe("Head of Product");
+  });
+
   it("keeps a supported claim the clustering pass omitted as a one-claim group", () => {
     const ledger = buildClaimLedger({
       responses: [response()],

@@ -129,12 +129,13 @@ Extract 3 to 7 assertions the persona actually makes about the artifact.
 Return a JSON object: { "claims": [{ "topic": string, "observation": string, "stance": "supports" | "opposes" | "neutral", "quote": string, "stage"?: "interpretation" | "understanding" | "belief" | "motivation" | "action" }] }
 
 RULES:
-1. "observation" is one sentence stating what the persona noticed or concluded.
-2. "topic" is a short noun phrase naming the underlying issue; use the same topic for the same issue.
-3. "stance" is the persona's direction on that topic, not your opinion.
-4. "quote" MUST be a complete sentence copied CHARACTER-FOR-CHARACTER from the transcript. No quote, no claim.
-5. Do NOT add a fact, a number, a verdict, or a recommendation that the transcript does not contain.
-6. Write in English.`;
+1. One claim per assertion. If the transcript makes two separate points, return two claims.
+2. "observation" is one sentence, at most 25 words, naming the artifact element (price, line, screen, state) and what the persona concluded about it. Do not combine two reactions with "and".
+3. "topic" is a short mechanism phrase naming the element and its effect, not a category noun.
+4. "stance" is the persona's direction on that topic, not your opinion.
+5. "quote" MUST be a complete sentence copied CHARACTER-FOR-CHARACTER from the transcript. No quote, no claim.
+6. Do NOT add a fact, a number, a verdict, or a recommendation that the transcript does not contain. Any number in "observation" must also appear in "quote".
+7. Write in English.`;
 
 const SUPPORT_PROMPT = `You verify whether a quotation supports a claim.
 
@@ -151,22 +152,23 @@ RULES:
 3. Reason is one short sentence.
 4. Return exactly one result per claim id supplied.`;
 
-const CLUSTER_PROMPT = `You group claims by the underlying topic.
+const CLUSTER_PROMPT = `You group claims by the mechanism that would change the product.
 
-You receive claim ids with a topic and an observation. Group claims that make the same point.
-Do NOT merge different causes: "the price is high" and "the free plan is missing" are different topics even when both make a persona hesitate.
+You receive claim ids with a topic and an observation. Group claims about the same artifact element and the same judgment, even when they notice different facets of it.
+A support and an oppose on the same element belong in one group: the split is the point. Do NOT merge different artifact elements or different mechanisms; keep them apart even when both make a persona hesitate. If two claims name different screens, states, or causes, keep them apart.
 
 Return a JSON object: { "groups": [{ "topic": string, "claimIds": string[] }] }
 
 RULES:
 1. Every claim id may appear at most once, or not at all.
 2. Do not create claims, edit claims, or invent ids.
-3. Use short noun-phrase topics.
+3. "topic" is a short mechanism phrase naming the element and its effect, not a category noun.
 4. Write in English.`;
 
 const SYNTHESIS_PROMPT = `You write the wording of one cohort research report from a verified plan.
 
-The plan already holds every count, citation, and artifact fact. You provide language only.
+The plan holds the supported groups, their exact counts, their claim observations, their quotations, the artifact profile facts, and the verdict tally. You provide language only. Code fills the counts, citations, and splits after your answer.
+
 Return a JSON object:
 {
   "overview": string,
@@ -177,17 +179,24 @@ Return a JSON object:
 }
 
 RULES:
-1. Return one finding for every group in "findings", one disagreement for every group in "splits", and one friction for every group in "frictions", using its exact groupId.
-2. Never write a count, percentage, persona name, or quotation that is not already in the plan. Code fills counts and citations after your answer.
-3. Use group language ("Several personas...") and never name a persona.
-4. Do NOT make recommendations. Describe what the cohort did, not what a company should do.
-5. If the plan has no supported finding, say so in the overview and leave findings empty.
-6. Write in English.`;
+1. Return exactly one finding per group in "findings", one disagreement per group in "splits", and one friction per group in "frictions", using the exact groupId. Do not invent a group.
+2. Start every finding with the exact group count: "<personaCount> of <completedCount> personas ...". Use only counts from the plan. Never write a different count, a percentage, a persona name, or a quotation that is not in the plan. Role labels (economic buyer, daily user, blocker, champion) are allowed; names are not.
+3. Observation: at most 30 words, one sentence. Name the artifact element and the shared mechanism. When the plan's artifact profile states the element, copy its exact value. Do not open with "Several personas", do not use category nouns (trust, clarity, credibility, transparency, friction) as the subject, and do not list each persona's version — the citations carry the variants.
+4. Impact: at most 25 words. State what this changes for the reader's decision: what they will not do, will test, will pay for, will forward, or will ask for. It must add a consequence, never restate the observation. Never use "acted as a barrier", "raised concerns", "caused hesitation", "viewed as", "stopped several personas", "highlighted", or "underscored".
+5. Every finding must name the mechanism that distinguishes it from the other findings. Do not repeat one sentence with a different topic; if two groups would lead to the same fix, say what the reader would change in each case.
+6. Split labels: state the reason each side holds in its own terms; do not use "support" or "oppose" as the label. Use the claim observations; no names.
+7. Friction: one sentence naming the exact surface, what the reader did instead, and the consequence. Do not repeat the overview or a finding.
+8. Overview: 2 to 4 sentences. Every sentence must restate a finding or friction above, or the verdict tally. Do not introduce a new topic, question, number, screen, or artifact fact. Start with the strongest supported finding and its exact count. Do not write "The cohort examined", "Across the completed personas", or "unresolved questions". If the plan has no splits, do not use the word "split"; describe the disagreement as findings.
+9. Research answer: answer the research question directly with the top two findings and their exact counts, then the strongest countervailing finding and its count. No new topics.
+10. Do NOT make recommendations. Describe what the cohort did and what it means for the decision, not what a company should do.
+11. If the plan has no supported finding, say so in the overview and leave findings empty.
+12. Write in English.`;
 
 const REPAIR_PROMPT = `You repair a cohort report draft that failed mechanical validation.
 
 You receive the verified plan, the current draft, and the exact violations. Fix only the listed fields.
 Return the FULL corrected draft in the same JSON shape. Do not add a fact, count, quotation, persona name, or recommendation.
+Every finding starts with its exact plan count. Every impact states a decision consequence and does not restate the observation.
 Write in English.`;
 
 /**

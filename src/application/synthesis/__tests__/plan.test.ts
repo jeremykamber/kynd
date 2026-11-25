@@ -87,19 +87,20 @@ describe("buildArtifactSynthesis", () => {
     const synthesis = buildArtifactSynthesis(plan, {
       overview: "Several personas stalled.",
       researchQuestionAnswer: "Price opacity blocks the next step.",
-      findings: [{ groupId: "g1", observation: "Price opacity stalls the cohort.", impact: "They stop before acting." }],
+      findings: [{ groupId: "g1", observation: "Several personas stalled on the price.", impact: "Several personas stop before acting." }],
       disagreements: [],
       frictions: [{ groupId: "g1", text: "No visible price." }],
     });
 
     expect(synthesis.topFindings[0]).toMatchObject({
-      observation: "Price opacity stalls the cohort.",
+      observation: "2 of 3 personas stalled on the price.",
       affectedPersonaCount: 2,
       totalPersonaCount: 3,
       confidence: "some support",
       groupId: "g1",
     });
     expect(synthesis.topFindings[0].citations?.[0].quote).toBe("I nearly choked at the price.");
+    expect(synthesis.topFindings[0].impact).toBe("2 of 3 personas stop before acting.");
     expect(synthesis.biggestFrictions).toEqual(["No visible price."]);
   });
 
