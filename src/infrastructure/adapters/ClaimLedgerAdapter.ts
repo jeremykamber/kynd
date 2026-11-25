@@ -177,8 +177,8 @@ RULES:
 
 const CLUSTER_PROMPT = `You group claims by the mechanism that would change the product.
 
-You receive claim ids with a topic and an observation. Group claims about the same artifact element and the same underlying concern, even when they notice different facets, use different words, or reach different conclusions.
-Facets of one concern (where something comes from, who provides it, whether it is representative, and whether it can be trusted) belong together. A support and an oppose on the same element belong in one group: the split is the point. Split only when the reader would change a different artifact element or a different mechanism.
+You receive claim ids with a topic and an observation. Group claims about the same artifact element and the same judgment, even when they notice different facets of it.
+A support and an oppose on the same element belong in one group: the split is the point. Do NOT merge different artifact elements or different mechanisms; keep them apart even when both make a persona hesitate. If two claims name different screens, states, or causes, keep them apart.
 
 Return a JSON object: { "groups": [{ "topic": string, "claimIds": string[] }] }
 
@@ -203,12 +203,12 @@ Return a JSON object:
 
 RULES:
 1. Return exactly one finding per group in "findings", one disagreement per group in "splits", and one friction per group in "frictions", using the exact groupId. Do not invent a group.
-2. Start every finding with the exact group count: "<personaCount> of <completedCount> personas ...". Use only counts from the plan. Never write a different count, a percentage, a persona name, or a quotation that is not in the plan. Role labels (economic buyer, daily user, blocker, champion) are allowed; names are not.
-3. Observation: at most 30 words, one sentence. Name the artifact element and the shared mechanism. When the plan's artifact profile states the element, copy its exact value. Do not open with "Several personas", do not use category nouns (trust, clarity, credibility, transparency, friction) as the subject, and do not list each persona's version — the citations carry the variants.
-4. Impact: at most 25 words. State what this changes for the reader's decision: what they will not do, will test, will pay for, will forward, or which requirement they will set. It must add a consequence, never restate the observation. Do not end with "will ask" or "will want to know" unless you name the concrete answer that changes the decision. Never use "acted as a barrier", "raised concerns", "caused hesitation", "viewed as", "stopped several personas", "highlighted", or "underscored".
+2. State the behavior or mechanism first. Do not write a tally: never use "N of M personas weighed / responded / mentioned / focused on". Put the exact count in the sentence only when it clarifies the strength, using the plan's values. Never write a different count, a percentage, a persona name, or a quotation that is not in the plan. Role labels (economic buyer, daily user, blocker, champion) are allowed; names are not.
+3. Observation: at most 30 words, one sentence. Name the artifact element and what the personas did or concluded about it. When the plan's artifact profile states the element, copy its exact value. Do not open with "Several personas", do not use category nouns (trust, clarity, credibility, transparency, friction) as the subject, and do not list each persona's version — the citations carry the variants. If a group has both support and opposition, state both sides and their counts; never describe a split group as one view.
+4. Impact: at most 25 words. State what this changes for the reader's decision: what they will not do, will test, will pay for, will forward, or which requirement they will set. It must add a consequence, never restate the observation. Do not invent a number, a range ("two or three", "a few"), or a timeframe ("this week", "within a week") that the plan does not state. Do not end with "will ask" or "will want to know" unless you name the concrete answer that changes the decision. Never use "acted as a barrier", "raised concerns", "caused hesitation", "viewed as", "stopped several personas", "highlighted", or "underscored".
 5. Every finding must name the mechanism that distinguishes it from the other findings. Do not repeat one sentence with a different topic; if two groups would lead to the same fix, say what the reader would change in each case.
 6. Split labels: state the reason each side holds in its own terms; do not use "support" or "oppose" as the label. Use the claim observations; no names.
-7. Friction: one sentence naming the exact surface, what the reader did instead, and the consequence. Do not repeat the overview or a finding.
+7. Friction: one sentence naming the exact surface and what the group's own claim observations say the reader did. Do not add a consequence, timeframe, number, or action the claims do not state. Do not repeat the overview or a finding.
 8. Overview: 2 to 4 sentences. Every sentence must restate a finding or friction above, or the verdict tally. Do not introduce a new topic, question, number, screen, or artifact fact. Start with the strongest supported finding and its exact count. Do not write "The cohort examined", "Across the completed personas", or "unresolved questions". If the plan has no splits, do not use the word "split"; describe the disagreement as findings.
 9. Research answer: answer the research question directly with the top two findings and their exact counts, then the strongest countervailing finding and its count. No new topics.
 10. Do NOT make recommendations. Describe what the cohort did and what it means for the decision, not what a company should do.
@@ -223,8 +223,8 @@ Return a JSON object: { "overview": string, "researchQuestionAnswer": string }
 
 RULES:
 1. Every sentence must restate a finding, a friction, or the verdict tally. Do not introduce a new topic, question, number, screen, or artifact fact.
-2. Preserve each finding's count and direction. If a finding reports a mix, keep the mix; never turn it into unanimous agreement or rejection.
-3. Overview: 2 to 4 sentences, strongest finding first. Research answer: 2 to 3 sentences with the top two findings and the verdict tally.
+2. Preserve each finding's direction and its mix. If a finding reports both sides, keep both; never turn it into unanimous agreement or rejection.
+3. Lead with the strongest behavior or mechanism, not an inventory of counts. Use a count only when it clarifies strength. Overview: 2 to 4 sentences. Research answer: 2 to 3 sentences with the top two findings and the verdict tally.
 4. Use only counts present in the input. Do not make recommendations.
 5. If there are no findings, say that no supported finding reached the floor.
 6. Write in English.`;
