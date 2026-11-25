@@ -98,6 +98,30 @@ describe("validateSynthesis", () => {
     expect(validateSynthesis(p, wrong).some((v) => v.field.startsWith("finding:g1") && v.message.includes("100%"))).toBe(true);
   });
 
+  it('rejects 100% in the overview for a partial group', () => {
+    const p = widePlan();
+    const synthesis = buildArtifactSynthesis(p, draft({ overview: "100% of personas stopped." }));
+    expect(validateSynthesis(p, synthesis).some((v) => v.field === "overview" && v.message.includes("100%"))).toBe(true);
+  });
+
+  it('lets the writer quote a 100 the artifact states', () => {
+    const p = buildSynthesisPlan({
+      researchQuestion: "q",
+      ledger,
+      personaNames: ["Sarah Chen"],
+      profile: {
+        contentKind: "document",
+        facts: [{ kind: "claim", label: "Templates", value: "100 templates", source: "text" }],
+        openQuestions: [],
+        stageAnchorKind: "quote",
+        confidence: "high",
+        degraded: [],
+      },
+    });
+    const synthesis = buildArtifactSynthesis(p, draft({ overview: "The document offers 100 templates." }));
+    expect(validateSynthesis(p, synthesis)).toEqual([]);
+  });
+
   it('allows 100% only when the group covers every completed persona', () => {
     const p = buildSynthesisPlan({
       researchQuestion: "q",

@@ -64,7 +64,6 @@ function allowedNumbers(plan: SynthesisPlan): AllowedNumbers {
       percents.add(Math.round((count / plan.completedCount) * 100));
       percents.add(Math.floor((count / plan.completedCount) * 100));
     }
-    if (plan.completedCount === plan.totalPersonaCount) percents.add(100);
   }
 
   const factTexts = [
@@ -74,7 +73,7 @@ function allowedNumbers(plan: SynthesisPlan): AllowedNumbers {
   for (const text of factTexts) {
     for (const token of numberTokens(text)) {
       if (token.percent) percents.add(token.value);
-      else if (token.value !== 100) counts.add(token.value);
+      else counts.add(token.value);
     }
   }
 
