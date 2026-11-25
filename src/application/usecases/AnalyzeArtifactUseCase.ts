@@ -433,10 +433,8 @@ export class AnalyzeArtifactUseCase {
         const reason = String(reasonById.get(personaId) ?? "").trim();
         if (reason) {
           responses[index] = { ...response, decisiveReason: reason };
-        } else {
-          const withoutReason = { ...response };
-          delete withoutReason.decisiveReason;
-          responses[index] = withoutReason;
+        } else if (response.decisiveReasonQuote?.trim()) {
+          responses[index] = { ...response, decisiveReason: response.decisiveReasonQuote.trim() };
         }
       }
     } catch (err) {

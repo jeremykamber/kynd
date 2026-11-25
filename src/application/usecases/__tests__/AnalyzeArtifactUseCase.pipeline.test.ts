@@ -269,7 +269,7 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
     expect(llm.auditPersonaReasons).toHaveBeenCalledTimes(1)
   })
 
-  it('drops a reason the audit cannot ground', async () => {
+  it('falls back to the verbatim quote when the audit cannot ground a reason', async () => {
     vi.mocked(llm.extractPersonaResponse).mockResolvedValue({
       overview: 'ok',
       customerJourney: [
@@ -294,7 +294,7 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
       'goal',
       'rq',
     )
-    expect(responses[0].decisiveReason).toBeUndefined()
+    expect(responses[0].decisiveReason).toBe('visceral reaction text')
   })
 
   it('lets a blocker adopt: the role never implies the verdict', async () => {

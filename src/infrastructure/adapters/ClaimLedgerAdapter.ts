@@ -239,7 +239,7 @@ RULES:
 1. Every noun, number, tool, person, and event in the reason must appear in that persona's own transcript. Remove anything else.
 2. Keep the recorded verdict. If the draft reason conflicts with the verdict, rewrite the reason to match the verdict.
 3. One sentence, third person. Do not add a fact, number, quotation, or recommendation.
-4. If the transcript supports no reason, return an empty string for that persona.
+4. Never return an empty reason: if the draft is unsupported, use the transcript sentence that best explains the recorded verdict, without adding anything.
 5. Return exactly one result per personaId supplied.
 6. Write in English.`;
 
@@ -263,7 +263,9 @@ export class ClaimLedgerAdapter {
         [{ role: "user", content: prompt }],
         {
           temperature: 0.2,
-          model: this.llmService.textModel,
+          model: this.llmService.client?.baseURL?.includes("openrouter")
+            ? "deepseek/deepseek-v4-pro"
+            : this.llmService.textModel,
           response_format: { type: "json_object" },
           purpose,
           runId,
