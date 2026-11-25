@@ -20,7 +20,7 @@ import type { MajorFinding } from '@/domain/entities/MajorFinding'
 import { analysisInputKind, analysisSourceLabel } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
-import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
+import type { ArtifactSynthesis, SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import type { StageJourney, StageOutcome } from '@/domain/entities/StageJourney'
 import type { DecisionRole } from '@/domain/entities/DecisionRole'
 import type { Verdict } from '@/domain/entities/Verdict'
@@ -707,6 +707,17 @@ function CompletedView({
     [analyses, analysis.synthesis]
   )
 
+  // Rejected claims live on the persona card, not in the cohort counts. Group
+  // them by persona once so each card only scans its own list.
+  const rejectedByPersona = useMemo(() => {
+    const map = new Map<string, NonNullable<ArtifactSynthesis['rejectedClaims']>>()
+    for (const rejected of synthesis?.rejectedClaims ?? []) {
+      const personaId = rejected.claim.personaId
+      map.set(personaId, [...(map.get(personaId) ?? []), rejected])
+    }
+    return map
+  }, [synthesis])
+
   // Resolve each response back to a full Persona once — chat needs the
   // psychometrics/backstory, not just the display projection.
   const resolvedPersonas = useMemo(
@@ -1031,6 +1042,7 @@ function CompletedView({
             const personaName = analysis.personaProfile?.name ?? `Persona ${index + 1}`
             const isExpanded = expandedPersonas.has(index)
             const chatPersona = resolvedPersonas[index]
+            const rejectedClaims = analysis.personaId ? rejectedByPersona.get(analysis.personaId) ?? [] : []
             const verdict =
               analysis.customerJourney && analysis.customerJourney.length > 0
                 ? journeyVerdict(analysis.customerJourney)
@@ -1150,6 +1162,39 @@ function CompletedView({
                         </p>
                       )}
                     </div>
+                  )}
+
+                  {rejectedClaims.length > 0 && (
+                    <details className="group/not-counted rounded-md border border-border/60 bg-muted/10 px-4 py-3">
+                      <summary className="flex w-fit cursor-pointer list-none items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                        <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open/not-counted:rotate-90" />
+                        Not counted ({rejectedClaims.length})
+                      </summary>
+                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                        These claims did not pass the support gate or the verbatim check. They stay on this card and never set a count, finding, or split.
+                      </p>
+                      <ul className="mt-3 flex flex-col gap-3">
+                        {rejectedClaims.map((rejected, i) => (
+                          <li key={i} className="rounded-md border border-border/50 bg-background/60 p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium text-foreground/80">{rejected.claim.topic}</span>
+                              <span className="rounded-full border border-border px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                                {rejected.level}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{rejected.claim.observation}</p>
+                            {rejected.claim.quote && (
+                              <p className="mt-2 border-l-2 border-border pl-3 text-sm italic leading-relaxed text-muted-foreground">
+                                “{rejected.claim.quote}”
+                              </p>
+                            )}
+                            {rejected.reason && (
+                              <p className="mt-2 text-xs leading-relaxed text-muted-foreground/80">{rejected.reason}</p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
                   )}
 
                   {analysis.customerJourney?.length > 0 && (

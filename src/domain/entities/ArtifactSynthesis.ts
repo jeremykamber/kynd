@@ -1,5 +1,5 @@
 import type { ContentKind, ArtifactFact } from './ArtifactProfile';
-import type { ClaimGroup } from './PersonaClaim';
+import type { ClaimGroup, ClaimLedger } from './PersonaClaim';
 
 /**
  * Cross-persona synthesis of one completed artifact analysis: the cohort-level
@@ -26,6 +26,12 @@ export interface ArtifactSynthesis {
   verdicts?: Record<'adopt' | 'trial' | 'reject' | 'undecided', number>;
   /** The supported ledger groups, for inspection. Unsupported claims never enter. */
   claimGroups?: ClaimGroup[];
+  /**
+   * Claims the support gate or the verbatim check rejected, kept so the persona
+   * card can show a collapsed "Not counted" section. They never set a count,
+   * finding, or split.
+   */
+  rejectedClaims?: ClaimLedger['rejectedClaims'];
   /** Facts the artifact profile extracted. Empty when the profile is missing. */
   facts?: ArtifactFact[];
   contentKind?: ContentKind;

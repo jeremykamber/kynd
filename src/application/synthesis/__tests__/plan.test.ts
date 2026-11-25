@@ -103,6 +103,22 @@ describe("buildArtifactSynthesis", () => {
     expect(synthesis.biggestFrictions).toEqual(["No visible price."]);
   });
 
+  it("carries rejected claims for the persona card without counting them", () => {
+    const rejected = ledger().rejectedClaims;
+    const plan = buildSynthesisPlan({ researchQuestion: "q", ledger: ledger() });
+    const synthesis = buildArtifactSynthesis(plan, {
+      overview: "Several personas stalled.",
+      researchQuestionAnswer: "Price opacity blocks the next step.",
+      findings: [{ groupId: "g1", observation: "Price opacity stalls the cohort.", impact: "They stop." }],
+      disagreements: [],
+      frictions: [],
+    });
+
+    expect(rejected).toHaveLength(1);
+    expect(synthesis.rejectedClaims).toEqual(rejected);
+    expect(synthesis.topFindings[0].affectedPersonaCount).toBe(2);
+  });
+
   it("always adds a No clear view bucket so the split sums to the completed count", () => {
     const plan = buildSynthesisPlan({
       researchQuestion: "q",

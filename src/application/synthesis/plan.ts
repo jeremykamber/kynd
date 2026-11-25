@@ -152,5 +152,6 @@ export function buildArtifactSynthesis(plan: SynthesisPlan, draft: SynthesisDraf
     ...(plan.profile ? { contentKind: plan.profile.contentKind } : {}),
     degraded: plan.ledger.degraded,
     missingClaimPersonaIds: plan.ledger.missingClaimPersonaIds,
+    rejectedClaims: plan.ledger.rejectedClaims,
   };
 }
