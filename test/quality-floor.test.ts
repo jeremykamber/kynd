@@ -85,7 +85,7 @@ describe('quality-floor structural gate', () => {
 
   it('fails more than one marked field', () => {
     const tampered = run()
-    ;(tampered.synthesis as any).validationWarnings = ['overview: a', 'split:g2: b']
+    Object.assign(tampered.synthesis, { validationWarnings: ['overview: a', 'split:g2: b'] })
     expect(structuralFailures(tampered).failures.join(' ')).toMatch(/2 marked fields/)
   })
 
