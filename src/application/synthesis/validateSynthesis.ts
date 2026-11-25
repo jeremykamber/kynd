@@ -12,6 +12,12 @@ const NUMBER_RE = /\d[\d,]*(?:\.\d+)?\s*%?/g;
 const RECOMMENDATION_RE =
   /\byou should\b|\bwe recommend\b|\bi recommend\b|\bmy recommendation\b|\bshould (?:add|remove|lower|raise|change|improve|consider|avoid)\b/i;
 
+/** A numbered "all" states a cohort size; "all personas" leaves it implicit. */
+const ALL_COUNT_RE = new RegExp(
+  `\\ball\\s+(?:of\\s+)?(?:the\\s+)?(one|two|three|four|five|six|seven|eight|nine|ten|\\d+)\\s+(?:completed\\s+)?(?:personas|users|participants|people|cohort)\\b`,
+  'i',
+);
+
 interface NumberToken {
   value: number;
   /** The token carried a `%` suffix. */
@@ -26,6 +32,24 @@ function numberTokens(text: string): NumberToken[] {
     if (Number.isFinite(value)) found.push({ value, percent });
   }
   return found;
+}
+
+const COUNT_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+};
+
+/** `all five` and `all 5` mean the same cohort size. */
+function cohortNumber(token: string): number {
+  return COUNT_WORDS[token.toLowerCase()] ?? Number(token.replace(/,/g, ''));
 }
 
 interface AllowedNumbers {
@@ -175,10 +199,13 @@ export function validateSynthesis(plan: SynthesisPlan, synthesis: ArtifactSynthe
   checkNames('overview', synthesis.overview, personaNames, violations);
   checkNames('answer', synthesis.researchQuestionAnswer, personaNames, violations);
   const cohortText = `${synthesis.overview} ${synthesis.researchQuestionAnswer}`;
-  if (/\ball\b/i.test(cohortText) && plan.completedCount !== plan.totalPersonaCount) {
+  // "All" means every completed persona, not every attempted persona. A
+  // numbered "all" must match the completed count; "all personas" does.
+  const allCount = ALL_COUNT_RE.exec(cohortText);
+  if (allCount && cohortNumber(allCount[1]) !== plan.completedCount) {
     violations.push({
       field: 'overview',
-      message: `says "all" while only ${plan.completedCount} of ${plan.totalPersonaCount} personas completed.`,
+      message: `says "all ${allCount[1]}" while ${plan.completedCount} of ${plan.totalPersonaCount} personas completed.`,
     });
   }
   // "All three personas hit the same wall" is a group claim in the summary.

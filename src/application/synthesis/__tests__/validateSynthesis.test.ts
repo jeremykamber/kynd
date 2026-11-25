@@ -157,6 +157,25 @@ describe("validateSynthesis", () => {
     expect(validateSynthesis(p, synthesis).some((v) => v.field === "overview" && v.message.includes('"all"'))).toBe(true);
   });
 
+  it('treats "all" as every completed persona when some personas failed', () => {
+    const p = buildSynthesisPlan({
+      researchQuestion: "q",
+      ledger: {
+        ...ledger,
+        completedCount: 5,
+        totalPersonaCount: 6,
+        failedCount: 1,
+        verdicts: { adopt: 0, trial: 3, reject: 1, undecided: 1 },
+      },
+      personaNames: ["Sarah Chen"],
+    });
+    const trueAll = buildArtifactSynthesis(p, draft({ overview: "All five completed personas stopped." }));
+    expect(validateSynthesis(p, trueAll).some((v) => v.field === "overview" && v.message.includes('says "all'))).toBe(false);
+
+    const falseAll = buildArtifactSynthesis(p, draft({ overview: "All 6 personas stopped." }));
+    expect(validateSynthesis(p, falseAll).some((v) => v.field === "overview" && v.message.includes('says "all 6"'))).toBe(true);
+  });
+
   it("rejects a quantifier that overstates a split or a friction group", () => {
     const p = buildSynthesisPlan({
       researchQuestion: "q",
