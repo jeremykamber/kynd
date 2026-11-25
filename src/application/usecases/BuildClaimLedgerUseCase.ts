@@ -16,6 +16,7 @@ function toLedgerResponse(response: PersonaResponse): LedgerResponse {
     personaName: response.personaProfile?.name ?? "Unnamed persona",
     transcript: response.rawAnalysis,
     claims: response.claims,
+    verdict: response.verdict,
   };
 }
 

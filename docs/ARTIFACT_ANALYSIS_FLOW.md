@@ -96,6 +96,9 @@ User Input
 | `PersonaClaim.ts` | Claims, support levels, groups, and the ledger |
 | `SynthesisPlan.ts` | The code-built writer input and the writer's draft shape |
 | `ArtifactProfile.ts` | Artifact facts, content kind, and stage-anchor rules |
+| `SimulationFrame.ts` | Per-persona role task, entry point, decision question; built by pure code |
+| `DecisionRole.ts` | The four fixed decision roles and their schema |
+| `Verdict.ts` | The four fixed verdicts and normalization |
 | `PricingAnalysis.ts` | @deprecated Legacy pricing-specific entity |
 
 ### Ports (`src/domain/ports/`)
@@ -192,6 +195,26 @@ Each stage has:
 Invariant: every `PersonaResponse` has exactly 5 stages, in order. The validator (`validatePersonaResponse`) enforces this.
 
 ---
+
+## Decision Frames and Verdicts
+
+Each persona runs against a code-built `SimulationFrame`:
+
+| Role | Task | Starting point |
+|---|---|---|
+| `economic_buyer` | Judge the money, payback, and risk of saying yes. | Price, terms, proof of return. |
+| `daily_user` | Judge the first use, the daily work, and the effort to switch. | The first task and the current workaround. |
+| `blocker` | Judge what would stop you approving this for your team. | Security, integration, migration, support. |
+| `champion` | Judge whether you could sell this internally and defend it. | Team pain, internal proof, and the ask. |
+
+A missing role falls back to `daily_user` with `decisionRoleSource: "fallback"`.
+The frame is deterministic: the same persona and artifact profile produce the
+same frame every run. The monologue prompt receives the frame; it does not
+receive the verdict set.
+
+Every persona then returns one verdict from the fixed set: `adopt`, `trial`,
+`reject`, `undecided`. A missing or invalid model value becomes `undecided`.
+The role shapes the reasoning and never implies the verdict.
 
 ## Synthesis Pipeline
 

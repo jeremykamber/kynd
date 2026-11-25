@@ -22,6 +22,8 @@ import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
 import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import type { StageJourney, StageOutcome } from '@/domain/entities/StageJourney'
+import type { DecisionRole } from '@/domain/entities/DecisionRole'
+import type { Verdict } from '@/domain/entities/Verdict'
 import { cn } from '@/lib/utils'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
@@ -73,6 +75,20 @@ function getCurrentStep(step?: string): number {
 // different facts — an obstacle versus the persona's own choice — but the same
 // outcome for the reader, so they share Caution and differ only in the word
 // (and in the tooltip that spells the difference out).
+const ROLE_LABEL: Record<DecisionRole, string> = {
+  economic_buyer: 'Economic buyer',
+  daily_user: 'Daily user',
+  blocker: 'Blocker',
+  champion: 'Champion',
+}
+
+const DECISION_VERDICT_META: Record<Verdict, { label: string; className: string }> = {
+  adopt: { label: 'Adopt', className: 'text-success' },
+  trial: { label: 'Trial', className: 'text-primary' },
+  reject: { label: 'Reject', className: 'text-destructive' },
+  undecided: { label: 'Undecided', className: 'text-muted-foreground' },
+}
+
 const OUTCOME_META: Record<StageOutcome, { label: string; title: string; icon: typeof CheckCircleIcon; className: string }> = {
   succeeded: {
     label: 'Reached',
@@ -733,6 +749,28 @@ function CompletedView({
             </button>
           </div>
 
+          {synthesis.verdicts && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className={SECTION_LABEL}>Verdicts</span>
+              {(Object.keys(DECISION_VERDICT_META) as Verdict[])
+                .filter((verdict) => (synthesis.verdicts?.[verdict] ?? 0) > 0)
+                .map((verdict) => (
+                  <span
+                    key={verdict}
+                    className={cn(
+                      'rounded-full border border-border px-2.5 py-1 font-medium',
+                      DECISION_VERDICT_META[verdict].className,
+                    )}
+                  >
+                    {DECISION_VERDICT_META[verdict].label}{' '}
+                    <span className="font-mono tabular-nums">
+                      {synthesis.verdicts?.[verdict] ?? 0}
+                    </span>
+                  </span>
+                ))}
+            </div>
+          )}
+
           {synthesis.validationWarnings && synthesis.validationWarnings.length > 0 && (
             <div
               role="alert"
@@ -933,10 +971,21 @@ function CompletedView({
                   {analysis.personaProfile && (
                     <p className="text-sm text-muted-foreground">
                       {analysis.personaProfile.occupation} · {analysis.personaProfile.communicationStyle}
+                      {analysis.decisionFrame ? ` · ${ROLE_LABEL[analysis.decisionFrame.decisionRole]}` : ''}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
+                  {analysis.verdict && (
+                    <span
+                      className={cn(
+                        'text-xs font-semibold',
+                        DECISION_VERDICT_META[analysis.verdict].className,
+                      )}
+                    >
+                      {DECISION_VERDICT_META[analysis.verdict].label}
+                    </span>
+                  )}
                   {verdict && (
                     <span
                       className={cn('hidden text-xs font-medium sm:inline', verdict.className)}
@@ -980,6 +1029,47 @@ function CompletedView({
                       <p className="max-w-prose text-base leading-relaxed text-foreground/90">
                         {analysis.overview}
                       </p>
+                    </div>
+                  )}
+
+                  {analysis.decisionFrame && (
+                    <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-4">
+                      <span className={SECTION_LABEL}>Decision frame</span>
+                      <p className="text-sm leading-relaxed text-foreground/80">
+                        <span className="font-medium">{ROLE_LABEL[analysis.decisionFrame.decisionRole]}</span>
+                        {analysis.decisionFrame.decisionRoleSource === 'fallback' ? ' (inferred)' : ''}
+                        {' — '}{analysis.decisionFrame.roleTask}
+                      </p>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        Entry point: {analysis.decisionFrame.entryPoint}
+                      </p>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {analysis.decisionFrame.decisionQuestion}
+                      </p>
+                      {analysis.decisionFrame.currentAlternative && (
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          Uses today: {analysis.decisionFrame.currentAlternative}
+                        </p>
+                      )}
+                      {analysis.decisionFrame.switchingTrigger && (
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          Would switch if: {analysis.decisionFrame.switchingTrigger}
+                        </p>
+                      )}
+                      {analysis.verdict && (
+                        <p className="text-sm leading-relaxed text-foreground/80">
+                          Decided{' '}
+                          <span className={cn('font-semibold', DECISION_VERDICT_META[analysis.verdict].className)}>
+                            {DECISION_VERDICT_META[analysis.verdict].label.toLowerCase()}
+                          </span>
+                          {analysis.decisiveReason ? `: ${analysis.decisiveReason}` : '.'}
+                        </p>
+                      )}
+                      {analysis.decisiveReasonQuote && (
+                        <p className="max-w-prose rounded-md bg-background px-3 py-2 text-sm italic leading-relaxed text-muted-foreground">
+                          “{analysis.decisiveReasonQuote}”
+                        </p>
+                      )}
                     </div>
                   )}
 

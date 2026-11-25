@@ -88,4 +88,13 @@ describe("BuildClaimLedgerUseCase", () => {
     expect(ledger.completedCount).toBe(1);
     expect(ledger.missingClaimPersonaIds).toEqual(["p-1"]);
   });
+
+  it("copies each persona's verdict into the ledger tally", async () => {
+    const ledger = await new BuildClaimLedgerUseCase(port()).execute([
+      response({ verdict: "trial" }),
+      response({ personaId: "p-2", claims: [], verdict: "reject" }),
+      response({ personaId: "p-3", claims: [], verdict: "maybe" as unknown as PersonaResponse["verdict"] }),
+    ]);
+    expect(ledger.verdicts).toEqual({ adopt: 0, trial: 1, reject: 1, undecided: 1 });
+  });
 });

@@ -37,6 +37,9 @@ const clusterPersonaJson = JSON.stringify([
     fears: ["Wasted effort"],
     communicationStyle: "Direct",
     decisionStyle: "Data-driven",
+    decisionRole: "daily_user",
+    currentAlternative: "manual scripts",
+    switchingTrigger: "a supported integration",
     pricingSensitivity: 60,
     typicalBudget: "",
     domainExpertise: [],
@@ -256,6 +259,23 @@ describe("PersonaAdapter dual-mode generation", () => {
       expect(backstorySystem).toContain("evidence");
     })
 
+    it("asks research profiles for a decision role", async () => {
+      stubStructuredOutput(researchProfile);
+      const llm = createMockLlmService();
+      mockBackstories(llm);
+      const adapter = new PersonaAdapter(llm);
+
+      await adapter.generateResearchPersonas({
+        count: 1,
+        personaDescription: RESEARCH_INPUT,
+        interviewIds: ["int-1"],
+      });
+
+      const profileSystem = mockStreamText.mock.calls[0][0].system as string;
+      expect(profileSystem).toContain("decisionRole");
+      expect(profileSystem.toLowerCase()).toContain("do not force one of each");
+    })
+
     it("falls back to interview-derived evidence links when the LLM omits them", async () => {
       const noLinks = [{
         ...researchProfile[0],
@@ -472,6 +492,34 @@ describe("PersonaAdapter dual-mode generation", () => {
       expect(personas[0].fears).toEqual(["Micromanagement", "Churn spikes"]);
       expect(personas[0].interests).toEqual(["sailing", "podcasts"]);
       expect(personas[0].behavioralDimensions).toHaveLength(3);
+    })
+
+    it("preserves a decision role and asks the profile call for one", async () => {
+      stubStructuredOutput([
+        {
+          ...strategyProfile[0],
+          decisionRole: "economic_buyer",
+          currentAlternative: "a shared spreadsheet",
+          switchingTrigger: "a payback model they can defend",
+        },
+      ]);
+      const llm = createMockLlmService();
+      mockBackstories(llm);
+      const adapter = new PersonaAdapter(llm);
+
+      const personas = await adapter.generateStrategyPersonas({
+        count: 1,
+        personaDescription: STRATEGY_INPUT,
+        allowSyntheticBackstory: true,
+        storytellingLevel: "rich",
+      });
+
+      expect(personas[0].decisionRole).toBe("economic_buyer");
+      expect(personas[0].currentAlternative).toBe("a shared spreadsheet");
+      expect(personas[0].switchingTrigger).toBe("a payback model they can defend");
+      const profileSystem = mockStreamText.mock.calls[0][0].system as string;
+      expect(profileSystem).toContain("decisionRole");
+      expect(profileSystem.toLowerCase()).toContain("do not force one of each");
     })
 
     describe("terse descriptions", () => {
@@ -1250,6 +1298,10 @@ describe("PersonaAdapter dual-mode generation", () => {
       expect(personas[0].clusterInfo).toBeDefined();
       expect(personas[0].clusterInfo?.representedCount).toBe(3);
       expect(personas[0].clusterInfo?.sourceIds).toContain("int-1");
+      expect(personas[0].decisionRole).toBe("daily_user");
+      expect(personas[0].currentAlternative).toBe("manual scripts");
+      const system = llmMock.createChatCompletion.mock.calls[0][0][0].content as string;
+      expect(system).toContain("decisionRole");
     })
   })
 

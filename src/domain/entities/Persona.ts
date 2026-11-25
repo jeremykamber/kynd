@@ -13,6 +13,7 @@ import {
   ClusterInfoSchema,
 } from "./PersonaProvenance";
 import { BehavioralDimensionSchema } from "./BehavioralDimension";
+import { DecisionRoleSchema, type DecisionRole } from "./DecisionRole";
 
 /**
  * Persona entity — grounded in the inference-time persona construction literature.
@@ -64,6 +65,13 @@ export interface Persona {
   fearEvidence?: string[];     // Evidence quotes for each fear (parallel to fears)
   communicationStyle: string;  // How they speak (e.g. "direct", "analytical", "collaborative")
   decisionStyle: string;       // Decision process (e.g. "data-driven", "gut-driven", "consensus-seeking")
+
+  /** Role for an artifact decision. Optional for older personas. */
+  decisionRole?: DecisionRole;
+  /** What the persona uses today instead of this product. */
+  currentAlternative?: string;
+  /** What would make the persona change from that alternative. */
+  switchingTrigger?: string;
 
   // @deprecated Pricing calibration fields — removed in artifact analysis overhaul.
   // Artifact-artifact interaction now comes entirely from identity traits (values, fears, Big Five).
@@ -154,6 +162,9 @@ export const PersonaSchema = z.object({
   fearEvidence: z.array(z.string()).optional().describe("Evidence quotes for each fear (parallel to fears)"),
   communicationStyle: z.string().describe("How they speak — direct, analytical, collaborative, etc."),
   decisionStyle: z.string().describe("Decision process — data-driven, gut-driven, consensus-seeking, etc."),
+  decisionRole: DecisionRoleSchema.optional().describe("Role the persona plays in a purchase decision"),
+  currentAlternative: z.string().optional().describe("What the persona uses today instead of this product"),
+  switchingTrigger: z.string().optional().describe("What would make the persona change from that alternative"),
 
   // @deprecated Pricing calibration — migrating to identity-only artifact interaction.
   pricingSensitivity: z.number().min(0).max(100).optional().describe("Deprecated: price sensitivity. Use identity traits instead."),

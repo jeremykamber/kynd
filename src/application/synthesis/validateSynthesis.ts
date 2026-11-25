@@ -211,7 +211,16 @@ export function warningField(warning: string): string {
   return warning.split(': ')[0];
 }
 
+/**
+ * A finding's observation and impact are two sentences of one marked field;
+ * counting them separately would fail a run for a single finding.
+ */
+function markedFieldKey(warning: string): string {
+  const parts = warningField(warning).split(':');
+  return parts[0] === 'finding' && parts.length >= 2 ? `finding:${parts[1]}` : parts[0];
+}
+
 /** The QA budget: at most one marked field per run. */
 export function markedFieldCount(warnings: string[] | undefined): number {
-  return new Set((warnings ?? []).map(warningField)).size;
+  return new Set((warnings ?? []).map(markedFieldKey)).size;
 }

@@ -2,6 +2,8 @@ import { Persona } from "@/domain/entities/Persona";
 import { PersonaResponseSchema, personaIdentityViolations } from "@/domain/entities/PersonaResponse";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
+import type { SimulationFrame } from "@/domain/entities/SimulationFrame";
+import type { ArtifactProfile } from "@/domain/entities/ArtifactProfile";
 import { LlmServiceImpl } from "./LlmServiceImpl";
 import { streamObject } from "ai";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -28,6 +30,7 @@ export function buildVisceralMonologueSystemPrompt(
     persona: Persona,
     researchQuestion: string,
     artifact?: ArtifactFraming,
+    frame?: SimulationFrame,
 ): string {
     // Persona maps: role = occupation, background = backstory, goal = the
     // persona's goals list (no single goal field exists on the entity);
@@ -45,6 +48,18 @@ export function buildVisceralMonologueSystemPrompt(
     // The only artifact-kind framing: a document is read, a site is visited.
     // Everything else — what kind of document it is, what to look for — stays
     // with the persona, inferred from the text and the research question.
+    // The role changes what this persona examines first. The frame carries no
+    // verdict and no verdict set: the persona reacts, code counts the decision
+    // later. "not stated" is the honest value for an absent alternative.
+    const roleBlock = frame
+        ? `THIS RUN'S ROLE — ${frame.decisionRole}:
+- ${frame.roleTask}
+- Start where this role starts: ${frame.entryPoint}
+- What you use today instead: ${frame.currentAlternative ?? "not stated"}
+- What would make you switch: ${frame.switchingTrigger ?? "not stated"}
+- Do not decide a final verdict, score, or recommendation. Just react.
+`
+        : "";
     const medium = isDocument
         ? `- You are reading a document, not browsing a website. There is no screen and no buttons: react to the words — the claims, the numbers, the names, the gaps, the parts you skip. You read top to bottom, jump back when something snags, and stop when you have seen enough.
 - You judge with your own life, not like an editor. If a claim doesn't apply to you, notice it and move on. If it sounds fake, call it fake. If it would make you act — reply, forward it, ask for a call — say why, in your own selfish terms.
@@ -54,7 +69,7 @@ export function buildVisceralMonologueSystemPrompt(
 
 return `You are ${persona.name}, ${persona.occupation}.
 Background: ${background} | You are ${isDocument ? "reading this because" : "browsing because"}: ${browsingIntent}
-${brand}
+${brand}${roleBlock}
 HOW YOUR INNER VOICE WORKS:
 - Write like a person thinking, not a person performing. Short bursts. Half-thoughts. "Okay, green background. Looks clean, maybe a little sterile." — that's the register. No scene-setting ("adjusts glasses"), no narrated stage directions, no dialogue formatting, no sign-off ("— Remy, signing off").
 - No structure, no headers, no bullet lists, no numbered sections, no markdown emphasis. Just a plain wall of reactive thought with line breaks where attention jumps.
@@ -101,6 +116,8 @@ export function buildPersonaExtractionSystemPrompt(
     monologue: string,
     researchQuestion: string,
     artifact?: ArtifactFraming,
+    frame?: SimulationFrame,
+    profile?: ArtifactProfile,
 ): string {
     const artifactName = artifact?.name
         ? `- The ${artifact.kind === "document" ? "document" : "site/product"} being evaluated is named "${artifact.name}" — always spell it exactly this way when you mention it.\n`
@@ -124,7 +141,10 @@ RULES:
 4. The five journey stages MUST all appear in canonical order (interpretation, understanding, belief, motivation, action); skipping is expressed through outcomes, not omission.
 5. Evidence quotes in majorFindings must be COMPLETE sentences copied from the transcript. Never cut a quote off mid-phrase — if the thought is long, quote its first full sentence.
 6. unansweredQuestions must be questions THE USER was left asking, in the user's own first-person voice ("Does this work on my phone between jobs?"), not researcher hypotheses about the user ("Would the user have...?"). If the transcript shows no open questions, return an empty list.
-7. Name the persona in overview and researchQuestionAnswer ("${persona.name}…"). Never write "the user" in those two fields, and never adopt a name, role, occupation, or pronoun that the artifact assigns to someone — the persona's identity comes from their profile, not from the artifact's copy.`;
+7. Name the persona in overview and researchQuestionAnswer ("${persona.name}…"). Never write "the user" in those two fields, and never adopt a name, role, occupation, or pronoun that the artifact assigns to someone — the persona's identity comes from their profile, not from the artifact's copy.
+8. Return one verdict for this persona from the FIXED set: adopt, trial, reject, undecided. Do not invent another verdict. A role never implies a verdict; a blocker can adopt and an economic buyer can reject.
+9. Return decisiveReason as one sentence naming why this persona decided as it did, and decisiveReasonQuote as a COMPLETE sentence copied character-for-character from the transcript that supports that reason. No quote, no reason.
+10. This run's role is ${frame?.decisionRole ?? "daily_user"}. The artifact may address a reader with a different role; do not adopt the artifact's assigned role.${frame ? `\n11. Decision question: ${frame.decisionQuestion}\n12. Start from this role's entry point: ${frame.entryPoint}` : ""}${profile ? `\n13. Content kind: ${profile.contentKind}.` : ""}`;
 }
 
 /**
@@ -144,7 +164,7 @@ export class VisionAnalysisAdapter {
         persona: Persona,
         context: ArtifactIntake,
         researchQuestion: string,
-        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming } = {},
+        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame } = {},
     ): Promise<{ text: string }> {
         const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
         const tokenLimit = options.tokenLimit ?? 2000;
@@ -154,7 +174,7 @@ export class VisionAnalysisAdapter {
 
         log?.info("VisionAnalysisAdapter", `generateVisceralMonologue START for "${persona.name}"`, { tokenLimit });
 
-        const system = buildVisceralMonologueSystemPrompt(persona, researchQuestion, options.artifact);
+        const system = buildVisceralMonologueSystemPrompt(persona, researchQuestion, options.artifact, options.frame);
         // Screenshot ONLY for visual artifacts. Deliberately not
         // context.summary/pageHtml: the actor must react to visual salience,
         // not DOM-structure facts it could never see in a first glance —
@@ -251,7 +271,7 @@ export class VisionAnalysisAdapter {
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming } = {},
+        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame; profile?: ArtifactProfile } = {},
     ): Promise<PersonaResponse> {
         const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
         const tokenLimit = options.tokenLimit ?? 2000;
@@ -266,7 +286,7 @@ export class VisionAnalysisAdapter {
 
         // Text model, no image: the anthropologist must ground every claim in
         // the transcript, not re-interpret the screenshot.
-        const system = buildPersonaExtractionSystemPrompt(persona, monologueText, researchQuestion, options.artifact);
+        const system = buildPersonaExtractionSystemPrompt(persona, monologueText, researchQuestion, options.artifact, options.frame, options.profile);
         const basePrompt = `Analyze the think-aloud transcript above and return the structured PersonaResponse JSON.`;
 
         let responseObj: unknown = null;

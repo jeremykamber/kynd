@@ -124,7 +124,9 @@ describe("validateSynthesis", () => {
 describe("markedFieldCount", () => {
   it("counts one marked field per run and distinguishes fields inside one group", () => {
     expect(markedFieldCount(["overview: a", "overview: b"])).toBe(1);
-    expect(markedFieldCount(["finding:g1:observation: a", "finding:g1:impact: b"])).toBe(2);
+    // One finding is one marked field, even when its two sentences failed.
+    expect(markedFieldCount(["finding:g1:observation: a", "finding:g1:impact: b"])).toBe(1);
+    expect(markedFieldCount(["finding:g1:impact: a", "finding:g2:impact: b"])).toBe(2);
     expect(markedFieldCount([])).toBe(0);
   });
 

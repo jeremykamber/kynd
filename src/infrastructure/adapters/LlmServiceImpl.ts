@@ -595,7 +595,7 @@ export class LlmServiceImpl implements LlmServicePort {
         persona: Persona,
         context: ArtifactIntake,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: import("@/domain/entities/SimulationFrame").SimulationFrame }
     ): Promise<{ text: string }> {
         return this.visionAdapter.generateVisceralMonologue(
             persona,
@@ -609,7 +609,7 @@ export class LlmServiceImpl implements LlmServicePort {
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: import("@/domain/entities/SimulationFrame").SimulationFrame; profile?: import("@/domain/entities/ArtifactProfile").ArtifactProfile }
     ): Promise<PersonaResponse> {
         return this.visionAdapter.extractPersonaResponse(
             persona,

@@ -6,7 +6,7 @@ import type { LlmServicePort } from '@/domain/ports/LlmServicePort'
 import type { BrowserServicePort } from '@/domain/ports/BrowserServicePort'
 import type { Persona } from '@/domain/entities/Persona'
 
-function makePersona(name: string): Persona {
+function makePersona(name: string, overrides: Partial<Persona> = {}): Persona {
   return {
     id: `p-${name}`,
     name,
@@ -24,6 +24,7 @@ function makePersona(name: string): Persona {
     fears: [],
     communicationStyle: 'direct',
     decisionStyle: 'gut-driven',
+    ...overrides,
   }
 }
 
@@ -139,6 +140,105 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
     expect(responses).toHaveLength(1)
     expect(responses[0].overview).toBe('ok')
     expect(responses[0].claims).toBeUndefined()
+  })
+
+  it('passes a code-built frame to both calls and attaches it to the response', async () => {
+    const persona = makePersona('Ada', {
+      decisionRole: 'blocker',
+      currentAlternative: 'a shared spreadsheet',
+      switchingTrigger: 'a security review',
+    })
+    const useCase = makeUseCase(llm)
+    const responses = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [persona],
+      'goal',
+      'rq',
+    )
+
+    const frame = responses[0].decisionFrame
+    expect(frame).toMatchObject({
+      personaId: persona.id,
+      decisionRole: 'blocker',
+      decisionRoleSource: 'persona',
+      currentAlternative: 'a shared spreadsheet',
+      decisionQuestion: 'Would you take the next step this page asks for?',
+    })
+    expect(llm.generateVisceralMonologue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: persona.id }),
+      intake,
+      'rq',
+      expect.objectContaining({ frame }),
+    )
+    expect(llm.extractPersonaResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ id: persona.id }),
+      'visceral reaction text',
+      'rq',
+      expect.objectContaining({ frame }),
+    )
+  })
+
+  it('lets a blocker adopt: the role never implies the verdict', async () => {
+    const useCase = makeUseCase(llm)
+    vi.mocked(llm.extractPersonaResponse).mockResolvedValue({
+      overview: 'ok',
+      customerJourney: [
+        { stage: 'interpretation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'understanding', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'belief', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'motivation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'action', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+      ],
+      researchQuestionAnswer: 'answer',
+      majorFindings: [],
+      pointsOfFriction: [],
+      unansweredQuestions: [],
+      verdict: 'adopt',
+      decisiveReason: 'The security review satisfied the concern.',
+      decisiveReasonQuote: 'visceral reaction text',
+    } as never)
+
+    const responses = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada', { decisionRole: 'blocker' })],
+      'goal',
+      'rq',
+    )
+
+    expect(responses[0].decisionFrame?.decisionRole).toBe('blocker')
+    expect(responses[0].verdict).toBe('adopt')
+    expect(responses[0].decisiveReasonQuote).toBe('visceral reaction text')
+  })
+
+  it('normalizes an invalid verdict and drops a non-verbatim decisive quote', async () => {
+    const useCase = makeUseCase(llm)
+    vi.mocked(llm.extractPersonaResponse).mockResolvedValue({
+      overview: 'ok',
+      customerJourney: [
+        { stage: 'interpretation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'understanding', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'belief', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'motivation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'action', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+      ],
+      researchQuestionAnswer: 'answer',
+      majorFindings: [],
+      pointsOfFriction: [],
+      unansweredQuestions: [],
+      verdict: 'maybe',
+      decisiveReason: 'A reason.',
+      decisiveReasonQuote: 'A sentence the persona never said.',
+    } as never)
+
+    const responses = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(responses[0].verdict).toBe('undecided')
+    expect(responses[0].decisiveReasonQuote).toBeUndefined()
   })
 
   it('falls back to a shape-valid response when the monologue call fails', async () => {

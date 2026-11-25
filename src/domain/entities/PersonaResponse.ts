@@ -4,6 +4,8 @@ import type { StageJourney } from "./StageJourney";
 import type { MajorFinding } from "./MajorFinding";
 import type { CognitiveStage } from "./CognitiveStage";
 import type { PersonaClaim } from "./PersonaClaim";
+import type { SimulationFrame } from "./SimulationFrame";
+import type { Verdict } from "./Verdict";
 import { COGNITIVE_STAGES } from "./CognitiveStage";
 
 /**
@@ -40,6 +42,14 @@ export interface PersonaResponse {
    * empty cohort finding.
    */
   claims?: PersonaClaim[];
+  /** The persona's final decision from the fixed verdict set. */
+  verdict?: Verdict;
+  /** One sentence naming why the persona decided as it did. */
+  decisiveReason?: string;
+  /** Verbatim sentence from `rawAnalysis` supporting `decisiveReason`. */
+  decisiveReasonQuote?: string;
+  /** The role, task, and decision question this persona ran under. */
+  decisionFrame?: SimulationFrame;
 }
 
 const StageJourneySchema = z.object({
@@ -63,6 +73,11 @@ export const PersonaResponseSchema = z.object({
   majorFindings: z.array(MajorFindingSchema).describe("Key findings from this persona's response. Each finding has an observation, evidence, impact, and confidence level."),
   pointsOfFriction: z.array(z.string()).describe("Moments where the persona failed to progress through the cognitive journey — what confused, frustrated, or stopped them."),
   unansweredQuestions: z.array(z.string()).describe("Questions the persona still had after interacting with the artifact. These often reveal missing information."),
+  // Raw model value; code normalizes anything outside the fixed set to
+  // `undecided`, so one bad token cannot fail the whole extraction.
+  verdict: z.string().optional().describe("One of adopt, trial, reject, undecided."),
+  decisiveReason: z.string().optional().describe("One sentence naming why the persona decided as it did."),
+  decisiveReasonQuote: z.string().optional().describe("A complete sentence copied verbatim from the transcript."),
 });
 
 /**

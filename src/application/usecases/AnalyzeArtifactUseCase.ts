@@ -5,6 +5,8 @@ import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/Artifact
 import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
 import { AnalysisProgressStep } from "@/domain/entities/ArtifactAnalysis";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
+import { buildSimulationFrames, provisionalProfile } from "@/domain/entities/SimulationFrame";
+import { normalizeVerdict } from "@/domain/entities/Verdict";
 
 import { ArtifactIntakeAdapter, type IntakeProgress } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -136,6 +138,13 @@ export class AnalyzeArtifactUseCase {
       throw new Error("Request cancelled after intake");
     }
 
+    // The profile selects the decision question. Until the artifact-profile
+    // slice adds the serial extractor, the intake kind chooses a provisional
+    // profile; the frame is still built by code and stays deterministic.
+    const profile = provisionalProfile(intake);
+    const frames = buildSimulationFrames(personas, profile);
+    const frameByPersonaId = new Map(frames.map((frame) => [frame.personaId, frame]));
+
     // Phase 2: Persona analysis
     onProgress?.({ step: 'ANALYZING' });
     log.info("AnalyzeArtifactUseCase", `Starting persona analysis for ${personas.length} personas...`);
@@ -201,11 +210,12 @@ export class AnalyzeArtifactUseCase {
             // intentionally does not enter the persona pipeline; identity
             // lives in the persona.
             const streamStart = Date.now();
+            const frame = frameByPersonaId.get(persona.id);
             const monologue = await this.llmService.generateVisceralMonologue(
               persona,
               intake,
               researchQuestion,
-              { tokenLimit, runId, artifact: framing },
+              { tokenLimit, runId, artifact: framing, ...(frame ? { frame } : {}) },
             );
             const streamDuration = Date.now() - streamStart;
             log.info("AnalyzeArtifactUseCase", `${personaLog} Visceral monologue completed`, {
@@ -231,7 +241,7 @@ export class AnalyzeArtifactUseCase {
               persona,
               monologue.text,
               researchQuestion,
-              { tokenLimit, runId, artifact: framing },
+              { tokenLimit, runId, artifact: framing, profile, ...(frame ? { frame } : {}) },
             );
             const extractedClaims = await claimsPromise;
             log.info("AnalyzeArtifactUseCase", `${personaLog} Claim pass settled`, {
@@ -245,6 +255,8 @@ export class AnalyzeArtifactUseCase {
               stagesCount: response.customerJourney.length,
               findingsCount: response.majorFindings.length,
               highestStage,
+              decisionRole: frame?.decisionRole,
+              verdict: normalizeVerdict((response as { verdict?: unknown }).verdict),
             });
 
             if (abortSignal?.aborted) throw new Error("Request cancelled during persona analysis");
@@ -287,8 +299,19 @@ export class AnalyzeArtifactUseCase {
                 fears: persona.fears ? [...persona.fears] : [],
                 communicationStyle: persona.communicationStyle ?? "",
                 decisionStyle: persona.decisionStyle ?? "",
+                ...(persona.decisionRole ? { decisionRole: persona.decisionRole } : {}),
               },
               personaId: persona.id,
+              verdict: normalizeVerdict((response as { verdict?: unknown }).verdict),
+              ...(typeof response.decisiveReason === "string" && response.decisiveReason.trim()
+                ? { decisiveReason: response.decisiveReason.trim() }
+                : {}),
+              ...(typeof response.decisiveReasonQuote === "string" &&
+              response.decisiveReasonQuote.trim() &&
+              monologue.text.includes(response.decisiveReasonQuote)
+                ? { decisiveReasonQuote: response.decisiveReasonQuote }
+                : {}),
+              ...(frame ? { decisionFrame: frame } : {}),
               ...(extractedClaims && extractedClaims.length > 0
                 ? {
                     claims: extractedClaims.map((claim, index) => ({

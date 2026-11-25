@@ -7,6 +7,8 @@ import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types
 import type { ResearchPersonaConfig, StrategyPersonaConfig, ClusterPersonaConfig } from "../dtos/PersonaGenerationConfig";
 import type { ExtractedClaim, ClaimSupport } from "../entities/PersonaClaim";
 import type { SynthesisDraft, SynthesisPlan } from "../entities/SynthesisPlan";
+import type { SimulationFrame } from "../entities/SimulationFrame";
+import type { ArtifactProfile } from "../entities/ArtifactProfile";
 
 /** One decision the browser-acting persona makes from the current screenshot. */
 export type AgentAction =
@@ -198,7 +200,7 @@ export interface LlmServicePort {
         persona: Persona,
         context: ArtifactIntake,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame }
     ): Promise<{ text: string }>;
 
     /**
@@ -213,7 +215,7 @@ export interface LlmServicePort {
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame; profile?: ArtifactProfile }
     ): Promise<PersonaResponse>;
 
 
