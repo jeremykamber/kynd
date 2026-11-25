@@ -34,33 +34,39 @@ User Input
        │   └── Persona thinks aloud through all 5 cognitive stages
        │
        └── Stage 2 (parallel):
-           ├── formatPersonaResponse()
-           │   └── LLM (text model) extracts structured PersonaResponse from stream
-           └── deriveResponseSignals()
-               └── LLM extracts highest stage reached + final action
+           ├── extractPersonaResponse()
+           │   └── LLM (text model) extracts structured PersonaResponse from the monologue
+           └── extractPersonaClaims()
+               └── LLM extracts 3-7 claims, each with a verbatim quotation
+               └── A failed claim pass leaves the persona response intact
 
     ↓
 
-3. SYNTHESIS (LLM calls across all responses)
-   ├── Phase 1a: generateTopFindings()
-   │   └── LLM identifies 3-5 cross-persona patterns
-   ├── Phase 1b: generateDisagreements()
-   │   └── LLM finds where personas had opposing reactions
-   ├── Phase 1c: generateFrictions()
-   │   └── LLM lists 2-3 friction points affecting multiple personas
-   └── Phase 2: generateSynthesisOverview()
-       └── LLM produces overview + research question answer
-       └── Informed by findings, disagreements, and frictions from Phase 1
+3. CLAIM LEDGER (code owns every count)
+   ├── collectVerbatimClaims()   — drops any quote that is not an exact substring
+   ├── verifyClaimSupport()      — one batch call; only `support` claims survive
+   ├── clusterClaims()           — one batch call; omitted claims become one-claim groups
+   └── buildClaimLedger()        — distinct-persona counts, citations, verdict tally
 
     ↓
 
-4. OUTPUT
+4. SYNTHESIS FROM THE PLAN
+   ├── buildSynthesisPlan()      — selects findings, splits, frictions; no raw transcript
+   ├── synthesizeFromPlan()      — writer returns wording keyed by group id
+   ├── buildArtifactSynthesis()  — code joins wording to counts, citations, `No clear view`
+   ├── validateSynthesis()       — counts, citations, numbers, quantifiers, names, recommendations
+   └── repairSynthesis()         — one repair; failures become `validationWarnings`
+
+    ↓
+
+5. OUTPUT
    ├── Executive Synthesis (first, always visible)
    │   ├── Completed/failed persona counts
    │   ├── Research Question Answer
    │   ├── Top Findings (with observed X/Y counts)
-   │   ├── Disagreements (where personas split)
+   │   ├── Disagreements (where personas split, always with `No clear view`)
    │   └── Biggest Friction Points
+   │   └── Validation warnings (banner, inline marks, PDF stamp)
    └── Individual Persona Reports (collapsible drill-down)
        ├── Overview
        ├── Customer Journey (5 stages)
@@ -86,14 +92,17 @@ User Input
 | `ArtifactIntake.ts` | Normalized artifact input: screenshot **or** text, plus optional HTML/summary and prompt framing |
 | `ArtifactIntakeLimits.ts` | Accepted formats, size/character caps and their messages — the only definition |
 | `ArtifactAnalysis.ts` | Container entity for a run |
-| `ArtifactSynthesis.ts` | Cross-persona synthesis: top findings, disagreements, frictions |
+| `ArtifactSynthesis.ts` | Cross-persona synthesis: top findings, disagreements, frictions, verdicts, ledger references, warnings |
+| `PersonaClaim.ts` | Claims, support levels, groups, and the ledger |
+| `SynthesisPlan.ts` | The code-built writer input and the writer's draft shape |
+| `ArtifactProfile.ts` | Artifact facts, content kind, and stage-anchor rules |
 | `PricingAnalysis.ts` | @deprecated Legacy pricing-specific entity |
 
 ### Ports (`src/domain/ports/`)
 
 | File | Key Methods |
 |------|-------------|
-| `LlmServicePort.ts` | `generateCognitiveStream`, `formatPersonaResponse`, `deriveResponseSignals`, `generateTopFindings`, `generateDisagreements`, `generateFrictions`, `generateSynthesisOverview` |
+| `LlmServicePort.ts` | `generateVisceralMonologue`, `extractPersonaResponse`, `extractPersonaClaims`, `verifyClaimSupport`, `clusterClaims`, `synthesizeFromPlan`, `repairSynthesis` |
 | `BrowserServicePort.ts` | `navigateTo`, `captureViewport`, `getCleanedHtml`, `close` |
 
 ### Use Cases (`src/application/usecases/`)
@@ -101,6 +110,8 @@ User Input
 | File | Purpose |
 |------|---------|
 | `AnalyzeArtifactUseCase.ts` | Orchestrates intake → persona analysis → response assembly |
+| `BuildClaimLedgerUseCase.ts` | Runs the batch support gate and clustering, then builds the ledger |
+| `SynthesizeArtifactResultsUseCase.ts` | Writes from the plan, assembles code-owned counts, validates, repairs once |
 
 ### Actions (`src/actions/`)
 
@@ -116,7 +127,8 @@ User Input
 |------|---------|
 | `ArtifactIntakeAdapter.ts` | Intake by input kind: URL → browser, screenshot → pass-through, text → validated pass-through |
 | `ArtifactTextExtractor.ts` | File → text (PDF, DOCX, PPTX, TXT, MD, CSV, JSON, RTF), concatenation and the character cap; shared by the form and `scripts/verify-output.ts` |
-| `VisionAnalysisAdapter.ts` | All LLM prompts: cognitive stream, formatter, signal derive, synthesis |
+| `VisionAnalysisAdapter.ts` | Monologue and extraction prompts |
+| `ClaimLedgerAdapter.ts` | Claim pass, support gate, clustering, plan writer, repair prompts |
 | `PersonaPromptCompiler.ts` | Builds the 4-compartment persona identity prompt |
 | `IdRagStore.ts` / `IdRagService.ts` | Backstory chunking + retrieval for persona context |
 | `HtmlSummarizer.ts` | LLM-based HTML → markdown compaction |
@@ -183,41 +195,56 @@ Invariant: every `PersonaResponse` has exactly 5 stages, in order. The validator
 
 ## Synthesis Pipeline
 
-Synthesis is split into focused LLM calls to improve quality:
+The cohort report is built in two steps: code derives the facts, then a writer
+supplies wording. Counts, citations, splits, confidence, and verdict tallies
+never come from model prose.
 
 ```
-Phase 1 (runs in parallel):
-├── generateTopFindings     — identifies 3-5 cross-persona patterns
-├── generateDisagreements   — where personas had opposing reactions
-└── generateFrictions       — friction points affecting multiple personas
+Claim pass (per persona, parallel with extraction)
+  └── 3-7 claims, each with a token-for-token quotation
 
-Phase 2 (runs after Phase 1 completes):
-└── generateSynthesisOverview — produces overview + research answer
-    └── Informed by Phase 1 results
+Support gate (one batch call, one retry)
+  └── support | partial | unsupported
+  └── only `support` enters the ledger; failure after retry fails the run
+
+Clustering (one batch call, one retry)
+  └── groups claims by topic; failure after retry keeps one-claim groups
+
+Plan (pure code)
+  └── findings at the cohort floor, splits, frictions, counts
+
+Writer (one call, one repair)
+  └── receives the plan, never a raw transcript
+  └── returns wording keyed by group id
+
+Assembly + validation (pure code)
+  └── joins wording to counts and citations
+  └── every split carries `No clear view` and sums to completed
+  └── rejected fields persist in `validationWarnings`, render inline, and stamp the PDF
 ```
 
-### Confidence Derivation
+### Finding floor
 
-Confidence is **never generated by the LLM**. It is computed from agreement:
+A finding needs two distinct personas for a cohort of five or fewer, and three
+for six or more. A one-persona cohort can use its single persona.
+
+### Confidence
 
 ```
-ratio = affectedPersonaCount / totalPersonaCount
-ratio >= 0.6 → High
-ratio >= 0.3 → Medium
-else         → Low
+ratio = group.personaCount / completedCount
+ratio >= 0.75 → strongly supported
+ratio >= 0.40 → some support
+else         → weakly supported
 ```
 
-`affectedPersonaCount` is computed by matching each finding's observation text against each persona's `majorFindings` using substring overlap.
+### Failure boundaries
 
-### Prompt Rules
-
-Every synthesis prompt enforces:
-1. No individual persona names — use "Most personas", "Several personas"
-2. No recommendations — describe what was observed, not what to do
-3. No trait causality — persona attributes may contextualize but not explain behavior
-4. No confidence assignment — computed externally from agreement
-
----
+| Failure | Behaviour |
+|---|---|
+| Claim pass | Persona survives with no claims; the missing set is recorded and counts as one QA mark |
+| Support gate | One retry, then the run fails and no synthesis is saved |
+| Clustering | One retry, then each supported claim becomes its own group |
+| Validation | One repair; a still-failing draft keeps its wording and is marked |
 
 ## Key Invariants
 
@@ -226,7 +253,11 @@ Every synthesis prompt enforces:
 - All prompts are artifact-agnostic — no mention of pricing, conversion, or page type
 - Stage order is enforced by `validatePersonaResponse` (5 stages, in `COGNITIVE_STAGES` order)
 - Failed personas get 5 placeholder stages (all `stopped`) so they pass validation
-- Confidence is derived from observed agreement, never generated by the LLM
+- Confidence is derived from the ledger, never generated by the LLM
+- Only `support` claims enter a group; a claim without a verbatim quotation never counts
+- A persona is counted once per topic, never once per claim
+- Every disagreement split includes `No clear view` and sums to the completed count
+- The writer receives a plan, never a raw transcript
 - Intake strategies are decoupled from analysis pipeline (new artifact types = new strategies)
 - Records written before `inputKind` existed still render: a `url` of `"Screenshot Upload"` reads as a screenshot run, and absent text fields fall back to the screenshot view.
 

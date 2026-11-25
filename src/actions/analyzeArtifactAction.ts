@@ -16,6 +16,8 @@ import { storeProgress, storeCompleted } from "./getProgress";
 import { shouldRunLocally } from "@/infrastructure/config";
 import { vpsFetchRaw } from "./vpsClient";
 import { SynthesizeArtifactResultsUseCase } from "@/application/usecases/SynthesizeArtifactResultsUseCase";
+import { BuildClaimLedgerUseCase, ClaimSupportUnavailableError } from "@/application/usecases/BuildClaimLedgerUseCase";
+import { buildSynthesisPlan } from "@/application/synthesis/plan";
 import { createRateLimiter, checkRateLimit } from "./rateLimiter";
 
 const auditRateLimiter = createRateLimiter('audit');
@@ -151,13 +153,26 @@ async function runLocally(
                     if (completedResponses.length === 0) {
                         log.warn("analyzeArtifactAction", "No completed responses — skipping synthesis");
                     } else {
-                        synthesis = await new SynthesizeArtifactResultsUseCase(llmService).execute(
+                        const ledger = await new BuildClaimLedgerUseCase(llmService).execute(
                             completedResponses,
-                            researchQuestion,
                             { runId: id, failedCount, totalPersonaCount: responses.length },
                         );
+                        const plan = buildSynthesisPlan({
+                            researchQuestion,
+                            ledger,
+                            personaNames: completedResponses.map((r) => r.personaProfile?.name ?? "Unnamed persona"),
+                        });
+                        synthesis = await new SynthesizeArtifactResultsUseCase(llmService).execute(plan, { runId: id });
                     }
                 } catch (synthErr) {
+                    if ((synthErr as Error)?.name === ClaimSupportUnavailableError.name) {
+                        const errMsg = (synthErr as Error).message;
+                        log.error("analyzeArtifactAction", "Claim support gate unavailable — failing the run", { error: errMsg });
+                        analysisResultStore.saveError(id, errMsg);
+                        storeProgress(id, { error: errMsg });
+                        stream.done({ step: "ERROR", error: errMsg, requestId: id });
+                        return;
+                    }
                     log.warn("analyzeArtifactAction", "Synthesis generation failed, proceeding without", {
                         error: String(synthErr),
                     });

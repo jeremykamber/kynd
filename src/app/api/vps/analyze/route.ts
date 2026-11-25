@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import { SynthesizeArtifactResultsUseCase } from "@/application/usecases/SynthesizeArtifactResultsUseCase";
+import { BuildClaimLedgerUseCase, ClaimSupportUnavailableError } from "@/application/usecases/BuildClaimLedgerUseCase";
+import { buildSynthesisPlan } from "@/application/synthesis/plan";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 
 import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUseCase";
@@ -188,12 +190,24 @@ async function runAnalysis(
             if (completedResponses.length > 0) {
                 try {
                     log.info("runAnalysis", "Generating cross-persona synthesis...");
-                    synthesis = await new SynthesizeArtifactResultsUseCase(llmService).execute(
+                    const ledger = await new BuildClaimLedgerUseCase(llmService).execute(
                         completedResponses,
-                        researchQuestion || "",
                         { runId: id, failedCount: responses.length - completedResponses.length, totalPersonaCount: responses.length },
                     );
+                    const plan = buildSynthesisPlan({
+                        researchQuestion: researchQuestion || "",
+                        ledger,
+                        personaNames: completedResponses.map((r) => r.personaProfile?.name ?? "Unnamed persona"),
+                    });
+                    synthesis = await new SynthesizeArtifactResultsUseCase(llmService).execute(plan, { runId: id });
                 } catch (synthErr) {
+                    if ((synthErr as Error)?.name === ClaimSupportUnavailableError.name) {
+                        const errMsg = (synthErr as Error).message;
+                        log.error("runAnalysis", "Claim support gate unavailable — failing the run", { error: errMsg });
+                        analysisResultStore.saveError(id, errMsg);
+                        storeProgress(id, { error: errMsg });
+                        return;
+                    }
                     log.warn("runAnalysis", "Synthesis generation failed, proceeding without", {
                         error: String(synthErr),
                     });

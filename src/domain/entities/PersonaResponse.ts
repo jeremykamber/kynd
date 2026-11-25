@@ -3,6 +3,7 @@ import type { PersonaProfile } from "./PersonaProfile";
 import type { StageJourney } from "./StageJourney";
 import type { MajorFinding } from "./MajorFinding";
 import type { CognitiveStage } from "./CognitiveStage";
+import type { PersonaClaim } from "./PersonaClaim";
 import { COGNITIVE_STAGES } from "./CognitiveStage";
 
 /**
@@ -33,6 +34,12 @@ export interface PersonaResponse {
   personaProfile?: PersonaProfile;
   /** Id of the Persona this response came from. */
   personaId?: string;
+  /**
+   * Claims extracted from the monologue by the separate claim pass. Absent
+   * when that pass failed; an absent set is a recorded degradation, not an
+   * empty cohort finding.
+   */
+  claims?: PersonaClaim[];
 }
 
 const StageJourneySchema = z.object({

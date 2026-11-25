@@ -215,12 +215,28 @@ export class AnalyzeArtifactUseCase {
 
             if (abortSignal?.aborted) throw new Error("Request cancelled during formatting");
 
+            // The claim pass reads the same monologue and runs in parallel with
+            // core extraction. A failed claim pass must not lose the persona
+            // response: the ledger records the missing set instead.
+            const claimsPromise = this.llmService
+              .extractPersonaClaims(persona, monologue.text, { runId })
+              .catch((claimErr: unknown) => {
+                log.warn("AnalyzeArtifactUseCase", `${personaLog} Claim pass failed — missing claim set`, {
+                  error: String(claimErr),
+                });
+                return null;
+              });
+
             const response = await this.llmService.extractPersonaResponse(
               persona,
               monologue.text,
               researchQuestion,
               { tokenLimit, runId, artifact: framing },
             );
+            const extractedClaims = await claimsPromise;
+            log.info("AnalyzeArtifactUseCase", `${personaLog} Claim pass settled`, {
+              claimsCount: extractedClaims?.length ?? 0,
+            });
 
             const pipelineDuration = Date.now() - pipelineStart;
             const highestStage = response.customerJourney.findLast(s => s.outcome === "succeeded")?.stage || response.customerJourney[0]?.stage;
@@ -273,6 +289,15 @@ export class AnalyzeArtifactUseCase {
                 decisionStyle: persona.decisionStyle ?? "",
               },
               personaId: persona.id,
+              ...(extractedClaims && extractedClaims.length > 0
+                ? {
+                    claims: extractedClaims.map((claim, index) => ({
+                      ...claim,
+                      id: `${persona.id}:${index}`,
+                      personaId: persona.id,
+                    })),
+                  }
+                : {}),
             };
 
             if (!validatePersonaResponse(fullResponse)) {

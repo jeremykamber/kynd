@@ -290,6 +290,37 @@ const styles = StyleSheet.create({
     color: colors.primaryLight,
     lineHeight: 1.35,
   },
+  validationBox: {
+    backgroundColor: colors.destructiveBg,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 4,
+    padding: 8,
+    marginBottom: 14,
+  },
+  validationTitle: {
+    fontSize: 8.5,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.destructive,
+    marginBottom: 3,
+  },
+  validationText: {
+    fontSize: 7.5,
+    color: colors.destructive,
+    lineHeight: 1.35,
+    marginBottom: 1,
+  },
+  validationStamp: {
+    position: 'absolute',
+    bottom: 36,
+    left: 40,
+    right: 40,
+    borderTopWidth: 1,
+    borderTopColor: '#fecaca',
+    paddingTop: 3,
+    fontSize: 6.5,
+    color: colors.destructive,
+  },
   footer: {
     position: 'absolute',
     bottom: 20,
@@ -334,6 +365,7 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
   const responses = analysis.responses ?? []
   const synthesis: ArtifactSynthesis =
     analysis.synthesis ?? fallbackSynthesis(responses)
+  const validationWarnings = synthesis.validationWarnings ?? []
 
   const formattedDate = new Date(
     analysis.completedAt || analysis.createdAt || Date.now()
@@ -370,6 +402,20 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
           <Text style={styles.disclosureIntro}>{REPORT_INTRO}</Text>
           <Text style={styles.disclosureNote}>{REPORT_DISCLAIMER}</Text>
         </View>
+
+        {validationWarnings.length > 0 && (
+          <View style={styles.validationBox} wrap={false}>
+            <Text style={styles.validationTitle}>
+              Unverified fields in this report ({validationWarnings.length})
+            </Text>
+            <Text style={styles.validationText}>
+              The validator rejected these fields after one repair. They are marked inline and stamped on every page.
+            </Text>
+            {validationWarnings.map((warning, index) => (
+              <Text key={index} style={styles.validationText}>• {warning}</Text>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.reportTitle}>{analysis.name || 'Artifact Analysis'}</Text>
         <View style={styles.metaGrid}>
@@ -453,6 +499,11 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
           </View>
         )}
 
+        {validationWarnings.length > 0 && (
+          <View style={styles.validationStamp} fixed>
+            <Text>UNVERIFIED FIELDS: {validationWarnings.join(' · ')}</Text>
+          </View>
+        )}
         <View style={styles.footer} fixed>
           <Text>Kynd AI · Behavioral User Simulation Report</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
@@ -554,6 +605,11 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
             )
           })}
 
+          {validationWarnings.length > 0 && (
+            <View style={styles.validationStamp} fixed>
+              <Text>UNVERIFIED FIELDS: {validationWarnings.join(' · ')}</Text>
+            </View>
+          )}
           <View style={styles.footer} fixed>
             <Text>Kynd AI · Behavioral User Simulation Report</Text>
             <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />

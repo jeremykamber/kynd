@@ -4,6 +4,7 @@ import { LlmServicePort, PricingLocation, PersonaPhaseCallback, ChatAnalysisCont
 import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
 import { PersonaAdapter } from "./PersonaAdapter";
 import { VisionAnalysisAdapter } from "./VisionAnalysisAdapter";
+import { ClaimLedgerAdapter } from "./ClaimLedgerAdapter";
 import { ChatAdapter } from "./ChatAdapter";
 import { HtmlSummarizer } from "./HtmlSummarizer";
 import { InterviewSignalExtractor } from "./InterviewSignalExtractor";
@@ -110,6 +111,7 @@ export class LlmServiceImpl implements LlmServicePort {
 
     private personaAdapter: PersonaAdapter;
     private visionAdapter: VisionAnalysisAdapter;
+    private claimLedgerAdapter: ClaimLedgerAdapter;
     private chatAdapter: ChatAdapter;
     private htmlSummarizer: HtmlSummarizer;
     private interviewSignalExtractor: InterviewSignalExtractor;
@@ -156,6 +158,7 @@ export class LlmServiceImpl implements LlmServicePort {
 
         this.personaAdapter = new PersonaAdapter(this);
         this.visionAdapter = new VisionAnalysisAdapter(this);
+        this.claimLedgerAdapter = new ClaimLedgerAdapter(this);
         this.chatAdapter = new ChatAdapter(this);
         this.htmlSummarizer = new HtmlSummarizer(this);
         this.interviewSignalExtractor = new InterviewSignalExtractor(this);
@@ -615,12 +618,42 @@ export class LlmServiceImpl implements LlmServicePort {
             options,
         );
     }
-    async generateCohortSynthesis(
-        researchQuestion: string,
-        transcripts: Array<{ personaId: string; personaName: string; transcript: string }>,
-        options?: { runId?: string }
-    ): Promise<import("@/domain/entities/ArtifactSynthesis").CohortSynthesisContent> {
-        return this.visionAdapter.generateCohortSynthesis(researchQuestion, transcripts, options);
+    async extractPersonaClaims(
+        persona: Persona,
+        monologue: string,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.extractPersonaClaims(persona, monologue, options);
+    }
+
+    async verifyClaimSupport(
+        claims: Array<{ claimId: string; observation: string; quote: string }>,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.verifyClaimSupport(claims, options);
+    }
+
+    async clusterClaims(
+        claims: Array<{ claimId: string; topic: string; observation: string }>,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.clusterClaims(claims, options);
+    }
+
+    async synthesizeFromPlan(
+        plan: import("@/domain/entities/SynthesisPlan").SynthesisPlan,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.synthesizeFromPlan(plan, options);
+    }
+
+    async repairSynthesis(
+        plan: import("@/domain/entities/SynthesisPlan").SynthesisPlan,
+        draft: import("@/domain/entities/SynthesisPlan").SynthesisDraft,
+        violations: string[],
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.repairSynthesis(plan, draft, violations, options);
     }
 
     // --- Domain Gateways (Delegating to Adapters) ---

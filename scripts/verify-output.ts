@@ -36,6 +36,9 @@ import path from 'path';
 import type { ArtifactInput } from '@/domain/entities/ArtifactInput';
 import { withoutQuotedSpans } from '@/domain/entities/PersonaResponse';
 import { MONOLOGUE_BANNED_TERMS } from '@/infrastructure/adapters/VisionAnalysisAdapter';
+import { BuildClaimLedgerUseCase } from '@/application/usecases/BuildClaimLedgerUseCase';
+import { buildSynthesisPlan, findingFloor } from '@/application/synthesis/plan';
+import { markedFieldCount } from '@/application/synthesis/validateSynthesis';
 
 const OUT_DIR = path.resolve(process.cwd(), '.sisyphus', 'verify');
 
@@ -294,6 +297,65 @@ function checkCitations(synthesis: any, responses: any[]): { pass: string[]; fai
   return { pass, fail };
 }
 
+// Ledger invariants: every citation is verbatim in its persona's monologue,
+// every split sums to the completed count, and no finding is below the floor.
+function checkLedger(synthesis: any, responses: any[]): { pass: string[]; fail: string[] } {
+  const pass: string[] = [];
+  const fail: string[] = [];
+  if (!synthesis) return { pass, fail: ['ledger: synthesis missing'] };
+
+  const groups = synthesis.claimGroups;
+  if (!Array.isArray(groups)) {
+    fail.push('claimGroups missing — the report was not built from a ledger');
+    return { pass, fail };
+  }
+  pass.push(`ledger groups: ${groups.length}`);
+
+  const transcriptById: Record<string, string> = {};
+  for (const r of responses) {
+    const id = r?.personaId ?? r?.id;
+    if (id) transcriptById[id] = r?.rawAnalysis ?? '';
+  }
+
+  let citations = 0;
+  for (const group of groups) {
+    for (const citation of group?.citations ?? []) {
+      citations++;
+      if (!(transcriptById[citation.personaId] ?? '').includes(citation.quote ?? '')) {
+        fail.push(`group "${group.topic}": citation is not a verbatim transcript substring`);
+      }
+    }
+  }
+  pass.push(`ledger citations checked: ${citations}`);
+
+  const floor = findingFloor(synthesis.completedCount ?? 0);
+  for (const finding of synthesis.topFindings ?? []) {
+    if ((finding.affectedPersonaCount ?? 0) < floor) {
+      fail.push(
+        `finding "${String(finding.observation).slice(0, 50)}" has ${finding.affectedPersonaCount} personas; floor is ${floor}`,
+      );
+    }
+  }
+  pass.push(`finding floor: ${floor}`);
+
+  for (const disagreement of synthesis.disagreements ?? []) {
+    const sum = (disagreement.split ?? []).reduce((total: number, side: any) => total + (side.personaCount ?? 0), 0);
+    if (sum !== synthesis.completedCount) {
+      fail.push(`split "${disagreement.topic}" sums to ${sum}; ${synthesis.completedCount} completed`);
+    }
+  }
+  pass.push('disagreement splits sum to the completed count');
+
+  const missingClaimSets = Array.isArray(synthesis.missingClaimPersonaIds)
+    ? synthesis.missingClaimPersonaIds.length
+    : 0;
+  const marked = markedFieldCount(synthesis.validationWarnings) + missingClaimSets;
+  if (marked > 1) fail.push(`marked fields: ${marked} (QA allows at most 1; ${missingClaimSets} missing claim sets)`);
+  else pass.push(`marked fields: ${marked} (${missingClaimSets} missing claim sets)`);
+
+  return { pass, fail };
+}
+
 // ── Modes ───────────────────────────────────────────────────────────────────
 
 async function generatePersonas(description: string, count: number, modeArg: string | undefined) {
@@ -447,11 +509,19 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
   );
   console.log(`\nsaved (pre-synthesis): ${outPath}`);
 
-  const synthesis = completed.length > 0 ? await new SynthesizeArtifactResultsUseCase(llm).execute(
-    completed,
-    researchQuestion,
-    { runId, failedCount: responses.length - completed.length, totalPersonaCount: responses.length },
-  ).catch((err) => {
+  const synthesis = completed.length > 0 ? await (async () => {
+    const ledger = await new BuildClaimLedgerUseCase(llm).execute(completed, {
+      runId,
+      failedCount: responses.length - completed.length,
+      totalPersonaCount: responses.length,
+    });
+    const plan = buildSynthesisPlan({
+      researchQuestion,
+      ledger,
+      personaNames: completed.map((r: any) => r.personaProfile?.name ?? 'Unnamed persona'),
+    });
+    return new SynthesizeArtifactResultsUseCase(llm).execute(plan, { runId });
+  })().catch((err) => {
     console.error(`[verify-output] synthesis failed (monologues already saved): ${err.message}`);
     return null;
   }) : null;
@@ -460,6 +530,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
   report('monologues', checkMonologues(responses));
   report('synthesis', checkSynthesis(synthesis, responses.length));
   report('citations', checkCitations(synthesis, responses));
+  report('ledger', checkLedger(synthesis, responses));
 
   await fs.promises.writeFile(
     outPath,

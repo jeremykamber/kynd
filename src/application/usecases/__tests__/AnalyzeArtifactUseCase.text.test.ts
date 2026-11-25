@@ -30,6 +30,7 @@ function makeLlm(): LlmServicePort {
   return {
     generateSimulationTitle: vi.fn().mockResolvedValue('Is the brief concrete?'),
     generateVisceralMonologue: vi.fn().mockResolvedValue({ text: 'visceral reaction text' }),
+    extractPersonaClaims: vi.fn().mockResolvedValue([]),
     extractPersonaResponse: vi.fn().mockResolvedValue({
       overview: 'ok',
       customerJourney: [

@@ -20,6 +20,7 @@ describe('AnalyzeArtifactUseCase title generation', () => {
     mockIntake = { intake: vi.fn().mockResolvedValue(intake) }
     mockLlm = {
       generateSimulationTitle: vi.fn().mockResolvedValue('Example title'),
+      extractPersonaClaims: vi.fn().mockResolvedValue([]),
     } as any
     useCase = new AnalyzeArtifactUseCase(mockIntake as any, mockLlm)
   })

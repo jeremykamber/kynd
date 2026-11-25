@@ -150,6 +150,26 @@ describe('AnalysisPdfDocument', () => {
     expect(text).not.toContain('Primary Points of Friction')
   })
 
+  it('shows validation warnings and stamps them for the PDF', () => {
+    const warned: ArtifactAnalysis = {
+      ...baseAnalysis,
+      synthesis: {
+        ...mockSynthesis,
+        validationWarnings: [
+          'overview: states the number 99, which the ledger and facts do not contain.',
+          'finding:g1:impact: makes a recommendation instead of reporting what the cohort did.',
+        ],
+      },
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: warned }))
+
+    expect(text).toContain('Unverified fields in this report (2)')
+    expect(text).toContain('overview: states the number 99')
+    expect(text).toContain('UNVERIFIED FIELDS: overview: states the number 99')
+    // The warning stamps every page, so it is not only a page-1 notice.
+    expect(text.match(/UNVERIFIED FIELDS:/g)?.length).toBe(2)
+  })
+
   it('discloses what Kynd is and that the report is simulated, before the findings', () => {
     const text = renderedText(AnalysisPdfDocument({ analysis: baseAnalysis }))
 

@@ -1,210 +1,116 @@
 import { describe, it, expect, vi } from "vitest";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
-import type { CohortSynthesisContent } from "@/domain/entities/ArtifactSynthesis";
-import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
+import type { ClaimLedger, ClaimGroup } from "@/domain/entities/PersonaClaim";
+import type { SynthesisDraft } from "@/domain/entities/SynthesisPlan";
+import { buildSynthesisPlan } from "@/application/synthesis/plan";
 import { SynthesizeArtifactResultsUseCase } from "../SynthesizeArtifactResultsUseCase";
 
-function buildResponse(overrides: Partial<PersonaResponse> = {}): PersonaResponse {
-  return {
-    id: "resp-1",
-    personaId: "p-1",
-    screenshotBase64: "",
-    rawAnalysis: "I opened the pricing page and froze. Nothing made sense to me.",
-    overview: "Confused by pricing",
-    customerJourney: [],
-    researchQuestionAnswer: "",
-    majorFindings: [],
-    pointsOfFriction: [],
-    unansweredQuestions: [],
-    personaProfile: {
-      name: "Sarah Chen",
-      occupation: "Senior Engineer",
-      bigFive: { conscientiousness: 80, neuroticism: 30, openness: 70, extraversion: 50, agreeableness: 60 },
-      values: [],
-      fears: [],
-      communicationStyle: "direct",
-      decisionStyle: "data-driven",
-    },
-    ...overrides,
-  };
-}
-
-const LLM_CONTENT: CohortSynthesisContent = {
-  overview: "The cohort struggled with pricing clarity.",
-  researchQuestionAnswer: "Pricing opacity blocks conversion.",
-  topFindings: [
+const group: ClaimGroup = {
+  id: "g1",
+  topic: "Price opacity",
+  claims: [
     {
-      observation: "Pricing page stalls most personas",
-      evidence: "Two personas froze on the pricing table",
-      impact: "Drop-off before trial signup",
-      confidence: "strongly supported",
-      affectedPersonaCount: 2,
-      totalPersonaCount: 2,
-      evidenceLocators: [
-        { personaId: "p-1", uniqueAnchorPhrase: "opened the pricing page" },
-        { personaId: "ghost", uniqueAnchorPhrase: "anything" },
-        { personaId: "p-2", uniqueAnchorPhrase: "not present in any transcript" },
-      ],
+      id: "p-1:0",
+      personaId: "p-1",
+      topic: "Price opacity",
+      observation: "The price is hidden.",
+      stance: "opposes",
+      quote: "I cannot find the price.",
     },
   ],
-  disagreements: [
-    {
-      topic: "Annual vs monthly billing",
-      split: [
-        { view: "Prefers monthly", personaCount: 1 },
-        { view: "Prefers annual", personaCount: 1 },
-      ],
-      significance: "Medium",
-    },
-  ],
-  biggestFrictions: ["Pricing table without monthly toggle"],
+  personaCount: 2,
+  supports: 0,
+  opposes: 2,
+  neutral: 0,
+  citations: [{ personaId: "p-1", personaName: "Sarah Chen", quote: "I cannot find the price." }],
 };
 
-function buildPort(overrides: Partial<LlmServicePort> = {}): LlmServicePort {
+const ledger: ClaimLedger = {
+  groups: [group],
+  verdicts: { adopt: 0, trial: 1, reject: 1, undecided: 1 },
+  completedCount: 3,
+  failedCount: 0,
+  totalPersonaCount: 3,
+  missingClaimPersonaIds: [],
+  rejectedClaims: [],
+  degraded: [],
+};
+
+const plan = buildSynthesisPlan({ researchQuestion: "q", ledger, personaNames: ["Sarah Chen"] });
+
+const goodDraft: SynthesisDraft = {
+  overview: "Several personas stopped.",
+  researchQuestionAnswer: "Price opacity blocks action.",
+  findings: [{ groupId: "g1", observation: "Price opacity stalls the cohort.", impact: "They stop." }],
+  disagreements: [],
+  frictions: [],
+};
+
+function port(overrides: Partial<LlmServicePort> = {}): LlmServicePort {
   return {
-    generateCohortSynthesis: vi.fn().mockResolvedValue(LLM_CONTENT),
+    synthesizeFromPlan: vi.fn().mockResolvedValue(goodDraft),
+    repairSynthesis: vi.fn(),
     ...overrides,
   } as unknown as LlmServicePort;
 }
 
 describe("SynthesizeArtifactResultsUseCase", () => {
-  const responses = [
-    buildResponse({ id: "resp-1", personaId: "p-1" }),
-    buildResponse({
-      id: "resp-2",
-      personaId: "p-2",
-      rawAnalysis: "The dashboard was intuitive but the export button was hidden.",
-      personaProfile: {
-        name: "Miguel Torres",
-        occupation: "Data Analyst",
-        bigFive: { conscientiousness: 60, neuroticism: 40, openness: 60, extraversion: 60, agreeableness: 50 },
-        values: [],
-        fears: [],
-        communicationStyle: "direct",
-        decisionStyle: "data-driven",
-      },
-    }),
-  ];
+  it("sends the writer a plan with no raw transcript", async () => {
+    const p = port();
+    await new SynthesizeArtifactResultsUseCase(p).execute(plan);
 
-  it("passes raw monologues (no summarization) to the port", async () => {
-    // Longer than any plausible summarization window: only a raw pass-through
-    // preserves it byte-for-byte.
-    const longMonologue = `I opened the pricing page and froze. ${"detail ".repeat(2000)}END`;
-    const raw = [
-      buildResponse({ id: "resp-1", personaId: "p-1", rawAnalysis: longMonologue }),
-      buildResponse({ id: "resp-2", personaId: "p-2", rawAnalysis: "The export button was hidden." }),
-    ];
-    const port = buildPort();
-    await new SynthesizeArtifactResultsUseCase(port).execute(raw, "What blocks signup?");
-
-    const [researchQuestion, transcripts] = vi.mocked(port.generateCohortSynthesis).mock.calls[0];
-
-    expect(researchQuestion).toBe("What blocks signup?");
-    expect(transcripts).toHaveLength(raw.length);
-    expect(transcripts.map((t) => t.transcript)).toEqual([
-      longMonologue,
-      "The export button was hidden.",
-    ]);
+    const writerPlan = vi.mocked(p.synthesizeFromPlan).mock.calls[0][0];
+    const serialized = JSON.stringify(writerPlan);
+    expect(serialized).not.toContain("rawAnalysis");
+    expect(serialized).not.toContain("transcript");
+    expect(writerPlan.ledger.rejectedClaims).toEqual([]);
+    expect(writerPlan.personaNames).toBeUndefined();
   });
 
-  it("falls back to response id and a placeholder name when profile fields are missing", async () => {
-    const bare = [buildResponse({ personaId: undefined, personaProfile: undefined })];
-    const port = buildPort();
-    await new SynthesizeArtifactResultsUseCase(port).execute(bare, "q");
-
-    const [, transcripts] = (port.generateCohortSynthesis as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(transcripts[0].personaId).toBe("resp-1");
-    expect(transcripts[0].personaName).toBe("Unnamed persona");
+  it("fills counts and citations from the ledger", async () => {
+    const synthesis = await new SynthesizeArtifactResultsUseCase(port()).execute(plan);
+    expect(synthesis.topFindings[0].affectedPersonaCount).toBe(2);
+    expect(synthesis.topFindings[0].totalPersonaCount).toBe(3);
+    expect(synthesis.topFindings[0].citations?.[0].quote).toBe("I cannot find the price.");
+    expect(synthesis.completedCount).toBe(3);
+    expect(synthesis.verdicts).toEqual(ledger.verdicts);
   });
 
-  it("grounds citations: quote is verbatim substring of the persona transcript", async () => {
-    const synthesis = await new SynthesizeArtifactResultsUseCase(buildPort()).execute(
-      responses,
-      "What blocks signup?",
-    );
-
-    const [finding] = synthesis.topFindings;
-    expect(finding.citations).toHaveLength(1); // ghost + miss dropped
-    const citation = finding.citations![0];
-    expect(citation.personaId).toBe("p-1");
-    expect(citation.personaName).toBe("Sarah Chen");
-    expect(responses[0].rawAnalysis).toContain(citation.quote);
-  });
-
-  it("drops citations entirely (no placeholder) when every locator misses", async () => {
-    const port = buildPort({
-      generateCohortSynthesis: vi.fn().mockResolvedValue({
-        ...LLM_CONTENT,
-        topFindings: [
-          { ...LLM_CONTENT.topFindings[0], evidenceLocators: [{ personaId: "p-1", uniqueAnchorPhrase: "zzz no such phrase zzz" }] },
-        ],
+  it("repairs once and keeps the repaired draft when it passes", async () => {
+    const repair = vi.fn().mockResolvedValue(goodDraft);
+    const synthesis = await new SynthesizeArtifactResultsUseCase(
+      port({
+        synthesizeFromPlan: vi.fn().mockResolvedValue({ ...goodDraft, overview: "All 47 personas stopped." }),
+        repairSynthesis: repair,
       }),
-    });
-    const synthesis = await new SynthesizeArtifactResultsUseCase(port).execute(responses, "q");
+    ).execute(plan);
 
-    expect(synthesis.topFindings[0].citations).toBeUndefined();
+    expect(repair).toHaveBeenCalledTimes(1);
+    const violations = vi.mocked(repair).mock.calls[0][2];
+    expect(violations.join(" ")).toContain("47");
+    expect(synthesis.validationWarnings).toBeUndefined();
   });
 
-  it("never emits [cite-N] markers or locator fields into user data", async () => {
-    const unresolvedAnchor = "zzz-no-transcript-contains-this-anchor-zzz";
-    const port = buildPort({
-      generateCohortSynthesis: vi.fn().mockResolvedValue({
-        ...LLM_CONTENT,
-        topFindings: [
-          {
-            ...LLM_CONTENT.topFindings[0],
-            evidenceLocators: [
-              { personaId: "p-1", uniqueAnchorPhrase: "opened the pricing page" },
-              { personaId: "p-2", uniqueAnchorPhrase: unresolvedAnchor },
-            ],
-          },
-        ],
+  it("keeps the draft and records warnings when the repair still fails", async () => {
+    const bad: SynthesisDraft = { ...goodDraft, overview: "All 47 personas stopped." };
+    const synthesis = await new SynthesizeArtifactResultsUseCase(
+      port({
+        synthesizeFromPlan: vi.fn().mockResolvedValue(bad),
+        repairSynthesis: vi.fn().mockResolvedValue(bad),
       }),
-    });
+    ).execute(plan);
 
-    const synthesis = await new SynthesizeArtifactResultsUseCase(port).execute(responses, "q");
-
-    // The resolving locator becomes a user-visible quote...
-    const [citation] = synthesis.topFindings[0].citations!;
-    expect(citation.personaId).toBe("p-1");
-    expect(citation.quote).toContain("opened the pricing page");
-
-    // ...carrying only grounded, user-facing fields...
-    expect(Object.keys(citation).sort()).toEqual(["personaId", "personaName", "quote"]);
-
-    // ...and neither locator field names nor an anchor that resolved to
-    // nothing ever reach serialized user data.
-    const json = JSON.stringify(synthesis);
-    expect(json).not.toContain("evidenceLocators");
-    expect(json).not.toContain("uniqueAnchorPhrase");
-    expect(json).not.toContain(unresolvedAnchor);
+    expect(synthesis.validationWarnings?.length).toBeGreaterThan(0);
+    expect(synthesis.validationWarnings?.join(" ")).toContain("47");
+    // The rest of the report still carries code-owned data.
+    expect(synthesis.topFindings[0].affectedPersonaCount).toBe(2);
   });
 
-  it("propagates LLM failure — throw-on-failure is the caller's aggregation point", async () => {
-    const port = buildPort({
-      generateCohortSynthesis: vi.fn().mockRejectedValue(new Error("LLM down")),
-    });
+  it("propagates writer failure to the caller", async () => {
     await expect(
-      new SynthesizeArtifactResultsUseCase(port).execute(responses, "q"),
+      new SynthesizeArtifactResultsUseCase(
+        port({ synthesizeFromPlan: vi.fn().mockRejectedValue(new Error("LLM down")) }),
+      ).execute(plan),
     ).rejects.toThrow("LLM down");
   });
-
-  it("attaches caller-known counts, never LLM-fabricated ones", async () => {
-    const synthesis = await new SynthesizeArtifactResultsUseCase(buildPort()).execute(
-      responses,
-      "q",
-      { failedCount: 1, totalPersonaCount: 3 },
-    );
-    expect(synthesis.completedCount).toBe(2);
-    expect(synthesis.failedCount).toBe(1);
-    expect(synthesis.totalPersonaCount).toBe(3);
-  });
-
-  it("defaults counts when caller omits them", async () => {
-    const synthesis = await new SynthesizeArtifactResultsUseCase(buildPort()).execute(responses, "q");
-    expect(synthesis.completedCount).toBe(2);
-    expect(synthesis.failedCount).toBe(0);
-    expect(synthesis.totalPersonaCount).toBe(2);
-  });
-
 });

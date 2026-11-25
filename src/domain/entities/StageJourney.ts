@@ -1,4 +1,5 @@
 import type { CognitiveStage } from './CognitiveStage';
+import type { StageAnchor } from './ArtifactProfile';
 
 /** How the persona felt while passing through a stage. */
 export type StageSentiment = 'positive' | 'neutral' | 'negative';
@@ -18,4 +19,10 @@ export interface StageJourney {
   outcome: StageOutcome;
   /** What moved the persona to the next stage, or why it stopped. */
   transition?: string;
+  /**
+   * The artifact location this stage refers to. The profile chooses which
+   * kind is allowed: timestamps for a video script, headings or verbatim
+   * quotes for text, none for a site. An anchor never changes the stage order.
+   */
+  anchor?: StageAnchor;
 }

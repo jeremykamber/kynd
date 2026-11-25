@@ -1,10 +1,12 @@
 import { Persona } from "../entities/Persona";
 import { PricingAnalysis } from "../entities/PricingAnalysis";
 import { PersonaResponse } from "../entities/PersonaResponse";
-import { ArtifactSynthesis, CohortSynthesisContent } from "../entities/ArtifactSynthesis";
+import { ArtifactSynthesis } from "../entities/ArtifactSynthesis";
 import { ArtifactFraming, ArtifactIntake } from "../entities/ArtifactIntake";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 import type { ResearchPersonaConfig, StrategyPersonaConfig, ClusterPersonaConfig } from "../dtos/PersonaGenerationConfig";
+import type { ExtractedClaim, ClaimSupport } from "../entities/PersonaClaim";
+import type { SynthesisDraft, SynthesisPlan } from "../entities/SynthesisPlan";
 
 /** One decision the browser-acting persona makes from the current screenshot. */
 export type AgentAction =
@@ -215,25 +217,58 @@ export interface LlmServicePort {
     ): Promise<PersonaResponse>;
 
 
-    // --- Cross-persona cohort synthesis ---
+    // --- Claim ledger and derived cohort synthesis ---
 
     /**
-     * One structured LLM call over the cohort's RAW monologue transcripts:
-     * overview, research-question answer, top findings (each carrying
-     * evidence locators for code-side citation grounding), disagreements and
-     * frictions. Findings and their evidence anchors ride in this same call
-     * so the two can never disagree.
-     *
-     * The returned `CohortSynthesisContent` deliberately omits completion
-     * counts — the caller owns those facts and fills them in.
-     * @param transcripts One entry per persona that completed; findings
-     *   reference personas by id/name, so array order does not affect output.
+     * The separate per-persona claim pass. Reads the same monologue as the
+     * extraction and returns 3 to 7 claims, each with a verbatim quotation.
+     * It does not produce a verdict or a recommendation, and it may not add a
+     * claim without a quotation.
      */
-    generateCohortSynthesis(
-        researchQuestion: string,
-        transcripts: Array<{ personaId: string; personaName: string; transcript: string }>,
-        options?: { runId?: string }
-    ): Promise<CohortSynthesisContent>;
+    extractPersonaClaims(
+        persona: Persona,
+        monologue: string,
+        options?: { runId?: string },
+    ): Promise<ExtractedClaim[]>;
+
+    /**
+     * One batch support gate over every surviving claim. Returns one level per
+     * claim id; a missing result is treated as `unsupported` by code.
+     */
+    verifyClaimSupport(
+        claims: Array<{ claimId: string; observation: string; quote: string }>,
+        options?: { runId?: string },
+    ): Promise<ClaimSupport[]>;
+
+    /**
+     * One batch clustering pass. Groups claim ids by the underlying topic; it
+     * never creates, edits, or merges different causes.
+     */
+    clusterClaims(
+        claims: Array<{ claimId: string; topic: string; observation: string }>,
+        options?: { runId?: string },
+    ): Promise<Array<{ topic: string; claimIds: string[] }>>;
+
+    /**
+     * Writes language from the plan only. It receives no raw transcript and
+     * returns group ids for every finding, split, and friction; code joins
+     * those ids to the ledger's counts and citations.
+     */
+    synthesizeFromPlan(
+        plan: SynthesisPlan,
+        options?: { runId?: string },
+    ): Promise<SynthesisDraft>;
+
+    /**
+     * One repair attempt after the validator rejected a field. Receives the
+     * plan, the draft, and the violations — never a raw transcript.
+     */
+    repairSynthesis(
+        plan: SynthesisPlan,
+        draft: SynthesisDraft,
+        violations: string[],
+        options?: { runId?: string },
+    ): Promise<SynthesisDraft>;
 
     /**
      * Validates if a user's prompt is within the persona's expected domain.

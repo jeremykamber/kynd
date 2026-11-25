@@ -31,6 +31,7 @@ function makeLlm(): LlmServicePort {
   return {
     generateSimulationTitle: vi.fn().mockResolvedValue('Test title'),
     generateVisceralMonologue: vi.fn().mockResolvedValue({ text: 'visceral reaction text' }),
+    extractPersonaClaims: vi.fn().mockResolvedValue([]),
     extractPersonaResponse: vi.fn().mockResolvedValue({
       overview: 'ok',
       customerJourney: [
@@ -96,6 +97,48 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
     expect(responses[0].rawAnalysis).toBe('visceral reaction text')
     expect(responses[0].customerJourney).toHaveLength(5)
     expect(responses[0].overview).toBe('ok')
+  })
+
+  it('attaches code-id claims from the parallel claim pass', async () => {
+    vi.mocked(llm.extractPersonaClaims).mockResolvedValue([
+      {
+        topic: 'price',
+        observation: 'The price is unclear.',
+        stance: 'opposes',
+        quote: 'visceral reaction text',
+      },
+    ])
+    const useCase = makeUseCase(llm)
+    const responses = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(llm.extractPersonaClaims).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Ada' }),
+      'visceral reaction text',
+      expect.objectContaining({ runId: 'unknown' }),
+    )
+    expect(responses[0].claims).toEqual([
+      expect.objectContaining({ id: `${makePersona('Ada').id}:0`, personaId: makePersona('Ada').id }),
+    ])
+  })
+
+  it('keeps the persona response when the claim pass fails', async () => {
+    vi.mocked(llm.extractPersonaClaims).mockRejectedValue(new Error('claim model down'))
+    const useCase = makeUseCase(llm)
+    const responses = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(responses).toHaveLength(1)
+    expect(responses[0].overview).toBe('ok')
+    expect(responses[0].claims).toBeUndefined()
   })
 
   it('falls back to a shape-valid response when the monologue call fails', async () => {
