@@ -1,0 +1,2813 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Kynd · Why the report scores 5</title>
+<style>
+  :root {
+    --bg: oklch(0.12 0.01 265);
+    --surface: oklch(0.14 0.01 265);
+    --raised: oklch(0.16 0.01 265);
+    --fg: oklch(0.95 0 0);
+    --muted: oklch(0.65 0.01 265);
+    --border: oklch(0.2 0.01 265);
+    --accent: #0B72C4;
+    --accent-ink: oklch(0.98 0 0);
+    --accent-light: oklch(0.7 0.15 230);
+    --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+    --accent-line: color-mix(in oklch, var(--accent) 52%, var(--border));
+    --warn: oklch(0.76 0.14 24);
+    --warn-soft: color-mix(in oklch, var(--warn) 18%, transparent);
+    --bad: oklch(0.64 0.19 28);
+    --bad-soft: color-mix(in oklch, var(--bad) 18%, transparent);
+    --good: oklch(0.72 0.15 155);
+    --good-soft: color-mix(in oklch, var(--good) 16%, transparent);
+    --sans: Geist, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --max: 1180px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --r-sm: 3px;
+    --r-md: 6px;
+    --r-lg: 8px;
+  }
+
+  [data-theme="light"] {
+    --bg: oklch(0.97 0.005 265);
+    --surface: oklch(0.94 0.005 265);
+    --raised: oklch(0.91 0.005 265);
+    --fg: oklch(0.14 0.01 265);
+    --muted: oklch(0.4 0.02 265);
+    --border: oklch(0.84 0.01 265);
+    --accent: oklch(0.57 0.2 230);
+    --accent-ink: oklch(0.98 0 0);
+    --accent-light: oklch(0.52 0.2 230);
+    --accent-soft: color-mix(in oklch, var(--accent) 10%, transparent);
+    --accent-line: color-mix(in oklch, var(--accent) 48%, var(--border));
+    --warn: oklch(0.52 0.15 24);
+    --warn-soft: color-mix(in oklch, var(--warn) 12%, transparent);
+    --bad: oklch(0.52 0.19 28);
+    --bad-soft: color-mix(in oklch, var(--bad) 12%, transparent);
+    --good: oklch(0.48 0.13 155);
+    --good-soft: color-mix(in oklch, var(--good) 12%, transparent);
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    background: var(--bg);
+    color-scheme: dark;
+  }
+
+  [data-theme="light"] { color-scheme: light; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 400 1rem/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--fg);
+  }
+
+  a { color: var(--accent-light); text-underline-offset: 3px; }
+  a:hover { color: var(--fg); }
+
+  button { font: inherit; color: inherit; }
+  button:focus-visible, a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent-light);
+    outline-offset: 3px;
+  }
+
+  .skip {
+    position: absolute;
+    left: 16px;
+    top: -80px;
+    z-index: 100;
+    padding: 10px 14px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-radius: var(--r-sm);
+    text-decoration: none;
+  }
+  .skip:focus { top: 16px; }
+
+  .shell {
+    width: min(var(--max), calc(100% - 48px));
+    margin-inline: auto;
+  }
+
+  .micro {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    line-height: 1.4;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .label {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    line-height: 1.4;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .masthead {
+    padding: 28px 0 34px;
+  }
+
+  .masthead-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .icon-btn {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 150ms var(--ease), border-color 150ms var(--ease), background-color 150ms var(--ease);
+  }
+  .icon-btn:hover { color: var(--fg); border-color: var(--accent-line); }
+  .icon-btn svg { width: 16px; height: 16px; display: block; }
+  .icon-btn .icon-sun { display: none; }
+  [data-theme="light"] .icon-btn .icon-sun { display: block; }
+  [data-theme="light"] .icon-btn .icon-moon { display: none; }
+
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+    gap: 56px;
+    align-items: end;
+    padding: 38px 0 30px;
+  }
+
+  h1 {
+    margin: 0;
+    max-width: 13ch;
+    font-size: clamp(2.5rem, 5.5vw, 4rem);
+    font-weight: 600;
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+  }
+
+  .dek {
+    max-width: 58ch;
+    margin: 20px 0 0;
+    color: var(--muted);
+    font-size: 1.08rem;
+    line-height: 1.55;
+  }
+
+  .hero-note {
+    margin: 0;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .hero-note blockquote {
+    margin: 0;
+    font-size: 1.2rem;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+    color: var(--fg);
+  }
+
+  .hero-note p:last-child {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .meta-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    padding: 13px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .meta-strip span {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    line-height: 1.4;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 176px minmax(0, 1fr);
+    gap: 56px;
+    padding: 38px 0 72px;
+  }
+
+  .rail {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    display: grid;
+    gap: 2px;
+  }
+
+  .rail a {
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    gap: 8px;
+    align-items: baseline;
+    padding: 7px 8px;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: color 150ms var(--ease), background-color 150ms var(--ease), border-color 150ms var(--ease);
+  }
+
+  .rail a span {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+  }
+
+  .rail a:hover { color: var(--fg); background: var(--surface); }
+  .rail a[aria-current="true"] {
+    color: var(--fg);
+    background: var(--surface);
+    border-color: var(--border);
+  }
+  .rail a[aria-current="true"] span { color: var(--accent-light); }
+
+  .rail-note {
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+  .rail-note a { color: var(--muted); text-decoration: underline; white-space: nowrap; }
+  .rail-note a:hover { color: var(--fg); }
+
+  main { min-width: 0; }
+
+  section {
+    padding-bottom: 80px;
+    scroll-margin-top: 28px;
+  }
+
+  .kicker { white-space: nowrap; }
+
+  .section-head {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 24px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    margin-bottom: 26px;
+  }
+
+  .section-head h2 {
+    margin: 0;
+    max-width: 24ch;
+    font-size: clamp(1.55rem, 3vw, 2.15rem);
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+  }
+
+  .lede {
+    max-width: 66ch;
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 0.98rem;
+    line-height: 1.6;
+  }
+
+  .score-panel > *,
+  .failure-layout > *,
+  .bench-output > *,
+  .two-col > *,
+  .ledger > * { min-width: 0; }
+
+  .table-wrap, .matrix-wrap { max-width: 100%; }
+
+  .score-panel {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .chart {
+    padding: 18px 18px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+
+  .chart-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  .chart-head span:last-child {
+    color: var(--accent-light);
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr) 34px;
+    gap: 12px;
+    align-items: center;
+    padding: 7px 0;
+  }
+
+  .bar-label {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 0.78rem;
+    line-height: 1.2;
+  }
+
+  .bar-label span:last-child {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+  }
+
+  .bar-track {
+    position: relative;
+    height: 8px;
+    border-radius: 1px;
+    background: var(--raised);
+  }
+
+  .bar {
+    height: 100%;
+    width: calc(var(--score) * 10%);
+    border-radius: 1px;
+    background: var(--warn);
+  }
+
+  .floor-tick {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    left: 80%;
+    border-left: 1px dashed var(--accent-light);
+  }
+
+  .bar-value {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-align: right;
+    color: var(--fg);
+  }
+
+  .chart-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1.4;
+  }
+
+  .chart-foot strong { color: var(--fg); font-weight: 500; }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+
+  table {
+    width: 100%;
+    min-width: 620px;
+    border-collapse: collapse;
+  }
+
+  caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  thead th {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  thead th:first-child,
+  tbody th { text-align: left; }
+
+  tbody th {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+
+  tbody tr:last-child > * { border-bottom: 0; }
+
+  .score {
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+
+  .band-low { background: var(--bad-soft); }
+  .band-mid { background: var(--warn-soft); }
+  .band-high { background: var(--accent-soft); }
+  .band-good { background: var(--good-soft); }
+
+  .read {
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .read strong { color: var(--fg); font-weight: 500; }
+
+  .scroll-hint {
+    display: none;
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.03em;
+    line-height: 1.4;
+  }
+
+  .note {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--raised);
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .note::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    margin-top: 6px;
+    border-radius: 50%;
+    background: var(--accent-light);
+  }
+
+  .note strong { color: var(--fg); font-weight: 500; }
+
+  .failure-layout {
+    display: grid;
+    grid-template-columns: 244px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .failure-tabs {
+    display: grid;
+    gap: 4px;
+  }
+
+  .failure-tab {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 9px;
+    align-items: start;
+    width: 100%;
+    padding: 10px 9px;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--muted);
+    text-align: left;
+    cursor: pointer;
+    transition: color 150ms var(--ease), background-color 150ms var(--ease), border-color 150ms var(--ease);
+  }
+
+  .failure-tab .num {
+    padding-top: 2px;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+
+  .failure-tab strong {
+    display: block;
+    color: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    line-height: 1.35;
+  }
+
+  .failure-tab small {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .failure-tab:hover { color: var(--fg); background: var(--surface); }
+
+  .failure-tab[aria-selected="true"] {
+    color: var(--fg);
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .failure-tab[aria-selected="true"] .num,
+  .failure-tab[aria-selected="true"] small { color: var(--accent-light); }
+
+  .failure-panel {
+    min-height: 386px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+
+  .panel-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 3px 6px;
+    border: 1px solid var(--accent-line);
+    border-radius: var(--r-sm);
+    color: var(--accent-light);
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .failure-panel h3 {
+    margin: 0;
+    max-width: 28ch;
+    font-size: clamp(1.3rem, 2vw, 1.65rem);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  blockquote {
+    margin: 18px 0 0;
+    padding: 15px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--raised);
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  blockquote footer {
+    margin-top: 10px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .mini-label {
+    margin: 0 0 6px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .detail-grid p:not(.mini-label) {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .detail-grid p strong { color: var(--fg); font-weight: 500; }
+
+  .option-switch {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin-bottom: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+  }
+
+  .option-switch button {
+    min-height: 38px;
+    padding: 0 13px;
+    border: 0;
+    border-right: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 150ms var(--ease), background-color 150ms var(--ease);
+  }
+
+  .option-switch button:last-child { border-right: 0; }
+  .option-switch button:hover { color: var(--fg); background: var(--surface); }
+  .option-switch button[aria-selected="true"] {
+    color: var(--fg);
+    background: var(--accent-soft);
+  }
+
+  .matrix-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+
+  .matrix {
+    min-width: 660px;
+  }
+
+  .matrix thead th { font-size: 0.6rem; text-align: left; }
+  .matrix thead th:not(:first-child) { text-align: center; }
+  .matrix tbody th { width: 28%; color: var(--muted); font-weight: 400; }
+  .matrix td { width: 24%; color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
+  .matrix td strong { color: var(--fg); font-weight: 500; }
+  .matrix .col-a, .matrix .col-b, .matrix .col-c { transition: background-color 150ms var(--ease); }
+
+  body[data-option="a"] .matrix .col-a,
+  body[data-option="b"] .matrix .col-b,
+  body[data-option="c"] .matrix .col-c { background: var(--accent-soft); }
+
+  .option-panel {
+    margin-top: 20px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+
+  .option-panel h3 {
+    margin: 0;
+    max-width: 30ch;
+    font-size: 1.45rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  .option-panel > p {
+    max-width: 66ch;
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .fix-viz {
+    margin-top: 20px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--raised);
+  }
+
+  .viz-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .viz-head h4 {
+    margin: 4px 0 0;
+    font-size: 0.98rem;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  .viz-chip {
+    flex: 0 0 auto;
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .viz-intro {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .viz-claim {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-left: 2px solid var(--accent);
+    background: var(--surface);
+  }
+
+  .viz-claim p {
+    margin: 3px 0 0;
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .quote-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .quote-card {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    transition: opacity 150ms var(--ease), border-color 150ms var(--ease);
+  }
+
+  .quote-card strong {
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+
+  .quote-card p {
+    margin: 5px 0 8px;
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1.4;
+  }
+
+  .quote-verdict {
+    display: inline-block;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .quote-card[data-state="opposes"] .quote-verdict { color: var(--warn); }
+  .quote-card[data-state="dropped"] { opacity: 0.45; border-style: dashed; }
+  .quote-card[data-state="dropped"] .quote-verdict { color: var(--warn); }
+
+  .viz-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .viz-result {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+  }
+
+  .result-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 3px 0;
+    font-size: 0.76rem;
+    line-height: 1.4;
+  }
+
+  .result-line span { color: var(--muted); }
+  .result-line strong { text-align: right; font-weight: 500; }
+  .result-line.bad strong { color: var(--warn); }
+
+  .viz-result p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 0.76rem;
+    line-height: 1.45;
+  }
+
+  .b-people {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .b-person {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+  }
+
+  .b-person span {
+    display: block;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .b-person strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .b-person small {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 0.68rem;
+    line-height: 1.35;
+  }
+
+  .b-arrow {
+    margin: 7px 0;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    text-align: center;
+  }
+
+  .b-count {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--accent-line);
+    border-radius: var(--r-sm);
+    background: var(--accent-soft);
+  }
+
+  .b-count span {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .b-count strong { font-size: 0.8rem; font-weight: 500; }
+  .viz-note { margin: 9px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.45; }
+  .viz-link { display: inline-block; margin-top: 9px; font-size: 0.76rem; }
+
+  .c-toggle {
+    display: inline-flex;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+  }
+
+  .c-toggle button {
+    min-height: 34px;
+    padding: 0 11px;
+    border: 0;
+    border-right: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.7rem;
+    cursor: pointer;
+  }
+
+  .c-toggle button:last-child { border-right: 0; }
+  .c-toggle button[aria-pressed="true"] { color: var(--fg); background: var(--accent-soft); }
+
+  .verdict-set {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+    margin-top: 9px;
+  }
+
+  .verdict-set > span:first-child {
+    margin-right: 2px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .verdict-set > span:not(:first-child) {
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .persona-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .persona-card {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    transition: border-color 150ms var(--ease);
+  }
+
+  .fix-viz[data-c-mode="different"] .persona-card { border-color: var(--accent-line); }
+
+  .persona-role {
+    display: block;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .persona-card > strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .persona-entry, .persona-verdict {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 0.7rem;
+    line-height: 1.35;
+  }
+
+  .persona-verdict { color: var(--fg); }
+  .persona-card[data-verdict="reject"] .persona-verdict { color: var(--warn); }
+  .persona-card[data-verdict="trial"] .persona-verdict { color: var(--accent-light); }
+  .persona-card[data-verdict="undecided"] .persona-verdict { color: var(--muted); }
+
+  .fact-check {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    margin-top: 10px;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    font-size: 0.7rem;
+    line-height: 1.4;
+  }
+
+  .fact-check > span:first-child {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .fact-check strong { font-weight: 500; }
+  .fact-check .fact-claim { color: var(--warn); }
+
+  .fact-status {
+    margin-left: auto;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .fact-status.good { color: var(--accent-light); }
+  .viz-result-text { margin: 9px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.45; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 22px;
+  }
+
+  .two-col p:not(.mini-label) {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .bench {
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+  }
+
+  .bench-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .bench-toolbar p:last-child {
+    max-width: 62ch;
+    margin: 7px 0 0;
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .bench-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0 13px;
+    border: 1px solid var(--accent-line);
+    border-radius: var(--r-sm);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 150ms var(--ease), border-color 150ms var(--ease), color 150ms var(--ease);
+  }
+
+  .btn:hover { background: color-mix(in oklch, var(--accent) 84%, var(--fg)); }
+  .btn.ghost { background: transparent; color: var(--fg); border-color: var(--border); }
+  .btn.ghost:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+
+  .ledger-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 16px 0 12px;
+  }
+
+  .ledger-head span:last-child {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .ledger {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+
+  .persona-col {
+    min-width: 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .persona-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 9px;
+  }
+
+  .persona-head strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .persona-head span {
+    overflow: hidden;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.03em;
+    text-align: right;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .claims {
+    display: grid;
+    gap: 6px;
+  }
+
+  .claim {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 8px 25px 8px 9px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--raised);
+    color: var(--muted);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 150ms var(--ease), background-color 150ms var(--ease), color 150ms var(--ease), opacity 150ms var(--ease);
+  }
+
+  .claim:hover { border-color: var(--accent-line); }
+
+  .claim[aria-pressed="true"] {
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+    color: var(--fg);
+  }
+
+  .claim[aria-pressed="false"] {
+    opacity: 0.5;
+  }
+
+  .claim .stance {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .claim[data-stance="blocked"] .stance { color: var(--warn); }
+  .claim[data-stance="accepted"] .stance { color: var(--accent-light); }
+  .claim[data-stance="gap"] .stance { color: var(--muted); }
+
+  .claim .copy {
+    display: block;
+    font-size: 0.76rem;
+    line-height: 1.4;
+  }
+
+  .claim .claim-check {
+    position: absolute;
+    top: 9px;
+    right: 9px;
+    width: 9px;
+    height: 9px;
+    border: 1px solid var(--muted);
+    border-radius: 1px;
+  }
+
+  .claim[aria-pressed="true"] .claim-check {
+    border-color: var(--accent-light);
+    background: var(--accent);
+  }
+
+  .bench-output {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .out-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .status {
+    display: inline-block;
+    padding: 2px 5px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+    line-height: 1.4;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .status.fail { color: var(--warn); border-color: var(--warn); }
+  .status.pass { color: var(--good); border-color: var(--good); }
+  .status.info { color: var(--accent-light); border-color: var(--accent-line); }
+
+  .prose {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+
+  .prose.bad { color: var(--warn); }
+  .prose.good { color: var(--fg); }
+
+  .checks {
+    display: grid;
+    gap: 6px;
+    margin: 18px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .check {
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+
+  .check .dot {
+    width: 7px;
+    height: 7px;
+    margin-top: 6px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+  }
+
+  .check[data-status="fail"] .dot { color: var(--warn); background: var(--warn); }
+  .check[data-status="pass"] .dot { color: var(--good); background: var(--good); }
+  .check[data-status="info"] .dot { color: var(--accent-light); background: var(--accent-light); }
+  .check strong { color: var(--fg); font-weight: 500; }
+
+  .bench-note {
+    max-width: 72ch;
+    margin: 18px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+
+  .checkpoint {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--raised);
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .checkpoint code {
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    overflow-wrap: anywhere;
+  }
+
+  .tests {
+    margin-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+
+  .test-row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: start;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .test-id {
+    padding-top: 2px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+  }
+
+  .test-row h4 {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .test-row p {
+    max-width: 66ch;
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .route {
+    border-top: 1px solid var(--border);
+  }
+
+  .route-step {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .route-step summary {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto 16px;
+    gap: 14px;
+    align-items: center;
+    padding: 16px 0;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .route-step summary::-webkit-details-marker { display: none; }
+
+  .route-step summary:hover .route-title { color: var(--accent-light); }
+
+  .step-num {
+    color: var(--accent-light);
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+  }
+
+  .route-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.35;
+    transition: color 150ms var(--ease);
+  }
+
+  .route-risk {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .plus {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 1rem;
+    line-height: 1;
+    transition: transform 150ms var(--ease);
+  }
+
+  .route-step[open] .plus { transform: rotate(45deg); }
+
+  .route-body {
+    max-width: 70ch;
+    padding: 0 0 20px 52px;
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.55;
+  }
+
+  .route-body p { margin: 0 0 8px; }
+  .route-body strong { color: var(--fg); font-weight: 500; }
+  .route-body ul { margin: 8px 0 0; padding-left: 18px; }
+  .route-body li { margin-bottom: 4px; }
+
+  .decision {
+    padding-top: 22px;
+    border-top: 1px solid var(--accent-line);
+  }
+
+  .decision h2 {
+    margin: 0;
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .decision > p {
+    max-width: 62ch;
+    margin: 8px 0 18px;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+
+  .choice-list {
+    border-top: 1px solid var(--border);
+  }
+
+  .choice {
+    display: grid;
+    grid-template-columns: 16px 110px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+    width: 100%;
+    padding: 14px 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .choice:hover { color: var(--fg); }
+
+  .radio {
+    width: 11px;
+    height: 11px;
+    margin-top: 4px;
+    border: 1px solid var(--muted);
+    border-radius: 50%;
+  }
+
+  .choice[aria-pressed="true"] .radio {
+    border-color: var(--accent-light);
+    background: var(--accent);
+  }
+
+  .choice-name {
+    padding-top: 1px;
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .choice-copy {
+    display: block;
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+
+  .choice[aria-pressed="true"] .choice-name { color: var(--accent-light); }
+
+  .choice-note {
+    max-width: 66ch;
+    margin: 16px 0 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--raised);
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .choice-note strong { color: var(--fg); font-weight: 500; }
+
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px 24px;
+    padding: 20px 0 34px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    line-height: 1.5;
+    text-transform: uppercase;
+  }
+
+  .footer a { color: var(--muted); }
+  .footer a:hover { color: var(--fg); }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  [hidden] { display: none !important; }
+
+  @media (max-width: 980px) {
+    .hero { grid-template-columns: 1fr; gap: 28px; }
+    .hero-note { max-width: 56ch; }
+    .layout { grid-template-columns: 1fr; gap: 0; padding-top: 0; }
+    .rail {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      gap: 2px;
+      margin: 0 0 24px;
+      padding: 8px 0;
+      overflow-x: auto;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      scrollbar-width: thin;
+    }
+    .rail a {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 6px;
+      align-items: center;
+      padding: 6px 8px;
+      white-space: nowrap;
+    }
+    .rail-note { display: none; }
+    .score-panel { grid-template-columns: 1fr; }
+    .failure-layout { grid-template-columns: 1fr; }
+    .failure-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      scrollbar-width: thin;
+    }
+    .failure-tab { flex: 0 0 218px; }
+    .failure-panel { min-height: 0; }
+    .ledger { grid-template-columns: 1fr; gap: 16px; }
+    .two-col { grid-template-columns: 1fr; gap: 16px; }
+    .bench-output { grid-template-columns: 1fr; }
+    .table-wrap th:first-child,
+    .matrix th[scope="row"],
+    .matrix thead th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+    }
+    .matrix thead th:first-child { z-index: 3; }
+    section { padding-bottom: 64px; }
+  }
+
+  @media (max-width: 640px) {
+    .shell { width: calc(100% - 32px); }
+    .masthead { padding-top: 20px; }
+    .hero { padding-top: 28px; }
+    h1 { font-size: clamp(2.35rem, 12vw, 3rem); }
+    .dek { font-size: 1rem; }
+    .meta-strip { gap: 6px 18px; }
+    .section-head { grid-template-columns: 1fr; gap: 7px; }
+    .section-head h2 { max-width: none; }
+    .chart { padding: 14px 14px 12px; }
+    .scroll-hint { display: block; }
+    .bar-row { grid-template-columns: 52px minmax(0, 1fr) 30px; gap: 8px; }
+    .bar-label { font-size: 0.72rem; }
+    .bar-label span:last-child { font-size: 0.52rem; }
+    .detail-grid { grid-template-columns: 1fr; gap: 16px; }
+    .failure-panel { padding: 18px; }
+    .bench { padding: 18px; }
+    .bench-toolbar { gap: 12px; }
+    .bench-actions { width: 100%; }
+    .bench-actions .btn { flex: 1 1 auto; }
+    .option-panel { padding: 18px; }
+    .fix-viz { padding: 14px; }
+    .quote-grid, .persona-grid, .b-people { grid-template-columns: 1fr; }
+    .result-line { flex-direction: column; gap: 2px; }
+    .result-line strong { text-align: left; }
+    .fact-status { margin-left: 0; }
+    .option-switch { display: flex; width: 100%; }
+    .option-switch button { flex: 1 1 auto; padding-inline: 8px; font-size: 0.55rem; }
+    .test-row { grid-template-columns: 28px minmax(0, 1fr); gap: 10px; }
+    .test-row .status { grid-column: 2; justify-self: start; }
+    .route-step summary { grid-template-columns: 30px minmax(0, 1fr) 14px; gap: 10px; }
+    .route-risk { display: none; }
+    .route-body { padding-left: 40px; }
+    .choice { grid-template-columns: 16px minmax(0, 1fr); gap: 8px 12px; }
+    .choice-name { grid-column: 2; padding-top: 0; }
+    .choice-copy { grid-column: 2; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+
+  @media print {
+    :root { --bg: oklch(0.99 0 0); --surface: oklch(0.99 0 0); --raised: oklch(0.99 0 0); --fg: oklch(0.14 0 0); --muted: oklch(0.4 0 0); --border: oklch(0.78 0 0); }
+    .rail, #theme-toggle, .bench-actions, .option-switch, .skip { display: none !important; }
+    .layout { display: block; }
+    section { padding-bottom: 32px; }
+    .failure-tabs { display: none; }
+    .failure-panel { display: block !important; break-inside: avoid; margin-bottom: 12px; }
+    .option-panel { display: block !important; }
+    .footer { border-top: 1px solid #bbb; }
+  }
+</style>
+</head>
+<body data-option="b">
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="shell" style="padding-top:16px">
+  <p class="micro" style="border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;background:var(--surface)">
+    Update 24 Nov 2026: the user chose Option C. Full design:
+    <a href="option-c-quality-system.html">Option C quality system</a>.
+    This page remains the evidence and the option comparison.
+  </p>
+</div>
+
+<header class="masthead shell">
+  <div class="masthead-top">
+    <p class="micro">Kynd / design note / 24 Nov 2026</p>
+    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch to light theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"></path>
+      </svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <circle cx="12" cy="12" r="3.5"></circle>
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+      </svg>
+    </button>
+  </div>
+
+  <div class="hero">
+    <div>
+      <h1>The report scores 5.</h1>
+      <p class="dek">The writing is clear. The numbers are not. This page shows the failures and the fix.</p>
+    </div>
+    <aside class="hero-note" aria-label="The short answer">
+      <blockquote>“The writing is good. The numbers are wrong.”</blockquote>
+      <p>Fix the numbers first. Then fix the voices. Start with B.</p>
+    </aside>
+  </div>
+
+  <div class="meta-strip" aria-label="Evidence summary">
+    <span>40 reports</span>
+    <span>5 reviewer roles</span>
+    <span>0 passed at 8/10</span>
+    <span>10 reports per round</span>
+  </div>
+</header>
+
+<div class="shell layout">
+  <nav class="rail" aria-label="Sections">
+    <a href="#gap" aria-current="true"><span>00</span> The score</a>
+    <a href="#failures"><span>01</span> What fails</a>
+    <a href="#options"><span>02</span> Three fixes</a>
+    <a href="#slice"><span>03</span> First fix</a>
+    <a href="#route"><span>04</span> Plan</a>
+    <a href="#decision"><span>05</span> Your call</a>
+    <div class="rail-note">
+      Design note<br>
+      <a href="analysis-quality-floor.md">Markdown source</a>
+    </div>
+  </nav>
+
+  <main id="main">
+
+    <section id="gap" aria-labelledby="gap-title">
+      <div class="section-head">
+        <p class="kicker">00 / The score</p>
+        <div>
+          <h2 id="gap-title">The writing is strong. The proof is weak.</h2>
+          <p class="lede">Reviewers scored 40 reports. Writing scored 7 to 9. Proof scored 5 to 6. Voices scored as low as 3. The median fell from 6 to 5.</p>
+        </div>
+      </div>
+
+      <div class="score-panel">
+        <div class="chart" role="img" aria-label="Blind scores by round: 6.0, 6.0, 5.0, 5.0. The goal is 8.0. None passed.">
+          <div class="chart-head">
+            <p class="label">Blind score / 10</p>
+            <span>Goal 8.0</span>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label"><span>Round 1</span><span>avg 5.7</span></div>
+            <div class="bar-track"><div class="bar" style="--score:6"></div><span class="floor-tick"></span></div>
+            <span class="bar-value">6.0</span>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label"><span>Round 2</span><span>avg 5.7</span></div>
+            <div class="bar-track"><div class="bar" style="--score:6"></div><span class="floor-tick"></span></div>
+            <span class="bar-value">6.0</span>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label"><span>Round 3</span><span>avg 5.4</span></div>
+            <div class="bar-track"><div class="bar" style="--score:5"></div><span class="floor-tick"></span></div>
+            <span class="bar-value">5.0</span>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label"><span>Round 4</span><span>avg 5.0</span></div>
+            <div class="bar-track"><div class="bar" style="--score:5"></div><span class="floor-tick"></span></div>
+            <span class="bar-value">5.0</span>
+          </div>
+          <div class="chart-foot">
+            <span><strong>0 of 40</strong> reports passed</span>
+            <span>Dashed line = goal</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="table-wrap">
+            <table>
+              <caption>Blind reviewer scores by part and role</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Part</th>
+                  <th scope="col">Investor</th>
+                  <th scope="col">Founder</th>
+                  <th scope="col">PM</th>
+                  <th scope="col">Marketer</th>
+                  <th scope="col">Growth</th>
+                  <th scope="col">Verdict</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Writing</th>
+                  <td class="score band-high">7</td>
+                  <td class="score band-high">8</td>
+                  <td class="score band-high">8</td>
+                  <td class="score band-high">9</td>
+                  <td class="score band-high">8</td>
+                  <td class="read"><strong>Keep</strong></td>
+                </tr>
+                <tr>
+                  <th scope="row">Proof</th>
+                  <td class="score band-low">5</td>
+                  <td class="score band-low">5</td>
+                  <td class="score band-low">5</td>
+                  <td class="score band-mid">6</td>
+                  <td class="score band-mid">6</td>
+                  <td class="read"><strong>Fix</strong></td>
+                </tr>
+                <tr>
+                  <th scope="row">Voices</th>
+                  <td class="score band-mid">6</td>
+                  <td class="score band-low">3</td>
+                  <td class="score band-low">4</td>
+                  <td class="score band-mid">6.5</td>
+                  <td class="score band-high">7</td>
+                  <td class="read"><strong>Weakest</strong></td>
+                </tr>
+                <tr>
+                  <th scope="row">Next step</th>
+                  <td class="score band-low">5</td>
+                  <td class="score band-mid">6</td>
+                  <td class="score band-mid">6</td>
+                  <td class="score band-high">7.5</td>
+                  <td class="score band-high">8</td>
+                  <td class="read">Needs proof</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="scroll-hint">Swipe for all reviewer roles.</p>
+          <div class="note">
+            <div><strong>Writing is not the problem.</strong> Do not rewrite the report. Fix the facts and the counts.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="failures" aria-labelledby="failures-title">
+      <div class="section-head">
+        <p class="kicker">01 / What fails</p>
+        <div>
+          <h2 id="failures-title">One model call writes the facts and the numbers.</h2>
+          <p class="lede">Reviewers saw these seven failures across four rounds. Open a tab to see one real example.</p>
+        </div>
+      </div>
+
+      <div class="failure-layout">
+        <div class="failure-tabs" role="tablist" aria-label="Failure modes">
+          <button class="failure-tab" id="ftab-1" type="button" role="tab" aria-selected="true" aria-controls="fpanel-1" tabindex="0" data-failure-tab="1">
+            <span class="num">01</span>
+            <span><strong>Wrong quote</strong><small>Proof</small></span>
+          </button>
+          <button class="failure-tab" id="ftab-2" type="button" role="tab" aria-selected="false" aria-controls="fpanel-2" tabindex="-1" data-failure-tab="2">
+            <span class="num">02</span>
+            <span><strong>Wrong count</strong><small>Counts</small></span>
+          </button>
+          <button class="failure-tab" id="ftab-3" type="button" role="tab" aria-selected="false" aria-controls="fpanel-3" tabindex="-1" data-failure-tab="3">
+            <span class="num">03</span>
+            <span><strong>Made-up fact</strong><small>Proof</small></span>
+          </button>
+          <button class="failure-tab" id="ftab-4" type="button" role="tab" aria-selected="false" aria-controls="fpanel-4" tabindex="-1" data-failure-tab="4">
+            <span class="num">04</span>
+            <span><strong>Same voice</strong><small>Voices</small></span>
+          </button>
+          <button class="failure-tab" id="ftab-5" type="button" role="tab" aria-selected="false" aria-controls="fpanel-5" tabindex="-1" data-failure-tab="5">
+            <span class="num">05</span>
+            <span><strong>Wrong role</strong><small>Role</small></span>
+          </button>
+          <button class="failure-tab" id="ftab-6" type="button" role="tab" aria-selected="false" aria-controls="fpanel-6" tabindex="-1" data-failure-tab="6">
+            <span class="num">06</span>
+            <span><strong>Wrong shape</strong><small>Shape</small></span>
+          </button>
+          <button class="failure-tab" id="ftab-7" type="button" role="tab" aria-selected="false" aria-controls="fpanel-7" tabindex="-1" data-failure-tab="7">
+            <span class="num">07</span>
+            <span><strong>Bad quick fix</strong><small>Regression</small></span>
+          </button>
+        </div>
+
+        <div>
+          <article class="failure-panel" id="fpanel-1" role="tabpanel" aria-labelledby="ftab-1" data-failure-panel="1">
+            <div class="panel-top"><span class="tag">Proof</span><span class="micro">Blind review, all rounds</span></div>
+            <h3>A quote can say the opposite of the claim.</h3>
+            <blockquote>
+              “A finding cites the persona who said the opposite.”
+              <footer>Investor reviewer, round 1</footer>
+            </blockquote>
+            <div class="detail-grid">
+              <div><p class="mini-label">Problem</p><p>The quote is real. It does not support the claim. The check tests only that the words exist.</p></div>
+              <div><p class="mini-label">Cause</p><p>One call writes the claim and picks the quote. No step reads them together.</p></div>
+              <div><p class="mini-label">Fix</p><p>Add a check. Read the claim and its quotes. If the quote does not support the claim, fix the claim or drop it.</p></div>
+            </div>
+          </article>
+
+          <article class="failure-panel" id="fpanel-2" role="tabpanel" aria-labelledby="ftab-2" data-failure-panel="2" hidden>
+            <div class="panel-top"><span class="tag">Counts</span><span class="micro">Blind review, all rounds</span></div>
+            <h3>A count can be higher than the quotes.</h3>
+            <blockquote>
+              “Every finding cites three personas and claims five.”
+              <footer>Investor and growth reviewers</footer>
+            </blockquote>
+            <div class="detail-grid">
+              <div><p class="mini-label">Problem</p><p>A claim says five of five. It shows three quotes. A split leaves out one person.</p></div>
+              <div><p class="mini-label">Cause</p><p>The model writes the count. A missing quote lowers the count. The text can still say “all”.</p></div>
+              <div><p class="mini-label">Fix</p><p>Count people from claims. A split must add up to the full group. If it does not, drop the split.</p></div>
+            </div>
+          </article>
+
+          <article class="failure-panel" id="fpanel-3" role="tabpanel" aria-labelledby="ftab-3" data-failure-panel="3" hidden>
+            <div class="panel-top"><span class="tag">Proof</span><span class="micro">Blind review, all rounds</span></div>
+            <h3>The report can invent a fact.</h3>
+            <blockquote>
+              “A false forward-date complaint and a wrong growth calculation become documented reasons to say no.”
+              <footer>Investor reviewer</footer>
+            </blockquote>
+            <div class="detail-grid">
+              <div><p class="mini-label">Problem</p><p>The report copies a persona's math. It does not check the source. A wrong number becomes a real reason to say no.</p></div>
+              <div><p class="mini-label">Cause</p><p>The report sees the personas' answers, not the input. It cannot tell a bad claim from a bad persona answer.</p></div>
+              <div><p class="mini-label">Fix</p><p>Give the report a short fact sheet. List the offer, prices, claims, and call to action. Check each fact against it.</p></div>
+            </div>
+          </article>
+
+          <article class="failure-panel" id="fpanel-4" role="tabpanel" aria-labelledby="ftab-4" data-failure-panel="4" hidden>
+            <div class="panel-top"><span class="tag">Voices</span><span class="micro">Blind review, all rounds</span></div>
+            <h3>Every persona sounds the same.</h3>
+            <blockquote>
+              “Independent corroboration is actually one script in eight costumes.”
+              <footer>Founder reviewer</footer>
+            </blockquote>
+            <div class="detail-grid">
+              <div><p class="mini-label">Problem</p><p>They open the same way. They read in the same order. They make the same point. The group looks big, but the proof is thin.</p></div>
+              <div><p class="mini-label">Cause</p><p>Every persona gets the same reading task. Only the voice changes.</p></div>
+              <div><p class="mini-label">Fix</p><p>Give each persona a different job. One buys. One uses. One blocks. One supports. Ask each for a verdict.</p></div>
+            </div>
+          </article>
+
+          <article class="failure-panel" id="fpanel-5" role="tabpanel" aria-labelledby="ftab-5" data-failure-panel="5" hidden>
+            <div class="panel-top"><span class="tag">Role</span><span class="micro">Blind review, all rounds</span></div>
+            <h3>A persona can change role.</h3>
+            <blockquote>
+              “Roles, pronouns, and backstories change.”
+              <footer>Marketer and growth reviewers</footer>
+            </blockquote>
+            <div class="detail-grid">
+              <div><p class="mini-label">Problem</p><p>A persona is a buyer. The summary makes them a vendor. The question is never tested.</p></div>
+              <div><p class="mini-label">Cause</p><p>The report copies the input's idea of the reader. Nothing checks the persona's role.</p></div>
+              <div><p class="mini-label">Fix</p><p>Store each persona's role and stake. Check the summary against them.</p></div>
+            </div>
+          </article>
+
+          <article class="failure-panel" id="fpanel-6" role="tabpanel" aria-labelledby="ftab-6" data-failure-panel="6" hidden>
+            <div class="panel-top"><span class="tag">Shape</span><span class="micro">Blind review, all rounds</span></div>
+            <h3>One shape does not fit every input.</h3>
+            <blockquote>
+              “There is no place to record a drop-off timestamp.”
+              <footer>Growth reviewer</footer>
+            </blockquote>
+            <div class="detail-grid">
+              <div><p class="mini-label">Problem</p><p>A video script gets the same stages as a pricing page. A stop time has no field. So no one stops.</p></div>
+              <div><p class="mini-label">Cause</p><p>The stages assume a buyer and a page. The report does not know the input type.</p></div>
+              <div><p class="mini-label">Fix</p><p>Add an input type and a place for a section or time. Keep the five stages.</p></div>
+            </div>
+          </article>
+
+          <article class="failure-panel" id="fpanel-7" role="tabpanel" aria-labelledby="ftab-7" data-failure-panel="7" hidden>
+            <div class="panel-top"><span class="tag">Regression</span><span class="micro">Blind review, round 3</span></div>
+            <h3>A quick fix can make the score worse.</h3>
+            <blockquote>
+              “A reaction supported 8 of 8 was reported as 3 of 8.”
+              <footer>Blind review, round 3</footer>
+            </blockquote>
+            <div class="detail-grid">
+              <div><p class="mini-label">Problem</p><p>A patch replaced “all” with the quote count. The model gave three quotes for a point all eight people made. The score fell from 6 to 5.</p></div>
+              <div><p class="mini-label">Cause</p><p>It counted quotes, not claims. Three quotes do not mean three people.</p></div>
+              <div><p class="mini-label">Fix</p><p>Count all claims first. Add quotes after. A missing quote must not lower the count.</p></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="options" aria-labelledby="options-title">
+      <div class="section-head">
+        <p class="kicker">02 / Three fixes</p>
+        <div>
+          <h2 id="options-title">Three fixes. Start with B.</h2>
+          <p class="lede">A checks the report. B rebuilds the numbers. C rebuilds the people too.</p>
+        </div>
+      </div>
+
+      <div class="option-switch" role="tablist" aria-label="Options">
+        <button id="otab-a" type="button" role="tab" aria-selected="false" aria-controls="opanel-a" tabindex="-1" data-option-tab="a">A / Check quotes</button>
+        <button id="otab-b" type="button" role="tab" aria-selected="true" aria-controls="opanel-b" tabindex="0" data-option-tab="b">B / Build counts</button>
+        <button id="otab-c" type="button" role="tab" aria-selected="false" aria-controls="opanel-c" tabindex="-1" data-option-tab="c">C / Rebuild all</button>
+      </div>
+
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <caption>Three fixes</caption>
+          <thead>
+            <tr>
+              <th scope="col">What changes</th>
+              <th scope="col" class="col-a">A / Check</th>
+              <th scope="col" class="col-b">B / Build</th>
+              <th scope="col" class="col-c">C / Rebuild</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Main move</th>
+              <td class="col-a">Check quotes</td>
+              <td class="col-b"><strong>Count claims</strong></td>
+              <td class="col-c">Rebuild people and report</td>
+            </tr>
+            <tr>
+              <th scope="row">New calls</th>
+              <td class="col-a">1</td>
+              <td class="col-b">2</td>
+              <td class="col-c">3 or more</td>
+            </tr>
+            <tr>
+              <th scope="row">Fixes proof</th>
+              <td class="col-a">Partly</td>
+              <td class="col-b"><strong>Yes</strong></td>
+              <td class="col-c"><strong>Yes</strong></td>
+            </tr>
+            <tr>
+              <th scope="row">Fixes voices</th>
+              <td class="col-a">No</td>
+              <td class="col-b">No</td>
+              <td class="col-c"><strong>Yes</strong></td>
+            </tr>
+            <tr>
+              <th scope="row">Size</th>
+              <td class="col-a">Small</td>
+              <td class="col-b">Medium</td>
+              <td class="col-c">Large</td>
+            </tr>
+            <tr>
+              <th scope="row">Main risk</th>
+              <td class="col-a">A wrong claim passes</td>
+              <td class="col-b">Two points become one</td>
+              <td class="col-c">Slow and bloated</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="scroll-hint">Swipe to see A, B, and C.</p>
+
+      <article class="option-panel" id="opanel-a" role="tabpanel" aria-labelledby="otab-a" data-option-panel="a" hidden>
+        <p class="label">Option A</p>
+        <h3>Check the quotes.</h3>
+        <p>Add one check. It reads each claim and its quotes. If the quote does not support the claim, fix or drop the claim. The rest of the pipeline stays.</p>
+        <div class="fix-viz" data-viz="a">
+          <div class="viz-head">
+            <div><p class="label">See it work</p><h4>One claim, three quotes</h4></div>
+            <span class="viz-chip">Option A / example</span>
+          </div>
+          <p class="viz-intro">A checks each quote. It fixes the proof, not the sentence.</p>
+          <div class="viz-claim">
+            <span class="mini-label">Claim</span>
+            <p>“All three people were blocked by price.”</p>
+          </div>
+          <div class="quote-grid" role="group" aria-label="Three persona quotes">
+            <div class="quote-card" data-a-quote="sky">
+              <strong>Sky</strong>
+              <p>“$79 a seat is $700 a month for nine agents.”</p>
+              <span class="quote-verdict">Supports</span>
+            </div>
+            <div class="quote-card" data-a-quote="remy">
+              <strong>Remy</strong>
+              <p>“The price is too high for our support team.”</p>
+              <span class="quote-verdict">Supports</span>
+            </div>
+            <div class="quote-card" data-a-quote="harper" data-state="opposes">
+              <strong>Harper</strong>
+              <p>“The cost is fair for the time it saves.”</p>
+              <span class="quote-verdict">Opposes</span>
+            </div>
+          </div>
+          <div class="viz-actions">
+            <button class="btn" id="a-run" type="button" aria-controls="a-result">Run quote check</button>
+            <button class="btn ghost" id="a-reset" type="button">Reset</button>
+          </div>
+          <div class="viz-result" id="a-result" hidden aria-live="polite">
+            <div class="result-line"><span>Quote check</span><strong>1 quote dropped.</strong></div>
+            <div class="result-line bad"><span>Claim still says</span><strong>“All three.”</strong></div>
+            <div class="result-line"><span>Count from quotes</span><strong>2 of 3 blocked.</strong></div>
+            <p>A fixes the proof. The number is still wrong.</p>
+          </div>
+        </div>
+        <div class="two-col">
+          <div><p class="mini-label">Fixes</p><p>Bad quotes. Small change.</p></div>
+          <div><p class="mini-label">Leaves</p><p>Wrong counts. Missing people. Same voice.</p></div>
+        </div>
+      </article>
+
+      <article class="option-panel" id="opanel-b" role="tabpanel" aria-labelledby="otab-b" data-option-panel="b">
+        <p class="label">Option B / Start here</p>
+        <h3>Build the numbers from claims.</h3>
+        <p>Turn each persona's points into claims. Group the claims. Code counts the people. One check tests the quotes. Write the answer from the table.</p>
+        <div class="fix-viz" data-viz="b">
+          <div class="viz-head">
+            <div><p class="label">See it work</p><h4>Three people, seven claims</h4></div>
+            <span class="viz-chip">Option B / example</span>
+          </div>
+          <p class="viz-intro">Each person adds claims. Code counts the claims. The text comes from the count.</p>
+          <div class="b-people">
+            <div class="b-person"><span>Sky</span><strong>2 claims</strong><small>Blocked by price</small></div>
+            <div class="b-person"><span>Remy</span><strong>2 claims</strong><small>Blocked by price</small></div>
+            <div class="b-person"><span>Harper</span><strong>3 claims</strong><small>Accepts price; blocked at beta</small></div>
+          </div>
+          <p class="b-arrow" aria-hidden="true">↓ code counts</p>
+          <div class="b-count">
+            <span>Count from claims</span>
+            <strong>2 blocked by price · 1 accepted · Harper blocked at beta</strong>
+          </div>
+          <p class="viz-note">The text cannot disagree with this count.</p>
+          <a class="viz-link" href="#slice">Open the live claim list</a>
+        </div>
+        <div class="two-col">
+          <div><p class="mini-label">Fixes</p><p>The text follows the count. Every split adds up.</p></div>
+          <div><p class="mini-label">Leaves</p><p>Same voice. Wrong role. No time fields. C fixes those.</p></div>
+        </div>
+      </article>
+
+      <article class="option-panel" id="opanel-c" role="tabpanel" aria-labelledby="otab-c" data-option-panel="c" hidden>
+        <p class="label">Option C</p>
+        <h3>Rebuild the people too.</h3>
+        <p>C adds four things to B. Each persona gets an assigned job and task. The persona decides a verdict. The report gets a fact sheet and input types.</p>
+        <div class="fix-viz" data-viz="c" data-c-mode="same">
+          <div class="viz-head">
+            <div><p class="label">See it work</p><h4>Same task vs different jobs</h4></div>
+            <span class="viz-chip">Option C / example</span>
+          </div>
+          <p class="viz-intro">C keeps B's count. It assigns a role and a task, then the persona decides a verdict.</p>
+          <div class="c-toggle" role="group" aria-label="Compare the old simulation with C">
+            <button type="button" data-c-mode="same" aria-pressed="true">Same task</button>
+            <button type="button" data-c-mode="different" aria-pressed="false">C: different jobs</button>
+          </div>
+          <div class="verdict-set" aria-label="Allowed verdicts">
+            <span>Allowed verdicts</span>
+            <span>adopt</span>
+            <span>trial</span>
+            <span>reject</span>
+            <span>undecided</span>
+          </div>
+          <p class="viz-note">One set for every role and every input.</p>
+          <div class="persona-grid" aria-label="Three persona simulations">
+            <div class="persona-card" data-c-persona="founder" data-verdict="undecided">
+              <span class="persona-role">Founder</span>
+              <strong>Sky</strong>
+              <p class="persona-entry">Assigned entry: headline</p>
+              <p class="persona-verdict">Decides: undecided</p>
+            </div>
+            <div class="persona-card" data-c-persona="support" data-verdict="undecided">
+              <span class="persona-role">Head of Support</span>
+              <strong>Remy</strong>
+              <p class="persona-entry">Assigned entry: headline</p>
+              <p class="persona-verdict">Decides: undecided</p>
+            </div>
+            <div class="persona-card" data-c-persona="lead" data-verdict="undecided">
+              <span class="persona-role">Support Lead</span>
+              <strong>Harper</strong>
+              <p class="persona-entry">Assigned entry: headline</p>
+              <p class="persona-verdict">Decides: undecided</p>
+            </div>
+          </div>
+          <div class="fact-check">
+            <span>Fact sheet</span>
+            <strong>$79 a seat</strong>
+            <span class="fact-claim">Wrong page claim: $49</span>
+            <span class="fact-status" id="c-fact-status">Not used</span>
+          </div>
+          <p class="viz-result-text" id="c-result" aria-live="polite">One script. One verdict. No fact check.</p>
+          <p class="viz-note">The role and task are assigned. The verdict is an output.</p>
+        </div>
+        <div class="two-col">
+          <div><p class="mini-label">Fixes</p><p>Same voice. Wrong role. Wrong number. Wrong shape.</p></div>
+          <div><p class="mini-label">Leaves</p><p>We do not know the cost. It needs more calls, more time, and more code. Do B first.</p></div>
+        </div>
+      </article>
+    </section>
+
+    <section id="slice" aria-labelledby="slice-title">
+      <div class="section-head">
+        <p class="kicker">03 / First fix</p>
+        <div>
+          <h2 id="slice-title">Build the claim list.</h2>
+          <p class="lede">Start with B. It stops the report from making up counts. Turn claims on and off to see the count change.</p>
+        </div>
+      </div>
+
+      <div class="bench">
+        <div class="bench-toolbar">
+          <div>
+            <p class="label">Claim list / Relay brief</p>
+            <p>These are example claims. Each claim names one person. Code counts the people.</p>
+          </div>
+          <div class="bench-actions">
+            <button class="btn" id="repair" type="button">Fix the text</button>
+            <button class="btn ghost" id="reset" type="button">Reset</button>
+          </div>
+        </div>
+
+        <div class="ledger-head">
+          <p class="label">Claims</p>
+          <span id="ledger-count">7 of 7 claims</span>
+        </div>
+        <div class="ledger" id="ledger" aria-label="Persona claim list"></div>
+
+        <div class="bench-output">
+          <div>
+            <div class="out-head">
+              <p class="label" id="free-label">Current text</p>
+              <span class="status fail" id="free-status">Wrong</span>
+            </div>
+            <p class="prose bad" id="free-prose">“All three people were blocked by price.”</p>
+          </div>
+          <div>
+            <div class="out-head">
+              <p class="label">Counted text</p>
+              <span class="status info">From claims</span>
+            </div>
+            <p class="prose good" id="derived-prose"></p>
+          </div>
+        </div>
+
+        <ul class="checks" id="checks" aria-label="Count checks"></ul>
+        <p class="bench-note">This demo checks counts. The next check tests quotes. The first fix adds both.</p>
+        <p class="sr-only" id="bench-live" aria-live="polite"></p>
+      </div>
+
+      <div class="checkpoint">
+        <span><strong>Test</strong></span>
+        <code>bunx vitest run src/application/synthesis src/application/usecases/__tests__/SynthesizeArtifactResultsUseCase.test.ts</code>
+        <span>then a real report with five people.</span>
+      </div>
+
+      <div class="tests" aria-label="Acceptance tests">
+        <div class="test-row">
+          <span class="test-id">T1</span>
+          <div><h4>A bad quote is dropped.</h4><p>If the quote says the opposite, the claim fails.</p></div>
+          <span class="status fail">Fails now</span>
+        </div>
+        <div class="test-row">
+          <span class="test-id">T2</span>
+          <div><h4>Every person in a count needs a claim.</h4><p>Count every claim. A missing quote does not lower the count.</p></div>
+          <span class="status fail">Fails now</span>
+        </div>
+        <div class="test-row">
+          <span class="test-id">T3</span>
+          <div><h4>A split must add up.</h4><p>If 3 people answered, the split must total 3. If not, drop it.</p></div>
+          <span class="status fail">Fails now</span>
+        </div>
+        <div class="test-row">
+          <span class="test-id">T4</span>
+          <div><h4>A fake quote adds no proof.</h4><p>If the quote is not in the text, drop it and count again.</p></div>
+          <span class="status pass">Passes now</span>
+        </div>
+        <div class="test-row">
+          <span class="test-id">T5</span>
+          <div><h4>“All three” needs three people.</h4><p>Use “all” only when every person supports the claim.</p></div>
+          <span class="status pass">Keep</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="route" aria-labelledby="route-title">
+      <div class="section-head">
+        <p class="kicker">04 / Plan</p>
+        <div>
+          <h2 id="route-title">Four steps. Start with the risk.</h2>
+          <p class="lede">Do S1 first. Each step has a test that can say no. Wait for real output before you plan S3 and S4.</p>
+        </div>
+      </div>
+
+      <div class="route">
+        <details class="route-step" open>
+          <summary>
+            <span class="step-num">S1</span>
+            <span class="route-title">Build counts and check quotes</span>
+            <span class="route-risk">Hardest</span>
+            <span class="plus" aria-hidden="true">+</span>
+          </summary>
+          <div class="route-body">
+            <p>Build the claim list. Group claims. Count people in code. Check quotes. Write the answer.</p>
+            <p><strong>Test:</strong> unit tests and a real five-person report. <strong>No change to:</strong> models, input, personas, or UI.</p>
+            <ul>
+              <li>Pass T1 to T5.</li>
+              <li>If grouping fails, use the per-persona answers and a simple summary.</li>
+              <li>If a quote fails, drop the claim. Never pad a count.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="route-step">
+          <summary>
+            <span class="step-num">S2</span>
+            <span class="route-title">Make personas differ</span>
+            <span class="route-risk">Design risk</span>
+            <span class="plus" aria-hidden="true">+</span>
+          </summary>
+          <div class="route-body">
+            <p>Give each persona a job, a stake, a current tool, and a task. Add a verdict.</p>
+            <p><strong>Test:</strong> blind score for different voices on one input. <strong>No change to:</strong> the answer.</p>
+            <ul>
+              <li>Jobs: buyer, user, blocker, supporter.</li>
+              <li>Verdict: adopt, trial, reject, undecided.</li>
+              <li>Check name, pronoun, and role.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="route-step">
+          <summary>
+            <span class="step-num">S3</span>
+            <span class="route-title">Add facts and input types</span>
+            <span class="route-risk">Data risk</span>
+            <span class="plus" aria-hidden="true">+</span>
+          </summary>
+          <div class="route-body">
+            <p>Pull the exact prices, claims, and call to action. Add a section or time to each stage.</p>
+            <p><strong>Test:</strong> a video shows a real stop time. No fake numbers. Keep five stages.</p>
+          </div>
+        </details>
+
+        <details class="route-step">
+          <summary>
+            <span class="step-num">S4</span>
+            <span class="route-title">Score the output</span>
+            <span class="route-risk">Score risk</span>
+            <span class="plus" aria-hidden="true">+</span>
+          </summary>
+          <div class="route-body">
+            <p>Use five reviewer roles on ten reports. Record the median and every failure. The test must be able to fail.</p>
+            <p><strong>Test:</strong> median 8/10 and no repeated failure. <strong>No change to:</strong> prompts.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section id="decision" aria-labelledby="decision-title">
+      <div class="section-head">
+        <p class="kicker">05 / Your call</p>
+        <div>
+          <h2 id="decision-title">Which step scares you?</h2>
+          <p class="lede">Name the risk. Pick the step you want first. Start with S1. It fixes the known failure and makes the other steps possible.</p>
+        </div>
+      </div>
+
+      <div class="choice-list" role="group" aria-label="Choose the first step">
+        <button class="choice" type="button" data-choice="s1" aria-pressed="true">
+          <span class="radio" aria-hidden="true"></span>
+          <span class="choice-name">S1 / Counts</span>
+          <span class="choice-copy">Build counts and check quotes. Fixes the report. Needed before S2 or S3.</span>
+        </button>
+        <button class="choice" type="button" data-choice="s2" aria-pressed="false">
+          <span class="radio" aria-hidden="true"></span>
+          <span class="choice-name">S2 / Voices</span>
+          <span class="choice-copy">Make personas differ. The counts can still be wrong. Needs S1.</span>
+        </button>
+        <button class="choice" type="button" data-choice="s3" aria-pressed="false">
+          <span class="radio" aria-hidden="true"></span>
+          <span class="choice-name">S3 / Full plan</span>
+          <span class="choice-copy">Facts, input types, and scoring. Too large for one PR. Needs S1.</span>
+        </button>
+      </div>
+
+      <p class="choice-note" id="choice-note"><strong>Selected: S1.</strong> Start here. The claim list makes S2 and S3 testable.</p>
+
+      <div class="note">
+        <div><strong>No single fix reaches 8/10.</strong> B fixes the report. C fixes the input. Score both with the same test.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="shell footer">
+  <span>Kynd / design note / report quality</span>
+  <span><a href="analysis-quality-floor.md">Markdown</a> · One HTML file · No build</span>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var root = document.documentElement;
+  var themeButton = document.getElementById("theme-toggle");
+  var storedTheme = null;
+
+  try { storedTheme = localStorage.getItem("kynd-quality-theme"); } catch (error) {}
+  if (storedTheme === "light" || storedTheme === "dark") {
+    root.setAttribute("data-theme", storedTheme);
+  }
+
+  function syncThemeLabel() {
+    var isLight = root.getAttribute("data-theme") === "light";
+    themeButton.setAttribute("aria-label", isLight ? "Switch to dark theme" : "Switch to light theme");
+  }
+  syncThemeLabel();
+
+  themeButton.addEventListener("click", function () {
+    var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("kynd-quality-theme", next); } catch (error) {}
+    syncThemeLabel();
+  });
+
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll(".rail a[href^='#']"));
+  var rail = document.querySelector(".rail");
+  var sections = navLinks.map(function (link) {
+    return document.querySelector(link.getAttribute("href"));
+  }).filter(Boolean);
+  var currentSectionId = null;
+
+  function setActiveSection(id) {
+    if (!id || id === currentSectionId) return;
+    currentSectionId = id;
+
+    var activeLink = null;
+    navLinks.forEach(function (link) {
+      var active = link.getAttribute("href") === "#" + id;
+      link.setAttribute("aria-current", active ? "true" : "false");
+      if (active) activeLink = link;
+    });
+
+    if (activeLink && rail && window.matchMedia("(max-width: 980px)").matches && rail.scrollWidth > rail.clientWidth) {
+      var target = activeLink.offsetLeft - (rail.clientWidth - activeLink.offsetWidth) / 2;
+      var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      rail.scrollTo({ left: Math.max(0, target), behavior: reduced ? "auto" : "smooth" });
+    }
+  }
+
+  function updateActiveSection() {
+    var marker = Math.min(220, window.innerHeight * 0.28);
+    var current = sections.length ? sections[0].id : null;
+    sections.forEach(function (section) {
+      if (section.getBoundingClientRect().top <= marker) current = section.id;
+    });
+    setActiveSection(current);
+  }
+
+  window.addEventListener("scroll", updateActiveSection, { passive: true });
+  window.addEventListener("resize", updateActiveSection, { passive: true });
+  updateActiveSection();
+
+  var failureTabs = Array.prototype.slice.call(document.querySelectorAll("[data-failure-tab]"));
+  var failurePanels = Array.prototype.slice.call(document.querySelectorAll("[data-failure-panel]"));
+
+  function selectFailure(id, focusTab) {
+    failureTabs.forEach(function (tab) {
+      var active = tab.getAttribute("data-failure-tab") === id;
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+      tab.setAttribute("tabindex", active ? "0" : "-1");
+      if (active && focusTab) tab.focus();
+    });
+    failurePanels.forEach(function (panel) {
+      panel.hidden = panel.getAttribute("data-failure-panel") !== id;
+    });
+  }
+
+  failureTabs.forEach(function (tab, index) {
+    tab.addEventListener("click", function () {
+      selectFailure(tab.getAttribute("data-failure-tab"), false);
+    });
+    tab.addEventListener("keydown", function (event) {
+      var next = null;
+      if (event.key === "ArrowDown" || event.key === "ArrowRight") next = (index + 1) % failureTabs.length;
+      if (event.key === "ArrowUp" || event.key === "ArrowLeft") next = (index - 1 + failureTabs.length) % failureTabs.length;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = failureTabs.length - 1;
+      if (next !== null) {
+        event.preventDefault();
+        selectFailure(failureTabs[next].getAttribute("data-failure-tab"), true);
+      }
+    });
+  });
+
+  var optionTabs = Array.prototype.slice.call(document.querySelectorAll("[data-option-tab]"));
+  var optionPanels = Array.prototype.slice.call(document.querySelectorAll("[data-option-panel]"));
+
+  function centerOptionColumn(key) {
+    var wrap = document.querySelector(".matrix-wrap");
+    if (!wrap || !window.matchMedia("(max-width: 980px)").matches) return;
+    var cell = wrap.querySelector(".col-" + key);
+    var first = wrap.querySelector("thead th:first-child");
+    if (!cell || !first) return;
+    var stickyWidth = first.getBoundingClientRect().width;
+    var available = wrap.clientWidth - stickyWidth;
+    var cellLeft = cell.getBoundingClientRect().left - wrap.getBoundingClientRect().left + wrap.scrollLeft;
+    var target = cellLeft - stickyWidth - (available - cell.offsetWidth) / 2;
+    var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    wrap.scrollTo({ left: Math.max(0, target), behavior: reduced ? "auto" : "smooth" });
+  }
+
+  function selectOption(key, focusTab) {
+    document.body.setAttribute("data-option", key);
+    optionTabs.forEach(function (tab) {
+      var active = tab.getAttribute("data-option-tab") === key;
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+      tab.setAttribute("tabindex", active ? "0" : "-1");
+      if (active && focusTab) tab.focus();
+    });
+    optionPanels.forEach(function (panel) {
+      panel.hidden = panel.getAttribute("data-option-panel") !== key;
+    });
+    centerOptionColumn(key);
+  }
+
+  optionTabs.forEach(function (tab, index) {
+    tab.addEventListener("click", function () {
+      selectOption(tab.getAttribute("data-option-tab"), false);
+    });
+    tab.addEventListener("keydown", function (event) {
+      var next = null;
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % optionTabs.length;
+      if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + optionTabs.length) % optionTabs.length;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = optionTabs.length - 1;
+      if (next !== null) {
+        event.preventDefault();
+        selectOption(optionTabs[next].getAttribute("data-option-tab"), true);
+      }
+    });
+  });
+
+  requestAnimationFrame(function () { selectOption("b", false); });
+
+  var PERSONAS = [
+    { name: "Sky", role: "Founder" },
+    { name: "Remy", role: "Head of Support" },
+    { name: "Harper", role: "Support Lead" }
+  ];
+
+  var CLAIMS = [
+    { id: "sky-price", persona: "Sky", topic: "pricing", stance: "blocked", text: "$79 a seat is $700 a month for nine agents." },
+    { id: "remy-price", persona: "Remy", topic: "pricing", stance: "blocked", text: "The price is too high for our support team." },
+    { id: "harper-price", persona: "Harper", topic: "pricing", stance: "accepted", text: "The cost is fair for the time it saves." },
+    { id: "harper-action", persona: "Harper", topic: "action", stance: "blocked", text: "The beta has no sign-up link." },
+    { id: "sky-founder", persona: "Sky", topic: "founder", stance: "gap", text: "No pitch for the founder who signs the check." },
+    { id: "remy-founder", persona: "Remy", topic: "founder", stance: "gap", text: "Nothing here for the founder." },
+    { id: "harper-founder", persona: "Harper", topic: "founder", stance: "gap", text: "No money case for a founder." }
+  ];
+
+  var initialIds = CLAIMS.map(function (claim) { return claim.id; });
+  var state = { included: new Set(initialIds), repaired: false };
+
+  var ledger = document.getElementById("ledger");
+  var countLabel = document.getElementById("ledger-count");
+  var freeProse = document.getElementById("free-prose");
+  var derivedProse = document.getElementById("derived-prose");
+  var freeLabel = document.getElementById("free-label");
+  var freeStatus = document.getElementById("free-status");
+  var checks = document.getElementById("checks");
+  var live = document.getElementById("bench-live");
+  var repairButton = document.getElementById("repair");
+  var resetButton = document.getElementById("reset");
+
+  function uniquePersonas(claims) {
+    return new Set(claims.map(function (claim) { return claim.persona; }));
+  }
+
+  function buildLedger() {
+    ledger.innerHTML = PERSONAS.map(function (persona) {
+      var items = CLAIMS.filter(function (claim) { return claim.persona === persona.name; });
+      return [
+        '<div class="persona-col">',
+        '  <div class="persona-head"><strong>' + persona.name + '</strong><span>' + persona.role + '</span></div>',
+        '  <div class="claims">',
+        items.map(function (claim) {
+          var pressed = state.included.has(claim.id) ? "true" : "false";
+          return [
+            '<button class="claim" type="button" data-claim="' + claim.id + '" data-stance="' + claim.stance + '" aria-pressed="' + pressed + '">',
+            '  <span class="stance">' + claim.stance + '</span>',
+            '  <span class="copy">' + claim.text + '</span>',
+            '  <span class="claim-check" aria-hidden="true"></span>',
+            '</button>'
+          ].join("");
+        }).join(""),
+        '  </div>',
+        '</div>'
+      ].join("");
+    }).join("");
+  }
+
+  function update() {
+    var included = CLAIMS.filter(function (claim) { return state.included.has(claim.id); });
+    var pricingBlocked = uniquePersonas(included.filter(function (claim) { return claim.topic === "pricing" && claim.stance === "blocked"; }));
+    var pricingAccepted = uniquePersonas(included.filter(function (claim) { return claim.topic === "pricing" && claim.stance === "accepted"; }));
+    var actionBlocked = uniquePersonas(included.filter(function (claim) { return claim.topic === "action" && claim.stance === "blocked"; }));
+    var founderGap = uniquePersonas(included.filter(function (claim) { return claim.topic === "founder"; }));
+    var pricingTotal = pricingBlocked.size + pricingAccepted.size;
+
+    var parts = [];
+    if (pricingBlocked.size) parts.push(pricingBlocked.size + " of 3 blocked by price.");
+    if (pricingAccepted.size) parts.push(pricingAccepted.size + " of 3 accepted the cost.");
+    if (actionBlocked.size) parts.push(actionBlocked.size + " of 3 blocked at the beta link.");
+    if (founderGap.size) parts.push(founderGap.size + " of 3 named the founder gap.");
+    var derived = parts.length ? parts.join(" ") : "No claims selected. There is no count.";
+
+    var freeText = state.repaired
+      ? derived
+      : "“All three people were blocked by price.”";
+    var usesAll = /all three/i.test(freeText);
+    var quantifierBad = usesAll && pricingBlocked.size !== 3;
+    var splitBad = pricingTotal !== 3;
+    var pricingBad = quantifierBad;
+    var repairedClean = state.repaired && !splitBad;
+
+    countLabel.textContent = state.included.size + " of " + CLAIMS.length + " claims";
+    derivedProse.textContent = derived;
+    freeProse.textContent = freeText;
+    freeProse.className = "prose " + (repairedClean ? "good" : "bad");
+    freeLabel.textContent = state.repaired ? "Text, fixed from counts" : "Current text";
+    freeStatus.textContent = state.repaired ? (splitBad ? "Count incomplete" : "Correct") : "Wrong";
+    freeStatus.className = "status " + (repairedClean ? "pass" : "fail");
+
+    var checkItems = [
+      {
+        status: pricingBad ? "fail" : "pass",
+        label: "Price count",
+        text: pricingBlocked.size + " of 3 blocked by price." + (pricingBad ? " The text says all three." : " No false “all”.")
+      },
+      {
+        status: splitBad ? "fail" : "pass",
+        label: "Split",
+        text: pricingBlocked.size + " blocked + " + pricingAccepted.size + " accepted = " + pricingTotal + " of 3." + (splitBad ? " The split is incomplete." : " The split adds up.")
+      },
+      {
+        status: quantifierBad ? "fail" : "pass",
+        label: "“All three”",
+        text: quantifierBad ? "The text says “all three”. " + pricingBlocked.size + " blocked." : "No false “all”."
+      },
+      {
+        status: "info",
+        label: "Beta link",
+        text: actionBlocked.size + " of 3 blocked at the beta link." + (actionBlocked.size ? " Harper needs a sign-up path." : " No one reported this.")
+      },
+      {
+        status: founderGap.size === 3 ? "pass" : "info",
+        label: "Founder gap",
+        text: founderGap.size + " of 3 named the founder gap."
+      }
+    ];
+
+    checks.innerHTML = checkItems.map(function (item) {
+      var statusText = item.status === "fail" ? "Fail: " : item.status === "pass" ? "Pass: " : "Note: ";
+      return [
+        '<li class="check" data-status="' + item.status + '">',
+        '  <span class="dot" aria-hidden="true"></span>',
+        '  <span><span class="sr-only">' + statusText + '</span><strong>' + item.label + '.</strong> ' + item.text + '</span>',
+        '</li>'
+      ].join("");
+    }).join("");
+
+    live.textContent = derived + " " + (state.repaired ? "Counts applied." : "The text still says all three.");
+
+    repairButton.disabled = state.repaired;
+    repairButton.textContent = state.repaired ? "Text fixed" : "Fix the text";
+  }
+
+  ledger.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-claim]");
+    if (!button) return;
+    var id = button.getAttribute("data-claim");
+    if (state.included.has(id)) state.included.delete(id);
+    else state.included.add(id);
+    if (state.repaired) state.repaired = false;
+    button.setAttribute("aria-pressed", state.included.has(id) ? "true" : "false");
+    update();
+  });
+
+  repairButton.addEventListener("click", function () {
+    state.repaired = true;
+    update();
+  });
+
+  resetButton.addEventListener("click", function () {
+    state.included = new Set(initialIds);
+    state.repaired = false;
+    buildLedger();
+    update();
+  });
+
+  var aRun = document.getElementById("a-run");
+  var aReset = document.getElementById("a-reset");
+  var aResult = document.getElementById("a-result");
+  var aHarper = document.querySelector('[data-a-quote="harper"]');
+
+  function resetQuoteCheck() {
+    aHarper.setAttribute("data-state", "opposes");
+    aHarper.querySelector(".quote-verdict").textContent = "Opposes";
+    aResult.hidden = true;
+    aRun.disabled = false;
+    aRun.textContent = "Run quote check";
+  }
+
+  aRun.addEventListener("click", function () {
+    aHarper.setAttribute("data-state", "dropped");
+    aHarper.querySelector(".quote-verdict").textContent = "Dropped";
+    aResult.hidden = false;
+    aRun.disabled = true;
+    aRun.textContent = "Quote check done";
+  });
+
+  aReset.addEventListener("click", resetQuoteCheck);
+
+  var cViz = document.querySelector('[data-viz="c"]');
+  var cButtons = Array.prototype.slice.call(document.querySelectorAll(".c-toggle [data-c-mode]"));
+  var cCards = Array.prototype.slice.call(document.querySelectorAll("[data-c-persona]"));
+  var cFactStatus = document.getElementById("c-fact-status");
+  var cResult = document.getElementById("c-result");
+  var cCopy = {
+    same: [
+      { entry: "headline", verdict: "undecided" },
+      { entry: "headline", verdict: "undecided" },
+      { entry: "headline", verdict: "undecided" }
+    ],
+    different: [
+      { entry: "price and payback", verdict: "trial" },
+      { entry: "workflow and migration", verdict: "reject" },
+      { entry: "failure modes", verdict: "undecided" }
+    ]
+  };
+
+  function setCMode(mode) {
+    cViz.setAttribute("data-c-mode", mode);
+    cButtons.forEach(function (button) {
+      button.setAttribute("aria-pressed", button.getAttribute("data-c-mode") === mode ? "true" : "false");
+    });
+    cCards.forEach(function (card, index) {
+      var item = cCopy[mode][index];
+      card.setAttribute("data-verdict", item.verdict);
+      card.querySelector(".persona-entry").textContent = "Assigned entry: " + item.entry;
+      card.querySelector(".persona-verdict").textContent = "Decides: " + item.verdict;
+    });
+    var different = mode === "different";
+    cFactStatus.textContent = different ? "Caught" : "Not used";
+    cFactStatus.className = "fact-status" + (different ? " good" : "");
+    cResult.textContent = different
+      ? "Different jobs. Different verdicts. The fact sheet catches the wrong price."
+      : "One script. One verdict. No fact check.";
+  }
+
+  cButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      setCMode(button.getAttribute("data-c-mode"));
+    });
+  });
+  setCMode("same");
+
+  var choices = Array.prototype.slice.call(document.querySelectorAll("[data-choice]"));
+  var choiceNote = document.getElementById("choice-note");
+  var notes = {
+    s1: "<strong>Selected: S1.</strong> Start here. The claim list makes S2 and S3 testable.",
+    s2: "<strong>Selected: S2.</strong> This makes voices differ. The counts can still be wrong. It needs S1.",
+    s3: "<strong>Selected: S3.</strong> This is the full plan. It is larger than one PR and needs S1."
+  };
+
+  choices.forEach(function (choice) {
+    choice.addEventListener("click", function () {
+      var key = choice.getAttribute("data-choice");
+      choices.forEach(function (item) {
+        item.setAttribute("aria-pressed", item === choice ? "true" : "false");
+      });
+      choiceNote.innerHTML = notes[key];
+    });
+  });
+
+  buildLedger();
+  update();
+})();
+</script>
+</body>
+</html>

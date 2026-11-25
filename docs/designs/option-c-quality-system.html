@@ -1,0 +1,1287 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Kynd · Option C quality system</title>
+<style>
+  :root {
+    --bg: oklch(0.12 0.01 265);
+    --surface: oklch(0.145 0.01 265);
+    --raised: oklch(0.17 0.01 265);
+    --fg: oklch(0.95 0 0);
+    --muted: oklch(0.68 0.01 265);
+    --faint: oklch(0.48 0.01 265);
+    --border: oklch(0.23 0.01 265);
+    --accent: #0B72C4;
+    --accent-ink: oklch(0.98 0 0);
+    --accent-light: oklch(0.74 0.14 230);
+    --accent-soft: color-mix(in oklch, var(--accent) 15%, transparent);
+    --accent-line: color-mix(in oklch, var(--accent) 52%, var(--border));
+    --warn: oklch(0.77 0.14 24);
+    --warn-soft: color-mix(in oklch, var(--warn) 16%, transparent);
+    --bad: oklch(0.65 0.19 28);
+    --bad-soft: color-mix(in oklch, var(--bad) 17%, transparent);
+    --good: oklch(0.73 0.14 155);
+    --good-soft: color-mix(in oklch, var(--good) 15%, transparent);
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --max: 1180px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --r-sm: 3px;
+    --r-md: 6px;
+    --r-lg: 9px;
+  }
+
+  [data-theme="light"] {
+    --bg: oklch(0.975 0.004 265);
+    --surface: oklch(0.945 0.005 265);
+    --raised: oklch(0.915 0.005 265);
+    --fg: oklch(0.14 0.01 265);
+    --muted: oklch(0.42 0.02 265);
+    --faint: oklch(0.58 0.02 265);
+    --border: oklch(0.85 0.01 265);
+    --accent: oklch(0.55 0.19 230);
+    --accent-ink: oklch(0.98 0 0);
+    --accent-light: oklch(0.47 0.19 230);
+    --accent-soft: color-mix(in oklch, var(--accent) 10%, transparent);
+    --accent-line: color-mix(in oklch, var(--accent) 48%, var(--border));
+    --warn: oklch(0.5 0.15 24);
+    --warn-soft: color-mix(in oklch, var(--warn) 12%, transparent);
+    --bad: oklch(0.5 0.2 28);
+    --bad-soft: color-mix(in oklch, var(--bad) 11%, transparent);
+    --good: oklch(0.44 0.13 155);
+    --good-soft: color-mix(in oklch, var(--good) 11%, transparent);
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color-scheme: dark; }
+  [data-theme="light"] { color-scheme: light; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 400 1rem/1.62 var(--sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: var(--accent-soft); color: var(--fg); }
+  a { color: var(--accent-light); text-underline-offset: 3px; }
+  a:hover { color: var(--fg); }
+  button { font: inherit; color: inherit; }
+  button:focus-visible, a:focus-visible, select:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent-light);
+    outline-offset: 3px;
+  }
+  .skip {
+    position: absolute; left: 16px; top: -80px; z-index: 100;
+    padding: 10px 14px; background: var(--accent); color: var(--accent-ink);
+    border-radius: var(--r-sm); text-decoration: none;
+  }
+  .skip:focus { top: 16px; }
+  .shell { width: min(var(--max), calc(100% - 48px)); margin-inline: auto; }
+  .micro {
+    margin: 0; font-family: var(--mono); font-size: .68rem; line-height: 1.4;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+  }
+  .label {
+    margin: 0; font-family: var(--mono); font-size: .68rem; line-height: 1.4;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  }
+  .masthead { padding: 24px 0 0; }
+  .masthead-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 24px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand strong { font-size: .95rem; letter-spacing: -.01em; }
+  .brand span { color: var(--muted); font-size: .82rem; }
+  .head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .icon-btn {
+    display: grid; place-items: center; width: 38px; height: 38px; padding: 0;
+    border: 1px solid var(--border); border-radius: var(--r-sm);
+    background: transparent; color: var(--muted); cursor: pointer;
+    transition: color 150ms var(--ease), border-color 150ms var(--ease);
+  }
+  .icon-btn:hover { color: var(--fg); border-color: var(--accent-line); }
+  .icon-btn svg { width: 16px; height: 16px; display: block; }
+  .icon-btn .icon-sun { display: none; }
+  [data-theme="light"] .icon-btn .icon-sun { display: block; }
+  [data-theme="light"] .icon-btn .icon-moon { display: none; }
+  .hero {
+    display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+    gap: 56px; align-items: end; padding: 44px 0 34px;
+  }
+  h1 {
+    margin: 0; max-width: 16ch; font-size: clamp(2.35rem, 5.4vw, 4.15rem);
+    font-weight: 600; line-height: 1.03; letter-spacing: -.045em;
+  }
+  .dek { max-width: 61ch; margin: 20px 0 0; color: var(--muted); font-size: 1.07rem; line-height: 1.58; }
+  .dek strong { color: var(--fg); font-weight: 500; }
+  .status-box {
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: var(--r-md); padding: 18px 20px;
+  }
+  .status-box p { margin: 9px 0 0; font-size: .88rem; color: var(--muted); line-height: 1.55; }
+  .status-box .pill {
+    display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono);
+    font-size: .66rem; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--good); background: var(--good-soft);
+    border: 1px solid color-mix(in oklch, var(--good) 32%, var(--border));
+    padding: 4px 9px; border-radius: 99px;
+  }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .stat-row {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  .stat { padding: 18px 20px 18px 0; border-right: 1px solid var(--border); }
+  .stat:last-child { border-right: 0; padding-left: 20px; }
+  .stat + .stat { padding-left: 20px; }
+  .stat strong { display: block; font-size: 1.7rem; line-height: 1.1; letter-spacing: -.03em; font-weight: 600; }
+  .stat span { display: block; margin-top: 4px; font-size: .82rem; color: var(--muted); }
+  .stat em { font-style: normal; color: var(--bad); }
+  .section { padding: 66px 0 0; }
+  .section-head {
+    display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+    gap: 48px; align-items: start; margin-bottom: 26px;
+  }
+  h2 {
+    margin: 8px 0 0; max-width: 20ch; font-size: clamp(1.6rem, 3vw, 2.4rem);
+    line-height: 1.08; letter-spacing: -.035em; font-weight: 600;
+  }
+  .section-head p { margin: 0; color: var(--muted); max-width: 64ch; font-size: .98rem; }
+  .section-head p + p { margin-top: 10px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .grid-2 > *, .grid-3 > *, .model-col, .card { min-width: 0; }
+  .card {
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: var(--r-md); padding: 20px;
+  }
+  .card h3 { margin: 0 0 8px; font-size: 1rem; line-height: 1.35; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.58; }
+  .card p + p { margin-top: 10px; }
+  .card .kicker { margin-bottom: 8px; }
+  .bad-text { color: var(--bad); }
+  .good-text { color: var(--good); }
+  .warn-text { color: var(--warn); }
+  .mono { font-family: var(--mono); }
+  .quote {
+    margin: 12px 0 0; padding: 12px 14px; background: var(--bg);
+    border-left: 2px solid var(--accent-line); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+    font-family: var(--mono); font-size: .78rem; line-height: 1.58; color: var(--fg);
+  }
+  .quote.bad { border-left-color: var(--bad); }
+  .quote.good { border-left-color: var(--good); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
+  table { width: 100%; border-collapse: collapse; font-size: .87rem; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-family: var(--mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .chart { border: 1px solid var(--border); background: var(--surface); border-radius: var(--r-md); padding: 20px; }
+  .chart-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 52px; align-items: center; gap: 12px; margin: 11px 0; }
+  .chart-row span { font-size: .78rem; color: var(--muted); }
+  .track { height: 9px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 99px; background: var(--accent); }
+  .fill.bad { background: var(--bad); }
+  .fill.warn { background: var(--warn); }
+  .fill.good { background: var(--good); }
+  .chart-row strong { font-family: var(--mono); font-size: .72rem; font-weight: 500; text-align: right; color: var(--fg); }
+  .callout {
+    border: 1px solid var(--accent-line); background: var(--accent-soft);
+    border-radius: var(--r-md); padding: 16px 18px; margin-top: 16px;
+  }
+  .callout p { margin: 0; color: var(--fg); font-size: .9rem; line-height: 1.55; }
+  .model {
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: var(--r-md); overflow: hidden;
+  }
+  .model-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .model-head strong { font-size: .88rem; }
+  .model-body { padding: 18px; }
+  .model-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 16px; }
+  .model-col + .model-col { border-left: 1px solid var(--border); padding-left: 16px; }
+  .row-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; flex-wrap: wrap; }
+  .row-label strong { font-size: .84rem; }
+  .mini { font-size: .75rem; color: var(--muted); line-height: 1.5; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+  .seg button {
+    border: 0; background: transparent; color: var(--muted); padding: 6px 9px;
+    font-size: .75rem; cursor: pointer;
+  }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .switch {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    font-size: .78rem; color: var(--muted); user-select: none;
+  }
+  .switch input { width: 15px; height: 15px; accent-color: var(--accent); }
+  .claim-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+  .claim {
+    border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg);
+    padding: 9px 11px; font-size: .78rem; line-height: 1.48;
+  }
+  .claim .who { font-family: var(--mono); font-size: .64rem; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
+  .claim .obs { display: block; margin: 3px 0 2px; color: var(--fg); }
+  .claim .q { color: var(--muted); font-style: italic; }
+  .claim.dropped { opacity: .48; border-style: dashed; }
+  .claim.dropped .q { text-decoration: line-through; }
+  .claim .badge { float: right; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px;
+    border-radius: 99px; font-family: var(--mono); font-size: .6rem;
+    letter-spacing: .05em; text-transform: uppercase; border: 1px solid transparent;
+  }
+  .badge.ok { color: var(--good); background: var(--good-soft); border-color: color-mix(in oklch, var(--good) 30%, var(--border)); }
+  .badge.no { color: var(--bad); background: var(--bad-soft); border-color: color-mix(in oklch, var(--bad) 30%, var(--border)); }
+  .badge.wait { color: var(--warn); background: var(--warn-soft); border-color: color-mix(in oklch, var(--warn) 30%, var(--border)); }
+  .badge.code { color: var(--accent-light); background: var(--accent-soft); border-color: var(--accent-line); }
+  .report {
+    border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg);
+    padding: 12px 14px; font-size: .82rem; line-height: 1.58; min-height: 92px;
+  }
+  .report .rline { margin: 0 0 6px; }
+  .report .rline:last-child { margin-bottom: 0; }
+  .report .dim { color: var(--muted); }
+  .verdict-bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--border); margin: 10px 0 6px; }
+  .verdict-bar span { display: block; height: 100%; }
+  .verdict-legend { display: flex; flex-wrap: wrap; gap: 10px; font-family: var(--mono); font-size: .64rem; color: var(--muted); }
+  .verdict-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .verdict-legend i { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+  .code {
+    margin: 0; padding: 14px 16px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--r-sm); overflow-x: auto; font: 400 .74rem/1.6 var(--mono);
+    color: var(--fg); tab-size: 2; max-width: 100%;
+  }
+  .code .c { color: var(--faint); }
+  .code .k { color: var(--accent-light); }
+  .code .s { color: var(--good); }
+  .stack { display: grid; gap: 12px; }
+  .details { border-top: 1px solid var(--border); }
+  .details:last-child { border-bottom: 1px solid var(--border); }
+  .details summary {
+    cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 16px 0; font-size: .92rem;
+  }
+  .details summary::-webkit-details-marker { display: none; }
+  .details summary::after { content: "+"; font-family: var(--mono); color: var(--muted); font-size: 1rem; }
+  .details[open] summary::after { content: "−"; }
+  .details .body { padding: 0 0 18px; color: var(--muted); font-size: .9rem; line-height: 1.6; }
+  .details .body p { margin: 0 0 10px; }
+  .route { display: grid; gap: 10px; }
+  .route-item {
+    display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 16px;
+    align-items: start; border: 1px solid var(--border); border-radius: var(--r-md);
+    background: var(--surface); padding: 15px 16px;
+  }
+  .route-item.s1 { border-color: var(--accent-line); background: var(--accent-soft); }
+  .route-item .s {
+    font-family: var(--mono); font-size: .72rem; color: var(--muted);
+    border: 1px solid var(--border); border-radius: var(--r-sm); padding: 4px 6px; text-align: center;
+  }
+  .route-item.s1 .s { color: var(--accent-light); border-color: var(--accent-line); }
+  .route-item strong { font-size: .92rem; }
+  .route-item p { margin: 4px 0 0; color: var(--muted); font-size: .84rem; line-height: 1.55; }
+  .route-item .when { font-family: var(--mono); font-size: .64rem; color: var(--faint); white-space: nowrap; padding-top: 4px; }
+  .checklist { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+  .checklist li { display: flex; gap: 9px; font-size: .86rem; color: var(--muted); line-height: 1.5; }
+  .checklist li::before { content: "□"; color: var(--accent-light); font-family: var(--mono); }
+  .footer {
+    display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+    margin-top: 70px; padding: 22px 0 34px; border-top: 1px solid var(--border);
+    color: var(--muted); font-size: .82rem;
+  }
+  .footer a { font-size: .82rem; }
+  .note { font-family: var(--mono); font-size: .64rem; color: var(--faint); letter-spacing: .04em; text-transform: uppercase; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+
+  /* Architecture */
+  .arch {
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: var(--r-md); padding: 18px;
+  }
+  .arch-row {
+    display: grid; grid-template-columns: 116px repeat(4, minmax(0, 1fr));
+    gap: 8px; align-items: stretch; margin-bottom: 8px;
+  }
+  .arch-label {
+    align-self: center; font-family: var(--mono); font-size: .62rem;
+    letter-spacing: .07em; text-transform: uppercase; color: var(--faint);
+    line-height: 1.35;
+  }
+  .arch-cell {
+    border: 1px solid var(--border); background: var(--bg);
+    border-radius: var(--r-sm); padding: 10px 11px; min-height: 58px;
+  }
+  .arch-cell strong { display: block; font-size: .78rem; line-height: 1.35; }
+  .arch-cell span { display: block; margin-top: 3px; font-size: .68rem; line-height: 1.4; color: var(--muted); }
+  .arch-cell.code-cell { border-color: color-mix(in oklch, var(--accent) 30%, var(--border)); }
+  .arch-cell.model-cell { border-color: color-mix(in oklch, var(--warn) 30%, var(--border)); }
+  .arch-cell.span-2 { grid-column: span 2; }
+  .arch-cell.span-3 { grid-column: span 3; }
+  .arch-cell.span-4 { grid-column: span 4; }
+  .arch-arrow {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 0 12px 124px; color: var(--faint);
+    font-family: var(--mono); font-size: .62rem; letter-spacing: .04em;
+  }
+  .arch-arrow::before { content: ""; width: 1px; height: 20px; background: var(--border); }
+  .arch-arrow span { border-left: 1px solid var(--border); padding-left: 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; font-family: var(--mono); font-size: .64rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; border: 1px solid var(--border); }
+  .swatch.code { background: var(--accent-soft); border-color: var(--accent-line); }
+  .swatch.model { background: var(--warn-soft); border-color: color-mix(in oklch, var(--warn) 30%, var(--border)); }
+  .swatch.store { background: var(--good-soft); border-color: color-mix(in oklch, var(--good) 30%, var(--border)); }
+
+  /* Pipeline */
+  .pipeline {
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px; margin-top: 4px;
+  }
+  .stage {
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: var(--r-sm); padding: 12px 10px; min-height: 150px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .stage .n { font-family: var(--mono); font-size: .62rem; color: var(--faint); }
+  .stage strong { font-size: .82rem; line-height: 1.3; }
+  .stage span { font-size: .72rem; line-height: 1.42; color: var(--muted); }
+  .stage .out {
+    margin-top: auto; border-top: 1px solid var(--border); padding-top: 7px;
+    font-family: var(--mono); font-size: .62rem; color: var(--faint); line-height: 1.4;
+  }
+  .stage.model-stage { border-color: color-mix(in oklch, var(--warn) 28%, var(--border)); }
+  .stage.code-stage { border-color: color-mix(in oklch, var(--accent) 28%, var(--border)); }
+  .stage.parallel { background: var(--accent-soft); border-color: var(--accent-line); }
+  .lane-row {
+    display: grid; grid-template-columns: 116px repeat(6, minmax(0, 1fr));
+    gap: 8px; align-items: center; margin-top: 8px;
+  }
+  .lane-label { font-family: var(--mono); font-size: .62rem; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; }
+  .lane {
+    height: 8px; border-radius: 99px; background: var(--border); position: relative;
+  }
+  .lane i {
+    position: absolute; inset: 0 auto 0 0; border-radius: 99px;
+    display: block; font-style: normal;
+  }
+  .lane .llm { background: var(--warn); }
+  .lane .code { background: var(--accent); }
+  .lane-note { font-size: .68rem; color: var(--muted); line-height: 1.4; }
+
+  /* Seams */
+  .seam-list { display: grid; gap: 8px; }
+  .seam {
+    display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+    gap: 14px; border: 1px solid var(--border); background: var(--bg);
+    border-radius: var(--r-sm); padding: 12px 14px;
+  }
+  .seam strong { font-size: .8rem; line-height: 1.4; }
+  .seam span { font-size: .76rem; color: var(--muted); line-height: 1.5; }
+
+  /* Facts */
+  .timeline {
+    position: relative; height: 58px; border: 1px solid var(--border);
+    background: var(--bg); border-radius: var(--r-sm); margin-top: 12px;
+    overflow: hidden;
+  }
+  .timeline .line { position: absolute; left: 0; right: 0; top: 28px; height: 1px; background: var(--border); }
+  .timeline .tick { position: absolute; top: 18px; width: 1px; height: 20px; background: var(--border); }
+  .timeline .tick span { position: absolute; top: 24px; left: 6px; font-family: var(--mono); font-size: .58rem; color: var(--faint); white-space: nowrap; }
+  .timeline .stop {
+    position: absolute; top: 10px; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--bad); border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--bad);
+    transform: translateX(-50%);
+  }
+  .timeline .stop span { position: absolute; top: -18px; left: 14px; font-family: var(--mono); font-size: .6rem; color: var(--bad); white-space: nowrap; }
+  .fact-row { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .78rem; }
+  .fact-row:last-child { border-bottom: 0; }
+  .fact-row span:first-child { font-family: var(--mono); font-size: .62rem; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; }
+  .fact-row span:last-child { color: var(--muted); }
+  .fact-result { margin-top: 10px; font-size: .8rem; line-height: 1.5; }
+
+  @media (max-width: 980px) {
+    .hero, .section-head { grid-template-columns: 1fr; gap: 24px; }
+    .hero { padding-top: 34px; }
+    .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stat:nth-child(2) { border-right: 0; }
+    .stat:nth-child(3) { border-top: 1px solid var(--border); }
+    .stat:nth-child(4) { border-top: 1px solid var(--border); }
+    .grid-3 { grid-template-columns: 1fr; }
+    .pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .lane-row { display: none; }
+    .arch-row { grid-template-columns: 96px repeat(2, minmax(0, 1fr)); }
+    .arch-row .arch-cell:nth-child(n+4) { grid-column: span 2; }
+    .arch-arrow { padding-left: 104px; }
+    .model-grid { grid-template-columns: 1fr; }
+    .model-col + .model-col { border-left: 0; padding-left: 0; border-top: 1px solid var(--border); padding-top: 16px; }
+  }
+  @media (max-width: 620px) {
+    .shell { width: min(var(--max), calc(100% - 32px)); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .stat strong { font-size: 1.45rem; }
+    .pipeline { grid-template-columns: 1fr; }
+    .stage { min-height: 0; }
+    .stage .out { margin-top: 6px; }
+    .arch-row { grid-template-columns: 1fr; }
+    .arch-row .arch-cell, .arch-row .arch-cell:nth-child(n+4) { grid-column: auto; }
+    .arch-label { padding-top: 6px; }
+    .arch-arrow { padding-left: 0; }
+    .arch-arrow::before { display: none; }
+    .seam { grid-template-columns: 1fr; gap: 4px; }
+    .route-item { grid-template-columns: 44px minmax(0, 1fr); }
+    .route-item .when { grid-column: 2; }
+    .chart-row { grid-template-columns: 86px minmax(0, 1fr) 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead">
+  <div class="shell">
+    <div class="masthead-top">
+      <div class="brand">
+        <strong>Kynd</strong>
+        <span>Design record · 24 Nov 2026</span>
+      </div>
+      <div class="head-actions">
+        <a class="micro" href="option-c-quality-system.md">Markdown</a>
+        <a class="micro" href="analysis-quality-floor.html">Prior options</a>
+        <button class="icon-btn" id="theme" type="button" aria-label="Switch to light theme" title="Switch theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 15.4A8.4 8.4 0 0 1 8.6 4a8.4 8.4 0 1 0 11.4 11.4Z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <div class="shell">
+    <section class="hero">
+      <div>
+        <p class="micro">Option C · full quality system</p>
+        <h1>A report that shows its evidence and marks what it cannot verify.</h1>
+        <p class="dek">Option C separates the evidence from the writing. Each persona records claims with quotations, code groups and counts those claims, and the writer receives a plan rather than the raw transcripts. <strong>The report can still be specific. Every unverified field is marked, and QA allows at most one per run.</strong></p>
+      </div>
+      <aside class="status-box" aria-label="Status">
+        <span class="pill"><span class="dot"></span>Chosen by the user</span>
+        <p>This page explains Option C. It is not an implementation record. The first slice is S1: the claim ledger and the derived report.</p>
+        <p><a href="option-c-quality-system.md">Read the full design</a></p>
+      </aside>
+    </section>
+
+    <section class="stat-row" aria-label="Blind review evidence">
+      <div class="stat"><strong>0 / 10</strong><span>runs passed the 8/10 floor</span></div>
+      <div class="stat"><strong>5 / 10</strong><span>median blind score, round 4</span></div>
+      <div class="stat"><strong>5</strong><span>grounding score, five reviewers</span></div>
+      <div class="stat"><strong><em>3</em></strong><span>differentiation score, founder</span></div>
+    </section>
+
+    <section class="section" aria-labelledby="problem">
+      <div class="section-head">
+        <div>
+          <p class="label">Problem</p>
+          <h2 id="problem">One call both decides what the evidence says and writes the report.</h2>
+        </div>
+        <div>
+          <p>Today, <span class="mono">SynthesizeArtifactResultsUseCase</span> sends the raw monologues to one model. That model writes the overview, the findings, the counts, the citations, and the answer in one pass. When the model writes "all three", no code checks that it counted three personas.</p>
+          <p>The same pass can move a persona onto the wrong objection, omit a persona from a split, or invent a price. The report is specific, but its specificity is not tied to the record.</p>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <p class="label kicker">What the reader sees</p>
+          <p class="quote bad">"All three personas hit the same wall: routing rules ... behind the Growth tier."</p>
+          <p style="margin-top:10px">One persona was blocked at action because the brief offered no beta sign-up. The persona was not blocked by price. The prose moved that persona onto the price wall.</p>
+        </div>
+        <div class="card">
+          <p class="label kicker">The same run</p>
+          <p class="quote bad">"A disagreement split of 1 and 1 against a cohort of 3."</p>
+          <p style="margin-top:10px">The third persona is absent. A reader cannot tell whether that persona had no view, held a third view, or was overlooked.</p>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:14px">
+        <div class="chart" aria-label="Median blind score by round">
+          <p class="label" style="margin-bottom:10px">Median blind score by round</p>
+          <div class="chart-row"><span>Round 1</span><div class="track"><div class="fill warn" style="width:60%"></div></div><strong>6.0</strong></div>
+          <div class="chart-row"><span>Round 2</span><div class="track"><div class="fill warn" style="width:60%"></div></div><strong>6.0</strong></div>
+          <div class="chart-row"><span>Round 3</span><div class="track"><div class="fill bad" style="width:50%"></div></div><strong>5.0</strong></div>
+          <div class="chart-row"><span>Round 4</span><div class="track"><div class="fill bad" style="width:50%"></div></div><strong>5.0</strong></div>
+          <p class="mini" style="margin-top:12px">Ten runs per round. Ten blind reviewers per round. The pass floor is 8.0. Illustrative bars from the round table.</p>
+        </div>
+        <div class="card">
+          <p class="label kicker">Why the score is stuck</p>
+          <p>Specificity is already high. Grounding and differentiation are the floor. Actionability follows the answer, so it rises only when the answer is true.</p>
+          <p>A stronger prompt can lower the error rate. It cannot make a count true, because the model that writes the sentence also chooses the number.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="terms">
+      <div class="section-head">
+        <div>
+          <p class="label">Terms</p>
+          <h2 id="terms">Six words have fixed meanings.</h2>
+        </div>
+        <div>
+          <p>The design uses ordinary words with private meanings. The page uses one meaning for each word, the same meaning as the design file.</p>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="card"><p class="label kicker">Claim</p><h3>One assertion and one quotation.</h3><p>A claim belongs to one persona. The quotation must be a complete sentence from that persona's monologue.</p></div>
+        <div class="card"><p class="label kicker">Support gate</p><h3>Does the quotation support the claim?</h3><p>A model answers support, partial, or unsupported. Only support claims enter the cohort ledger.</p></div>
+        <div class="card"><p class="label kicker">Group</p><h3>Claims on the same topic.</h3><p>Code counts distinct personas for, against, and neutral. A group with enough personas becomes a finding.</p></div>
+        <div class="card"><p class="label kicker">Verdict</p><h3>One choice from four.</h3><p>Adopt, trial, reject, or undecided. The set is fixed for every role and artifact.</p></div>
+        <div class="card"><p class="label kicker">Frame</p><h3>The task for one persona.</h3><p>It holds the role, the task, the entry point, and the decision question for this artifact.</p></div>
+        <div class="card"><p class="label kicker">Plan</p><h3>The writer's only input.</h3><p>It holds verified claims, code counts, citations, and facts. It holds no raw monologue.</p></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="architecture">
+      <div class="section-head">
+        <div>
+          <p class="label">Architecture</p>
+          <h2 id="architecture">Five layers, one direction of dependency.</h2>
+        </div>
+        <div>
+          <p>The action starts a run and streams progress. Three use cases own the work. The domain types hold the evidence and the report. Ports define what the use cases need. Adapters talk to the model, the browser, and the store.</p>
+          <p>Each arrow is a seam. A seam is a place where one component calls another through a type. The type is the contract.</p>
+        </div>
+      </div>
+      <div class="arch">
+        <div class="arch-row">
+          <div class="arch-label">Surface</div>
+          <div class="arch-cell span-2"><strong>Report UI</strong><span>Verdict mix, claim groups, facts, persona cards</span></div>
+          <div class="arch-cell span-2"><strong>analyzeArtifactAction</strong><span>Server action, stream, progress, store write</span></div>
+        </div>
+        <div class="arch-arrow"><span>action calls use cases</span></div>
+        <div class="arch-row">
+          <div class="arch-label">Application</div>
+          <div class="arch-cell code-cell span-2"><strong>AnalyzeArtifactUseCase</strong><span>Intake, profile, frames, persona calls</span></div>
+          <div class="arch-cell code-cell"><strong>BuildClaimLedgerUseCase</strong><span>Support, cluster, counts</span></div>
+          <div class="arch-cell code-cell"><strong>SynthesizeArtifactResultsUseCase</strong><span>Plan, writer, validator</span></div>
+        </div>
+        <div class="arch-arrow"><span>use cases pass domain values</span></div>
+        <div class="arch-row">
+          <div class="arch-label">Domain</div>
+          <div class="arch-cell span-2"><strong>ArtifactProfile</strong><span>Content kind, facts, anchors</span></div>
+          <div class="arch-cell"><strong>SimulationFrame</strong><span>Role, task, entry point</span></div>
+          <div class="arch-cell"><strong>PersonaResponse</strong><span>Verdict, reason, claims</span></div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-label">Evidence</div>
+          <div class="arch-cell code-cell span-2"><strong>ClaimLedger</strong><span>Groups, counts, citations</span></div>
+          <div class="arch-cell code-cell"><strong>SynthesisPlan</strong><span>Findings, splits, facts</span></div>
+          <div class="arch-cell code-cell"><strong>ArtifactSynthesis</strong><span>Report plus optional evidence</span></div>
+        </div>
+        <div class="arch-arrow"><span>ports define the outside edge</span></div>
+        <div class="arch-row">
+          <div class="arch-label">Ports</div>
+          <div class="arch-cell model-cell span-2"><strong>LlmServicePort</strong><span>Profile, monologue, extraction, claims, support, cluster, writer</span></div>
+          <div class="arch-cell code-cell"><strong>ArtifactIntakePort</strong><span>URL, screenshot, text</span></div>
+          <div class="arch-cell code-cell"><strong>BrowserServicePort</strong><span>Capture and navigate</span></div>
+        </div>
+        <div class="arch-arrow"><span>adapters implement the ports</span></div>
+        <div class="arch-row">
+          <div class="arch-label">Adapters</div>
+          <div class="arch-cell model-cell"><strong>VisionAnalysisAdapter</strong><span>Monologue and extraction prompts</span></div>
+          <div class="arch-cell model-cell"><strong>QualityAnalysisAdapter</strong><span>Profile, claims, support, cluster, writer</span></div>
+          <div class="arch-cell code-cell"><strong>ArtifactIntakeAdapter</strong><span>Normalizes the artifact</span></div>
+          <div class="arch-cell code-cell"><strong>RemotePlaywrightAdapter</strong><span>Captures URL artifacts</span></div>
+        </div>
+        <div class="arch-arrow"><span>external calls</span></div>
+        <div class="arch-row">
+          <div class="arch-label">External</div>
+          <div class="arch-cell model-cell span-2"><strong>Model provider</strong><span>OpenRouter chat completions</span></div>
+          <div class="arch-cell code-cell span-2"><strong>Playwright and IndexedDB</strong><span>Browser capture, persisted report</span></div>
+        </div>
+        <div class="legend">
+          <span><i class="swatch code"></i>code</span>
+          <span><i class="swatch model"></i>model</span>
+          <span><i class="swatch store"></i>result value</span>
+        </div>
+      </div>
+      <div class="callout">
+        <p><strong>The important seam is between the ledger and the writer.</strong> The writer receives a <span class="mono">SynthesisPlan</span>. It never receives <span class="mono">rawAnalysis</span>. That one type boundary is what stops the prose from inventing a count or a quote.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="flow">
+      <div class="section-head">
+        <div>
+          <p class="label">Data flow</p>
+          <h2 id="flow">The pipeline has six stages and three parallel groups.</h2>
+        </div>
+        <div>
+          <p>The profile runs once before the personas because the content kind chooses the decision question. Each persona then runs a monologue, an extraction, and a claim pass. Extraction and claims read the same monologue in parallel. After all personas settle, support and clustering run in parallel, and the writer runs last.</p>
+        </div>
+      </div>
+      <div class="pipeline" aria-label="Data flow stages">
+        <div class="stage code-stage"><span class="n">01</span><strong>Intake</strong><span>Normalize URL, screenshot, or text.</span><div class="out">ArtifactIntake</div></div>
+        <div class="stage model-stage"><span class="n">02</span><strong>Profile</strong><span>Read the artifact for facts, content kind, and anchor kind. One serial call.</span><div class="out">ArtifactProfile</div></div>
+        <div class="stage code-stage"><span class="n">03</span><strong>Frames</strong><span>Assign the role, task, entry point, and question. Pure code.</span><div class="out">SimulationFrame[]</div></div>
+        <div class="stage parallel"><span class="n">04</span><strong>Personas</strong><span>Monologue, then extraction and claims in parallel. Max five personas at once.</span><div class="out">PersonaResponse[]</div></div>
+        <div class="stage model-stage"><span class="n">05</span><strong>Ledger</strong><span>Support gate and cluster run in parallel. Code counts and cites.</span><div class="out">ClaimLedger</div></div>
+        <div class="stage model-stage"><span class="n">06</span><strong>Report</strong><span>Writer reads the plan. Validator checks it. Repair, then mark any failed field.</span><div class="out">ArtifactSynthesis</div></div>
+      </div>
+      <div class="lane-row" aria-hidden="true">
+        <span class="lane-label">Critical</span>
+        <div class="lane"><i class="llm" style="width:100%"></i></div>
+        <div class="lane"><i class="llm" style="width:100%"></i></div>
+        <div class="lane"><i class="code" style="width:100%"></i></div>
+        <div class="lane"><i class="llm" style="width:100%"></i></div>
+        <div class="lane"><i class="llm" style="width:100%"></i></div>
+        <div class="lane"><i class="llm" style="width:100%"></i></div>
+      </div>
+      <div class="grid-2" style="margin-top:16px">
+        <div class="card">
+          <p class="label kicker">Parallel work</p>
+          <p>Inside one persona, the extraction and claim pass both read the monologue, so they run side by side. After all personas, the support gate and clustering both read the claim set, so they also run side by side.</p>
+          <p>This keeps the added wall time below the added call count. The profile call is the one serial addition before the personas start.</p>
+        </div>
+        <div class="chart" aria-label="Call count at five personas">
+          <p class="label" style="margin-bottom:10px">Calls at five personas</p>
+          <div class="chart-row"><span>Current</span><div class="track"><div class="fill good" style="width:55%"></div></div><strong>11</strong></div>
+          <div class="chart-row"><span>Option C</span><div class="track"><div class="fill warn" style="width:95%"></div></div><strong>19-20</strong></div>
+          <p class="mini" style="margin-top:12px">Current: five monologues, five extractions, one synthesis. Option C adds one profile, five claim passes, one support gate, one cluster call, and one writer call. A repair adds one more.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="seams">
+      <div class="section-head">
+        <div>
+          <p class="label">Seams</p>
+          <h2 id="seams">Each seam has one owner.</h2>
+        </div>
+        <div>
+          <p>A seam is a call boundary with a typed value. If a seam has two owners, the data can drift. The table names the caller, the value, and the owner of the result.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="seam"><strong>Action to use case</strong><span><span class="mono">analyzeArtifactAction</span> passes the input and personas. <span class="mono">AnalyzeArtifactUseCase</span> owns intake, profile, frames, and persona responses.</span></div>
+        <div class="seam"><strong>Use case to LLM port</strong><span><span class="mono">AnalyzeArtifactUseCase</span> calls profile, monologue, extraction, and claims. <span class="mono">LlmServicePort</span> owns the call contract. <span class="mono">QualityAnalysisAdapter</span> owns the prompt and schema.</span></div>
+        <div class="seam"><strong>Responses to ledger</strong><span><span class="mono">BuildClaimLedgerUseCase</span> receives responses. It calls support and cluster, then <span class="mono">buildClaimLedger</span> owns every count, citation, and split.</span></div>
+        <div class="seam"><strong>Ledger to writer</strong><span><span class="mono">SynthesizeArtifactResultsUseCase</span> builds a <span class="mono">SynthesisPlan</span>. The writer returns wording keyed by group id. Code joins the wording to the counts.</span></div>
+        <div class="seam"><strong>Writer to validator</strong><span><span class="mono">validateSynthesis</span> compares the draft with the plan. A violation goes to one repair call, then to the code fallback.</span></div>
+        <div class="seam"><strong>Report to store</strong><span><span class="mono">analysisArtifactAction</span> saves optional fields. Old records lack the fields, and the UI hides the new sections.</span></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="claim-lab">
+      <div class="section-head">
+        <div>
+          <p class="label">Mechanism</p>
+          <h2 id="claim-lab">Watch a claim become a finding.</h2>
+        </div>
+        <div>
+          <p>Three personas evaluated the same pricing page. Maya says the price is fair, but her quotation says she nearly choked at the price. Omar says the price blocks the trial. Lena talks about SSO.</p>
+          <p>Turn the support gate on and off. The count changes because the gate removes Maya's inverted claim before the ledger counts the group.</p>
+        </div>
+      </div>
+      <div class="model">
+        <div class="model-head"><strong>Claim ledger lab</strong><span class="badge wait">illustrative data</span></div>
+        <div class="model-body">
+          <div class="model-grid">
+            <div class="model-col">
+              <div class="row-label">
+                <strong>Claims from three personas</strong>
+                <label class="switch"><input type="checkbox" id="claim-gate" checked> support gate</label>
+              </div>
+              <ul class="claim-list" id="claims">
+                <li class="claim" data-claim="p1"><span class="who">p1 · Maya</span><span class="obs">The price is fair.</span><span class="q">"I nearly choked at the price."</span></li>
+                <li class="claim" data-claim="p2"><span class="who">p2 · Omar</span><span class="obs">The price blocks the trial.</span><span class="q">"I nearly choked at the price. I am not putting a card down."</span></li>
+                <li class="claim" data-claim="p3"><span class="who">p3 · Lena</span><span class="obs">SSO is missing.</span><span class="q">"I need SSO before I can recommend this to security."</span></li>
+              </ul>
+              <p class="mini" id="claim-gate-note" style="margin-top:10px">On: Maya's quotation supports the opposite of her observation, so the claim is dropped.</p>
+            </div>
+            <div class="model-col">
+              <div class="row-label"><strong>What code counts</strong><span class="mini">distinct personas</span></div>
+              <div class="report" id="claim-report">
+                <p class="rline">Price group: 1 of 3 personas.</p>
+                <p class="rline">SSO group: 1 of 3 personas.</p>
+                <p class="rline dim">No group reaches the two-persona finding floor.</p>
+              </div>
+              <div class="table-wrap" style="margin-top:12px">
+                <table aria-label="Claim groups after the support gate">
+                  <thead><tr><th>Group</th><th class="num">Supports</th><th class="num">Opposes</th><th class="num">Personas</th></tr></thead>
+                  <tbody>
+                    <tr><td>Price</td><td class="num" id="price-supports">0</td><td class="num" id="price-opposes">1</td><td class="num" id="price-personas">1</td></tr>
+                    <tr><td>SSO</td><td class="num">0</td><td class="num">1</td><td class="num">1</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="mini" id="claim-code-note" style="margin-top:10px">The writer cannot write "all three". The code has only one price persona.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:14px">
+        <div class="card">
+          <p class="label kicker">What code owns</p>
+          <p>It checks each quotation against the monologue. It keeps only supported claims. It counts distinct persona ids, builds citations, and adds a <span class="mono">No clear view</span> bucket when a split does not cover the cohort.</p>
+        </div>
+        <div class="card">
+          <p class="label kicker">What the model owns</p>
+          <p>It reads a claim and its quotation and returns a support level. It groups claims by topic. It writes the finding wording. It never sets a count or a quotation in the final report.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="frame-lab">
+      <div class="section-head">
+        <div>
+          <p class="label">Roles and verdicts</p>
+          <h2 id="frame-lab">A role changes where the persona starts.</h2>
+        </div>
+        <div>
+          <p>The role changes which parts of the artifact the persona examines and the order it examines them. The role does not choose the verdict. Every persona chooses from the same four verdicts, so the report can compare the cohort.</p>
+          <p>Change the role and the content kind. Then change Maya's verdict. Notice that the role fields move and the verdict field moves only when you choose it.</p>
+        </div>
+      </div>
+      <div class="model">
+        <div class="model-head"><strong>Frame lab</strong><span class="badge wait">illustrative data</span></div>
+        <div class="model-body">
+          <div class="model-grid">
+            <div class="model-col">
+              <div class="row-label"><strong>Content kind</strong><span class="mini">decision question</span></div>
+              <div class="seg" id="kind-controls" role="group" aria-label="Content kind">
+                <button type="button" data-kind="landing_page" aria-pressed="true">Landing page</button>
+                <button type="button" data-kind="feature_brief" aria-pressed="false">Feature brief</button>
+                <button type="button" data-kind="video_script" aria-pressed="false">Video script</button>
+              </div>
+              <p class="mini" id="kind-question">Would you take the next step this page asks for?</p>
+
+              <div class="row-label" style="margin-top:16px"><strong>Role</strong><span class="mini">task and entry point</span></div>
+              <div class="seg" id="role-controls" role="group" aria-label="Role">
+                <button type="button" data-role="economic_buyer" aria-pressed="false">Buyer</button>
+                <button type="button" data-role="daily_user" aria-pressed="false">User</button>
+                <button type="button" data-role="blocker" aria-pressed="true">Blocker</button>
+                <button type="button" data-role="champion" aria-pressed="false">Champion</button>
+              </div>
+              <p class="mini" id="role-task">Judge what would stop you from approving this for your team.</p>
+
+              <div class="row-label" style="margin-top:16px"><strong>Maya's verdict</strong><span class="mini">fixed set</span></div>
+              <div class="seg" id="verdict-controls" role="group" aria-label="Maya's verdict">
+                <button type="button" data-verdict="adopt" aria-pressed="true">Adopt</button>
+                <button type="button" data-verdict="trial" aria-pressed="false">Trial</button>
+                <button type="button" data-verdict="reject" aria-pressed="false">Reject</button>
+                <button type="button" data-verdict="undecided" aria-pressed="false">Undecided</button>
+              </div>
+            </div>
+            <div class="model-col">
+              <div class="row-label"><strong>The frame</strong><span class="badge code">code</span></div>
+              <div class="report">
+                <p class="rline"><span class="dim">Decision question:</span> <span id="frame-question">Would you take the next step this page asks for?</span></p>
+                <p class="rline"><span class="dim">Role task:</span> <span id="frame-task">Judge what would stop you from approving this for your team.</span></p>
+                <p class="rline"><span class="dim">Entry point:</span> <span id="frame-entry">Security, integration, migration, and support.</span></p>
+                <p class="rline"><span class="dim">Content kind:</span> <span id="frame-kind">landing_page</span></p>
+                <p class="rline"><span class="dim">Verdict:</span> <span id="frame-verdict">adopt</span></p>
+              </div>
+              <p class="mini" id="frame-note" style="margin-top:10px">The role is a blocker. The verdict is adopt. The role shaped the reading; it did not choose the answer.</p>
+              <div class="timeline" aria-label="Video stage anchor example">
+                <div class="line"></div>
+                <div class="tick" style="left:8%"><span>0:00</span></div>
+                <div class="tick" style="left:38%"><span>1:12</span></div>
+                <div class="tick" style="left:66%"><span>2:40</span></div>
+                <div class="stop" style="left:88%"><span>drop-off 3:42</span></div>
+              </div>
+              <p class="mini" id="anchor-note">A landing page has no stage anchor. A video script anchors each reached stage to a timestamp.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="facts">
+      <div class="section-head">
+        <div>
+          <p class="label">Facts and content kinds</p>
+          <h2 id="facts">Facts come from the artifact, not from the writer.</h2>
+        </div>
+        <div>
+          <p>The profile extracts exact facts and the content kind before the personas start. The writer receives those facts in the plan. The validator then checks currency amounts and percentages against the fact sheet.</p>
+          <p>The content kind also decides the stage anchor. A landing page has none. A feature brief uses a heading or a quote. A video script uses a timestamp, so the drop-off point is a real position in the script.</p>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <p class="label kicker">Landing page</p>
+          <h3>No stage anchor.</h3>
+          <p>The persona reads a screen. The journey describes what it thought at each stage, not where the thought appeared in a document.</p>
+        </div>
+        <div class="card">
+          <p class="label kicker">Feature brief</p>
+          <h3>Heading or quote anchor.</h3>
+          <p>The profile decides whether the text has headings. A heading or a verbatim quote must match the artifact text.</p>
+        </div>
+        <div class="card">
+          <p class="label kicker">Video script</p>
+          <h3>Timestamp anchor.</h3>
+          <p>Each reached stage needs a timestamp, and the timestamps must rise. The terminal timestamp is the point where attention broke.</p>
+          <div class="timeline" style="height:48px;margin-top:10px">
+            <div class="line" style="top:23px"></div>
+            <div class="tick" style="top:13px;height:16px;left:10%"><span style="top:19px">0:00</span></div>
+            <div class="tick" style="top:13px;height:16px;left:50%"><span style="top:19px">2:14</span></div>
+            <div class="stop" style="top:6px;left:84%"><span style="top:-16px">4:12</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:14px">
+        <div class="card">
+          <p class="label kicker">Fact sheet</p>
+          <div class="fact-row"><span>Product</span><span>Relay</span></div>
+          <div class="fact-row"><span>Offer</span><span>Routing rules for small teams</span></div>
+          <div class="fact-row"><span>Growth</span><span>$49 per month</span></div>
+          <div class="fact-row"><span>Open</span><span>Annual price is not stated</span></div>
+          <p class="mini" style="margin-top:10px">The profile copies exact strings. It does not round a price or infer a missing tier.</p>
+        </div>
+        <div class="card">
+          <p class="label kicker">Fact guard</p>
+          <p>The plan says the Growth tier is $49. Choose the draft price and run the validator.</p>
+          <div class="seg" id="fact-controls" role="group" aria-label="Draft price" style="margin-top:12px">
+            <button type="button" data-price="49" aria-pressed="true">$49</button>
+            <button type="button" data-price="99" aria-pressed="false">$99</button>
+          </div>
+          <p class="fact-result" id="fact-result">Draft $49: accepted. The amount is in the fact sheet.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="options">
+      <div class="section-head">
+        <div>
+          <p class="label">Options</p>
+          <h2 id="options">Why C, and not A or B.</h2>
+        </div>
+        <div>
+          <p>A adds a verifier to the current free-prose report. B derives counts from a claim set. C adds the role frames, fixed verdicts, the fact sheet, and the content-kind anchors.</p>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <p class="label kicker">Option A</p>
+          <h3>Semantic verifier only</h3>
+          <p>One support call checks each finding's quotation. Unsupported findings are dropped. The prose still writes its own counts and splits.</p>
+          <label class="switch" style="margin-top:10px"><input type="checkbox" id="a-verifier"> run verifier</label>
+          <p class="mini" id="a-out" style="margin-top:8px">Off: all three claims survive.</p>
+          <p class="bad-text">Still fails: a verifier can drop one quote and leave "all three" intact.</p>
+        </div>
+        <div class="card">
+          <p class="label kicker">Option B</p>
+          <h3>Derived aggregates</h3>
+          <p>A claim set replaces free-prose counts. Code owns counts, citations, and splits. One support call checks the claims.</p>
+          <label class="switch" style="margin-top:10px"><input type="checkbox" id="b-opt-gate" checked> support gate</label>
+          <p class="mini" id="b-out" style="margin-top:8px">On: 2 of 3 claims survive.</p>
+          <p class="warn-text">Still fails: personas share one reasoning spine, and the report has no fact sheet or video anchor.</p>
+        </div>
+        <div class="card" style="border-color:var(--accent-line);background:var(--accent-soft)">
+          <p class="label kicker">Option C · chosen</p>
+          <h3>Full quality system</h3>
+          <p>B plus role frames, fixed verdicts, an artifact fact sheet, and content kinds with stage anchors. The writer reads the plan and never the transcripts.</p>
+          <p class="good-text">Fixes: grounding, split arithmetic, differentiation, and video schema fit.</p>
+          <p style="margin-top:10px"><a class="mini" href="#claim-lab">Open the full C model above</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="complexity">
+      <div class="section-head">
+        <div>
+          <p class="label">Complexity</p>
+          <h2 id="complexity">The added work sits in three places.</h2>
+        </div>
+        <div>
+          <p>The profile is one serial call. The claim pass adds one call per persona, but it runs beside the extraction. Support and clustering run beside each other. The writer gains a validator and a repair path.</p>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="chart" aria-label="Where the calls go">
+          <p class="label" style="margin-bottom:10px">Call budget at five personas</p>
+          <div class="chart-row"><span>Monologues</span><div class="track"><div class="fill good" style="width:25%"></div></div><strong>5</strong></div>
+          <div class="chart-row"><span>Extractions</span><div class="track"><div class="fill good" style="width:25%"></div></div><strong>5</strong></div>
+          <div class="chart-row"><span>Claims</span><div class="track"><div class="fill warn" style="width:25%"></div></div><strong>5</strong></div>
+          <div class="chart-row"><span>Profile</span><div class="track"><div class="fill warn" style="width:5%"></div></div><strong>1</strong></div>
+          <div class="chart-row"><span>Support</span><div class="track"><div class="fill warn" style="width:5%"></div></div><strong>1</strong></div>
+          <div class="chart-row"><span>Cluster</span><div class="track"><div class="fill warn" style="width:5%"></div></div><strong>1</strong></div>
+          <div class="chart-row"><span>Writer</span><div class="track"><div class="fill warn" style="width:5%"></div></div><strong>1</strong></div>
+          <p class="mini" style="margin-top:12px">Total 19. A repair call makes 20. Current pipeline: 11.</p>
+        </div>
+        <div class="card">
+          <p class="label kicker">Ownership</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Decision</th><th>Owner</th></tr></thead>
+              <tbody>
+                <tr><td>Role, task, entry point</td><td>Code</td></tr>
+                <tr><td>Verdict and reason</td><td>Model, from transcript</td></tr>
+                <tr><td>Claim support</td><td>Model check, code filter</td></tr>
+                <tr><td>Group count, citations, split</td><td>Code</td></tr>
+                <tr><td>Finding wording</td><td>Model</td></tr>
+                <tr><td>Final numbers and validation</td><td>Code</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="mini" style="margin-top:10px">Every model output that becomes a number passes through a code check.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="route">
+      <div class="section-head">
+        <div>
+          <p class="label">Route</p>
+          <h2 id="route">S1 is the first gate.</h2>
+        </div>
+        <div>
+          <p>C is a program, not one commit. S1 removes the proven failure class. S2 makes the personas diverge. S3 makes facts and video anchors real. S4 proves the floor.</p>
+        </div>
+      </div>
+      <div class="route">
+        <div class="route-item s1">
+          <span class="s">S1</span>
+          <div><strong>Claim ledger and derived report</strong><p>Claim pass, support gate, cluster, counts, plan, writer, validator, warning banner, inline marks, PDF warning. Optional fields only.</p></div>
+          <span class="when">first</span>
+        </div>
+        <div class="route-item">
+          <span class="s">S2</span>
+          <div><strong>Decision frames and verdicts</strong><p>Role fields, frames, fixed verdict, decisive reason, identity check.</p></div>
+          <span class="when">after S1</span>
+        </div>
+        <div class="route-item">
+          <span class="s">S3</span>
+          <div><strong>Artifact profile and stage anchors</strong><p>Fact sheet, content kind, prices, video timestamps, fact guard.</p></div>
+          <span class="when">after S2</span>
+        </div>
+        <div class="route-item">
+          <span class="s">S4</span>
+          <div><strong>Quality harness</strong><p>Ten runs, ten blind reviewers, six roles, median floor 8/10, mutation proof.</p></div>
+          <span class="when">last</span>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:16px">
+        <div class="card">
+          <p class="label kicker">S1 contract</p>
+          <ul class="checklist">
+            <li>A claim without a verbatim quotation cannot enter the ledger.</li>
+            <li>Only a supported claim can set a count.</li>
+            <li>The split sums to the completed count with `No clear view`.</li>
+            <li>The writer sees the plan, never the transcript.</li>
+            <li>A failed validation marks the field and stores the warning.</li>
+            <li>QA allows at most one marked field per run.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <p class="label kicker">S1 includes</p>
+          <p>A narrow warning banner, inline marks on fields that already render, and a PDF warning stamp. It does not change personas, intake, the full report design, auth, or the VPS setup.</p>
+          <p style="margin-top:10px"><a href="option-c-quality-system.md">Full contracts, failure paths, and acceptance tests</a></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="verification">
+      <div class="section-head">
+        <div>
+          <p class="label">Verification</p>
+          <h2 id="verification">Each test can say no.</h2>
+        </div>
+        <div>
+          <p>The tests are written from the requirement, not from the code. The first three fail against today's pipeline. A test that passes whether or not the code is correct gives no evidence. The mutation column names the branch to remove.</p>
+        </div>
+      </div>
+      <div class="table-wrap" style="margin-bottom:14px">
+        <table aria-label="Failure policy">
+          <thead><tr><th>Failure</th><th>S1 behaviour</th><th>QA</th></tr></thead>
+          <tbody>
+            <tr><td>Support gate fails</td><td>Retry once, then fail the run.</td><td class="bad-text">Fail</td></tr>
+            <tr><td>Claim pass fails</td><td>Keep the persona with no claims.</td><td>Counts as one marked field.</td></tr>
+            <tr><td>Cluster call fails</td><td>Retry once, then use singleton groups.</td><td>No cohort finding.</td></tr>
+            <tr><td>Validator fails after repair</td><td>Show the draft with an inline mark and a warning.</td><td>One marked field allowed.</td></tr>
+            <tr><td>Two marked fields</td><td>Still show the report with both marks.</td><td class="bad-text">Fail</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Test</th><th>Expected</th><th>Fails now</th><th>Mutation</th></tr></thead>
+          <tbody>
+            <tr><td>Inverted quotation</td><td>Claim is dropped; it cannot count.</td><td class="bad-text">Yes</td><td>Remove support filter</td></tr>
+            <tr><td>Complete count</td><td>2 of 3; "all three" is rejected.</td><td class="bad-text">Yes</td><td>Remove distinct count</td></tr>
+            <tr><td>Complete split</td><td>Third bucket makes the split sum.</td><td class="bad-text">Yes</td><td>Remove No clear view</td></tr>
+            <tr><td>Video anchor</td><td>Terminal timestamp, rising, no invention.</td><td class="warn-text">Partly</td><td>Remove timestamp check</td></tr>
+            <tr><td>Role is not a verdict</td><td>Blocker can adopt; verdict does not change with role.</td><td class="bad-text">Yes</td><td>Remove frame</td></tr>
+            <tr><td>Fact guard</td><td>$49 is in the sheet; $99 is rejected.</td><td class="bad-text">Yes</td><td>Remove fact guard</td></tr>
+            <tr><td>Quote grounding</td><td>Non-substring quote is dropped.</td><td class="good-text">Pass</td><td>Remove substring check</td></tr>
+            <tr><td>Fixed verdicts</td><td>"maybe" is rejected.</td><td class="bad-text">Yes</td><td>Remove enum</td></tr>
+            <tr><td>Support failure</td><td>Retry once, then fail the run.</td><td class="bad-text">Yes</td><td>Remove retry or throw</td></tr>
+            <tr><td>Marked-field budget</td><td>One missing claim passes; two fail QA.</td><td class="bad-text">Yes</td><td>Remove budget check</td></tr>
+            <tr><td>Warning surface</td><td>Banner and inline mark appear.</td><td class="bad-text">Yes</td><td>Remove warning field</td></tr>
+            <tr><td>Finding floor</td><td>Two of five is a finding; two of six is not.</td><td class="bad-text">Yes</td><td>Remove size branch</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="grid-2" style="margin-top:14px">
+        <div class="card">
+          <p class="label kicker">Current red proof</p>
+          <p>A disposable test on 24 Nov 2026 gave the current synthesis one finding with the observation "The price is fair" and the quotation "I nearly choked at the price." The test expected no findings. Current code returned one finding with three citations.</p>
+<pre class="code"><span class="c">bunx vitest run test/acceptance/option-c-red.test.ts</span>
+FAIL  drops a finding whose quote supports the opposite
+expected [] to deeply equal [ { affectedPersonaCount: 3 } ]</pre>
+          <p class="mini" style="margin-top:10px">The test file was removed after the proof. The permanent tests arrive with S1.</p>
+        </div>
+        <div class="card">
+          <p class="label kicker">Quality harness</p>
+          <p><span class="mono">scripts/quality-floor.ts</span> runs the real pipeline ten times. Each run is reviewed by ten fresh contexts across six roles. The script records the median for specificity, grounding, differentiation, and actionability.</p>
+          <p>The floor is 8.0. A green structural report with a 5/10 blind score fails. A 9/10 blind score with a broken citation also fails. The structural gate also fails a run with more than one marked field; a missing claim set counts as one.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="limits">
+      <div class="section-head">
+        <div>
+          <p class="label">Limits</p>
+          <h2 id="limits">What C does not fix.</h2>
+        </div>
+        <div>
+          <p>Five personas are not a representative sample. The support gate is not a proof. The blind harness is the only evidence for the floor. If the artifact does not state a fact, the report must say so.</p>
+        </div>
+      </div>
+      <div class="details">
+        <details>
+          <summary><span>Five personas are not a population.</span><span class="mini">sample</span></summary>
+          <div class="body"><p>The report describes a cohort. It does not claim a market. The counts say "of 5", not "of the market".</p></div>
+        </details>
+        <details>
+          <summary><span>The support gate can still accept a plausible wrong claim.</span><span class="mini">support</span></summary>
+          <div class="body"><p>The gate removes unsupported claims and prevents them from setting counts. The blind review catches the cases the gate misses.</p></div>
+        </details>
+        <details>
+          <summary><span>A green unit suite is not a quality score.</span><span class="mini">proof</span></summary>
+          <div class="body"><p>Structure tests prove the shapes. They do not prove the report is useful. S4 runs the real pipeline and the blind reviewers.</p></div>
+        </details>
+        <details>
+          <summary><span>A screenshot fact is harder to check than a text fact.</span><span class="mini">facts</span></summary>
+          <div class="body"><p>Code can check a quotation against text. It cannot check a quotation against a screenshot. Those facts are marked, and the guard is numeric for screenshots.</p></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="next">
+      <div class="section-head">
+        <div>
+          <p class="label">Next</p>
+          <h2 id="next">Build S1. Then let the gate answer.</h2>
+        </div>
+        <div>
+          <p>S1 is the claim ledger and the derived report. It is the prerequisite for every other slice.</p>
+          <p><a href="option-c-quality-system.md">Open the design file</a> · <a href="analysis-quality-floor.md">Read the prior evidence</a></p>
+        </div>
+      </div>
+      <div class="callout">
+        <p><strong>The first command after implementation:</strong> run the S1 unit suite, then a real five-persona text run. The inverted claim must disappear. The split must sum. Force one validator failure and confirm the banner and inline mark. QA allows at most one marked field.</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Kynd · Option C design · 24 Nov 2026</span>
+      <span><a href="option-c-quality-system.md">Markdown source</a> · <a href="analysis-quality-floor.html">Prior option page</a></span>
+    </footer>
+  </div>
+</main>
+
+<script>
+(function () {
+  const root = document.documentElement;
+  const themeButton = document.getElementById('theme');
+  const stored = localStorage.getItem('kynd-design-theme');
+  if (stored === 'light' || stored === 'dark') root.dataset.theme = stored;
+
+  function syncThemeLabel() {
+    const light = root.dataset.theme === 'light';
+    themeButton.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+    themeButton.title = light ? 'Switch to dark theme' : 'Switch to light theme';
+  }
+  syncThemeLabel();
+
+  themeButton.addEventListener('click', function () {
+    root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('kynd-design-theme', root.dataset.theme);
+    syncThemeLabel();
+  });
+
+  const claimGate = document.getElementById('claim-gate');
+  const claimItems = Array.from(document.querySelectorAll('#claims .claim'));
+  const claimGateNote = document.getElementById('claim-gate-note');
+  const claimReport = document.getElementById('claim-report');
+  const claimCodeNote = document.getElementById('claim-code-note');
+  const priceSupports = document.getElementById('price-supports');
+  const priceOpposes = document.getElementById('price-opposes');
+  const pricePersonas = document.getElementById('price-personas');
+
+  function setPressed(buttons, attr, value) {
+    buttons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute(attr) === value));
+    });
+  }
+
+  function renderClaims() {
+    const on = claimGate.checked;
+    const dropped = on ? new Set(['p1']) : new Set();
+    claimItems.forEach(function (item) {
+      const id = item.getAttribute('data-claim');
+      item.classList.toggle('dropped', dropped.has(id));
+      const old = item.querySelector('.badge');
+      if (old) old.remove();
+      const badge = document.createElement('span');
+      badge.className = 'badge ' + (dropped.has(id) ? 'no' : 'ok');
+      badge.textContent = dropped.has(id) ? 'unsupported' : 'supported';
+      item.appendChild(badge);
+    });
+
+    if (on) {
+      priceSupports.textContent = '0';
+      priceOpposes.textContent = '1';
+      pricePersonas.textContent = '1';
+      claimReport.innerHTML = '<p class="rline">Price group: 1 of 3 personas.</p><p class="rline">SSO group: 1 of 3 personas.</p><p class="rline dim">No group reaches the two-persona finding floor.</p>';
+      claimGateNote.textContent = "On: Maya's quotation supports the opposite of her observation, so the claim is dropped.";
+      claimCodeNote.textContent = 'The writer cannot write "all three". The code has only one price persona.';
+    } else {
+      priceSupports.textContent = '1';
+      priceOpposes.textContent = '1';
+      pricePersonas.textContent = '2';
+      claimReport.innerHTML = '<p class="rline">Price group: 2 of 3 personas.</p><p class="rline">SSO group: 1 of 3 personas.</p><p class="rline bad-text">Price finding: 2 of 3, but one claim is inverted.</p>';
+      claimGateNote.textContent = "Off: Maya's inverted claim stays in the price group, so the count rises to two.";
+      claimCodeNote.textContent = 'The count is correct for the claim set. The claim set is wrong because the gate is off.';
+    }
+  }
+  claimGate.addEventListener('change', renderClaims);
+  renderClaims();
+
+  const kindControls = Array.from(document.querySelectorAll('#kind-controls button'));
+  const roleControls = Array.from(document.querySelectorAll('#role-controls button'));
+  const verdictControls = Array.from(document.querySelectorAll('#verdict-controls button'));
+  const kindQuestion = document.getElementById('kind-question');
+  const roleTask = document.getElementById('role-task');
+  const frameQuestion = document.getElementById('frame-question');
+  const frameTask = document.getElementById('frame-task');
+  const frameEntry = document.getElementById('frame-entry');
+  const frameKind = document.getElementById('frame-kind');
+  const frameVerdict = document.getElementById('frame-verdict');
+  const frameNote = document.getElementById('frame-note');
+  const anchorNote = document.getElementById('anchor-note');
+  const state = { kind: 'landing_page', role: 'blocker', verdict: 'adopt' };
+
+  const questions = {
+    landing_page: 'Would you take the next step this page asks for?',
+    feature_brief: 'Would you adopt this product in your work?',
+    video_script: 'Would you keep watching and act on it?'
+  };
+
+  const tasks = {
+    economic_buyer: 'Judge the money, payback, and risk of saying yes.',
+    daily_user: 'Judge the first use, the daily work, and the effort to switch.',
+    blocker: 'Judge what would stop you from approving this for your team.',
+    champion: 'Judge whether you could sell this internally and defend it.'
+  };
+
+  const entries = {
+    economic_buyer: 'Price, terms, and proof of return.',
+    daily_user: 'The first task and the current workaround.',
+    blocker: 'Security, integration, migration, and support.',
+    champion: 'Team pain, internal proof, and the ask.'
+  };
+
+  const anchorNotes = {
+    landing_page: 'A landing page has no stage anchor. A video script anchors each reached stage to a timestamp.',
+    feature_brief: 'A feature brief uses a verbatim heading or quote as its stage anchor.',
+    video_script: 'A video script uses rising timestamps. The terminal timestamp is the drop-off point.'
+  };
+
+  function renderFrame() {
+    kindQuestion.textContent = questions[state.kind];
+    roleTask.textContent = tasks[state.role];
+    frameQuestion.textContent = questions[state.kind];
+    frameTask.textContent = tasks[state.role];
+    frameEntry.textContent = entries[state.role];
+    frameKind.textContent = state.kind;
+    frameVerdict.textContent = state.verdict;
+    anchorNote.textContent = anchorNotes[state.kind];
+    frameNote.textContent = 'The role is ' + state.role.replace('_', ' ') + '. The verdict is ' + state.verdict + '. The role shaped the reading; it did not choose the answer.';
+  }
+
+  kindControls.forEach(function (button) {
+    button.addEventListener('click', function () {
+      state.kind = button.getAttribute('data-kind');
+      setPressed(kindControls, 'data-kind', state.kind);
+      renderFrame();
+    });
+  });
+
+  roleControls.forEach(function (button) {
+    button.addEventListener('click', function () {
+      state.role = button.getAttribute('data-role');
+      setPressed(roleControls, 'data-role', state.role);
+      renderFrame();
+    });
+  });
+
+  verdictControls.forEach(function (button) {
+    button.addEventListener('click', function () {
+      state.verdict = button.getAttribute('data-verdict');
+      setPressed(verdictControls, 'data-verdict', state.verdict);
+      renderFrame();
+    });
+  });
+  renderFrame();
+
+  const factControls = Array.from(document.querySelectorAll('#fact-controls button'));
+  const factResult = document.getElementById('fact-result');
+
+  factControls.forEach(function (button) {
+    button.addEventListener('click', function () {
+      const price = button.getAttribute('data-price');
+      setPressed(factControls, 'data-price', price);
+      if (price === '49') {
+        factResult.className = 'fact-result good-text';
+        factResult.textContent = 'Draft $49: accepted. The amount is in the fact sheet.';
+      } else {
+        factResult.className = 'fact-result bad-text';
+        factResult.textContent = 'Draft $99: rejected. The fact sheet says $49, so the writer cannot ship this number.';
+      }
+    });
+  });
+
+  const aVerifier = document.getElementById('a-verifier');
+  const aOut = document.getElementById('a-out');
+  aVerifier.addEventListener('change', function () {
+    aOut.textContent = aVerifier.checked
+      ? 'On: one inverted quote is dropped. The prose count still says three.'
+      : 'Off: all three claims survive.';
+  });
+
+  const bOptGate = document.getElementById('b-opt-gate');
+  const bOut = document.getElementById('b-out');
+  bOptGate.addEventListener('change', function () {
+    bOut.textContent = bOptGate.checked
+      ? 'On: 2 of 3 claims survive. The count is code-owned.'
+      : 'Off: 3 of 3 claims count, including the inverted one.';
+  });
+})();
+</script>
+</body>
+</html>
