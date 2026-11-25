@@ -38,6 +38,15 @@ function plan() {
   return buildSynthesisPlan({ researchQuestion: "q", ledger, personaNames: ["Sarah Chen"] });
 }
 
+/** Five completed personas, a two-persona group: 2/5 = 40%. */
+function widePlan() {
+  return buildSynthesisPlan({
+    researchQuestion: "q",
+    ledger: { ...ledger, completedCount: 5, totalPersonaCount: 5, failedCount: 0, verdicts: { adopt: 0, trial: 3, reject: 1, undecided: 1 } },
+    personaNames: ["Sarah Chen"],
+  });
+}
+
 function draft(overrides: Partial<Parameters<typeof buildArtifactSynthesis>[1]> = {}) {
   return {
     overview: "Several personas stopped.",
@@ -61,6 +70,49 @@ describe("validateSynthesis", () => {
     const synthesis = buildArtifactSynthesis(p, draft({ overview: "All 47 personas stopped." }));
     const violations = validateSynthesis(p, synthesis);
     expect(violations.some((v) => v.field === "overview" && v.message.includes("47"))).toBe(true);
+  });
+
+  it('rejects "100 personas" when the cohort is smaller than 100', () => {
+    const p = widePlan();
+    const synthesis = buildArtifactSynthesis(p, draft({ overview: "100 personas stopped." }));
+    const violations = validateSynthesis(p, synthesis);
+    expect(violations.some((v) => v.field === "overview" && v.message.includes("100"))).toBe(true);
+  });
+
+  it('rejects "40 personas" even though 40% is a derived percentage', () => {
+    const p = widePlan();
+    const synthesis = buildArtifactSynthesis(p, draft({ overview: "40 personas stopped." }));
+    const violations = validateSynthesis(p, synthesis);
+    expect(violations.some((v) => v.field === "overview" && v.message.includes("40"))).toBe(true);
+  });
+
+  it('accepts a derived percentage only with a % suffix', () => {
+    const p = widePlan();
+    const accepted = buildArtifactSynthesis(p, draft({ overview: "40% of personas stopped." }));
+    expect(validateSynthesis(p, accepted)).toEqual([]);
+
+    const wrong = buildArtifactSynthesis(
+      p,
+      draft({ findings: [{ groupId: "g1", observation: "100% of personas stalled.", impact: "They stop." }] }),
+    );
+    expect(validateSynthesis(p, wrong).some((v) => v.field.startsWith("finding:g1") && v.message.includes("100%"))).toBe(true);
+  });
+
+  it('allows 100% only when the group covers every completed persona', () => {
+    const p = buildSynthesisPlan({
+      researchQuestion: "q",
+      ledger: {
+        ...ledger,
+        completedCount: 5,
+        totalPersonaCount: 5,
+        failedCount: 0,
+        verdicts: { adopt: 0, trial: 3, reject: 1, undecided: 1 },
+        groups: [{ ...group, personaCount: 5, opposes: 5 }],
+      },
+      personaNames: ["Sarah Chen"],
+    });
+    const synthesis = buildArtifactSynthesis(p, draft({ overview: "100% of personas stopped on price." }));
+    expect(validateSynthesis(p, synthesis).some((v) => v.field === "overview" && v.message.includes("100%"))).toBe(false);
   });
 
   it('rejects "all" when the group does not cover every completed persona', () => {
@@ -127,6 +179,8 @@ describe("markedFieldCount", () => {
     // One finding is one marked field, even when its two sentences failed.
     expect(markedFieldCount(["finding:g1:observation: a", "finding:g1:impact: b"])).toBe(1);
     expect(markedFieldCount(["finding:g1:impact: a", "finding:g2:impact: b"])).toBe(2);
+    expect(markedFieldCount(["split:g1: a", "split:g2: b"])).toBe(2);
+    expect(markedFieldCount(["friction:0: a", "friction:1: b"])).toBe(2);
     expect(markedFieldCount([])).toBe(0);
   });
 

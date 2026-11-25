@@ -42,6 +42,18 @@ describe("personaIdentityViolations", () => {
     expect(violations.join(" | ")).toMatch(/does not name the persona \(Sky\)/);
   });
 
+  it("requires the name in each summary field, not just one", () => {
+    const missingInAnswer = personaIdentityViolations(
+      response({ overview: "Sky stopped.", researchQuestionAnswer: "The price stopped her." }),
+    );
+    expect(missingInAnswer.join(" | ")).toMatch(/researchQuestionAnswer does not name the persona \(Sky\)/);
+
+    const missingInOverview = personaIdentityViolations(
+      response({ overview: "The price stopped her.", researchQuestionAnswer: "Sky stopped." }),
+    );
+    expect(missingInOverview.join(" | ")).toMatch(/overview does not name the persona \(Sky\)/);
+  });
+
   it("flags a summary written in the first person", () => {
     const violations = personaIdentityViolations(
       response({ researchQuestionAnswer: "I would approve it once the cap is named, said Sky." }),

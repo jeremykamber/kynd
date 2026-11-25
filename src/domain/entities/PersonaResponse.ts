@@ -52,12 +52,18 @@ export interface PersonaResponse {
   decisionFrame?: SimulationFrame;
 }
 
+const StageAnchorSchema = z.object({
+  kind: z.enum(["timestamp", "heading", "quote"]).describe("What the anchor points at."),
+  value: z.string().describe("A timestamp, heading, or phrase copied from the artifact."),
+});
+
 const StageJourneySchema = z.object({
   stage: z.enum(["interpretation", "understanding", "belief", "motivation", "action"]),
   description: z.string().describe("What the persona experienced at this stage."),
   sentiment: z.enum(["positive", "neutral", "negative"]).describe("How the persona felt during this stage."),
   outcome: z.enum(["succeeded", "blocked", "stopped"]).describe("Whether the persona successfully passed this stage."),
   transition: z.string().optional().describe("What caused progression to the next stage, or why they stopped."),
+  anchor: StageAnchorSchema.optional().describe("Where in the artifact this stage refers to."),
 });
 
 const MajorFindingSchema = z.object({
@@ -109,19 +115,26 @@ export function personaIdentityViolations(
   fallbackName?: string,
 ): string[] {
   const name = response.personaProfile?.name ?? fallbackName ?? "";
-  const summary = [response.overview ?? "", response.researchQuestionAnswer ?? ""];
-  // A verbatim quote of the artifact ("show me one") is evidence, not voice.
-  const joined = withoutQuotedSpans(summary.join(" "));
+  const fields = [
+    { field: "overview", text: response.overview ?? "" },
+    { field: "researchQuestionAnswer", text: response.researchQuestionAnswer ?? "" },
+  ];
   const violations: string[] = [];
 
-  if (name && !joined.toLowerCase().includes(name.toLowerCase())) {
-    violations.push(`does not name the persona (${name})`);
-  }
-  if (/\bthe user\b/i.test(joined)) {
-    violations.push('refers to "the user" instead of the persona');
-  }
-  if (/\b(I|I'm|I've|my|me)\b/i.test(joined)) {
-    violations.push("speaks in the first person");
+  // Each summary field must name the persona on its own. Checking the joined
+  // text let a name in one field cover an anonymous sentence in the other.
+  for (const { field, text } of fields) {
+    // A verbatim quote of the artifact ("show me one") is evidence, not voice.
+    const plain = withoutQuotedSpans(text);
+    if (name && !plain.toLowerCase().includes(name.toLowerCase())) {
+      violations.push(`${field} does not name the persona (${name})`);
+    }
+    if (/\bthe user\b/i.test(plain)) {
+      violations.push(`${field} refers to "the user" instead of the persona`);
+    }
+    if (/\b(I|I'm|I've|my|me)\b/i.test(plain)) {
+      violations.push(`${field} speaks in the first person`);
+    }
   }
   return violations;
 }
@@ -150,6 +163,8 @@ export function validatePersonaResponse(response: PersonaResponse): boolean {
     const stage = response.customerJourney[i];
     if (!stage || stage.stage !== COGNITIVE_STAGES[i]) return false;
     if (!stage.description || !stage.sentiment || !stage.outcome) return false;
+    if (stage.anchor && !["timestamp", "heading", "quote"].includes(stage.anchor.kind)) return false;
+    if (stage.anchor && typeof stage.anchor.value !== "string") return false;
   }
 
   for (const finding of response.majorFindings) {

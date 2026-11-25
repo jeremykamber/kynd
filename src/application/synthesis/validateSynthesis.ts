@@ -8,56 +8,93 @@ export interface SynthesisViolation {
   message: string;
 }
 
-const NUMBER_RE = /\d[\d,]*(?:\.\d+)?/g;
+const NUMBER_RE = /\d[\d,]*(?:\.\d+)?\s*%?/g;
 const RECOMMENDATION_RE =
   /\byou should\b|\bwe recommend\b|\bi recommend\b|\bmy recommendation\b|\bshould (?:add|remove|lower|raise|change|improve|consider|avoid)\b/i;
 
-function numbersIn(text: string): number[] {
-  const found: number[] = [];
+interface NumberToken {
+  value: number;
+  /** The token carried a `%` suffix. */
+  percent: boolean;
+}
+
+function numberTokens(text: string): NumberToken[] {
+  const found: NumberToken[] = [];
   for (const match of text.match(NUMBER_RE) ?? []) {
-    const value = Number(match.replace(/,/g, ''));
-    if (Number.isFinite(value)) found.push(value);
+    const percent = match.trim().endsWith('%');
+    const value = Number(match.replace(/[,\s%]/g, ''));
+    if (Number.isFinite(value)) found.push({ value, percent });
   }
   return found;
 }
 
-/**
- * Numbers the writer may use without inventing anything: counts from the
- * ledger and verdict tally, percentages those counts derive, and numbers the
- * artifact itself states.
- */
-function allowedNumbers(plan: SynthesisPlan): Set<number> {
-  const allowed = new Set<number>([
-    plan.completedCount,
-    plan.failedCount,
-    plan.totalPersonaCount,
-    100,
-  ]);
-  for (const value of Object.values(plan.ledger.verdicts)) allowed.add(value);
-  for (const group of plan.ledger.groups) {
-    for (const count of [group.personaCount, group.supports, group.opposes, group.neutral]) {
-      allowed.add(count);
-      if (plan.completedCount > 0) {
-        allowed.add(Math.round((count / plan.completedCount) * 100));
-        allowed.add(Math.floor((count / plan.completedCount) * 100));
-      }
-    }
-  }
-  for (const fact of plan.profile?.facts ?? []) {
-    for (const value of numbersIn(`${fact.label} ${fact.value} ${fact.sourceQuote ?? ''}`)) {
-      allowed.add(value);
-    }
-  }
-  for (const question of plan.profile?.openQuestions ?? []) {
-    for (const value of numbersIn(question)) allowed.add(value);
-  }
-  return allowed;
+interface AllowedNumbers {
+  /** Counts the ledger holds. A bare number may only be one of these. */
+  counts: Set<number>;
+  /** Percentages the counts derive, or the artifact states with a `%`. */
+  percents: Set<number>;
 }
 
-function checkNumbers(field: string, text: string, allowed: Set<number>, violations: SynthesisViolation[]): void {
-  for (const value of numbersIn(text)) {
-    if (!allowed.has(value)) {
-      violations.push({ field, message: `states the number ${value}, which the ledger and facts do not contain.` });
+/**
+ * Numbers the writer may use without inventing anything. A count is a count
+ * only when the ledger holds it; a derived percentage needs a `%` suffix, so
+ * "40 personas" cannot pass as "40%". 100 is allowed only as a derived
+ * percentage (a group that covers every completed persona) or when the cohort
+ * actually has 100 personas.
+ */
+function allowedNumbers(plan: SynthesisPlan): AllowedNumbers {
+  const counts = new Set<number>([plan.completedCount, plan.failedCount, plan.totalPersonaCount]);
+  for (const value of Object.values(plan.ledger.verdicts)) counts.add(value);
+  for (const group of plan.ledger.groups) {
+    for (const count of [group.personaCount, group.supports, group.opposes, group.neutral]) {
+      counts.add(count);
+    }
+  }
+
+  const percents = new Set<number>();
+  if (plan.completedCount > 0) {
+    // Percentages derive from a group or a verdict, not from the cohort size
+    // itself: 5 completed personas does not make "100%" true for a 2-persona
+    // group. A fully completed cohort may say 100%.
+    const derived = [
+      ...plan.ledger.groups.flatMap((group) => [group.personaCount, group.supports, group.opposes, group.neutral]),
+      ...Object.values(plan.ledger.verdicts),
+    ];
+    for (const count of derived) {
+      percents.add(Math.round((count / plan.completedCount) * 100));
+      percents.add(Math.floor((count / plan.completedCount) * 100));
+    }
+    if (plan.completedCount === plan.totalPersonaCount) percents.add(100);
+  }
+
+  const factTexts = [
+    ...(plan.profile?.facts ?? []).map((fact) => `${fact.label} ${fact.value} ${fact.sourceQuote ?? ''}`),
+    ...(plan.profile?.openQuestions ?? []),
+  ];
+  for (const text of factTexts) {
+    for (const token of numberTokens(text)) {
+      if (token.percent) percents.add(token.value);
+      else if (token.value !== 100) counts.add(token.value);
+    }
+  }
+
+  return { counts, percents };
+}
+
+function checkNumbers(
+  field: string,
+  text: string,
+  allowed: AllowedNumbers,
+  violations: SynthesisViolation[],
+): void {
+  for (const token of numberTokens(text)) {
+    const okay = token.percent ? allowed.percents.has(token.value) : allowed.counts.has(token.value);
+    if (!okay) {
+      const label = token.percent ? `${token.value}%` : String(token.value);
+      violations.push({
+        field,
+        message: `states the number ${label}, which the ledger and facts do not support.`,
+      });
     }
   }
 }
@@ -79,6 +116,12 @@ function checkQuantifiers(
     violations.push({
       field,
       message: `says "most" for a group that ${group.personaCount} of ${completedCount} personas hold.`,
+    });
+  }
+  if (/\b100\s*%/i.test(text) && group.personaCount !== completedCount) {
+    violations.push({
+      field,
+      message: `says "100%" for a group that ${group.personaCount} of ${completedCount} personas hold.`,
     });
   }
   if (/\bnone\b/i.test(text) && group.personaCount !== 0) {
@@ -217,7 +260,10 @@ export function warningField(warning: string): string {
  */
 function markedFieldKey(warning: string): string {
   const parts = warningField(warning).split(':');
-  return parts[0] === 'finding' && parts.length >= 2 ? `finding:${parts[1]}` : parts[0];
+  // Each finding is one marked field; each split and each friction keeps its
+  // own identifier so two bad splits count as two.
+  if (parts[0] === 'finding' && parts.length >= 2) return `finding:${parts[1]}`;
+  return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : parts[0];
 }
 
 /** The QA budget: at most one marked field per run. */
