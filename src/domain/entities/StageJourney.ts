@@ -56,7 +56,10 @@ export function sanitizeJourneyAnchors(
       previousSeconds = seconds;
       return stage;
     }
-    if (haystack !== null && !haystack.includes(anchor.value.replace(/\s+/g, ' ').trim().toLowerCase())) {
+    // A heading or quote is only verifiable against artifact text. A site or
+    // screenshot run has none, so whatever the model emitted is unverifiable.
+    if (haystack === null) return { ...stage, anchor: undefined };
+    if (!haystack.includes(anchor.value.replace(/\s+/g, ' ').trim().toLowerCase())) {
       return { ...stage, anchor: undefined };
     }
     return stage;

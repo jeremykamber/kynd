@@ -108,6 +108,27 @@ describe("guardProfileFacts", () => {
     expect(profile.degraded.join(" ")).toContain('Fact "Pro price" removed');
   });
 
+  it("drops a fact whose value contradicts its own quote", () => {
+    const profile = guardProfileFacts(
+      {
+        ...base,
+        facts: [
+          {
+            kind: "price",
+            label: "Pro price",
+            value: "$99 per month",
+            sourceQuote: "$49 per month",
+            source: "text",
+          },
+        ],
+      },
+      { text: "Pro plan: $49 per month, billed annually.", hasScreenshot: false },
+    );
+
+    expect(profile.facts).toEqual([]);
+    expect(profile.degraded.join(" ")).toContain("value states a number the quote does not");
+  });
+
   it("drops a text fact that has no quote at all", () => {
     const profile = guardProfileFacts(
       { ...base, facts: [{ kind: "claim", label: "Claim", value: "Fast", source: "text" }] },

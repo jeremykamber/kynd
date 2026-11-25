@@ -58,6 +58,16 @@ describe("sanitizeJourneyAnchors", () => {
     expect(journey[1].anchor).toBeUndefined();
   });
 
+  it("drops a heading or quote when there is no artifact text to verify it", () => {
+    const textProfile: ArtifactProfile = { ...base, contentKind: "landing_page", stageAnchorKind: "quote" };
+    const journey = sanitizeJourneyAnchors(
+      [stage("interpretation", { kind: "quote", value: "The Growth tier is required" })],
+      textProfile,
+      undefined,
+    );
+    expect(journey[0].anchor).toBeUndefined();
+  });
+
   it("drops every anchor when the profile allows none", () => {
     const siteProfile: ArtifactProfile = { ...base, contentKind: "landing_page", stageAnchorKind: "none" };
     const journey = sanitizeJourneyAnchors(

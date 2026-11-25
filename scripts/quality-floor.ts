@@ -132,6 +132,7 @@ export function structuralFailures(run: RunFile): StructuralResult {
   const plan = buildSynthesisPlan({
     researchQuestion: run.researchQuestion ?? 'What prevents the reader from acting?',
     ledger,
+    ...(run.artifactProfile ? { profile: run.artifactProfile } : {}),
     personaNames: names,
   });
   const violations = validateSynthesis(plan, synthesis);

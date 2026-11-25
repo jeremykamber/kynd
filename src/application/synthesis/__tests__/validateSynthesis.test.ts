@@ -151,6 +151,41 @@ describe("validateSynthesis", () => {
     expect(violations.some((v) => v.field.startsWith("finding:g1") && v.message.includes('"all"'))).toBe(true);
   });
 
+  it('rejects "all" in the summary when no group covers the cohort', () => {
+    const p = plan();
+    const synthesis = buildArtifactSynthesis(p, draft({ overview: "All three personas hit the same wall." }));
+    expect(validateSynthesis(p, synthesis).some((v) => v.field === "overview" && v.message.includes('"all"'))).toBe(true);
+  });
+
+  it("rejects a quantifier that overstates a split or a friction group", () => {
+    const p = buildSynthesisPlan({
+      researchQuestion: "q",
+      ledger: { ...ledger, groups: [{ ...group, supports: 1, opposes: 1 }] },
+      personaNames: ["Sarah Chen"],
+    });
+    const split = buildArtifactSynthesis(
+      p,
+      draft({
+        disagreements: [
+          {
+            groupId: "g1",
+            supportsLabel: "All personas",
+            opposesLabel: "No one",
+          },
+        ],
+      }),
+    );
+    expect(validateSynthesis(p, split).some((v) => v.field.startsWith("split:g1") && v.message.includes('"all"'))).toBe(true);
+
+    const frictionPlan = plan();
+    const friction = buildArtifactSynthesis(frictionPlan, draft({ frictions: [{ groupId: "g1", text: "All five personas stalled." }] }));
+    expect(validateSynthesis(frictionPlan, friction).some((v) => v.field === "friction:0" && v.message.includes('"all"'))).toBe(true);
+
+    // "found none" is about the artifact, not the group: it is not a quantifier.
+    const artifactNone = buildArtifactSynthesis(frictionPlan, draft({ frictions: [{ groupId: "g1", text: "Personas looked for a price and found none." }] }));
+    expect(validateSynthesis(frictionPlan, artifactNone).some((v) => v.field === "friction:0" && v.message.includes('"none"'))).toBe(false);
+  });
+
   it("rejects a recommendation", () => {
     const p = plan();
     const synthesis = buildArtifactSynthesis(

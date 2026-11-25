@@ -34,7 +34,7 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import type { ArtifactInput } from '@/domain/entities/ArtifactInput';
-import { withoutQuotedSpans } from '@/domain/entities/PersonaResponse';
+import { isCompletedPersonaResponse, withoutQuotedSpans } from '@/domain/entities/PersonaResponse';
 import { MONOLOGUE_BANNED_TERMS } from '@/infrastructure/adapters/VisionAnalysisAdapter';
 import { BuildClaimLedgerUseCase } from '@/application/usecases/BuildClaimLedgerUseCase';
 import { buildSynthesisPlan, findingFloor } from '@/application/synthesis/plan';
@@ -485,7 +485,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
     { runId },
   );
 
-  const completed = responses.filter((r) => r.overview && r.customerJourney.length > 0 && !r.overview.startsWith("Analysis could not be completed."));
+  const completed = responses.filter(isCompletedPersonaResponse);
   // Persist the raw run BEFORE synthesis: the synthesis call is the longest
   // single LLM request in the run, and losing three monologues to a timeout
   // in it wastes the whole pipeline. Synthesis failures are reported via the
@@ -520,6 +520,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
     const plan = buildSynthesisPlan({
       researchQuestion,
       ledger,
+      profile,
       personaNames: completed.map((r: any) => r.personaProfile?.name ?? 'Unnamed persona'),
     });
     return new SynthesizeArtifactResultsUseCase(llm).execute(plan, { runId });

@@ -6,7 +6,7 @@ import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
 import { validateTextArtifact } from "@/domain/entities/ArtifactIntakeLimits";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
-import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
+import { isCompletedPersonaResponse, type PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import { LlmServiceImpl } from "@/infrastructure/adapters/LlmServiceImpl";
 import { cancellationManager } from "@/infrastructure/RequestCancellationManager";
@@ -146,7 +146,7 @@ async function runLocally(
             if (!abortSignal.aborted) {
                 // Generate cross-persona synthesis
                 let synthesis: ArtifactSynthesis | null = null;
-                const completedResponses = responses.filter(r => r.overview && r.customerJourney.length > 0);
+                const completedResponses = responses.filter(isCompletedPersonaResponse);
                 const failedCount = responses.length - completedResponses.length;
 
                 try {
@@ -160,6 +160,7 @@ async function runLocally(
                         const plan = buildSynthesisPlan({
                             researchQuestion,
                             ledger,
+                            profile,
                             personaNames: completedResponses.map((r) => r.personaProfile?.name ?? "Unnamed persona"),
                         });
                         synthesis = await new SynthesizeArtifactResultsUseCase(llmService).execute(plan, { runId: id });

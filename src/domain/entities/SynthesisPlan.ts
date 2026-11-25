@@ -8,7 +8,7 @@ import type { ClaimGroup, ClaimLedger } from './PersonaClaim';
  */
 export interface SynthesisPlan {
   researchQuestion: string;
-  /** Absent until the artifact profile slice lands. */
+  /** The artifact reading; absent only for older runs without a profile. */
   profile?: ArtifactProfile;
   ledger: ClaimLedger;
   /** Groups at the cohort-size finding floor. */

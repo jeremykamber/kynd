@@ -11,6 +11,7 @@ import { buildSynthesisPlan } from "@/application/synthesis/plan";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 
 import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUseCase";
+import { isCompletedPersonaResponse } from "@/domain/entities/PersonaResponse";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
 import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
@@ -186,7 +187,7 @@ async function runAnalysis(
             // Generate cross-persona synthesis; failure is non-fatal (logged,
             // the UI renders persona results without the cohort report).
             let synthesis: ArtifactSynthesis | undefined;
-            const completedResponses = responses.filter((r) => r.overview && r.customerJourney.length > 0 && !r.overview.startsWith("Analysis could not be completed."));
+            const completedResponses = responses.filter(isCompletedPersonaResponse);
             if (completedResponses.length > 0) {
                 try {
                     log.info("runAnalysis", "Generating cross-persona synthesis...");

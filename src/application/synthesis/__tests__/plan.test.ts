@@ -103,6 +103,28 @@ describe("buildArtifactSynthesis", () => {
     expect(synthesis.biggestFrictions).toEqual(["No visible price."]);
   });
 
+  it("carries the profile facts into the saved synthesis", () => {
+    const profile = {
+      contentKind: "landing_page" as const,
+      facts: [{ kind: "price" as const, label: "Pro price", value: "$99 per run", source: "text" as const }],
+      openQuestions: ["Is there an annual plan?"],
+      stageAnchorKind: "heading" as const,
+      confidence: "high" as const,
+      degraded: [],
+    };
+    const plan = buildSynthesisPlan({ researchQuestion: "q", ledger: ledger(), profile });
+    const synthesis = buildArtifactSynthesis(plan, {
+      overview: "Several personas stalled.",
+      researchQuestionAnswer: "Price opacity blocks the next step.",
+      findings: [],
+      disagreements: [],
+      frictions: [],
+    });
+
+    expect(synthesis.facts).toEqual(profile.facts);
+    expect(synthesis.contentKind).toBe("landing_page");
+  });
+
   it("carries rejected claims for the persona card without counting them", () => {
     const rejected = ledger().rejectedClaims;
     const plan = buildSynthesisPlan({ researchQuestion: "q", ledger: ledger() });

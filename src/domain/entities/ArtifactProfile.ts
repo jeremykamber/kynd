@@ -206,6 +206,16 @@ function normalize(value: string): string {
   return value.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+/** Numbers a reader would see. Used to catch a value that contradicts its quote. */
+function numbersIn(value: string): Set<number> {
+  const found = new Set<number>();
+  for (const match of value.match(/\d[\d,]*(?:\.\d+)?/g) ?? []) {
+    const number = Number(match.replace(/,/g, ''));
+    if (Number.isFinite(number)) found.add(number);
+  }
+  return found;
+}
+
 /**
  * The fact guard. A text fact survives only when its source quote is a verbatim
  * substring of the artifact text; a screenshot fact survives only when the run
@@ -231,6 +241,14 @@ export function guardProfileFacts(
     }
     if (!fact.sourceQuote || !haystack.includes(normalize(fact.sourceQuote))) {
       removed.push(`Fact "${fact.label}" removed: its quote is not in the artifact.`);
+      continue;
+    }
+    // The quote can be real while the rendered value is not: "$99" beside a
+    // "$49" quote must not reach the panel or the allowed-number set.
+    const quoteNumbers = numbersIn(fact.sourceQuote);
+    const valueNumbers = numbersIn(fact.value);
+    if ([...valueNumbers].some((number) => !quoteNumbers.has(number))) {
+      removed.push(`Fact "${fact.label}" removed: its value states a number the quote does not.`);
       continue;
     }
     kept.push(fact);

@@ -105,13 +105,17 @@ function checkQuantifiers(
   completedCount: number,
   violations: SynthesisViolation[],
 ): void {
-  if (/\ball\b/i.test(text) && group.personaCount !== completedCount) {
+  const COUNT = '(?:one|two|three|four|five|six|seven|eight|nine|ten|\\d+)\\s+';
+  const ALL = new RegExp(`\\ball\\s+(?:(?:of\\s+)?(?:the\\s+)?|${COUNT})?(?:personas|users|participants|people|cohort)\\b`, 'i');
+  const MOST = new RegExp(`\\bmost\\s+(?:(?:of\\s+)?(?:the\\s+)?|${COUNT})?(?:personas|users|participants|people|cohort)\\b`, 'i');
+  const NONE = /\bnone\s+of\s+(?:(?:the|\d+)\s+)*(?:personas|users|participants|people|cohort)\b|\bno\s+(?:persona|user|participant)s?\b/i;
+  if (ALL.test(text) && group.personaCount !== completedCount) {
     violations.push({
       field,
       message: `says "all" for a group that ${group.personaCount} of ${completedCount} personas hold.`,
     });
   }
-  if (/\bmost\b/i.test(text) && group.personaCount <= completedCount / 2) {
+  if (MOST.test(text) && group.personaCount <= completedCount / 2) {
     violations.push({
       field,
       message: `says "most" for a group that ${group.personaCount} of ${completedCount} personas hold.`,
@@ -123,7 +127,7 @@ function checkQuantifiers(
       message: `says "100%" for a group that ${group.personaCount} of ${completedCount} personas hold.`,
     });
   }
-  if (/\bnone\b/i.test(text) && group.personaCount !== 0) {
+  if (NONE.test(text) && group.personaCount !== 0) {
     violations.push({
       field,
       message: 'says "none" for a group that has supporting personas.',
@@ -170,10 +174,20 @@ export function validateSynthesis(plan: SynthesisPlan, synthesis: ArtifactSynthe
   checkRecommendation('answer', synthesis.researchQuestionAnswer, violations);
   checkNames('overview', synthesis.overview, personaNames, violations);
   checkNames('answer', synthesis.researchQuestionAnswer, personaNames, violations);
-  if (/\ball\b/i.test(`${synthesis.overview} ${synthesis.researchQuestionAnswer}`) && plan.completedCount !== plan.totalPersonaCount) {
+  const cohortText = `${synthesis.overview} ${synthesis.researchQuestionAnswer}`;
+  if (/\ball\b/i.test(cohortText) && plan.completedCount !== plan.totalPersonaCount) {
     violations.push({
       field: 'overview',
       message: `says "all" while only ${plan.completedCount} of ${plan.totalPersonaCount} personas completed.`,
+    });
+  }
+  // "All three personas hit the same wall" is a group claim in the summary.
+  // It is only true when a ledger group actually covers every completed persona.
+  const summaryAll = /\ball\s+(?:(?:of\s+)?(?:the\s+)?|(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+)?(?:personas|users|participants|people|cohort)\b/i;
+  if (summaryAll.test(cohortText) && !plan.ledger.groups.some((g) => g.personaCount === plan.completedCount)) {
+    violations.push({
+      field: 'overview',
+      message: `says "all" but no ledger group covers all ${plan.completedCount} completed personas.`,
     });
   }
 
@@ -221,10 +235,12 @@ export function validateSynthesis(plan: SynthesisPlan, synthesis: ArtifactSynthe
         message: `splits ${sum} personas; ${plan.completedCount} completed.`,
       });
     }
+    const group = disagreement.groupId ? groupsById.get(disagreement.groupId) : undefined;
     for (const side of disagreement.split) {
       checkNumbers(field, side.view, allowed, violations);
       checkRecommendation(field, side.view, violations);
       checkNames(field, side.view, personaNames, violations);
+      if (group) checkQuantifiers(field, side.view, group, plan.completedCount, violations);
     }
   }
 
@@ -243,6 +259,7 @@ export function validateSynthesis(plan: SynthesisPlan, synthesis: ArtifactSynthe
     checkNumbers(field, text, allowed, violations);
     checkRecommendation(field, text, violations);
     checkNames(field, text, personaNames, violations);
+    checkQuantifiers(field, text, group, plan.completedCount, violations);
   });
 
   return violations;

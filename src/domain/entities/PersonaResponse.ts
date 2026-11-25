@@ -140,6 +140,18 @@ export function personaIdentityViolations(
 }
 
 /**
+ * Whether a response is a real completed analysis rather than the degraded
+ * fallback `AnalyzeArtifactUseCase` writes when a persona pipeline throws.
+ */
+export function isCompletedPersonaResponse(response: PersonaResponse): boolean {
+  return Boolean(
+    response.overview &&
+    response.customerJourney?.length > 0 &&
+    !response.overview.startsWith("Analysis could not be completed."),
+  );
+}
+
+/**
  * Checks a value has every required PersonaResponse field and a journey that
  * covers all five cognitive stages once, in order. Optional fields and the
  * artifact/persona identity fields are not cross-checked.
