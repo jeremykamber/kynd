@@ -44,6 +44,7 @@ function makeLlm(): LlmServicePort {
     generateVisceralMonologue: vi.fn().mockResolvedValue({ text: 'visceral reaction text' }),
     extractArtifactProfile: vi.fn().mockResolvedValue(baseProfile),
     extractPersonaClaims: vi.fn().mockResolvedValue([]),
+    auditPersonaReasons: vi.fn().mockResolvedValue([]),
     extractPersonaResponse: vi.fn().mockResolvedValue({
       overview: 'ok',
       customerJourney: [
@@ -251,6 +252,49 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
       'rq',
       expect.objectContaining({ frame }),
     )
+  })
+
+  it('replaces a reason with the audited transcript-grounded reason', async () => {
+    vi.mocked(llm.auditPersonaReasons).mockResolvedValue([
+      { personaId: 'p-Ada', decisiveReason: 'Ada stayed undecided because the page never names a price.' },
+    ])
+    const useCase = makeUseCase(llm)
+    const { responses } = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+    expect(responses[0].decisiveReason).toBe('Ada stayed undecided because the page never names a price.')
+    expect(llm.auditPersonaReasons).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a reason the audit cannot ground', async () => {
+    vi.mocked(llm.extractPersonaResponse).mockResolvedValue({
+      overview: 'ok',
+      customerJourney: [
+        { stage: 'interpretation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'understanding', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'belief', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'motivation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'action', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+      ],
+      researchQuestionAnswer: 'answer',
+      majorFindings: [],
+      pointsOfFriction: [],
+      unansweredQuestions: [],
+      decisiveReason: 'A reason with an invented detail.',
+      decisiveReasonQuote: 'visceral reaction text',
+    } as never)
+    vi.mocked(llm.auditPersonaReasons).mockResolvedValue([{ personaId: 'p-Ada', decisiveReason: '' }])
+    const useCase = makeUseCase(llm)
+    const { responses } = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+    expect(responses[0].decisiveReason).toBeUndefined()
   })
 
   it('lets a blocker adopt: the role never implies the verdict', async () => {

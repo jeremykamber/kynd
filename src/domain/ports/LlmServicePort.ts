@@ -284,6 +284,27 @@ export interface LlmServicePort {
     ): Promise<SynthesisDraft>;
 
     /**
+     * Rewrites only the report's overview and answer from the verified
+     * findings, frictions, and verdict tally. Receives no raw transcript and
+     * no group outside the built report.
+     */
+    summarizeReport(
+        plan: SynthesisPlan,
+        report: ArtifactSynthesis,
+        options?: { runId?: string },
+    ): Promise<{ overview: string; researchQuestionAnswer: string }>;
+
+    /**
+     * Audits each completed persona's stated reason against its own
+     * transcript and returns a supported replacement. An empty reason means
+     * the transcript supports none; callers drop the field.
+     */
+    auditPersonaReasons(
+        responses: PersonaResponse[],
+        options?: { runId?: string },
+    ): Promise<Array<{ personaId: string; decisiveReason: string }>>;
+
+    /**
      * Validates if a user's prompt is within the persona's expected domain.
      * Prevents requests for code, poetry, or other general assistant tasks.
      * @returns `isValid: false` with a human-readable `reason` when rejected.

@@ -100,7 +100,8 @@ describe("S1 acceptance: claim ledger", () => {
 
     const split = synthesis.disagreements[0].split;
     expect(split.reduce((sum, side) => sum + side.personaCount, 0)).toBe(3);
-    expect(split.find((side) => side.view === "No clear view")?.personaCount).toBe(1);
+    expect(split.some((side) => side.view === "No clear view")).toBe(true);
+    expect(split.find((side) => side.view === "Neutral")?.personaCount).toBe(1);
   });
 
   it("fails the run when the support gate fails twice", async () => {

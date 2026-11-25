@@ -1,6 +1,6 @@
 import type { Persona } from "@/domain/entities/Persona";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
-import { validatePersonaResponse } from "@/domain/entities/PersonaResponse";
+import { isCompletedPersonaResponse, validatePersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
 import { AnalysisProgressStep } from "@/domain/entities/ArtifactAnalysis";
@@ -417,6 +417,32 @@ export class AnalyzeArtifactUseCase {
     if (responses.length === 0 && personas.length > 0) {
       log.error("AnalyzeArtifactUseCase", "All persona analyses failed");
       throw new Error("All persona analyses failed");
+    }
+
+    // Ground each stated reason in the transcript it came from. Extraction
+    // sees the transcript, but persona priors still slip in tools, numbers, or
+    // prior events that were never said. A failed audit keeps the extracted
+    // reason rather than losing the persona.
+    try {
+      const audited = await this.llmService.auditPersonaReasons(responses, { runId });
+      const reasonById = new Map(audited.map((item) => [item.personaId, item.decisiveReason]));
+      for (const [index, response] of responses.entries()) {
+        if (!isCompletedPersonaResponse(response)) continue;
+        const personaId = response.personaId ?? response.id;
+        if (!reasonById.has(personaId)) continue;
+        const reason = String(reasonById.get(personaId) ?? "").trim();
+        if (reason) {
+          responses[index] = { ...response, decisiveReason: reason };
+        } else {
+          const withoutReason = { ...response };
+          delete withoutReason.decisiveReason;
+          responses[index] = withoutReason;
+        }
+      }
+    } catch (err) {
+      log.warn("AnalyzeArtifactUseCase", "Persona reason audit failed — keeping extracted reasons", {
+        error: String(err),
+      });
     }
 
     const totalDuration = Date.now() - overallStartTime;

@@ -168,7 +168,8 @@ describe("buildArtifactSynthesis", () => {
     const split = synthesis.disagreements[0].split;
     expect(split.reduce((sum, side) => sum + side.personaCount, 0)).toBe(plan.completedCount);
     expect(split.some((side) => side.view === "No clear view")).toBe(true);
-    expect(split.find((side) => side.view === "No clear view")?.personaCount).toBe(1);
+    expect(split.find((side) => side.view === "Neutral")?.personaCount).toBe(1);
+    expect(split.find((side) => side.view === "No clear view")?.personaCount).toBe(0);
   });
 
   it("produces a deterministic finding when the writer omits a group", () => {

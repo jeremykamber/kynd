@@ -15,6 +15,7 @@ import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { ArtifactProfile } from "@/domain/entities/ArtifactProfile";
+import type { SynthesisDraft, SynthesisPlan } from "@/domain/entities/SynthesisPlan";
 import { StreamOfConsciousness } from "@/domain/entities/StreamOfConsciousness";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -650,19 +651,34 @@ export class LlmServiceImpl implements LlmServicePort {
     }
 
     async synthesizeFromPlan(
-        plan: import("@/domain/entities/SynthesisPlan").SynthesisPlan,
+        plan: SynthesisPlan,
         options?: { runId?: string },
     ) {
         return this.claimLedgerAdapter.synthesizeFromPlan(plan, options);
     }
 
     async repairSynthesis(
-        plan: import("@/domain/entities/SynthesisPlan").SynthesisPlan,
-        draft: import("@/domain/entities/SynthesisPlan").SynthesisDraft,
+        plan: SynthesisPlan,
+        draft: SynthesisDraft,
         violations: string[],
         options?: { runId?: string },
     ) {
         return this.claimLedgerAdapter.repairSynthesis(plan, draft, violations, options);
+    }
+
+    async summarizeReport(
+        plan: SynthesisPlan,
+        report: ArtifactSynthesis,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.summarizeReport(plan, report, options);
+    }
+
+    async auditPersonaReasons(
+        responses: PersonaResponse[],
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.auditPersonaReasons(responses, options);
     }
 
     // --- Domain Gateways (Delegating to Adapters) ---

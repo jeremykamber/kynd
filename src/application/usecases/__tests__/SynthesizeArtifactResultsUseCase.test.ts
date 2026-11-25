@@ -50,6 +50,10 @@ function port(overrides: Partial<LlmServicePort> = {}): LlmServicePort {
   return {
     synthesizeFromPlan: vi.fn().mockResolvedValue(goodDraft),
     repairSynthesis: vi.fn(),
+    summarizeReport: vi.fn().mockResolvedValue({
+      overview: goodDraft.overview,
+      researchQuestionAnswer: goodDraft.researchQuestionAnswer,
+    }),
     ...overrides,
   } as unknown as LlmServicePort;
 }
@@ -104,6 +108,25 @@ describe("SynthesizeArtifactResultsUseCase", () => {
     expect(synthesis.validationWarnings?.join(" ")).toContain("47");
     // The rest of the report still carries code-owned data.
     expect(synthesis.topFindings[0].affectedPersonaCount).toBe(2);
+  });
+
+  it("summarizes only from the built report and keeps a summary that passes", async () => {
+    const summarize = vi.fn().mockResolvedValue({
+      overview: "2 of 3 personas stalled on price.",
+      researchQuestionAnswer: "Price opacity blocks action.",
+    });
+    const synthesis = await new SynthesizeArtifactResultsUseCase(port({ summarizeReport: summarize })).execute(plan);
+    expect(summarize).toHaveBeenCalledTimes(1);
+    expect(summarize.mock.calls[0][0]).toBe(plan);
+    expect(synthesis.overview).toBe("2 of 3 personas stalled on price.");
+  });
+
+  it("discards a summary that fails validation", async () => {
+    const synthesis = await new SynthesizeArtifactResultsUseCase(
+      port({ summarizeReport: vi.fn().mockResolvedValue({ overview: "All 47 personas stopped.", researchQuestionAnswer: "x" }) }),
+    ).execute(plan);
+    expect(synthesis.overview).toBe(goodDraft.overview);
+    expect(synthesis.validationWarnings).toBeUndefined();
   });
 
   it("propagates writer failure to the caller", async () => {

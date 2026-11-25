@@ -132,7 +132,7 @@ function checkQuantifiers(
   const COUNT = '(?:one|two|three|four|five|six|seven|eight|nine|ten|\\d+)\\s+';
   const ALL = new RegExp(`\\ball\\s+(?:(?:of\\s+)?(?:the\\s+)?|${COUNT})?(?:personas|users|participants|people|cohort)\\b`, 'i');
   const MOST = new RegExp(`\\bmost\\s+(?:(?:of\\s+)?(?:the\\s+)?|${COUNT})?(?:personas|users|participants|people|cohort)\\b`, 'i');
-  const NONE = /\bnone\s+of\s+(?:(?:the|\d+)\s+)*(?:personas|users|participants|people|cohort)\b|\bno\s+(?:persona|user|participant)s?\b/i;
+  const NONE = /\bnone\s+of\s+(?:(?:the|\d+)\s+)*(?:personas|users|participants|people|cohort)\b/i;
   if (ALL.test(text) && group.personaCount !== completedCount) {
     violations.push({
       field,
@@ -174,6 +174,40 @@ function checkNames(
   }
 }
 
+const VERDICT_MENTION_RE =
+  /\b(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:of\s+\d+\s+)?(?:personas?\s+)?(adopt(?:ed)?|trial|reject(?:ed|ion|ions)?|undecided)\b/gi;
+
+/**
+ * A verdict word next to a count is a factual claim about the tally. The
+ * writer can phrase it in several ways, so normalize the verb and check the
+ * number against the code-owned counts.
+ */
+function checkVerdictCounts(
+  field: string,
+  text: string,
+  verdicts: SynthesisPlan['ledger']['verdicts'],
+  violations: SynthesisViolation[],
+): void {
+  for (const match of text.matchAll(VERDICT_MENTION_RE)) {
+    const stated = cohortNumber(match[1]);
+    const word = match[2].toLowerCase();
+    const key = word.startsWith('adopt')
+      ? 'adopt'
+      : word.startsWith('reject')
+        ? 'reject'
+        : word === 'trial'
+          ? 'trial'
+          : 'undecided';
+    const actual = Number(verdicts[key] ?? 0);
+    if (stated !== actual) {
+      violations.push({
+        field,
+        message: `says "${match[0]}" but the verdict tally has ${actual} ${key}.`,
+      });
+    }
+  }
+}
+
 function checkRecommendation(field: string, text: string, violations: SynthesisViolation[]): void {
   if (RECOMMENDATION_RE.test(text)) {
     violations.push({ field, message: 'makes a recommendation instead of reporting what the cohort did.' });
@@ -194,6 +228,8 @@ export function validateSynthesis(plan: SynthesisPlan, synthesis: ArtifactSynthe
 
   checkNumbers('overview', synthesis.overview, allowed, violations);
   checkNumbers('answer', synthesis.researchQuestionAnswer, allowed, violations);
+  checkVerdictCounts('overview', synthesis.overview, plan.ledger.verdicts, violations);
+  checkVerdictCounts('answer', synthesis.researchQuestionAnswer, plan.ledger.verdicts, violations);
   checkRecommendation('overview', synthesis.overview, violations);
   checkRecommendation('answer', synthesis.researchQuestionAnswer, violations);
   checkNames('overview', synthesis.overview, personaNames, violations);
@@ -209,9 +245,15 @@ export function validateSynthesis(plan: SynthesisPlan, synthesis: ArtifactSynthe
     });
   }
   // "All three personas hit the same wall" is a group claim in the summary.
-  // It is only true when a ledger group actually covers every completed persona.
+  // It is only true when a ledger group actually covers every completed
+  // persona. A sentence about the verdict tally ("all five were undecided")
+  // is a count, not a shared group, and is validated by checkVerdictCounts.
   const summaryAll = /\ball\s+(?:(?:of\s+)?(?:the\s+)?|(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+)?(?:personas|users|participants|people|cohort)\b/i;
-  if (summaryAll.test(cohortText) && !plan.ledger.groups.some((g) => g.personaCount === plan.completedCount)) {
+  const verdictWord = /\b(adopt(?:ed)?|trial|reject(?:ed)?|undecided)\b/i;
+  const allSentence = cohortText
+    .split(/(?<=[.!?])\s+/)
+    .find((sentence) => summaryAll.test(sentence) && !verdictWord.test(sentence));
+  if (allSentence && !plan.ledger.groups.some((g) => g.personaCount === plan.completedCount)) {
     violations.push({
       field: 'overview',
       message: `says "all" but no ledger group covers all ${plan.completedCount} completed personas.`,

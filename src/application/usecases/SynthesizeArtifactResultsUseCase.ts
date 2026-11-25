@@ -45,6 +45,19 @@ export class SynthesizeArtifactResultsUseCase {
         ...synthesis,
         validationWarnings: violations.map((violation) => `${violation.field}: ${violation.message}`),
       };
+    } else {
+      // The summary sees only the built report: every finding, count, and
+      // friction is already verified, so it cannot introduce a topic or a
+      // group the writer never supported. A summary that fails validation is
+      // discarded in favour of the draft that already passed.
+      try {
+        const summary = await this.llmService.summarizeReport(plan, synthesis, options);
+        const candidate = { ...synthesis, ...summary };
+        if (validateSynthesis(plan, candidate).length === 0) synthesis = candidate;
+      } catch {
+        // Keeping the validated draft is honest: the report is still complete,
+        // and a failed summary call must not erase it.
+      }
     }
 
     return synthesis;

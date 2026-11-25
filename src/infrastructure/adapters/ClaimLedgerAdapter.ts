@@ -4,6 +4,9 @@ import type { ExtractedClaim, ClaimSupport } from "@/domain/entities/PersonaClai
 import type { SynthesisDraft, SynthesisPlan } from "@/domain/entities/SynthesisPlan";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 import type { LlmServiceImpl } from "./LlmServiceImpl";
+import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
+import { isCompletedPersonaResponse } from "@/domain/entities/PersonaResponse";
+import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 
 /**
  * The claim-ledger passes: claim extraction, the batch support gate, batch
@@ -88,6 +91,26 @@ const ClusterBatchSchema = z.preprocess(
   }),
 );
 
+const SummarySchema = z.object({
+  overview: z.string().default(""),
+  researchQuestionAnswer: z.string().default(""),
+});
+
+const ReasonAuditSchema = z.preprocess(
+  (value) => (Array.isArray(value) ? { results: value } : value),
+  z.object({
+    results: z.preprocess(
+      (value) => asArray(value, ["results", "reasons"]),
+      z.array(
+        z.object({
+          personaId: z.string().min(1),
+          decisiveReason: z.string().default(""),
+        }),
+      ),
+    ),
+  }),
+);
+
 const SynthesisDraftSchema = z.object({
   overview: z.string().default(""),
   researchQuestionAnswer: z.string().default(""),
@@ -154,8 +177,8 @@ RULES:
 
 const CLUSTER_PROMPT = `You group claims by the mechanism that would change the product.
 
-You receive claim ids with a topic and an observation. Group claims about the same artifact element and the same judgment, even when they notice different facets of it.
-A support and an oppose on the same element belong in one group: the split is the point. Do NOT merge different artifact elements or different mechanisms; keep them apart even when both make a persona hesitate. If two claims name different screens, states, or causes, keep them apart.
+You receive claim ids with a topic and an observation. Group claims about the same artifact element and the same underlying concern, even when they notice different facets, use different words, or reach different conclusions.
+Facets of one concern (where something comes from, who provides it, whether it is representative, and whether it can be trusted) belong together. A support and an oppose on the same element belong in one group: the split is the point. Split only when the reader would change a different artifact element or a different mechanism.
 
 Return a JSON object: { "groups": [{ "topic": string, "claimIds": string[] }] }
 
@@ -182,7 +205,7 @@ RULES:
 1. Return exactly one finding per group in "findings", one disagreement per group in "splits", and one friction per group in "frictions", using the exact groupId. Do not invent a group.
 2. Start every finding with the exact group count: "<personaCount> of <completedCount> personas ...". Use only counts from the plan. Never write a different count, a percentage, a persona name, or a quotation that is not in the plan. Role labels (economic buyer, daily user, blocker, champion) are allowed; names are not.
 3. Observation: at most 30 words, one sentence. Name the artifact element and the shared mechanism. When the plan's artifact profile states the element, copy its exact value. Do not open with "Several personas", do not use category nouns (trust, clarity, credibility, transparency, friction) as the subject, and do not list each persona's version — the citations carry the variants.
-4. Impact: at most 25 words. State what this changes for the reader's decision: what they will not do, will test, will pay for, will forward, or will ask for. It must add a consequence, never restate the observation. Never use "acted as a barrier", "raised concerns", "caused hesitation", "viewed as", "stopped several personas", "highlighted", or "underscored".
+4. Impact: at most 25 words. State what this changes for the reader's decision: what they will not do, will test, will pay for, will forward, or which requirement they will set. It must add a consequence, never restate the observation. Do not end with "will ask" or "will want to know" unless you name the concrete answer that changes the decision. Never use "acted as a barrier", "raised concerns", "caused hesitation", "viewed as", "stopped several personas", "highlighted", or "underscored".
 5. Every finding must name the mechanism that distinguishes it from the other findings. Do not repeat one sentence with a different topic; if two groups would lead to the same fix, say what the reader would change in each case.
 6. Split labels: state the reason each side holds in its own terms; do not use "support" or "oppose" as the label. Use the claim observations; no names.
 7. Friction: one sentence naming the exact surface, what the reader did instead, and the consequence. Do not repeat the overview or a finding.
@@ -191,6 +214,34 @@ RULES:
 10. Do NOT make recommendations. Describe what the cohort did and what it means for the decision, not what a company should do.
 11. If the plan has no supported finding, say so in the overview and leave findings empty.
 12. Write in English.`;
+
+const SUMMARY_PROMPT = `You write the summary of a cohort research report from verified findings.
+
+INPUT: JSON with researchQuestion, completedCount, verdicts, findings, and frictions. Each finding carries its observation, impact, affectedPersonaCount, and totalPersonaCount.
+
+Return a JSON object: { "overview": string, "researchQuestionAnswer": string }
+
+RULES:
+1. Every sentence must restate a finding, a friction, or the verdict tally. Do not introduce a new topic, question, number, screen, or artifact fact.
+2. Preserve each finding's count and direction. If a finding reports a mix, keep the mix; never turn it into unanimous agreement or rejection.
+3. Overview: 2 to 4 sentences, strongest finding first. Research answer: 2 to 3 sentences with the top two findings and the verdict tally.
+4. Use only counts present in the input. Do not make recommendations.
+5. If there are no findings, say that no supported finding reached the floor.
+6. Write in English.`;
+
+const REASON_AUDIT_PROMPT = `You audit a persona's decisive reason against the transcript it came from.
+
+INPUT: a JSON list with personaId, transcript, verdict, and decisiveReason.
+
+Return a JSON object: { "results": [{ "personaId": string, "decisiveReason": string }] }
+
+RULES:
+1. Every noun, number, tool, person, and event in the reason must appear in that persona's own transcript. Remove anything else.
+2. Keep the recorded verdict. If the draft reason conflicts with the verdict, rewrite the reason to match the verdict.
+3. One sentence, third person. Do not add a fact, number, quotation, or recommendation.
+4. If the transcript supports no reason, return an empty string for that persona.
+5. Return exactly one result per personaId supplied.
+6. Write in English.`;
 
 const REPAIR_PROMPT = `You repair a cohort report draft that failed mechanical validation.
 
@@ -318,5 +369,59 @@ Return ONLY the corrected JSON object.`;
     return SynthesisDraftSchema.parse(
       await this.callJson(prompt, "Repair Synthesis", 240_000, options?.runId),
     );
+  }
+
+  async summarizeReport(
+    plan: SynthesisPlan,
+    report: ArtifactSynthesis,
+    options?: { runId?: string },
+  ): Promise<{ overview: string; researchQuestionAnswer: string }> {
+    const input = {
+      researchQuestion: plan.researchQuestion,
+      completedCount: report.completedCount,
+      verdicts: report.verdicts,
+      findings: report.topFindings.map((finding) => ({
+        observation: finding.observation,
+        impact: finding.impact,
+        affectedPersonaCount: finding.affectedPersonaCount,
+        totalPersonaCount: finding.totalPersonaCount,
+      })),
+      frictions: report.biggestFrictions,
+    };
+    const prompt = `${SUMMARY_PROMPT}
+
+INPUT:
+${JSON.stringify(input, null, 2)}
+
+Return ONLY the JSON object.`;
+    return SummarySchema.parse(
+      await this.callJson(prompt, "Report Summary", 240_000, options?.runId),
+    );
+  }
+
+  async auditPersonaReasons(
+    responses: PersonaResponse[],
+    options?: { runId?: string },
+  ): Promise<Array<{ personaId: string; decisiveReason: string }>> {
+    const completed = responses.filter(
+      (response) => isCompletedPersonaResponse(response) && response.rawAnalysis,
+    );
+    if (completed.length === 0) return [];
+    const input = completed.map((response) => ({
+      personaId: response.personaId ?? response.id,
+      verdict: response.verdict ?? "undecided",
+      decisiveReason: response.decisiveReason ?? "",
+      transcript: response.rawAnalysis,
+    }));
+    const prompt = `${REASON_AUDIT_PROMPT}
+
+PERSONAS:
+${JSON.stringify(input, null, 2)}
+
+Return ONLY the JSON object.`;
+    const parsed = ReasonAuditSchema.parse(
+      await this.callJson(prompt, "Persona Reason Audit", 300_000, options?.runId),
+    );
+    return parsed.results;
   }
 }

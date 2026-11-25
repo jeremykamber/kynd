@@ -157,6 +157,22 @@ describe("validateSynthesis", () => {
     expect(validateSynthesis(p, synthesis).some((v) => v.field === "overview" && v.message.includes('"all"'))).toBe(true);
   });
 
+  it('allows "all five" in a verdict sentence with no covering group', () => {
+    const p = buildSynthesisPlan({
+      researchQuestion: "q",
+      ledger: {
+        ...ledger,
+        completedCount: 5,
+        totalPersonaCount: 5,
+        failedCount: 0,
+        verdicts: { adopt: 0, trial: 0, reject: 0, undecided: 5 },
+      },
+      personaNames: ["Sarah Chen"],
+    });
+    const synthesis = buildArtifactSynthesis(p, draft({ overview: "All 5 personas landed on undecided." }));
+    expect(validateSynthesis(p, synthesis).some((v) => v.field === "overview" && v.message.includes('"all"'))).toBe(false);
+  });
+
   it('treats "all" as every completed persona when some personas failed', () => {
     const p = buildSynthesisPlan({
       researchQuestion: "q",
@@ -203,6 +219,15 @@ describe("validateSynthesis", () => {
     // "found none" is about the artifact, not the group: it is not a quantifier.
     const artifactNone = buildArtifactSynthesis(frictionPlan, draft({ frictions: [{ groupId: "g1", text: "Personas looked for a price and found none." }] }));
     expect(validateSynthesis(frictionPlan, artifactNone).some((v) => v.field === "friction:0" && v.message.includes('"none"'))).toBe(false);
+  });
+
+  it("rejects a verdict count that differs from the tally", () => {
+    const p = plan();
+    const wrong = buildArtifactSynthesis(p, draft({ overview: "Three personas rejected the price." }));
+    expect(validateSynthesis(p, wrong).some((v) => v.field === "overview" && v.message.includes("verdict tally"))).toBe(true);
+
+    const right = buildArtifactSynthesis(p, draft({ overview: "One persona rejected the price." }));
+    expect(validateSynthesis(p, right).some((v) => v.field === "overview" && v.message.includes("verdict tally"))).toBe(false);
   });
 
   it("rejects a recommendation", () => {

@@ -132,12 +132,16 @@ export function buildArtifactSynthesis(plan: SynthesisPlan, draft: SynthesisDraf
   // vanishing from the bar.
   const disagreements: Disagreement[] = plan.splits.map((group) => {
     const written = draftSplits.get(group.id);
-    const noClearView = Math.max(0, plan.completedCount - group.supports - group.opposes);
+    const noClearView = Math.max(
+      0,
+      plan.completedCount - group.supports - group.opposes - group.neutral,
+    );
     return {
       topic: group.topic,
       split: [
         { view: written?.supportsLabel?.trim() || 'Supports', personaCount: group.supports },
         { view: written?.opposesLabel?.trim() || 'Opposes', personaCount: group.opposes },
+        ...(group.neutral > 0 ? [{ view: 'Neutral', personaCount: group.neutral }] : []),
         { view: 'No clear view', personaCount: noClearView },
       ],
       significance: significanceFor(group.supports, group.opposes, plan.completedCount),
