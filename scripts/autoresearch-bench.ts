@@ -104,7 +104,7 @@ async function main(): Promise<void> {
   };
 
   const personasStart = Date.now();
-  const responses = await useCase.execute(
+  const { responses } = await useCase.execute(
     { type: "screenshot", imageBase64: intake.screenshotBase64 ?? "", url: intake.url },
     PERSONAS,
     BUSINESS_GOAL,

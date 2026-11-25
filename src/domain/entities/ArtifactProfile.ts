@@ -71,6 +71,17 @@ export const CONTENT_KIND_QUESTION: Record<ContentKind, string> = {
   other: 'Would you act on this artifact?',
 };
 
+export const FACT_KINDS: FactKind[] = [
+  'product',
+  'audience',
+  'offer',
+  'price',
+  'tier',
+  'claim',
+  'cta',
+  'proof',
+];
+
 export const CONTENT_KINDS: ContentKind[] = [
   'landing_page',
   'feature_brief',
@@ -94,6 +105,141 @@ export function fallbackArtifactProfile(kind: 'site' | 'document'): ArtifactProf
     stageAnchorKind: kind === 'document' ? 'quote' : 'none',
     confidence: 'low',
     degraded: ['The artifact profile could not be extracted; facts are unverified.'],
+  };
+}
+
+/** The anchor a profile may carry when the model does not choose one. */
+export function defaultAnchorKind(kind: ContentKind): ArtifactProfile['stageAnchorKind'] {
+  if (kind === 'video_script') return 'timestamp';
+  if (kind === 'landing_page') return 'none';
+  return 'quote';
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function parseFact(value: unknown): ArtifactFact | PriceFact | null {
+  const raw = record(value);
+  if (!raw) return null;
+  const kind = typeof raw.kind === 'string' && (FACT_KINDS as string[]).includes(raw.kind)
+    ? (raw.kind as FactKind)
+    : null;
+  const label = text(raw.label);
+  const factValue = text(raw.value);
+  const source = raw.source === 'text' || raw.source === 'screenshot' ? raw.source : null;
+  if (!kind || !label || !factValue || !source) return null;
+
+  const base: ArtifactFact = {
+    kind,
+    label,
+    value: factValue,
+    source,
+    ...(text(raw.sourceQuote) ? { sourceQuote: text(raw.sourceQuote) as string } : {}),
+  };
+
+  if (kind !== 'price') return base;
+  const amount = typeof raw.amount === 'number' ? raw.amount : Number(raw.amount);
+  const currency = text(raw.currency);
+  if (!Number.isFinite(amount) || !currency) return null;
+  const period = raw.period === 'month' || raw.period === 'year' || raw.period === 'one_time'
+    ? raw.period
+    : undefined;
+  return { ...base, kind: 'price', amount, currency, ...(period ? { period } : {}) } as PriceFact;
+}
+
+/**
+ * Validates the profile call's JSON. Anything that cannot be trusted is dropped
+ * and recorded in `degraded`; the profile still exists so the run can continue.
+ */
+export function parseArtifactProfile(raw: unknown): ArtifactProfile {
+  const source = record(raw);
+  if (!source) throw new Error('Artifact profile is not an object');
+
+  const degraded: string[] = [];
+  const rawKind = text(source.contentKind);
+  const contentKind = rawKind && (CONTENT_KINDS as string[]).includes(rawKind)
+    ? (rawKind as ContentKind)
+    : 'other';
+  if (rawKind !== contentKind) degraded.push(`Unknown content kind "${rawKind}"; treated as other.`);
+
+  const facts: ArtifactFact[] = [];
+  const rawFacts = Array.isArray(source.facts) ? source.facts : [];
+  for (const item of rawFacts) {
+    const fact = parseFact(item);
+    if (fact) facts.push(fact);
+    else degraded.push('Dropped a fact that did not match the fact schema.');
+  }
+
+  const openQuestions = (Array.isArray(source.openQuestions) ? source.openQuestions : [])
+    .map(text)
+    .filter((q): q is string => q !== null);
+
+  const rawAnchor = text(source.stageAnchorKind);
+  const stageAnchorKind = rawAnchor === 'timestamp' || rawAnchor === 'heading' || rawAnchor === 'quote' || rawAnchor === 'none'
+    ? rawAnchor
+    : defaultAnchorKind(contentKind);
+  if (rawAnchor && rawAnchor !== stageAnchorKind) {
+    degraded.push(`Unknown anchor kind "${rawAnchor}"; used ${stageAnchorKind}.`);
+  }
+
+  const rawConfidence = text(source.confidence);
+  const confidence = rawConfidence === 'high' || rawConfidence === 'medium' || rawConfidence === 'low'
+    ? rawConfidence
+    : 'low';
+
+  return {
+    contentKind,
+    facts,
+    openQuestions,
+    stageAnchorKind,
+    confidence,
+    degraded: [...degraded, ...(Array.isArray(source.degraded) ? source.degraded.filter((d): d is string => typeof d === 'string') : [])],
+  };
+}
+
+function normalize(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/**
+ * The fact guard. A text fact survives only when its source quote is a verbatim
+ * substring of the artifact text; a screenshot fact survives only when the run
+ * carries a screenshot. Everything else is removed and the loss is recorded.
+ */
+export function guardProfileFacts(
+  profile: ArtifactProfile,
+  artifact: { text?: string; hasScreenshot: boolean },
+): ArtifactProfile {
+  const haystack = artifact.text === undefined ? null : normalize(artifact.text);
+  const kept: ArtifactFact[] = [];
+  const removed: string[] = [];
+
+  for (const fact of profile.facts) {
+    if (fact.source === 'screenshot') {
+      if (artifact.hasScreenshot) kept.push(fact);
+      else removed.push(`Screenshot fact "${fact.label}" removed: the run has no screenshot.`);
+      continue;
+    }
+    if (haystack === null) {
+      removed.push(`Text fact "${fact.label}" removed: the run has no text.`);
+      continue;
+    }
+    if (!fact.sourceQuote || !haystack.includes(normalize(fact.sourceQuote))) {
+      removed.push(`Fact "${fact.label}" removed: its quote is not in the artifact.`);
+      continue;
+    }
+    kept.push(fact);
+  }
+
+  return {
+    ...profile,
+    facts: kept,
+    degraded: [...profile.degraded, ...removed],
   };
 }
 

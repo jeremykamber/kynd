@@ -2,6 +2,7 @@
 
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
+import type { ArtifactProfile } from "@/domain/entities/ArtifactProfile";
 import { analysisResultStore } from "@/infrastructure/AnalysisResultStore";
 import { shouldRunLocally } from "@/infrastructure/config";
 import { vpsGet } from "./vpsClient";
@@ -17,6 +18,7 @@ export async function getAnalysisResultAction(runId: string): Promise<{
   error?: string;
   completedAt?: string;
   synthesis?: ArtifactSynthesis | null;
+  artifactProfile?: ArtifactProfile | null;
 }> {
   if (shouldRunLocally()) {
     const result = analysisResultStore.get(runId);
@@ -31,6 +33,7 @@ export async function getAnalysisResultAction(runId: string): Promise<{
       error: result.error,
       completedAt: result.completedAt,
       synthesis: result.synthesis ?? null,
+      artifactProfile: result.profile ?? null,
     };
   }
 

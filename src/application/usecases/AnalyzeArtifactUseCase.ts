@@ -5,7 +5,8 @@ import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/Artifact
 import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
 import { AnalysisProgressStep } from "@/domain/entities/ArtifactAnalysis";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
-import { buildSimulationFrames, provisionalProfile } from "@/domain/entities/SimulationFrame";
+import { buildSimulationFrames, type SimulationFrame } from "@/domain/entities/SimulationFrame";
+import { fallbackArtifactProfile, guardProfileFacts, type ArtifactProfile } from "@/domain/entities/ArtifactProfile";
 import { normalizeVerdict } from "@/domain/entities/Verdict";
 
 import { ArtifactIntakeAdapter, type IntakeProgress } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
@@ -16,6 +17,16 @@ import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
  * counts and personaName track the per-persona analysis phase; `title` carries
  * the AI-generated simulation name when the concurrent title call succeeds.
  */
+/**
+ * One analysis run. The profile and frames travel with the responses so the
+ * report can show the artifact reading and the question every persona used.
+ */
+export interface ArtifactAnalysisRun {
+  responses: PersonaResponse[];
+  profile: ArtifactProfile;
+  frames: SimulationFrame[];
+}
+
 export interface AnalysisProgress {
   step: AnalysisProgressStep;
   personaName?: string;
@@ -83,7 +94,7 @@ export class AnalyzeArtifactUseCase {
     onProgress?: (progress: AnalysisProgress) => void,
     abortSignal?: AbortSignal,
     options: { tokenLimit?: number; runId?: string } = {},
-  ): Promise<PersonaResponse[]> {
+  ): Promise<ArtifactAnalysisRun> {
     const DEFAULT_TOKEN_LIMIT = 2000;
     const tokenLimit = options.tokenLimit ?? DEFAULT_TOKEN_LIMIT;
     const runId = options.runId || "unknown";
@@ -138,10 +149,32 @@ export class AnalyzeArtifactUseCase {
       throw new Error("Request cancelled after intake");
     }
 
-    // The profile selects the decision question. Until the artifact-profile
-    // slice adds the serial extractor, the intake kind chooses a provisional
-    // profile; the frame is still built by code and stays deterministic.
-    const profile = provisionalProfile(intake);
+    // The profile is read once, serially, before any persona: contentKind
+    // chooses the decision question, so the frames must not start with a guess.
+    const profileStart = Date.now();
+    let profile: ArtifactProfile;
+    try {
+      const extracted = await this.llmService.extractArtifactProfile(intake, framing, { runId, tokenLimit });
+      profile = guardProfileFacts(extracted, {
+        text: intake.text,
+        hasScreenshot: !!intake.screenshotBase64,
+      });
+      log.info("AnalyzeArtifactUseCase", "Artifact profile ready", {
+        durationMs: Date.now() - profileStart,
+        contentKind: profile.contentKind,
+        facts: profile.facts.length,
+        openQuestions: profile.openQuestions.length,
+        anchorKind: profile.stageAnchorKind,
+        degraded: profile.degraded,
+      });
+    } catch (error) {
+      profile = fallbackArtifactProfile(framing.kind);
+      log.warn("AnalyzeArtifactUseCase", "Artifact profile failed; using the fallback", {
+        durationMs: Date.now() - profileStart,
+        error: String(error),
+      });
+    }
+
     const frames = buildSimulationFrames(personas, profile);
     const frameByPersonaId = new Map(frames.map((frame) => [frame.personaId, frame]));
 
@@ -241,7 +274,7 @@ export class AnalyzeArtifactUseCase {
               persona,
               monologue.text,
               researchQuestion,
-              { tokenLimit, runId, artifact: framing, profile, ...(frame ? { frame } : {}) },
+              { tokenLimit, runId, artifact: framing, profile, artifactText: intake.text, ...(frame ? { frame } : {}) },
             );
             const extractedClaims = await claimsPromise;
             log.info("AnalyzeArtifactUseCase", `${personaLog} Claim pass settled`, {
@@ -392,7 +425,7 @@ export class AnalyzeArtifactUseCase {
       responseCount: responses.length,
     });
 
-    return responses;
+    return { responses, profile, frames };
   }
 }
 

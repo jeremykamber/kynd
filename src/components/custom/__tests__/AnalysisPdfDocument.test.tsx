@@ -170,6 +170,38 @@ describe('AnalysisPdfDocument', () => {
     expect(text.match(/UNVERIFIED FIELDS:/g)?.length).toBe(2)
   })
 
+  it('renders synthesis evidence notes when claims were dropped', () => {
+    const degraded: ArtifactAnalysis = {
+      ...baseAnalysis,
+      synthesis: {
+        ...mockSynthesis,
+        degraded: ['Duplicate-persona conflict in "price": p-1 claimed both sides.'],
+      },
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: degraded }))
+
+    expect(text).toContain('Evidence dropped from this report (1)')
+    expect(text).toContain('Duplicate-persona conflict in "price"')
+  })
+
+  it('stamps a degraded artifact profile as unverified', () => {
+    const degraded: ArtifactAnalysis = {
+      ...baseAnalysis,
+      artifactProfile: {
+        contentKind: 'landing_page',
+        facts: [],
+        openQuestions: [],
+        stageAnchorKind: 'none',
+        confidence: 'low',
+        degraded: ['The artifact profile could not be extracted; facts are unverified.'],
+      },
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: degraded }))
+
+    expect(text).toContain('profile: The artifact profile could not be extracted; facts are unverified.')
+    expect(text).toContain('UNVERIFIED FIELDS: profile: The artifact profile could not be extracted; facts are unverified.')
+  })
+
   it('discloses what Kynd is and that the report is simulated, before the findings', () => {
     const text = renderedText(AnalysisPdfDocument({ analysis: baseAnalysis }))
 

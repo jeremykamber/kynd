@@ -72,14 +72,3 @@ export function buildSimulationFrames(personas: Persona[], profile: ArtifactProf
   });
 }
 
-/** The provisional profile used before the artifact-profile slice lands. */
-export function provisionalProfile(intake: { text?: string }): ArtifactProfile {
-  return {
-    contentKind: intake.text !== undefined ? 'document' : 'landing_page',
-    facts: [],
-    openQuestions: [],
-    stageAnchorKind: intake.text !== undefined ? 'quote' : 'none',
-    confidence: 'medium',
-    degraded: [],
-  };
-}

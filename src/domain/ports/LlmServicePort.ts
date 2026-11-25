@@ -204,6 +204,17 @@ export interface LlmServicePort {
     ): Promise<{ text: string }>;
 
     /**
+     * Reads the artifact once, before any persona, and returns what it states:
+     * content kind, facts, open questions, and the anchor kind it supports.
+     * Rejects when the model output cannot be parsed; the caller falls back.
+     */
+    extractArtifactProfile(
+        context: ArtifactIntake,
+        artifact: ArtifactFraming,
+        options?: { tokenLimit?: number; runId?: string },
+    ): Promise<ArtifactProfile>;
+
+    /**
      * System 2 — the Anthropologist. Maps the raw monologue into a
      * structured PersonaResponse, strictly third-person, grounded in the
      * transcript alone (no image, no page summary).
@@ -215,7 +226,7 @@ export interface LlmServicePort {
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame; profile?: ArtifactProfile }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame; profile?: ArtifactProfile; artifactText?: string }
     ): Promise<PersonaResponse>;
 
 

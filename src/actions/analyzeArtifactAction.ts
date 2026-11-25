@@ -114,7 +114,7 @@ async function runLocally(
 
             log.info("analyzeArtifactAction", "Calling useCase.execute()...");
 
-            const responses = await useCase.execute(
+            const { responses, profile } = await useCase.execute(
                 input,
                 personas,
                 businessGoal,
@@ -178,12 +178,13 @@ async function runLocally(
                     });
                 }
 
-                analysisResultStore.save(id, responses, synthesis ?? undefined);
+                analysisResultStore.save(id, responses, synthesis ?? undefined, profile);
                 storeCompleted(id);
                 stream.done({
                     step: "DONE",
                     analyses: responses,
                     synthesis,
+                    artifactProfile: profile,
                     requestId: id,
                 });
             } else {

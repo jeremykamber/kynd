@@ -24,6 +24,7 @@ import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import type { StageJourney, StageOutcome } from '@/domain/entities/StageJourney'
 import type { DecisionRole } from '@/domain/entities/DecisionRole'
 import type { Verdict } from '@/domain/entities/Verdict'
+import type { ArtifactProfile, ContentKind } from '@/domain/entities/ArtifactProfile'
 import { cn } from '@/lib/utils'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
@@ -75,6 +76,16 @@ function getCurrentStep(step?: string): number {
 // different facts — an obstacle versus the persona's own choice — but the same
 // outcome for the reader, so they share Caution and differ only in the word
 // (and in the tooltip that spells the difference out).
+const CONTENT_KIND_LABEL: Record<ContentKind, string> = {
+  landing_page: 'Landing page',
+  feature_brief: 'Feature brief',
+  pitch_deck: 'Pitch deck',
+  marketing_copy: 'Marketing copy',
+  video_script: 'Video script',
+  document: 'Document',
+  other: 'Other artifact',
+}
+
 const ROLE_LABEL: Record<DecisionRole, string> = {
   economic_buyer: 'Economic buyer',
   daily_user: 'Daily user',
@@ -248,7 +259,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
             if (result.error) {
               useAnalysisStore.getState().markError(analysis.id, result.error)
             } else if (result.analyses && result.analyses.length > 0) {
-              useAnalysisStore.getState().markComplete(analysis.id, result.analyses, result.synthesis)
+              useAnalysisStore.getState().markComplete(analysis.id, result.analyses, result.synthesis, result.artifactProfile)
             }
             return
           }
@@ -292,7 +303,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
           clearInterval(interval);
           const result2 = await getAnalysisResultAction(analysis.id);
           if (result2.found && result2.analyses && result2.analyses.length > 0) {
-            useAnalysisStore.getState().markComplete(analysis.id, result2.analyses, result2.synthesis);
+            useAnalysisStore.getState().markComplete(analysis.id, result2.analyses, result2.synthesis, result2.artifactProfile);
           }
         }
 
@@ -771,6 +782,53 @@ function CompletedView({
             </div>
           )}
 
+          {analysis.artifactProfile && (
+            <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={SECTION_LABEL}>Artifact profile</span>
+                <span className="text-xs font-medium text-foreground/80">
+                  {CONTENT_KIND_LABEL[analysis.artifactProfile.contentKind]}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {analysis.artifactProfile.confidence} confidence
+                </span>
+              </div>
+              {analysis.artifactProfile.facts.length > 0 && (
+                <dl className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                  {analysis.artifactProfile.facts.map((fact, i) => (
+                    <div key={`${fact.label}-${i}`} className="text-sm">
+                      <dt className="inline font-medium text-foreground/80">{fact.label}: </dt>
+                      <dd className="inline text-muted-foreground">
+                        {fact.value}
+                        {fact.source === 'screenshot' && (
+                          <span className="ml-1 text-xs text-muted-foreground/70">(from screenshot)</span>
+                        )}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              {analysis.artifactProfile.openQuestions.length > 0 && (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  The artifact does not state: {analysis.artifactProfile.openQuestions.join('; ')}.
+                </p>
+              )}
+              {analysis.artifactProfile.degraded.length > 0 && (
+                <div role="alert" data-profile-degraded="true" className="flex items-start gap-2 rounded-md border border-warning-foreground/40 bg-warning-foreground/5 p-3">
+                  <AlertTriangleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-foreground" />
+                  <div className="text-xs leading-relaxed text-muted-foreground">
+                    <p className="font-semibold text-foreground">Profile facts are unverified</p>
+                    <ul className="list-disc pl-4">
+                      {analysis.artifactProfile.degraded.map((note, i) => (
+                        <li key={i}>{note}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {synthesis.validationWarnings && synthesis.validationWarnings.length > 0 && (
             <div
               role="alert"
@@ -788,6 +846,27 @@ function CompletedView({
                 <ul className="list-disc pl-4 text-xs leading-relaxed text-muted-foreground">
                   {synthesis.validationWarnings.map((warning, i) => (
                     <li key={i}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {synthesis.degraded && synthesis.degraded.length > 0 && (
+            <div
+              role="status"
+              data-synthesis-degraded="true"
+              className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/20 p-4"
+            >
+              <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold text-foreground">Some evidence was dropped</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  These claims could not set a count or a finding. The report continues without them.
+                </p>
+                <ul className="list-disc pl-4 text-xs leading-relaxed text-muted-foreground">
+                  {synthesis.degraded.map((note, i) => (
+                    <li key={i}>{note}</li>
                   ))}
                 </ul>
               </div>

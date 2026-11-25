@@ -159,7 +159,7 @@ async function runAnalysis(
         const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llmService);
 
         log.info("runAnalysis", "Calling useCase.execute()...");
-        const responses = await useCase.execute(
+        const { responses, profile } = await useCase.execute(
             input,
             personas,
             businessGoal || "",
@@ -215,7 +215,7 @@ async function runAnalysis(
             } else {
                 log.warn("runAnalysis", "No completed responses — skipping synthesis");
             }
-            analysisResultStore.save(id, responses, synthesis);
+            analysisResultStore.save(id, responses, synthesis, profile);
             storeCompleted(id);
             log.info("runAnalysis", "Results stored — client can now poll");
         } else {

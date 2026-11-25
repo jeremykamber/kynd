@@ -14,6 +14,7 @@ import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
+import type { ArtifactProfile } from "@/domain/entities/ArtifactProfile";
 import { StreamOfConsciousness } from "@/domain/entities/StreamOfConsciousness";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -605,11 +606,19 @@ export class LlmServiceImpl implements LlmServicePort {
         );
     }
 
+    async extractArtifactProfile(
+        context: ArtifactIntake,
+        artifact: ArtifactFraming,
+        options?: { tokenLimit?: number; runId?: string },
+    ): Promise<ArtifactProfile> {
+        return this.visionAdapter.extractArtifactProfile(context, artifact, options);
+    }
+
     async extractPersonaResponse(
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: import("@/domain/entities/SimulationFrame").SimulationFrame; profile?: import("@/domain/entities/ArtifactProfile").ArtifactProfile }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: import("@/domain/entities/SimulationFrame").SimulationFrame; profile?: import("@/domain/entities/ArtifactProfile").ArtifactProfile; artifactText?: string }
     ): Promise<PersonaResponse> {
         return this.visionAdapter.extractPersonaResponse(
             persona,

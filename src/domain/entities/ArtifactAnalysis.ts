@@ -1,5 +1,6 @@
 import type { PersonaResponse } from './PersonaResponse'
 import type { ArtifactSynthesis } from './ArtifactSynthesis'
+import type { ArtifactProfile } from './ArtifactProfile'
 import type { ArtifactInputKind } from './ArtifactInput'
 import { SCREENSHOT_LABEL } from './ArtifactIntakeLimits'
 
@@ -41,6 +42,8 @@ export interface ArtifactAnalysis {
     streamingTexts?: Record<string, string>
     error?: string
     synthesis?: ArtifactSynthesis
+    /** What the artifact stated, read once before persona analysis. Additive. */
+    artifactProfile?: ArtifactProfile
     /** How the artifact entered: url, screenshot, or text. Absent on older records. */
     inputKind?: ArtifactInputKind
     /** Display label for screenshot ("Screenshot") and text runs. */

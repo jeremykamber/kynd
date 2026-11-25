@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Persona } from "@/domain/entities/Persona";
 import type { ArtifactProfile } from "@/domain/entities/ArtifactProfile";
-import { buildSimulationFrames, provisionalProfile } from "../SimulationFrame";
+import { buildSimulationFrames } from "../SimulationFrame";
 
 function persona(overrides: Partial<Persona> = {}): Persona {
   return {
@@ -73,9 +73,3 @@ describe("buildSimulationFrames", () => {
   });
 });
 
-describe("provisionalProfile", () => {
-  it("reads a text artifact as a document and a site as a landing page", () => {
-    expect(provisionalProfile({ text: "words" }).contentKind).toBe("document");
-    expect(provisionalProfile({}).contentKind).toBe("landing_page");
-  });
-});

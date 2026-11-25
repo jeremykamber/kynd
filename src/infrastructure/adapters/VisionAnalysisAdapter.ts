@@ -2,8 +2,9 @@ import { Persona } from "@/domain/entities/Persona";
 import { PersonaResponseSchema, personaIdentityViolations } from "@/domain/entities/PersonaResponse";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
+import { sanitizeJourneyAnchors } from "@/domain/entities/StageJourney";
 import type { SimulationFrame } from "@/domain/entities/SimulationFrame";
-import type { ArtifactProfile } from "@/domain/entities/ArtifactProfile";
+import { parseArtifactProfile, type ArtifactProfile } from "@/domain/entities/ArtifactProfile";
 import { LlmServiceImpl } from "./LlmServiceImpl";
 import { streamObject } from "ai";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -118,6 +119,7 @@ export function buildPersonaExtractionSystemPrompt(
     artifact?: ArtifactFraming,
     frame?: SimulationFrame,
     profile?: ArtifactProfile,
+    artifactText?: string,
 ): string {
     const artifactName = artifact?.name
         ? `- The ${artifact.kind === "document" ? "document" : "site/product"} being evaluated is named "${artifact.name}" — always spell it exactly this way when you mention it.\n`
@@ -144,7 +146,7 @@ RULES:
 7. Name the persona in overview and researchQuestionAnswer ("${persona.name}…"). Never write "the user" in those two fields, and never adopt a name, role, occupation, or pronoun that the artifact assigns to someone — the persona's identity comes from their profile, not from the artifact's copy.
 8. Return one verdict for this persona from the FIXED set: adopt, trial, reject, undecided. Do not invent another verdict. A role never implies a verdict; a blocker can adopt and an economic buyer can reject.
 9. Return decisiveReason as one sentence naming why this persona decided as it did, and decisiveReasonQuote as a COMPLETE sentence copied character-for-character from the transcript that supports that reason. No quote, no reason.
-10. This run's role is ${frame?.decisionRole ?? "daily_user"}. The artifact may address a reader with a different role; do not adopt the artifact's assigned role.${frame ? `\n11. Decision question: ${frame.decisionQuestion}\n12. Start from this role's entry point: ${frame.entryPoint}` : ""}${profile ? `\n13. Content kind: ${profile.contentKind}.` : ""}`;
+10. This run's role is ${frame?.decisionRole ?? "daily_user"}. The artifact may address a reader with a different role; do not adopt the artifact's assigned role.${frame ? `\n11. Decision question: ${frame.decisionQuestion}\n12. Start from this role's entry point: ${frame.entryPoint}` : ""}${profile ? `\n13. Content kind: ${profile.contentKind}.` : ""}${profile && profile.stageAnchorKind !== "none" && artifactText ? `\n\nARTIFACT ANCHOR SOURCE — use this only to copy an anchor value; never to add a finding:\n"""\n${artifactText.slice(0, 6000)}\n"""` : ""}${profile ? (profile.stageAnchorKind === "none" ? `\n14. Do not add a stage anchor: this artifact has no text location to anchor to.` : `\n14. Stage anchors: add anchor {kind: "${profile.stageAnchorKind}", value} to a stage only when you can copy the exact ${profile.stageAnchorKind === "timestamp" ? "timestamp" : profile.stageAnchorKind} from the artifact. For a video, timestamps must rise across the stages you reach. Omit the anchor rather than guess.`) : ""}`;
 }
 
 /**
@@ -159,6 +161,89 @@ RULES:
  */
 export class VisionAnalysisAdapter {
     constructor(private llmService: LlmServiceImpl) {}
+
+    /**
+     * Reads the artifact once, before any persona. Extracts only what the
+     * artifact states so later stages can check facts and choose the decision
+     * question. Rejects on an unusable payload; the use case falls back.
+     */
+    async extractArtifactProfile(
+        context: ArtifactIntake,
+        artifact: ArtifactFraming,
+        options: { tokenLimit?: number; runId?: string } = {},
+    ): Promise<ArtifactProfile> {
+        const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+        const isDocument = artifact.kind === "document";
+        if (isDocument && context.text === undefined) {
+            throw new Error("Cannot profile a document: the artifact carries no text");
+        }
+        if (!isDocument && !context.screenshotBase64) {
+            throw new Error("Cannot profile a site: the artifact carries no screenshot");
+        }
+
+        const system = `You extract the artifact profile for a user-research simulation.
+
+Return ONLY a JSON object with this shape:
+{
+  "contentKind": "landing_page" | "feature_brief" | "pitch_deck" | "marketing_copy" | "video_script" | "document" | "other",
+  "facts": [{ "kind": "product"|"audience"|"offer"|"price"|"tier"|"claim"|"cta"|"proof", "label": string, "value": string, "sourceQuote": string, "source": "text"|"screenshot", "amount"?: number, "currency"?: string, "period"?: "month"|"year"|"one_time" }],
+  "openQuestions": string[],
+  "stageAnchorKind": "timestamp" | "heading" | "quote" | "none",
+  "confidence": "high" | "medium" | "low"
+}
+
+RULES:
+- contentKind is decided by what the artifact is: a script or transcript with time markers is video_script; a page that asks for a CTA is landing_page; a deck is pitch_deck; a product brief is feature_brief; standalone copy is marketing_copy; anything else is document or other.
+- facts are ONLY what the artifact states. sourceQuote MUST be copied word-for-word from the text. For a screenshot, set source "screenshot" and quote the visible wording. Never fill a fact from general knowledge.
+- A price fact MUST include amount, currency, and period when stated.
+- openQuestions are facts a reader would need but the artifact leaves out. Do not answer them.
+- stageAnchorKind: "timestamp" only for a video script whose text carries time markers; "heading" or "quote" for text; "none" when there is no text to anchor to.
+- confidence is how completely the artifact itself supports the profile.`;
+
+        const content = isDocument
+            ? [{ type: "text" as const, text: `Artifact text:\n"""\n${context.text}\n"""` }]
+            : [
+                { type: "text" as const, text: "Read this artifact and extract its profile." },
+                { type: "image_url" as const, image_url: { url: `data:image/jpeg;base64,${context.screenshotBase64}` } },
+            ];
+
+        let lastError: Error | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const raw = await this.llmService.createChatCompletion(
+                    [
+                        { role: "system", content: system },
+                        { role: "user", content: content as never },
+                    ],
+                    {
+                        temperature: 0.1,
+                        max_tokens: options.tokenLimit ?? 2000,
+                        model: isDocument ? this.llmService.textModel : this.llmService.visionModel,
+                        purpose: "Artifact Profile",
+                        runId: options.runId,
+                    },
+                );
+                const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+                const start = cleaned.indexOf("{");
+                const end = cleaned.lastIndexOf("}");
+                if (start < 0 || end <= start) throw new Error("Artifact profile response has no JSON object");
+                const profile = parseArtifactProfile(JSON.parse(cleaned.slice(start, end + 1)));
+                log?.info("VisionAnalysisAdapter", "Artifact profile extracted", {
+                    contentKind: profile.contentKind,
+                    facts: profile.facts.length,
+                    anchor: profile.stageAnchorKind,
+                    degraded: profile.degraded.length,
+                });
+                return profile;
+            } catch (error) {
+                lastError = error as Error;
+                log?.warn("VisionAnalysisAdapter", `Artifact profile attempt ${attempt + 1} failed`, {
+                    error: String(error),
+                });
+            }
+        }
+        throw lastError ?? new Error("Artifact profile failed");
+    }
 
     async generateVisceralMonologue(
         persona: Persona,
@@ -271,7 +356,7 @@ export class VisionAnalysisAdapter {
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame; profile?: ArtifactProfile } = {},
+        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame; profile?: ArtifactProfile; artifactText?: string } = {},
     ): Promise<PersonaResponse> {
         const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
         const tokenLimit = options.tokenLimit ?? 2000;
@@ -286,7 +371,7 @@ export class VisionAnalysisAdapter {
 
         // Text model, no image: the anthropologist must ground every claim in
         // the transcript, not re-interpret the screenshot.
-        const system = buildPersonaExtractionSystemPrompt(persona, monologueText, researchQuestion, options.artifact, options.frame, options.profile);
+        const system = buildPersonaExtractionSystemPrompt(persona, monologueText, researchQuestion, options.artifact, options.frame, options.profile, options.artifactText);
         const basePrompt = `Analyze the think-aloud transcript above and return the structured PersonaResponse JSON.`;
 
         let responseObj: unknown = null;
@@ -407,9 +492,18 @@ export class VisionAnalysisAdapter {
             });
         }
 
+        const response = responseObj as PersonaResponse;
+        if (options.profile) {
+            response.customerJourney = sanitizeJourneyAnchors(
+                response.customerJourney,
+                options.profile,
+                options.artifactText,
+            );
+        }
+
         log?.info("VisionAnalysisAdapter", `extractPersonaResponse completed for "${persona.name}"`);
 
-        return responseObj as PersonaResponse;
+        return response;
     }
 
 }

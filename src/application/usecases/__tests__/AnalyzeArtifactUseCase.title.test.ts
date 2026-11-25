@@ -62,8 +62,9 @@ describe('AnalyzeArtifactUseCase title generation', () => {
   it('does not fail the run when title generation throws (nice-to-have)', async () => {
     (mockLlm.generateSimulationTitle as any).mockRejectedValue(new Error('model down'))
 
-    await expect(
-      useCase.execute({ type: 'url', url: 'https://example.com' }, [], 'goal', 'question'),
-    ).resolves.toEqual([])
+    const run = await useCase.execute(
+      { type: 'url', url: 'https://example.com' }, [], 'goal', 'question',
+    )
+    expect(run.responses).toEqual([])
   })
 })

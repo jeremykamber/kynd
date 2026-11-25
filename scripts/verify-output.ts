@@ -473,7 +473,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
   const runId = `verify-${Date.now()}`;
   console.log(`\n[artifact] analyzing ${sourceDescription} (${image ? path.basename(String(image)) : url ?? ''}) with ${personas.length} personas...`);
 
-  const responses = await useCase.execute(
+  const { responses, profile, frames } = await useCase.execute(
     input,
     personas,
     businessGoal,
@@ -503,6 +503,8 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
       businessGoal,
       researchQuestion,
       personas: { count: personas.length, names: personas.map((p) => p.name) },
+      artifactProfile: profile,
+      frames,
       responses,
       synthesis: null,
     }, null, 2)
@@ -526,6 +528,7 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
     return null;
   }) : null;
 
+  console.log(`\n[profile] ${profile.contentKind} · anchor ${profile.stageAnchorKind} · ${profile.facts.length} facts · ${profile.degraded.length} degraded`);
   report('artifact', checkResponses(responses, input.type));
   report('monologues', checkMonologues(responses));
   report('synthesis', checkSynthesis(synthesis, responses.length));
@@ -542,6 +545,8 @@ async function runArtifactMode(args: Record<string, unknown>): Promise<void> {
       businessGoal,
       researchQuestion,
       personas: { count: personas.length, names: personas.map((p) => p.name) },
+      artifactProfile: profile,
+      frames,
       responses,
       synthesis,
     }, null, 2)

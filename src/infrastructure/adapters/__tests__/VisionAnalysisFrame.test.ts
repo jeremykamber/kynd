@@ -55,6 +55,18 @@ describe("monologue frame", () => {
     expect(prompt).toContain("Do not decide a final verdict");
   });
 
+  it("forbids anchors when the profile says the artifact has none", () => {
+    const prompt = buildPersonaExtractionSystemPrompt(
+      persona,
+      "I would not put my team's data in this.",
+      "Would you adopt this?",
+      { kind: "site", name: "pricing" },
+      frame,
+      { contentKind: "landing_page", facts: [], openQuestions: [], stageAnchorKind: "none", confidence: "high", degraded: [] },
+    );
+    expect(prompt).toContain("Do not add a stage anchor");
+  });
+
   it("never shows the persona the verdict set", () => {
     const prompt = buildVisceralMonologueSystemPrompt(persona, "q", undefined, frame);
     expect(prompt).not.toContain("adopt, trial, reject");
@@ -71,6 +83,7 @@ describe("extraction frame", () => {
       { kind: "document", name: "brief" },
       frame,
       { contentKind: "feature_brief", facts: [], openQuestions: [], stageAnchorKind: "quote", confidence: "high", degraded: [] },
+      "Intro\n\n## Pricing\n\n0:12 first timestamp",
     );
     expect(prompt).toContain("adopt, trial, reject, undecided");
     expect(prompt).toContain("A role never implies a verdict");
@@ -78,6 +91,10 @@ describe("extraction frame", () => {
     expect(prompt).toContain("This run's role is blocker");
     expect(prompt).toContain("do not adopt the artifact's assigned role");
     expect(prompt).toContain("Content kind: feature_brief");
+    expect(prompt).toContain('Stage anchors: add anchor {kind: "quote", value}');
+    expect(prompt).toContain("Omit the anchor rather than guess");
+    expect(prompt).toContain("ARTIFACT ANCHOR SOURCE");
+    expect(prompt).toContain("0:12");
   });
 
   it("states the fallback role when no frame was built", () => {

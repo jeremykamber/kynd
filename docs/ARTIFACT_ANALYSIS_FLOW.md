@@ -196,6 +196,28 @@ Invariant: every `PersonaResponse` has exactly 5 stages, in order. The validator
 
 ---
 
+## Artifact Profile
+
+Before the first persona starts, one serial call reads the artifact and returns
+an `ArtifactProfile`:
+
+- `contentKind`: landing page, feature brief, pitch deck, marketing copy, video
+  script, document, or other. The kind chooses the decision question.
+- `facts`: only what the artifact states. Every text fact carries a verbatim
+  `sourceQuote`; code drops a fact whose quote is not in the text. A screenshot
+  fact is marked `source: "screenshot"` and is allowed only when the run has a
+  screenshot.
+- `openQuestions`: facts the artifact leaves out. They are never answered by
+  the profile.
+- `stageAnchorKind`: `timestamp` for a video script, `heading` or `quote` for
+  text, `none` for a page with no text to anchor to.
+- `degraded`: non-empty when extraction failed or a fact was dropped. The
+  report says the facts are unverified and the PDF stamps the note.
+
+If the call fails, the run continues with the documented fallback profile
+(`document` for text, `landing_page` for a site), empty facts, low confidence,
+and a non-empty `degraded` list.
+
 ## Decision Frames and Verdicts
 
 Each persona runs against a code-built `SimulationFrame`:
@@ -211,6 +233,11 @@ A missing role falls back to `daily_user` with `decisionRoleSource: "fallback"`.
 The frame is deterministic: the same persona and artifact profile produce the
 same frame every run. The monologue prompt receives the frame; it does not
 receive the verdict set.
+
+Each journey stage may carry an `anchor`. Code keeps one only when the profile
+allows its kind, a timestamp is valid and rises across stages, and a heading or
+quote appears verbatim in the artifact text. An anchor never changes the stage
+order.
 
 Every persona then returns one verdict from the fixed set: `adopt`, `trial`,
 `reject`, `undecided`. A missing or invalid model value becomes `undecided`.

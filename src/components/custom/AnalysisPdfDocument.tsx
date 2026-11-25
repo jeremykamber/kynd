@@ -365,7 +365,11 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
   const responses = analysis.responses ?? []
   const synthesis: ArtifactSynthesis =
     analysis.synthesis ?? fallbackSynthesis(responses)
-  const validationWarnings = synthesis.validationWarnings ?? []
+  // A degraded profile is a report-level caveat, stamped like a rejected field.
+  const validationWarnings = [
+    ...(synthesis.validationWarnings ?? []),
+    ...(analysis.artifactProfile?.degraded ?? []).map((note) => `profile: ${note}`),
+  ]
 
   const formattedDate = new Date(
     analysis.completedAt || analysis.createdAt || Date.now()
@@ -413,6 +417,18 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
             </Text>
             {validationWarnings.map((warning, index) => (
               <Text key={index} style={styles.validationText}>• {warning}</Text>
+            ))}
+          </View>
+        )}
+
+        {synthesis.degraded && synthesis.degraded.length > 0 && (
+          <View style={styles.validationBox} wrap={false}>
+            <Text style={styles.validationTitle}>Evidence dropped from this report ({synthesis.degraded.length})</Text>
+            <Text style={styles.validationText}>
+              These claims could not set a count or a finding.
+            </Text>
+            {synthesis.degraded.map((note, index) => (
+              <Text key={index} style={styles.validationText}>• {note}</Text>
             ))}
           </View>
         )}
