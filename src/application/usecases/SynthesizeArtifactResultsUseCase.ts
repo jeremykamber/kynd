@@ -1,8 +1,9 @@
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import type { SynthesisPlan } from "@/domain/entities/SynthesisPlan";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
-import { buildArtifactSynthesis, planForWriter } from "@/application/synthesis/plan";
+import { buildArtifactSynthesis, findingFloor, planForWriter } from "@/application/synthesis/plan";
 import { validateSynthesis } from "@/application/synthesis/validateSynthesis";
+import { buildMemoDraft } from "@/application/synthesis/memo";
 
 /**
  * Cross-persona cohort synthesis from a code-built plan.
@@ -18,8 +19,12 @@ export class SynthesizeArtifactResultsUseCase {
 
   async execute(plan: SynthesisPlan, options?: { runId?: string }): Promise<ArtifactSynthesis> {
     const writerPlan = planForWriter(plan);
-    const draft = await this.llmService.synthesizeFromPlan(writerPlan, options);
+    const variant = process.env.SYNTHESIS_VARIANT ?? "A";
+    const draft = variant === "B"
+      ? buildMemoDraft(plan)
+      : await this.llmService.synthesizeFromPlan(writerPlan, options);
     let synthesis = buildArtifactSynthesis(plan, draft);
+    if (variant === "C") synthesis = await this.redTeam(synthesis, options);
     let violations = validateSynthesis(plan, synthesis);
 
     if (violations.length > 0) {
@@ -45,7 +50,7 @@ export class SynthesizeArtifactResultsUseCase {
         ...synthesis,
         validationWarnings: violations.map((violation) => `${violation.field}: ${violation.message}`),
       };
-    } else {
+    } else if (variant !== "B") {
       // The summary sees only the built report: every finding, count, and
       // friction is already verified, so it cannot introduce a topic or a
       // group the writer never supported. A summary that fails validation is
@@ -61,5 +66,41 @@ export class SynthesizeArtifactResultsUseCase {
     }
 
     return synthesis;
+  }
+
+  /** Variant C: a critic checks every quoted claim against the finding and
+   * drops what does not support it. A finding below the floor disappears. */
+  private async redTeam(
+    synthesis: ArtifactSynthesis,
+    options?: { runId?: string },
+  ): Promise<ArtifactSynthesis> {
+    const entries = synthesis.topFindings.flatMap((finding) =>
+      (finding.citations ?? []).map((citation) => ({
+        claimId: `${finding.groupId}:${citation.personaId}`,
+        observation: finding.observation,
+        quote: citation.quote,
+      })),
+    );
+    if (entries.length === 0) return synthesis;
+    try {
+      const verified = await this.llmService.verifyClaimSupport(entries, options);
+      const levels = new Map(verified.map((item) => [item.claimId, item.level]));
+      const floor = findingFloor(synthesis.completedCount);
+      const kept = synthesis.topFindings.flatMap((finding) => {
+        const citations = (finding.citations ?? []).filter(
+          (citation) => levels.get(`${finding.groupId}:${citation.personaId}`) === "support",
+        );
+        if (citations.length < floor) return [];
+        return [{
+          ...finding,
+          affectedPersonaCount: citations.length,
+          evidence: citations[0]?.quote ?? finding.evidence,
+          citations,
+        }];
+      });
+      return { ...synthesis, topFindings: kept };
+    } catch {
+      return synthesis;
+    }
   }
 }

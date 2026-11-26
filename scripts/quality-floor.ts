@@ -146,9 +146,10 @@ export function structuralFailures(run: RunFile): StructuralResult {
 }
 
 /** The blind review context. No run id, branch, earlier rounds, or fixture path. */
-export function reviewContext(run: RunFile): string {
+export function reviewContext(run: RunFile, artifactText?: string): string {
   const synthesis = run.synthesis ?? {};
   const lines = [
+    ...(artifactText ? ['# Artifact under review', '', artifactText, ''] : []),
     '# User-research report',
     '',
     `## Overview`,
@@ -266,7 +267,7 @@ function main(): void {
       const structural = structuralFailures(run);
       structural.run = name;
       runFiles.push({ name, run, structural });
-      fs.writeFileSync(path.join(outDir, `${name}.review.md`), reviewContext(run));
+      fs.writeFileSync(path.join(outDir, `${name}.review.md`), reviewContext(run, fs.readFileSync(path.join(String(args.artifacts), artifact), 'utf8')));
     }
   } else {
     for (const file of fs.readdirSync(outDir).filter((f) => f.endsWith('.json') && !f.endsWith('.reviews.json') && f !== 'summary.json').sort()) {
