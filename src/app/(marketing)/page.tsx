@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { neutralNames } from '@/data/genderless_names';
 
 /**
  * Public landing page.
@@ -54,6 +55,39 @@ const RUN = [
   { stage: 'Action', state: 'Not reached' },
 ] as const;
 
+const AUDIENCE_ROLES = ['Marketing lead', 'Founder', 'Procurement', 'Freelancer'] as const;
+
+/**
+ * Example names come from the same seeded generator the product uses for real
+ * personas (`neutralNames`), so the page never invents a person. One fixed seed
+ * keeps the same five names on every render.
+ */
+const [firstPersonaName, secondPersonaName, thirdPersonaName, fourthPersonaName, quotedPersonaName] =
+  neutralNames('founders and marketing leads', 5);
+
+const AUDIENCE = AUDIENCE_ROLES.map((role, index) => ({
+  role,
+  name: [firstPersonaName, secondPersonaName, thirdPersonaName, fourthPersonaName][index] ?? 'Persona',
+}));
+
+const QUOTED_PERSONA = quotedPersonaName ?? 'Persona';
+
+const ARTIFACT_KINDS = ['Live URL', 'Screenshot', 'Up to 5 documents', 'Pasted text'] as const;
+
+/**
+ * Where an example cohort of ten stopped. The bar is the count, so the shape of
+ * the group reads before the numbers do.
+ */
+const COHORT_SPREAD = [
+  { stage: 'Interpretation', count: 2 },
+  { stage: 'Understanding', count: 3 },
+  { stage: 'Belief', count: 4 },
+  { stage: 'Motivation', count: 1 },
+  { stage: 'Action', count: 0 },
+] as const;
+const COHORT_TOTAL = 10;
+const COHORT_MAX = 4;
+
 const STAGES = [
   { label: 'Interpretation', question: 'What do I think this is?' },
   { label: 'Understanding', question: 'Do I understand it?' },
@@ -87,14 +121,9 @@ export default function MarketingPage() {
               Find the problems before your users do.
             </h1>
 
-            <div className="flex max-w-[46ch] flex-col gap-4">
-              <p className="text-base text-pretty leading-relaxed text-foreground/80">
-                Your landing page makes perfect sense to you. Does it make sense to someone who sees it for the first time?
-              </p>
-              <p className="text-base text-pretty leading-relaxed text-muted-foreground">
-                Kynd puts it in front of AI personas built from your audience description or your interview transcripts. You see what each one understands, what it doubts, and where it stops.
-              </p>
-            </div>
+            <p className="max-w-[46ch] text-base text-pretty leading-relaxed text-foreground/80">
+              Kynd puts your page in front of AI personas built from your audience description or interview transcripts.
+            </p>
 
             <div className="mt-2 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="focus-ring">
@@ -149,7 +178,7 @@ export default function MarketingPage() {
                 ‘I can see what it does. There is no price on this page, and I would not book a call to find it out.’
               </blockquote>
               <figcaption className="mt-2 text-sm text-muted-foreground">
-                Sarah Jenkins, VP of Engineering
+                {QUOTED_PERSONA}, VP of Engineering
               </figcaption>
             </figure>
           </div>
@@ -174,30 +203,134 @@ export default function MarketingPage() {
             </div>
           </ReportSection>
 
-          {/* 02 — the workflow */}
+          {/*
+            02 — the workflow. Three steps, each shown as the artifact it leaves
+            behind: a cohort roster, the reading surface, the spread of stops.
+            The objects differ on purpose; three identical text columns read as
+            template.
+          */}
           <ReportSection>
-            <div id="how-it-works" className="flex flex-col gap-8 scroll-mt-24">
+            <div id="how-it-works" className="flex flex-col gap-10 scroll-mt-24">
               <h2 className="text-xl font-semibold tracking-tight">From a sentence to a report.</h2>
-              <div className="grid gap-8 md:grid-cols-3">
-                <div className="flex flex-col gap-2 border-t border-border/60 pt-4">
-                  <h3 className="text-base font-semibold">Build your audience</h3>
-                  <p className="text-base text-pretty leading-relaxed text-muted-foreground">
-                    Describe them, answer the guided questions, or upload interview transcripts. Choose 1 to 20 personas.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 border-t border-border/60 pt-4">
-                  <h3 className="text-base font-semibold">Put your work in front of them</h3>
-                  <p className="text-base text-pretty leading-relaxed text-muted-foreground">
-                    A live URL, a screenshot, up to five documents, or pasted text. Each persona reads it as a first-time visitor.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 border-t border-border/60 pt-4">
-                  <h3 className="text-base font-semibold">Find out what breaks</h3>
-                  <p className="text-base text-pretty leading-relaxed text-muted-foreground">
-                    The stage where each persona stopped, the sentence that caused it, and the pattern across the group. Export the report as a PDF.
-                  </p>
-                </div>
-              </div>
+
+              <ol className="flex flex-col">
+                <li className="grid gap-6 border-t border-border/60 py-8 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-12">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-baseline gap-3">
+                      <span className="micro-label text-muted-foreground">01</span>
+                      <h3 className="text-base font-semibold">Build your audience</h3>
+                    </div>
+                    <p className="max-w-[44ch] text-base text-pretty leading-relaxed text-muted-foreground">
+                      Describe them, answer the guided questions, or upload interview transcripts. Choose 1 to 20 personas.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <div className="flex items-baseline justify-between gap-4 border-b border-border/60 pb-2">
+                      <span className="micro-label text-muted-foreground">Example cohort</span>
+                      <span className="micro-label text-muted-foreground">10 personas</span>
+                    </div>
+                    <ul>
+                      {AUDIENCE.map((person) => (
+                        <li
+                          key={person.name}
+                          className="flex items-baseline justify-between gap-4 border-b border-border/40 py-2"
+                        >
+                          <span className="text-sm font-medium">{person.name}</span>
+                          <span className="text-sm text-muted-foreground">{person.role}</span>
+                        </li>
+                      ))}
+                      <li className="flex items-baseline justify-between gap-4 py-2 text-sm text-muted-foreground/70">
+                        <span>+ 6 more</span>
+                        <span>Same brief</span>
+                      </li>
+                    </ul>
+                  </div>
+                </li>
+
+                <li className="grid gap-6 border-t border-border/60 py-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-12">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-baseline gap-3">
+                      <span className="micro-label text-muted-foreground">02</span>
+                      <h3 className="text-base font-semibold">Put your work in front of them</h3>
+                    </div>
+                    <p className="max-w-[44ch] text-base text-pretty leading-relaxed text-muted-foreground">
+                      Each persona reads the artifact as a first-time visitor.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-baseline justify-between gap-4 border-b border-border/60 pb-2">
+                      <span className="micro-label text-muted-foreground">Artifact</span>
+                      <span className="micro-label text-muted-foreground">Read once per persona</span>
+                    </div>
+                    <p className="overflow-hidden text-ellipsis whitespace-nowrap rounded-md border border-border px-3 py-2 font-mono text-sm text-foreground/80">
+                      https://your-site.com/pricing
+                    </p>
+                    <ul className="grid grid-cols-2 gap-x-6">
+                      {ARTIFACT_KINDS.map((kind, index) => (
+                        <li
+                          key={kind}
+                          className={`flex items-center gap-2 border-b border-border/40 py-2 text-sm ${
+                            index === 0 ? 'text-foreground' : 'text-muted-foreground'
+                          }`}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`size-1.5 shrink-0 rounded-full ${
+                              index === 0 ? 'bg-foreground' : 'border border-muted-foreground/60'
+                            }`}
+                          />
+                          {kind}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </li>
+
+                <li className="grid gap-6 border-t border-border/60 py-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-12">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-baseline gap-3">
+                      <span className="micro-label text-muted-foreground">03</span>
+                      <h3 className="text-base font-semibold">Find out what breaks</h3>
+                    </div>
+                    <p className="max-w-[44ch] text-base text-pretty leading-relaxed text-muted-foreground">
+                      The stage where each persona stopped, the sentence that caused it, and the pattern across the group. Export the report as a PDF.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <div className="flex items-baseline justify-between gap-4 border-b border-border/60 pb-2">
+                      <span className="micro-label text-muted-foreground">Stopped at</span>
+                      <span className="micro-label text-muted-foreground">Example · {COHORT_TOTAL} personas</span>
+                    </div>
+                    <ul>
+                      {COHORT_SPREAD.map((row) => (
+                        <li
+                          key={row.stage}
+                          className="grid grid-cols-[minmax(0,7.5rem)_1fr] items-center gap-4 border-b border-border/40 py-2 last:border-b-0"
+                        >
+                          <span className="text-sm">{row.stage}</span>
+                          <span className="flex items-center gap-3">
+                            <span className="w-4 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground">
+                              {row.count}
+                            </span>
+                            <span className="h-1.5 flex-1 overflow-hidden bg-muted">
+                              <span
+                                className="block h-full bg-foreground/60"
+                                style={{ width: `${(row.count / COHORT_MAX) * 100}%` }}
+                              />
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="pt-3 text-sm text-muted-foreground">
+                      Most stopped at Belief, where they did not trust the claim.
+                    </p>
+                  </div>
+                </li>
+              </ol>
             </div>
           </ReportSection>
 
