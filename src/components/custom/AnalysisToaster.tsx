@@ -6,7 +6,7 @@ import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { getProgressAction } from '@/actions/getProgress'
 import { getAnalysisResultAction } from '@/actions/getAnalysisResult'
 import { ClockIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, XIcon } from 'lucide-react'
-import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
+import type { AnalysisProgressStep, ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import { summarizeError } from '@/lib/errorSummary'
 
 /**
@@ -291,9 +291,13 @@ export function AnalysisToaster() {
 
           const p = result.progress
           const updates: Partial<ArtifactAnalysis> = {}
-          if (p.step) updates.currentStep = p.step as any
+          if (p.step) updates.currentStep = p.step as AnalysisProgressStep
           if (p.completedResponses !== undefined) updates.completedResponses = p.completedResponses
           if (p.totalResponses !== undefined) updates.totalResponses = p.totalResponses
+          // The AI title is the run's display name. It is reported as progress,
+          // so this poller must apply it too: the page hook that started the
+          // run stops polling once it unmounts.
+          if (p.title) updates.name = p.title
 
           if (Object.keys(updates).length > 0) {
             useAnalysisStore.getState().updateAnalysis(analysis.id, updates)
