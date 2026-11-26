@@ -14,6 +14,43 @@ import { buildMemoDraft } from "@/application/synthesis/memo";
  * drift. One repair attempt follows; if it still fails, the draft is kept with
  * inline warnings instead of being replaced by a plain fallback.
  */
+function withContextEvidence(plan: SynthesisPlan, synthesis: ArtifactSynthesis): ArtifactSynthesis {
+  return {
+    ...synthesis,
+    topFindings: synthesis.topFindings.map((finding) => {
+      const group = plan.findings.find((item) => item.id === finding.groupId);
+      const citation = finding.citations?.[0];
+      const claim = citation
+        ? group?.claims.find((item) => item.personaId === citation.personaId)
+        : undefined;
+      if (!citation) return finding;
+      const role = citation.decisionRole ?? "persona";
+      const job = citation.occupation ?? "role";
+      return { ...finding, evidence: `${role} (${job}) — ${claim?.observation ?? citation.quote}` };
+    }),
+  };
+}
+
+function withoutArtifactCopy(plan: SynthesisPlan, synthesis: ArtifactSynthesis): ArtifactSynthesis {
+  const facts = new Set((plan.profile?.facts ?? []).map((fact) => fact.value.trim().toLowerCase()));
+  const floor = findingFloor(synthesis.completedCount);
+  return {
+    ...synthesis,
+    topFindings: synthesis.topFindings.flatMap((finding) => {
+      const citations = (finding.citations ?? []).filter(
+        (citation) => !facts.has(citation.quote.trim().toLowerCase()),
+      );
+      if (citations.length < floor) return [];
+      return [{
+        ...finding,
+        affectedPersonaCount: citations.length,
+        evidence: citations[0]?.quote ?? finding.evidence,
+        citations,
+      }];
+    }),
+  };
+}
+
 export class SynthesizeArtifactResultsUseCase {
   constructor(private readonly llmService: LlmServicePort) {}
 
@@ -24,7 +61,12 @@ export class SynthesizeArtifactResultsUseCase {
       ? buildMemoDraft(plan)
       : await this.llmService.synthesizeFromPlan(writerPlan, options);
     let synthesis = buildArtifactSynthesis(plan, draft);
-    if (variant === "C") synthesis = await this.redTeam(synthesis, options);
+    if (variant === "C") synthesis = await this.redTeam(synthesis, options, true);
+    if (variant === "A2" || variant === "B2" || variant === "C2") {
+      synthesis = await this.redTeam(synthesis, options, false);
+    }
+    if (variant === "B2") synthesis = withContextEvidence(plan, synthesis);
+    if (variant === "C2") synthesis = withoutArtifactCopy(plan, synthesis);
     let violations = validateSynthesis(plan, synthesis);
 
     if (violations.length > 0) {
@@ -72,7 +114,8 @@ export class SynthesizeArtifactResultsUseCase {
    * drops what does not support it. A finding below the floor disappears. */
   private async redTeam(
     synthesis: ArtifactSynthesis,
-    options?: { runId?: string },
+    options: { runId?: string } | undefined,
+    strict: boolean,
   ): Promise<ArtifactSynthesis> {
     const entries = synthesis.topFindings.flatMap((finding) =>
       (finding.citations ?? []).map((citation) => ({
@@ -87,9 +130,10 @@ export class SynthesizeArtifactResultsUseCase {
       const levels = new Map(verified.map((item) => [item.claimId, item.level]));
       const floor = findingFloor(synthesis.completedCount);
       const kept = synthesis.topFindings.flatMap((finding) => {
-        const citations = (finding.citations ?? []).filter(
-          (citation) => levels.get(`${finding.groupId}:${citation.personaId}`) === "support",
-        );
+        const citations = (finding.citations ?? []).filter((citation) => {
+          const level = levels.get(`${finding.groupId}:${citation.personaId}`);
+          return strict ? level === "support" : level !== "unsupported";
+        });
         if (citations.length < floor) return [];
         return [{
           ...finding,

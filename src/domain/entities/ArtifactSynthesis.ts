@@ -74,6 +74,8 @@ export interface EvidenceCitation {
   personaName: string;
   /** VERBATIM substring of that persona's rawAnalysis transcript */
   quote: string;
+  decisionRole?: string;
+  occupation?: string;
 }
 
 /** A topic where the cohort split into opposing views. */
