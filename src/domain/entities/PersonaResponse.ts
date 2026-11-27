@@ -3,6 +3,9 @@ import type { PersonaProfile } from "./PersonaProfile";
 import type { StageJourney } from "./StageJourney";
 import type { MajorFinding } from "./MajorFinding";
 import type { CognitiveStage } from "./CognitiveStage";
+import type { PersonaClaim } from "./PersonaClaim";
+import type { SimulationFrame } from "./SimulationFrame";
+import type { Verdict } from "./Verdict";
 import { COGNITIVE_STAGES } from "./CognitiveStage";
 
 /**
@@ -33,7 +36,26 @@ export interface PersonaResponse {
   personaProfile?: PersonaProfile;
   /** Id of the Persona this response came from. */
   personaId?: string;
+  /**
+   * Claims extracted from the monologue by the separate claim pass. Absent
+   * when that pass failed; an absent set is a recorded degradation, not an
+   * empty cohort finding.
+   */
+  claims?: PersonaClaim[];
+  /** The persona's final decision from the fixed verdict set. */
+  verdict?: Verdict;
+  /** One sentence naming why the persona decided as it did. */
+  decisiveReason?: string;
+  /** Verbatim sentence from `rawAnalysis` supporting `decisiveReason`. */
+  decisiveReasonQuote?: string;
+  /** The role, task, and decision question this persona ran under. */
+  decisionFrame?: SimulationFrame;
 }
+
+const StageAnchorSchema = z.object({
+  kind: z.enum(["timestamp", "heading", "quote"]).describe("What the anchor points at."),
+  value: z.string().describe("A timestamp, heading, or phrase copied from the artifact."),
+});
 
 const StageJourneySchema = z.object({
   stage: z.enum(["interpretation", "understanding", "belief", "motivation", "action"]),
@@ -41,6 +63,7 @@ const StageJourneySchema = z.object({
   sentiment: z.enum(["positive", "neutral", "negative"]).describe("How the persona felt during this stage."),
   outcome: z.enum(["succeeded", "blocked", "stopped"]).describe("Whether the persona successfully passed this stage."),
   transition: z.string().optional().describe("What caused progression to the next stage, or why they stopped."),
+  anchor: StageAnchorSchema.optional().describe("Where in the artifact this stage refers to."),
 });
 
 const MajorFindingSchema = z.object({
@@ -56,6 +79,11 @@ export const PersonaResponseSchema = z.object({
   majorFindings: z.array(MajorFindingSchema).describe("Key findings from this persona's response. Each finding has an observation, evidence, impact, and confidence level."),
   pointsOfFriction: z.array(z.string()).describe("Moments where the persona failed to progress through the cognitive journey — what confused, frustrated, or stopped them."),
   unansweredQuestions: z.array(z.string()).describe("Questions the persona still had after interacting with the artifact. These often reveal missing information."),
+  // Raw model value; code normalizes anything outside the fixed set to
+  // `undecided`, so one bad token cannot fail the whole extraction.
+  verdict: z.string().optional().describe("One of adopt, trial, reject, undecided."),
+  decisiveReason: z.string().optional().describe("One sentence naming why the persona decided as it did."),
+  decisiveReasonQuote: z.string().optional().describe("A complete sentence copied verbatim from the transcript."),
 });
 
 /**
@@ -87,21 +115,40 @@ export function personaIdentityViolations(
   fallbackName?: string,
 ): string[] {
   const name = response.personaProfile?.name ?? fallbackName ?? "";
-  const summary = [response.overview ?? "", response.researchQuestionAnswer ?? ""];
-  // A verbatim quote of the artifact ("show me one") is evidence, not voice.
-  const joined = withoutQuotedSpans(summary.join(" "));
+  const fields = [
+    { field: "overview", text: response.overview ?? "" },
+    { field: "researchQuestionAnswer", text: response.researchQuestionAnswer ?? "" },
+  ];
   const violations: string[] = [];
 
-  if (name && !joined.toLowerCase().includes(name.toLowerCase())) {
-    violations.push(`does not name the persona (${name})`);
-  }
-  if (/\bthe user\b/i.test(joined)) {
-    violations.push('refers to "the user" instead of the persona');
-  }
-  if (/\b(I|I'm|I've|my|me)\b/i.test(joined)) {
-    violations.push("speaks in the first person");
+  // Each summary field must name the persona on its own. Checking the joined
+  // text let a name in one field cover an anonymous sentence in the other.
+  for (const { field, text } of fields) {
+    // A verbatim quote of the artifact ("show me one") is evidence, not voice.
+    const plain = withoutQuotedSpans(text);
+    if (name && !plain.toLowerCase().includes(name.toLowerCase())) {
+      violations.push(`${field} does not name the persona (${name})`);
+    }
+    if (/\bthe user\b/i.test(plain)) {
+      violations.push(`${field} refers to "the user" instead of the persona`);
+    }
+    if (/\b(I|I'm|I've|my|me)\b/i.test(plain)) {
+      violations.push(`${field} speaks in the first person`);
+    }
   }
   return violations;
+}
+
+/**
+ * Whether a response is a real completed analysis rather than the degraded
+ * fallback `AnalyzeArtifactUseCase` writes when a persona pipeline throws.
+ */
+export function isCompletedPersonaResponse(response: PersonaResponse): boolean {
+  return Boolean(
+    response.overview &&
+    response.customerJourney?.length > 0 &&
+    !response.overview.startsWith("Analysis could not be completed."),
+  );
 }
 
 /**
@@ -128,6 +175,8 @@ export function validatePersonaResponse(response: PersonaResponse): boolean {
     const stage = response.customerJourney[i];
     if (!stage || stage.stage !== COGNITIVE_STAGES[i]) return false;
     if (!stage.description || !stage.sentiment || !stage.outcome) return false;
+    if (stage.anchor && !["timestamp", "heading", "quote"].includes(stage.anchor.kind)) return false;
+    if (stage.anchor && typeof stage.anchor.value !== "string") return false;
   }
 
   for (const finding of response.majorFindings) {

@@ -1,5 +1,6 @@
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { ArtifactSynthesis } from '@/domain/entities/ArtifactSynthesis'
+import type { ArtifactProfile } from '@/domain/entities/ArtifactProfile'
 import { ExpiringStore } from './ExpiringStore'
 
 interface StoredAnalysis {
@@ -7,6 +8,7 @@ interface StoredAnalysis {
   completedAt: string
   error?: string
   synthesis?: ArtifactSynthesis
+  profile?: ArtifactProfile
 }
 
 /**
@@ -27,12 +29,13 @@ class AnalysisResultStore {
     '__kynd_analysis_cleanups',
   );
 
-  save(runId: string, analyses: PersonaResponse[], synthesis?: ArtifactSynthesis): void {
+  save(runId: string, analyses: PersonaResponse[], synthesis?: ArtifactSynthesis, profile?: ArtifactProfile): void {
     console.log(`[RESULT_STORE] Saving ${analyses.length} analyses for ${runId}`);
     this.store.set(runId, {
       analyses,
       completedAt: new Date().toISOString(),
       synthesis,
+      profile,
     })
   }
 

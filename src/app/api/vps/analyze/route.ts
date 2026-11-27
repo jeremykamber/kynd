@@ -6,9 +6,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import { SynthesizeArtifactResultsUseCase } from "@/application/usecases/SynthesizeArtifactResultsUseCase";
+import { BuildClaimLedgerUseCase, ClaimSupportUnavailableError } from "@/application/usecases/BuildClaimLedgerUseCase";
+import { buildSynthesisPlan } from "@/application/synthesis/plan";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 
 import { AnalyzeArtifactUseCase } from "@/application/usecases/AnalyzeArtifactUseCase";
+import { isCompletedPersonaResponse } from "@/domain/entities/PersonaResponse";
 import { RemotePlaywrightAdapter } from "@/infrastructure/adapters/RemotePlaywrightAdapter";
 import { Persona } from "@/domain/entities/Persona";
 import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
@@ -157,7 +160,7 @@ async function runAnalysis(
         const useCase = new AnalyzeArtifactUseCase(intakeAdapter, llmService);
 
         log.info("runAnalysis", "Calling useCase.execute()...");
-        const responses = await useCase.execute(
+        const { responses, profile } = await useCase.execute(
             input,
             personas,
             businessGoal || "",
@@ -184,16 +187,28 @@ async function runAnalysis(
             // Generate cross-persona synthesis; failure is non-fatal (logged,
             // the UI renders persona results without the cohort report).
             let synthesis: ArtifactSynthesis | undefined;
-            const completedResponses = responses.filter((r) => r.overview && r.customerJourney.length > 0 && !r.overview.startsWith("Analysis could not be completed."));
+            const completedResponses = responses.filter(isCompletedPersonaResponse);
             if (completedResponses.length > 0) {
                 try {
                     log.info("runAnalysis", "Generating cross-persona synthesis...");
-                    synthesis = await new SynthesizeArtifactResultsUseCase(llmService).execute(
+                    const ledger = await new BuildClaimLedgerUseCase(llmService).execute(
                         completedResponses,
-                        researchQuestion || "",
                         { runId: id, failedCount: responses.length - completedResponses.length, totalPersonaCount: responses.length },
                     );
+                    const plan = buildSynthesisPlan({
+                        researchQuestion: researchQuestion || "",
+                        ledger,
+                        personaNames: completedResponses.map((r) => r.personaProfile?.name ?? "Unnamed persona"),
+                    });
+                    synthesis = await new SynthesizeArtifactResultsUseCase(llmService).execute(plan, { runId: id });
                 } catch (synthErr) {
+                    if ((synthErr as Error)?.name === ClaimSupportUnavailableError.name) {
+                        const errMsg = (synthErr as Error).message;
+                        log.error("runAnalysis", "Claim support gate unavailable — failing the run", { error: errMsg });
+                        analysisResultStore.saveError(id, errMsg);
+                        storeProgress(id, { error: errMsg });
+                        return;
+                    }
                     log.warn("runAnalysis", "Synthesis generation failed, proceeding without", {
                         error: String(synthErr),
                     });
@@ -201,7 +216,7 @@ async function runAnalysis(
             } else {
                 log.warn("runAnalysis", "No completed responses — skipping synthesis");
             }
-            analysisResultStore.save(id, responses, synthesis);
+            analysisResultStore.save(id, responses, synthesis, profile);
             storeCompleted(id);
             log.info("runAnalysis", "Results stored — client can now poll");
         } else {

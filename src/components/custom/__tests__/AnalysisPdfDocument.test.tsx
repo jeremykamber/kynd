@@ -150,6 +150,101 @@ describe('AnalysisPdfDocument', () => {
     expect(text).not.toContain('Primary Points of Friction')
   })
 
+  it('shows the source artifact, its files, and the artifact profile', () => {
+    const textRun: ArtifactAnalysis = {
+      ...baseAnalysis,
+      inputKind: 'text',
+      label: 'Feature brief',
+      text: 'The product costs $49 per seat. It includes SSO and audit logs.',
+      sourceFiles: ['feature-brief.txt'],
+      artifactProfile: {
+        contentKind: 'feature_brief',
+        facts: [
+          { kind: 'product', label: 'Product', value: 'Acme', source: 'text' },
+          { kind: 'claim', label: 'Security', value: 'SSO and audit logs', source: 'text' },
+        ],
+        openQuestions: ['setup fee'],
+        stageAnchorKind: 'quote',
+        confidence: 'high',
+        degraded: [],
+      },
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: textRun }))
+
+    expect(text).toContain('Source artifact')
+    expect(text).toContain('Feature brief')
+    expect(text).toContain('feature-brief.txt')
+    expect(text).toContain('The product costs $49 per seat.')
+    expect(text).toContain('Product: Acme')
+    expect(text).toContain('Security: SSO and audit logs')
+    expect(text).toContain('The artifact does not state: setup fee.')
+  })
+
+  it('caps a long source and says how much was left out', () => {
+    const longText = 'a'.repeat(1900)
+    const textRun: ArtifactAnalysis = {
+      ...baseAnalysis,
+      inputKind: 'text',
+      label: 'Long brief',
+      text: longText,
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: textRun }))
+
+    expect(text).toContain('Excerpt: 1,800 of 1,900 characters. The full text is in the app.')
+  })
+
+  it('shows validation warnings and stamps them for the PDF', () => {
+    const warned: ArtifactAnalysis = {
+      ...baseAnalysis,
+      synthesis: {
+        ...mockSynthesis,
+        validationWarnings: [
+          'overview: states the number 99, which the ledger and facts do not contain.',
+          'finding:g1:impact: makes a recommendation instead of reporting what the cohort did.',
+        ],
+      },
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: warned }))
+
+    expect(text).toContain('Unverified fields in this report (2)')
+    expect(text).toContain('overview: states the number 99')
+    expect(text).toContain('UNVERIFIED FIELDS: overview: states the number 99')
+    // The warning stamps every page, so it is not only a page-1 notice.
+    expect(text.match(/UNVERIFIED FIELDS:/g)?.length).toBe(2)
+  })
+
+  it('renders synthesis evidence notes when claims were dropped', () => {
+    const degraded: ArtifactAnalysis = {
+      ...baseAnalysis,
+      synthesis: {
+        ...mockSynthesis,
+        degraded: ['Duplicate-persona conflict in "price": p-1 claimed both sides.'],
+      },
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: degraded }))
+
+    expect(text).toContain('Evidence dropped from this report (1)')
+    expect(text).toContain('Duplicate-persona conflict in "price"')
+  })
+
+  it('stamps a degraded artifact profile as unverified', () => {
+    const degraded: ArtifactAnalysis = {
+      ...baseAnalysis,
+      artifactProfile: {
+        contentKind: 'landing_page',
+        facts: [],
+        openQuestions: [],
+        stageAnchorKind: 'none',
+        confidence: 'low',
+        degraded: ['The artifact profile could not be extracted; facts are unverified.'],
+      },
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: degraded }))
+
+    expect(text).toContain('profile: The artifact profile could not be extracted; facts are unverified.')
+    expect(text).toContain('UNVERIFIED FIELDS: profile: The artifact profile could not be extracted; facts are unverified.')
+  })
+
   it('discloses what Kynd is and that the report is simulated, before the findings', () => {
     const text = renderedText(AnalysisPdfDocument({ analysis: baseAnalysis }))
 

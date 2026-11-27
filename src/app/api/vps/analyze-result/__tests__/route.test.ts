@@ -34,6 +34,7 @@ describe("GET /api/vps/analyze-result", () => {
       error: undefined,
       completedAt: "2026-01-01T00:00:00.000Z",
       synthesis: null,
+      artifactProfile: null,
     });
   });
 

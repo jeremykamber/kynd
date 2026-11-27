@@ -1,10 +1,13 @@
 import type { Persona } from "@/domain/entities/Persona";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
-import { validatePersonaResponse } from "@/domain/entities/PersonaResponse";
+import { isCompletedPersonaResponse, validatePersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { ArtifactInput } from "@/domain/entities/ArtifactInput";
 import { AnalysisProgressStep } from "@/domain/entities/ArtifactAnalysis";
 import type { LlmServicePort } from "@/domain/ports/LlmServicePort";
+import { buildSimulationFrames, type SimulationFrame } from "@/domain/entities/SimulationFrame";
+import { fallbackArtifactProfile, guardProfileFacts, type ArtifactProfile } from "@/domain/entities/ArtifactProfile";
+import { normalizeVerdict } from "@/domain/entities/Verdict";
 
 import { ArtifactIntakeAdapter, type IntakeProgress } from "@/infrastructure/adapters/ArtifactIntakeAdapter";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -14,6 +17,16 @@ import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
  * counts and personaName track the per-persona analysis phase; `title` carries
  * the AI-generated simulation name when the concurrent title call succeeds.
  */
+/**
+ * One analysis run. The profile and frames travel with the responses so the
+ * report can show the artifact reading and the question every persona used.
+ */
+export interface ArtifactAnalysisRun {
+  responses: PersonaResponse[];
+  profile: ArtifactProfile;
+  frames: SimulationFrame[];
+}
+
 export interface AnalysisProgress {
   step: AnalysisProgressStep;
   personaName?: string;
@@ -81,7 +94,7 @@ export class AnalyzeArtifactUseCase {
     onProgress?: (progress: AnalysisProgress) => void,
     abortSignal?: AbortSignal,
     options: { tokenLimit?: number; runId?: string } = {},
-  ): Promise<PersonaResponse[]> {
+  ): Promise<ArtifactAnalysisRun> {
     const DEFAULT_TOKEN_LIMIT = 2000;
     const tokenLimit = options.tokenLimit ?? DEFAULT_TOKEN_LIMIT;
     const runId = options.runId || "unknown";
@@ -135,6 +148,35 @@ export class AnalyzeArtifactUseCase {
     if (abortSignal?.aborted) {
       throw new Error("Request cancelled after intake");
     }
+
+    // The profile is read once, serially, before any persona: contentKind
+    // chooses the decision question, so the frames must not start with a guess.
+    const profileStart = Date.now();
+    let profile: ArtifactProfile;
+    try {
+      const extracted = await this.llmService.extractArtifactProfile(intake, framing, { runId, tokenLimit });
+      profile = guardProfileFacts(extracted, {
+        text: intake.text,
+        hasScreenshot: !!intake.screenshotBase64,
+      });
+      log.info("AnalyzeArtifactUseCase", "Artifact profile ready", {
+        durationMs: Date.now() - profileStart,
+        contentKind: profile.contentKind,
+        facts: profile.facts.length,
+        openQuestions: profile.openQuestions.length,
+        anchorKind: profile.stageAnchorKind,
+        degraded: profile.degraded,
+      });
+    } catch (error) {
+      profile = fallbackArtifactProfile(framing.kind);
+      log.warn("AnalyzeArtifactUseCase", "Artifact profile failed; using the fallback", {
+        durationMs: Date.now() - profileStart,
+        error: String(error),
+      });
+    }
+
+    const frames = buildSimulationFrames(personas, profile);
+    const frameByPersonaId = new Map(frames.map((frame) => [frame.personaId, frame]));
 
     // Phase 2: Persona analysis
     onProgress?.({ step: 'ANALYZING' });
@@ -201,11 +243,12 @@ export class AnalyzeArtifactUseCase {
             // intentionally does not enter the persona pipeline; identity
             // lives in the persona.
             const streamStart = Date.now();
+            const frame = frameByPersonaId.get(persona.id);
             const monologue = await this.llmService.generateVisceralMonologue(
               persona,
               intake,
               researchQuestion,
-              { tokenLimit, runId, artifact: framing },
+              { tokenLimit, runId, artifact: framing, ...(frame ? { frame } : {}) },
             );
             const streamDuration = Date.now() - streamStart;
             log.info("AnalyzeArtifactUseCase", `${personaLog} Visceral monologue completed`, {
@@ -215,12 +258,28 @@ export class AnalyzeArtifactUseCase {
 
             if (abortSignal?.aborted) throw new Error("Request cancelled during formatting");
 
+            // The claim pass reads the same monologue and runs in parallel with
+            // core extraction. A failed claim pass must not lose the persona
+            // response: the ledger records the missing set instead.
+            const claimsPromise = this.llmService
+              .extractPersonaClaims(persona, monologue.text, { runId })
+              .catch((claimErr: unknown) => {
+                log.warn("AnalyzeArtifactUseCase", `${personaLog} Claim pass failed — missing claim set`, {
+                  error: String(claimErr),
+                });
+                return null;
+              });
+
             const response = await this.llmService.extractPersonaResponse(
               persona,
               monologue.text,
               researchQuestion,
-              { tokenLimit, runId, artifact: framing },
+              { tokenLimit, runId, artifact: framing, profile, artifactText: intake.text, ...(frame ? { frame } : {}) },
             );
+            const extractedClaims = await claimsPromise;
+            log.info("AnalyzeArtifactUseCase", `${personaLog} Claim pass settled`, {
+              claimsCount: extractedClaims?.length ?? 0,
+            });
 
             const pipelineDuration = Date.now() - pipelineStart;
             const highestStage = response.customerJourney.findLast(s => s.outcome === "succeeded")?.stage || response.customerJourney[0]?.stage;
@@ -229,6 +288,8 @@ export class AnalyzeArtifactUseCase {
               stagesCount: response.customerJourney.length,
               findingsCount: response.majorFindings.length,
               highestStage,
+              decisionRole: frame?.decisionRole,
+              verdict: normalizeVerdict((response as { verdict?: unknown }).verdict),
             });
 
             if (abortSignal?.aborted) throw new Error("Request cancelled during persona analysis");
@@ -271,8 +332,28 @@ export class AnalyzeArtifactUseCase {
                 fears: persona.fears ? [...persona.fears] : [],
                 communicationStyle: persona.communicationStyle ?? "",
                 decisionStyle: persona.decisionStyle ?? "",
+                ...(persona.decisionRole ? { decisionRole: persona.decisionRole } : {}),
               },
               personaId: persona.id,
+              verdict: normalizeVerdict((response as { verdict?: unknown }).verdict),
+              ...(typeof response.decisiveReason === "string" && response.decisiveReason.trim()
+                ? { decisiveReason: response.decisiveReason.trim() }
+                : {}),
+              ...(typeof response.decisiveReasonQuote === "string" &&
+              response.decisiveReasonQuote.trim() &&
+              monologue.text.includes(response.decisiveReasonQuote)
+                ? { decisiveReasonQuote: response.decisiveReasonQuote }
+                : {}),
+              ...(frame ? { decisionFrame: frame } : {}),
+              ...(extractedClaims && extractedClaims.length > 0
+                ? {
+                    claims: extractedClaims.map((claim, index) => ({
+                      ...claim,
+                      id: `${persona.id}:${index}`,
+                      personaId: persona.id,
+                    })),
+                  }
+                : {}),
             };
 
             if (!validatePersonaResponse(fullResponse)) {
@@ -338,13 +419,37 @@ export class AnalyzeArtifactUseCase {
       throw new Error("All persona analyses failed");
     }
 
+    // Ground each stated reason in the transcript it came from. Extraction
+    // sees the transcript, but persona priors still slip in tools, numbers, or
+    // prior events that were never said. A failed audit keeps the extracted
+    // reason rather than losing the persona.
+    try {
+      const audited = await this.llmService.auditPersonaReasons(responses, { runId });
+      const reasonById = new Map(audited.map((item) => [item.personaId, item.decisiveReason]));
+      for (const [index, response] of responses.entries()) {
+        if (!isCompletedPersonaResponse(response)) continue;
+        const personaId = response.personaId ?? response.id;
+        if (!reasonById.has(personaId)) continue;
+        const reason = String(reasonById.get(personaId) ?? "").trim();
+        if (reason) {
+          responses[index] = { ...response, decisiveReason: reason };
+        } else if (response.decisiveReasonQuote?.trim()) {
+          responses[index] = { ...response, decisiveReason: response.decisiveReasonQuote.trim() };
+        }
+      }
+    } catch (err) {
+      log.warn("AnalyzeArtifactUseCase", "Persona reason audit failed — keeping extracted reasons", {
+        error: String(err),
+      });
+    }
+
     const totalDuration = Date.now() - overallStartTime;
     log.info("AnalyzeArtifactUseCase", "=== USE CASE EXECUTE END ===", {
       totalDurationMs: totalDuration,
       responseCount: responses.length,
     });
 
-    return responses;
+    return { responses, profile, frames };
   }
 }
 

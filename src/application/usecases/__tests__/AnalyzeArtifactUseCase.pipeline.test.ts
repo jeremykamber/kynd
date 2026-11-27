@@ -5,8 +5,18 @@ import { ArtifactIntakeAdapter } from '@/infrastructure/adapters/ArtifactIntakeA
 import type { LlmServicePort } from '@/domain/ports/LlmServicePort'
 import type { BrowserServicePort } from '@/domain/ports/BrowserServicePort'
 import type { Persona } from '@/domain/entities/Persona'
+import type { ArtifactProfile } from '@/domain/entities/ArtifactProfile'
 
-function makePersona(name: string): Persona {
+const baseProfile: ArtifactProfile = {
+  contentKind: 'landing_page',
+  facts: [],
+  openQuestions: [],
+  stageAnchorKind: 'none',
+  confidence: 'high',
+  degraded: [],
+}
+
+function makePersona(name: string, overrides: Partial<Persona> = {}): Persona {
   return {
     id: `p-${name}`,
     name,
@@ -24,6 +34,7 @@ function makePersona(name: string): Persona {
     fears: [],
     communicationStyle: 'direct',
     decisionStyle: 'gut-driven',
+    ...overrides,
   }
 }
 
@@ -31,6 +42,9 @@ function makeLlm(): LlmServicePort {
   return {
     generateSimulationTitle: vi.fn().mockResolvedValue('Test title'),
     generateVisceralMonologue: vi.fn().mockResolvedValue({ text: 'visceral reaction text' }),
+    extractArtifactProfile: vi.fn().mockResolvedValue(baseProfile),
+    extractPersonaClaims: vi.fn().mockResolvedValue([]),
+    auditPersonaReasons: vi.fn().mockResolvedValue([]),
     extractPersonaResponse: vi.fn().mockResolvedValue({
       overview: 'ok',
       customerJourney: [
@@ -68,7 +82,7 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
 
   it('runs visceral monologue then extraction per persona and stores the monologue verbatim as rawAnalysis', async () => {
     const useCase = makeUseCase(llm)
-    const responses = await useCase.execute(
+    const { responses } = await useCase.execute(
       { type: 'url', url: 'https://example.com' },
       [makePersona('Ada'), makePersona('Ben')],
       'Increase conversions',
@@ -98,10 +112,258 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
     expect(responses[0].overview).toBe('ok')
   })
 
+  it('attaches code-id claims from the parallel claim pass', async () => {
+    vi.mocked(llm.extractPersonaClaims).mockResolvedValue([
+      {
+        topic: 'price',
+        observation: 'The price is unclear.',
+        stance: 'opposes',
+        quote: 'visceral reaction text',
+      },
+    ])
+    const useCase = makeUseCase(llm)
+    const { responses } = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(llm.extractPersonaClaims).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Ada' }),
+      'visceral reaction text',
+      expect.objectContaining({ runId: 'unknown' }),
+    )
+    expect(responses[0].claims).toEqual([
+      expect.objectContaining({ id: `${makePersona('Ada').id}:0`, personaId: makePersona('Ada').id }),
+    ])
+  })
+
+  it('keeps the persona response when the claim pass fails', async () => {
+    vi.mocked(llm.extractPersonaClaims).mockRejectedValue(new Error('claim model down'))
+    const useCase = makeUseCase(llm)
+    const { responses } = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(responses).toHaveLength(1)
+    expect(responses[0].overview).toBe('ok')
+    expect(responses[0].claims).toBeUndefined()
+  })
+
+  it('extracts the profile once, before the first persona, and returns it', async () => {
+    const order: string[] = []
+    vi.mocked(llm.extractArtifactProfile).mockImplementation(async () => {
+      order.push('profile')
+      return { ...baseProfile, contentKind: 'feature_brief' }
+    })
+    vi.mocked(llm.generateVisceralMonologue).mockImplementation(async () => {
+      order.push('monologue')
+      return { text: 'visceral reaction text' }
+    })
+
+    const run = await makeUseCase(llm).execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(order[0]).toBe('profile')
+    expect(llm.extractArtifactProfile).toHaveBeenCalledTimes(1)
+    expect(run.profile.contentKind).toBe('feature_brief')
+    expect(run.frames[0].decisionQuestion).toBe('Would you adopt this product in your work?')
+  })
+
+  it('falls back to a marked profile when the profile call fails', async () => {
+    vi.mocked(llm.extractArtifactProfile).mockRejectedValue(new Error('profile model down'))
+
+    const run = await makeUseCase(llm).execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(run.profile.contentKind).toBe('landing_page')
+    expect(run.profile.confidence).toBe('low')
+    expect(run.profile.degraded.join(' ')).toContain('could not be extracted')
+    expect(run.frames[0].decisionQuestion).toBe('Would you take the next step this page asks for?')
+  })
+
+  it('drops a profile fact whose quote is not in the artifact', async () => {
+    vi.mocked(llm.extractArtifactProfile).mockResolvedValue({
+      ...baseProfile,
+      facts: [
+        { kind: 'price', label: 'Price', value: '$49', sourceQuote: '$49', source: 'text' },
+      ],
+    })
+
+    const textIntake = { ...intake, screenshotBase64: undefined, text: 'First analysis free. Then $99 per run.' }
+    const useCase = new AnalyzeArtifactUseCase(
+      { intake: vi.fn().mockResolvedValue(textIntake) } as unknown as ArtifactIntakeAdapter,
+      llm,
+    )
+    const run = await useCase.execute(
+      { type: 'text', text: 'First analysis free. Then $99 per run.' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(run.profile.facts).toEqual([])
+    expect(run.profile.degraded.join(' ')).toContain('its quote is not in the artifact')
+  })
+
+  it('passes a code-built frame and the artifact text to both calls and attaches the frame', async () => {
+    const persona = makePersona('Ada', {
+      decisionRole: 'blocker',
+      currentAlternative: 'a shared spreadsheet',
+      switchingTrigger: 'a security review',
+    })
+    const useCase = makeUseCase(llm)
+    const { responses } = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [persona],
+      'goal',
+      'rq',
+    )
+
+    const frame = responses[0].decisionFrame
+    expect(frame).toMatchObject({
+      personaId: persona.id,
+      decisionRole: 'blocker',
+      decisionRoleSource: 'persona',
+      currentAlternative: 'a shared spreadsheet',
+      decisionQuestion: 'Would you take the next step this page asks for?',
+    })
+    expect(llm.generateVisceralMonologue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: persona.id }),
+      intake,
+      'rq',
+      expect.objectContaining({ frame }),
+    )
+    expect(llm.extractPersonaResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ id: persona.id }),
+      'visceral reaction text',
+      'rq',
+      expect.objectContaining({ frame }),
+    )
+  })
+
+  it('replaces a reason with the audited transcript-grounded reason', async () => {
+    vi.mocked(llm.auditPersonaReasons).mockResolvedValue([
+      { personaId: 'p-Ada', decisiveReason: 'Ada stayed undecided because the page never names a price.' },
+    ])
+    const useCase = makeUseCase(llm)
+    const { responses } = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+    expect(responses[0].decisiveReason).toBe('Ada stayed undecided because the page never names a price.')
+    expect(llm.auditPersonaReasons).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to the verbatim quote when the audit cannot ground a reason', async () => {
+    vi.mocked(llm.extractPersonaResponse).mockResolvedValue({
+      overview: 'ok',
+      customerJourney: [
+        { stage: 'interpretation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'understanding', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'belief', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'motivation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'action', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+      ],
+      researchQuestionAnswer: 'answer',
+      majorFindings: [],
+      pointsOfFriction: [],
+      unansweredQuestions: [],
+      decisiveReason: 'A reason with an invented detail.',
+      decisiveReasonQuote: 'visceral reaction text',
+    } as never)
+    vi.mocked(llm.auditPersonaReasons).mockResolvedValue([{ personaId: 'p-Ada', decisiveReason: '' }])
+    const useCase = makeUseCase(llm)
+    const { responses } = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+    expect(responses[0].decisiveReason).toBe('visceral reaction text')
+  })
+
+  it('lets a blocker adopt: the role never implies the verdict', async () => {
+    const useCase = makeUseCase(llm)
+    vi.mocked(llm.extractPersonaResponse).mockResolvedValue({
+      overview: 'ok',
+      customerJourney: [
+        { stage: 'interpretation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'understanding', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'belief', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'motivation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'action', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+      ],
+      researchQuestionAnswer: 'answer',
+      majorFindings: [],
+      pointsOfFriction: [],
+      unansweredQuestions: [],
+      verdict: 'adopt',
+      decisiveReason: 'The security review satisfied the concern.',
+      decisiveReasonQuote: 'visceral reaction text',
+    } as never)
+
+    const { responses } = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada', { decisionRole: 'blocker' })],
+      'goal',
+      'rq',
+    )
+
+    expect(responses[0].decisionFrame?.decisionRole).toBe('blocker')
+    expect(responses[0].verdict).toBe('adopt')
+    expect(responses[0].decisiveReasonQuote).toBe('visceral reaction text')
+  })
+
+  it('normalizes an invalid verdict and drops a non-verbatim decisive quote', async () => {
+    const useCase = makeUseCase(llm)
+    vi.mocked(llm.extractPersonaResponse).mockResolvedValue({
+      overview: 'ok',
+      customerJourney: [
+        { stage: 'interpretation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'understanding', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'belief', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'motivation', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+        { stage: 'action', description: 'd', sentiment: 'neutral', outcome: 'succeeded' },
+      ],
+      researchQuestionAnswer: 'answer',
+      majorFindings: [],
+      pointsOfFriction: [],
+      unansweredQuestions: [],
+      verdict: 'maybe',
+      decisiveReason: 'A reason.',
+      decisiveReasonQuote: 'A sentence the persona never said.',
+    } as never)
+
+    const { responses } = await useCase.execute(
+      { type: 'url', url: 'https://example.com' },
+      [makePersona('Ada')],
+      'goal',
+      'rq',
+    )
+
+    expect(responses[0].verdict).toBe('undecided')
+    expect(responses[0].decisiveReasonQuote).toBeUndefined()
+  })
+
   it('falls back to a shape-valid response when the monologue call fails', async () => {
     vi.mocked(llm.generateVisceralMonologue).mockRejectedValue(new Error('vlm down'))
     const useCase = makeUseCase(llm)
-    const responses = await useCase.execute(
+    const { responses } = await useCase.execute(
       { type: 'url', url: 'https://x.com' },
       [makePersona('Ada')],
       'goal',
@@ -118,7 +380,7 @@ describe('AnalyzeArtifactUseCase Observer-Actor pipeline', () => {
   it('falls back to a shape-valid response when extraction fails after the monologue succeeded', async () => {
     vi.mocked(llm.extractPersonaResponse).mockRejectedValue(new Error('formatter down'))
     const useCase = makeUseCase(llm)
-    const responses = await useCase.execute(
+    const { responses } = await useCase.execute(
       { type: 'url', url: 'https://x.com' },
       [makePersona('Ada')],
       'goal',

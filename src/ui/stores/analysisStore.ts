@@ -20,6 +20,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { ArtifactAnalysis, AnalysisStatus } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { ArtifactSynthesis } from '@/domain/entities/ArtifactSynthesis'
+import type { ArtifactProfile } from '@/domain/entities/ArtifactProfile'
 import { indexedDBStorage } from '@/infrastructure/services/indexedDBStorage'
 
 interface AnalysisPersistedState {
@@ -35,7 +36,7 @@ interface AnalysisStoreState extends AnalysisPersistedState {
   removeAnalysis: (id: string) => void
   getAnalysis: (id: string) => ArtifactAnalysis | undefined
   dismissAnalysis: (id: string) => void
-  markComplete: (id: string, responses: PersonaResponse[], synthesis?: ArtifactSynthesis | null) => void
+  markComplete: (id: string, responses: PersonaResponse[], synthesis?: ArtifactSynthesis | null, profile?: ArtifactProfile | null) => void
   markError: (id: string, error: string) => void
   markCancelled: (id: string) => void
 }
@@ -74,7 +75,7 @@ export const useAnalysisStore = create<AnalysisStoreState>()(
 
       getAnalysis: (id) => get().analyses.find((a) => a.id === id),
 
-      markComplete: (id, responses, synthesis) =>
+      markComplete: (id, responses, synthesis, profile) =>
         set((state) => ({
           analyses: state.analyses.map((a) =>
             a.id === id
@@ -86,6 +87,7 @@ export const useAnalysisStore = create<AnalysisStoreState>()(
                   responses,
                   // `undefined` leaves any existing synthesis untouched.
                   ...(synthesis !== undefined ? { synthesis: synthesis ?? undefined } : {}),
+                  ...(profile !== undefined ? { artifactProfile: profile ?? undefined } : {}),
                 }
               : a
           ),

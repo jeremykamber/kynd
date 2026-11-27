@@ -89,7 +89,7 @@ export async function POST(req: Request) {
         const input = imageBase64
             ? { type: "screenshot" as const, imageBase64, url }
             : { type: "url" as const, url };
-        const responses = await useCase.execute(
+        const { responses, profile } = await useCase.execute(
             input,
             personas as Persona[],
             "",
@@ -121,6 +121,7 @@ export async function POST(req: Request) {
             url,
             personaCount: personas.length,
             analyses: responses,
+            artifactProfile: profile,
         });
     } catch (error) {
         const errMsg = (error as Error).message;

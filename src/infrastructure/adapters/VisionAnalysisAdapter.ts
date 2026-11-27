@@ -1,13 +1,12 @@
-import { z } from "zod";
 import { Persona } from "@/domain/entities/Persona";
-import { PricingAnalysisSchema } from "@/domain/entities/PricingAnalysis";
 import { PersonaResponseSchema, personaIdentityViolations } from "@/domain/entities/PersonaResponse";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
-import type { CohortSynthesisContent } from "@/domain/entities/ArtifactSynthesis";
+import { sanitizeJourneyAnchors } from "@/domain/entities/StageJourney";
+import type { SimulationFrame } from "@/domain/entities/SimulationFrame";
+import { parseArtifactProfile, type ArtifactProfile } from "@/domain/entities/ArtifactProfile";
 import { LlmServiceImpl } from "./LlmServiceImpl";
 import { streamObject } from "ai";
-import { PricingLocation } from "@/domain/ports/LlmServicePort";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
 
 // Matches runs of CJK, Hangul, Kana, Cyrillic, Arabic, and Hebrew. Used to
@@ -32,6 +31,7 @@ export function buildVisceralMonologueSystemPrompt(
     persona: Persona,
     researchQuestion: string,
     artifact?: ArtifactFraming,
+    frame?: SimulationFrame,
 ): string {
     // Persona maps: role = occupation, background = backstory, goal = the
     // persona's goals list (no single goal field exists on the entity);
@@ -49,6 +49,18 @@ export function buildVisceralMonologueSystemPrompt(
     // The only artifact-kind framing: a document is read, a site is visited.
     // Everything else — what kind of document it is, what to look for — stays
     // with the persona, inferred from the text and the research question.
+    // The role changes what this persona examines first. The frame carries no
+    // verdict and no verdict set: the persona reacts, code counts the decision
+    // later. "not stated" is the honest value for an absent alternative.
+    const roleBlock = frame
+        ? `THIS RUN'S ROLE — ${frame.decisionRole}:
+- ${frame.roleTask}
+- Start where this role starts: ${frame.entryPoint}
+- What you use today instead: ${frame.currentAlternative ?? "not stated"}
+- What would make you switch: ${frame.switchingTrigger ?? "not stated"}
+- Do not decide a final verdict, score, or recommendation. Just react.
+`
+        : "";
     const medium = isDocument
         ? `- You are reading a document, not browsing a website. There is no screen and no buttons: react to the words — the claims, the numbers, the names, the gaps, the parts you skip. You read top to bottom, jump back when something snags, and stop when you have seen enough.
 - You judge with your own life, not like an editor. If a claim doesn't apply to you, notice it and move on. If it sounds fake, call it fake. If it would make you act — reply, forward it, ask for a call — say why, in your own selfish terms.
@@ -58,7 +70,7 @@ export function buildVisceralMonologueSystemPrompt(
 
 return `You are ${persona.name}, ${persona.occupation}.
 Background: ${background} | You are ${isDocument ? "reading this because" : "browsing because"}: ${browsingIntent}
-${brand}
+${brand}${roleBlock}
 HOW YOUR INNER VOICE WORKS:
 - Write like a person thinking, not a person performing. Short bursts. Half-thoughts. "Okay, green background. Looks clean, maybe a little sterile." — that's the register. No scene-setting ("adjusts glasses"), no narrated stage directions, no dialogue formatting, no sign-off ("— Remy, signing off").
 - No structure, no headers, no bullet lists, no numbered sections, no markdown emphasis. Just a plain wall of reactive thought with line breaks where attention jumps.
@@ -105,6 +117,9 @@ export function buildPersonaExtractionSystemPrompt(
     monologue: string,
     researchQuestion: string,
     artifact?: ArtifactFraming,
+    frame?: SimulationFrame,
+    profile?: ArtifactProfile,
+    artifactText?: string,
 ): string {
     const artifactName = artifact?.name
         ? `- The ${artifact.kind === "document" ? "document" : "site/product"} being evaluated is named "${artifact.name}" — always spell it exactly this way when you mention it.\n`
@@ -128,85 +143,11 @@ RULES:
 4. The five journey stages MUST all appear in canonical order (interpretation, understanding, belief, motivation, action); skipping is expressed through outcomes, not omission.
 5. Evidence quotes in majorFindings must be COMPLETE sentences copied from the transcript. Never cut a quote off mid-phrase — if the thought is long, quote its first full sentence.
 6. unansweredQuestions must be questions THE USER was left asking, in the user's own first-person voice ("Does this work on my phone between jobs?"), not researcher hypotheses about the user ("Would the user have...?"). If the transcript shows no open questions, return an empty list.
-7. Name the persona in overview and researchQuestionAnswer ("${persona.name}…"). Never write "the user" in those two fields, and never adopt a name, role, occupation, or pronoun that the artifact assigns to someone — the persona's identity comes from their profile, not from the artifact's copy.`;
+7. Name the persona in overview and researchQuestionAnswer ("${persona.name}…"). Never write "the user" in those two fields, and never adopt a name, role, occupation, or pronoun that the artifact assigns to someone — the persona's identity comes from their profile, not from the artifact's copy.
+8. Return one verdict for this persona from the FIXED set: adopt, trial, reject, undecided. Do not invent another verdict. A role never implies a verdict; a blocker can adopt and an economic buyer can reject.
+9. Return decisiveReason as one sentence naming why this persona decided as it did, and decisiveReasonQuote as a COMPLETE sentence copied character-for-character from the transcript that supports that reason. No quote, no reason. The reason must agree with the verdict: use "undecided" only while the persona is still open, and never write that an undecided or trial persona rejected the offer. Every number in the reason and journey (digits or words) must already appear in the transcript; do not derive an annual total, a percentage, or a new unit.
+10. This run's role is ${frame?.decisionRole ?? "daily_user"}. The artifact may address a reader with a different role; do not adopt the artifact's assigned role.${frame ? `\n11. Decision question: ${frame.decisionQuestion}\n12. Start from this role's entry point: ${frame.entryPoint}` : ""}${profile ? `\n13. Content kind: ${profile.contentKind}.` : ""}${profile && profile.stageAnchorKind !== "none" && artifactText ? `\n\nARTIFACT ANCHOR SOURCE — use this only to copy an anchor value; never to add a finding:\n"""\n${artifactText.slice(0, 6000)}\n"""` : ""}${profile ? (profile.stageAnchorKind === "none" ? `\n14. Do not add a stage anchor: this artifact has no text location to anchor to.` : `\n14. Stage anchors: add anchor {kind: "${profile.stageAnchorKind}", value} to a stage only when you can copy the exact ${profile.stageAnchorKind === "timestamp" ? "timestamp" : profile.stageAnchorKind} from the artifact. For a video, timestamps must rise across the stages you reach. Omit the anchor rather than guess.`) : ""}`;
 }
-
-/**
- * Wire schema for the single cohort-synthesis LLM call. Evidence anchors ride
- * on each finding (one call instead of two — locators must be chosen by the
- * same pass that forms the finding); the model never emits counts of the run
- * itself, and never emits citations — those are resolved from transcripts by
- * application/synthesis/citations.ts.
- */
-const EvidenceLocatorSchema = z.object({
-  personaId: z.string().min(1),
-  // Models emit null/empty anchors when they can't find verbatim text; a
-  // null anchor is filtered out downstream (citation grounding drops it)
-  // rather than failing the whole synthesis parse.
-  uniqueAnchorPhrase: z.string().min(1).nullable().optional(),
-}).transform((loc) => ({
-  personaId: loc.personaId,
-  uniqueAnchorPhrase: loc.uniqueAnchorPhrase ?? '',
-}));
-
-
-const CohortSynthesisSchema = z.object({
-  overview: z.string(),
-  researchQuestionAnswer: z.string(),
-  // Models occasionally emit one finding object instead of an array, or nest
-  // the array under another key; normalize both instead of failing the whole
-  // synthesis over presentation drift.
-  topFindings: z.preprocess((v) => {
-    if (v == null) return [];
-    if (Array.isArray(v)) return v;
-    if (typeof v === "object") {
-      const obj = v as Record<string, unknown>;
-      for (const key of ["topFindings", "findings"]) {
-        if (Array.isArray(obj[key])) return obj[key];
-      }
-      return [v]; // a single finding object emitted directly
-    }
-    return [];
-  }, z.array(
-    z.object({
-      observation: z.string(),
-      evidence: z.string(),
-      impact: z.string(),
-      confidence: z.enum(["strongly supported", "some support", "weakly supported"]),
-      affectedPersonaCount: z.number().int().min(0),
-      totalPersonaCount: z.number().int().min(0),
-      evidenceLocators: z.array(EvidenceLocatorSchema).optional(),
-    }),
-  )),
-  disagreements: z.array(
-    z.object({
-      topic: z.string(),
-      split: z.array(
-        z.object({
-          view: z.string(),
-          personaCount: z.number().int().min(0),
-        }),
-      ),
-      // Models emit lowercase or arbitrary-case significance; normalize
-      // instead of failing the parse.
-      significance: z.string().transform((s) => (/^high/i.test(s) ? "High" : /^low/i.test(s) ? "Low" : "Medium")) as unknown as z.ZodType<"High" | "Medium" | "Low">,
-    }),
-  ),
-  // Models sometimes emit {friction: string, why: string} objects here despite
-  // the prompt; coerce any object entry to its friction string instead of
-  // failing the whole synthesis over presentation drift.
-  biggestFrictions: z.array(
-    z.union([z.string(), z.record(z.string(), z.unknown())])
-      .transform((v) => {
-        if (typeof v === 'string') return v;
-        const obj = v as Record<string, unknown>;
-        const first = ['friction', 'issue', 'point', 'description', 'title']
-          .map((k) => obj[k])
-          .find((x) => typeof x === 'string' && x.trim());
-        return typeof first === 'string' ? first : JSON.stringify(obj);
-      }),
-  ),
-});
 
 /**
  * Artifact-analysis sub-adapter behind LlmServiceImpl. Runs the two-stage
@@ -221,11 +162,94 @@ const CohortSynthesisSchema = z.object({
 export class VisionAnalysisAdapter {
     constructor(private llmService: LlmServiceImpl) {}
 
+    /**
+     * Reads the artifact once, before any persona. Extracts only what the
+     * artifact states so later stages can check facts and choose the decision
+     * question. Rejects on an unusable payload; the use case falls back.
+     */
+    async extractArtifactProfile(
+        context: ArtifactIntake,
+        artifact: ArtifactFraming,
+        options: { tokenLimit?: number; runId?: string } = {},
+    ): Promise<ArtifactProfile> {
+        const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
+        const isDocument = artifact.kind === "document";
+        if (isDocument && context.text === undefined) {
+            throw new Error("Cannot profile a document: the artifact carries no text");
+        }
+        if (!isDocument && !context.screenshotBase64) {
+            throw new Error("Cannot profile a site: the artifact carries no screenshot");
+        }
+
+        const system = `You extract the artifact profile for a user-research simulation.
+
+Return ONLY a JSON object with this shape:
+{
+  "contentKind": "landing_page" | "feature_brief" | "pitch_deck" | "marketing_copy" | "video_script" | "document" | "other",
+  "facts": [{ "kind": "product"|"audience"|"offer"|"price"|"tier"|"claim"|"cta"|"proof", "label": string, "value": string, "sourceQuote": string, "source": "text"|"screenshot", "amount"?: number, "currency"?: string, "period"?: "month"|"year"|"one_time" }],
+  "openQuestions": string[],
+  "stageAnchorKind": "timestamp" | "heading" | "quote" | "none",
+  "confidence": "high" | "medium" | "low"
+}
+
+RULES:
+- contentKind is decided by what the artifact is: a script or transcript with time markers is video_script; a page that asks for a CTA is landing_page; a deck is pitch_deck; a product brief is feature_brief; standalone copy is marketing_copy; anything else is document or other.
+- facts are ONLY what the artifact states. sourceQuote MUST be copied word-for-word from the text. For a screenshot, set source "screenshot" and quote the visible wording. Never fill a fact from general knowledge.
+- A price fact MUST include amount, currency, and period when stated.
+- openQuestions are facts a reader would need but the artifact leaves out. Do not answer them.
+- stageAnchorKind: "timestamp" only for a video script whose text carries time markers; "heading" or "quote" for text; "none" when there is no text to anchor to.
+- confidence is how completely the artifact itself supports the profile.`;
+
+        const content = isDocument
+            ? [{ type: "text" as const, text: `Artifact text:\n"""\n${context.text}\n"""` }]
+            : [
+                { type: "text" as const, text: "Read this artifact and extract its profile." },
+                { type: "image_url" as const, image_url: { url: `data:image/jpeg;base64,${context.screenshotBase64}` } },
+            ];
+
+        let lastError: Error | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const raw = await this.llmService.createChatCompletion(
+                    [
+                        { role: "system", content: system },
+                        { role: "user", content: content as never },
+                    ],
+                    {
+                        temperature: 0.1,
+                        max_tokens: options.tokenLimit ?? 2000,
+                        model: isDocument ? this.llmService.textModel : this.llmService.visionModel,
+                        purpose: "Artifact Profile",
+                        runId: options.runId,
+                    },
+                );
+                const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+                const start = cleaned.indexOf("{");
+                const end = cleaned.lastIndexOf("}");
+                if (start < 0 || end <= start) throw new Error("Artifact profile response has no JSON object");
+                const profile = parseArtifactProfile(JSON.parse(cleaned.slice(start, end + 1)));
+                log?.info("VisionAnalysisAdapter", "Artifact profile extracted", {
+                    contentKind: profile.contentKind,
+                    facts: profile.facts.length,
+                    anchor: profile.stageAnchorKind,
+                    degraded: profile.degraded.length,
+                });
+                return profile;
+            } catch (error) {
+                lastError = error as Error;
+                log?.warn("VisionAnalysisAdapter", `Artifact profile attempt ${attempt + 1} failed`, {
+                    error: String(error),
+                });
+            }
+        }
+        throw lastError ?? new Error("Artifact profile failed");
+    }
+
     async generateVisceralMonologue(
         persona: Persona,
         context: ArtifactIntake,
         researchQuestion: string,
-        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming } = {},
+        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame } = {},
     ): Promise<{ text: string }> {
         const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
         const tokenLimit = options.tokenLimit ?? 2000;
@@ -235,7 +259,7 @@ export class VisionAnalysisAdapter {
 
         log?.info("VisionAnalysisAdapter", `generateVisceralMonologue START for "${persona.name}"`, { tokenLimit });
 
-        const system = buildVisceralMonologueSystemPrompt(persona, researchQuestion, options.artifact);
+        const system = buildVisceralMonologueSystemPrompt(persona, researchQuestion, options.artifact, options.frame);
         // Screenshot ONLY for visual artifacts. Deliberately not
         // context.summary/pageHtml: the actor must react to visual salience,
         // not DOM-structure facts it could never see in a first glance —
@@ -332,7 +356,7 @@ export class VisionAnalysisAdapter {
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming } = {},
+        options: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: SimulationFrame; profile?: ArtifactProfile; artifactText?: string } = {},
     ): Promise<PersonaResponse> {
         const log = options.runId ? AnalysisLogger.forRun(options.runId) : null;
         const tokenLimit = options.tokenLimit ?? 2000;
@@ -347,7 +371,7 @@ export class VisionAnalysisAdapter {
 
         // Text model, no image: the anthropologist must ground every claim in
         // the transcript, not re-interpret the screenshot.
-        const system = buildPersonaExtractionSystemPrompt(persona, monologueText, researchQuestion, options.artifact);
+        const system = buildPersonaExtractionSystemPrompt(persona, monologueText, researchQuestion, options.artifact, options.frame, options.profile, options.artifactText);
         const basePrompt = `Analyze the think-aloud transcript above and return the structured PersonaResponse JSON.`;
 
         let responseObj: unknown = null;
@@ -468,140 +492,18 @@ export class VisionAnalysisAdapter {
             });
         }
 
+        const response = responseObj as PersonaResponse;
+        if (options.profile) {
+            response.customerJourney = sanitizeJourneyAnchors(
+                response.customerJourney,
+                options.profile,
+                options.artifactText,
+            );
+        }
+
         log?.info("VisionAnalysisAdapter", `extractPersonaResponse completed for "${persona.name}"`);
 
-        return responseObj as PersonaResponse;
+        return response;
     }
 
-    private async callLLM(
-        system: string,
-        prompt: string,
-        purpose: string,
-        timeoutMs: number,
-        options?: { runId?: string },
-    ): Promise<string> {
-        return Promise.race([
-            this.llmService.createChatCompletion(
-                [{ role: "user", content: prompt }],
-                {
-                    temperature: 0.3,
-                    model: this.llmService.textModel,
-                    response_format: { type: "json_object" },
-                    purpose,
-                    runId: options?.runId,
-                }
-            ),
-            new Promise<string>((_, reject) =>
-                setTimeout(() => reject(new Error(`${purpose} timed out after ${timeoutMs}ms`)), timeoutMs)
-            ),
-        ]);
-    }
-
-    /**
-     * One structured LLM call over the cohort's RAW monologue transcripts.
-     * Replaces the four shallow per-section calls: the model sees each
-     * persona's unedited reasoning trace (source of truth) rather than
-     * pre-digested summaries, so findings, disagreements and frictions come
-     * from one coherent pass instead of four that never saw each other's
-     * output. Findings carry evidenceLocators — anchor phrases resolved into
-     * verbatim citations by application/synthesis/citations.ts, never by the
-     * model. Parse failure throws: the caller decides how to degrade, and
-     * partial/empty synthesis must not silently pass as data.
-     */
-    async generateCohortSynthesis(
-        researchQuestion: string,
-        transcripts: Array<{ personaId: string; personaName: string; transcript: string }>,
-        options?: { runId?: string },
-    ): Promise<CohortSynthesisContent> {
-        const log = options?.runId ? AnalysisLogger.forRun(options.runId) : null;
-
-        const personaSections = transcripts
-            .map((t, i) =>
-                `=== Persona ${i + 1}: ${t.personaName} (id: ${t.personaId}) ===\n"""${t.transcript}"""`)
-            .join("\n\n");
-
-        const prompt = `You are synthesizing simulated customer research. Below are the complete reasoning transcripts of ${transcripts.length} simulated personas who interacted with a product.
-
-Research Question: ${researchQuestion}
-
-Your job: produce a cross-persona synthesis of what this cohort experienced.
-
-REQUIRED OUTPUT SHAPE (JSON object):
-{
-  "overview": string,
-  "researchQuestionAnswer": string,
-  "topFindings": [
-    {
-      "observation": string,
-      "evidence": string,
-      "impact": string,
-      "confidence": "strongly supported" | "some support" | "weakly supported",
-      "affectedPersonaCount": number,
-      "totalPersonaCount": ${transcripts.length},
-      "evidenceLocators": [
-        { "personaId": string, "uniqueAnchorPhrase": string }
-      ]
-    }
-  ],
-  "disagreements": [
-    {
-      "topic": string,
-      "split": [{ "view": string, "personaCount": number }],
-      "significance": "High" | "Medium" | "Low"
-    }
-  ],
-  "biggestFrictions": [string]
-}
-
-FIELD RULES:
-- overview: one paragraph on what the GROUP collectively experienced.
-- researchQuestionAnswer: one paragraph directly answering the research question from the evidence.
-- topFindings: 3-5 patterns MULTIPLE personas experienced. Group language only, no persona names. evidenceLocators: 1-3 per finding, each a 5-8 word CONTINUOUS phrase copied EXACTLY (verbatim, same casing) from ONE persona's transcript that best evidences the finding, with that persona's id.
-- disagreements: topics where personas' reactions genuinely DIVERGED (one acted, another bounced or doubted) — a split with each view and its persona count. Prefer 1-3 entries; empty ONLY if the transcripts show no divergence at all.
-- biggestFrictions: 2-3 specific moments where personas hesitated, doubted, or nearly dropped — quote the element that caused it ("the unexplained score", "the AI-agent promise"). Every cohort has friction; if the homepage converts perfectly, name what ALMOST stopped them.
-- affectedPersonaCount: honest count of personas whose transcripts show the pattern.
-
-CRITICAL RULES:
-1. Findings, overview and answers use group language ("Most personas...", "Several...") — no persona names.
-2. Anchor phrases MUST be copied character-for-character from the cited persona's transcript. The user-facing quote is extracted from the transcript by code — anything not verbatim fails silently.
-3. Do NOT make recommendations. Do NOT use persona traits as causal explanations.
-4. Write all output in English.
-
-${personaSections}
-
-Return ONLY the JSON object.`;
-        // A run-away completion (100k+ chars of repeated content instead of
-        // the ~6k JSON object) or a schema miss must not kill the cohort
-        // report: one retry gives the model a fresh chance. Parse success is
-        // logged once; both attempts fail → throw, caller degrades.
-        let lastParseError: unknown = null;
-        for (let attempt = 0; attempt < 2; attempt++) {
-            const content = await this.callLLM(
-                "", // callLLM sends a single user message; instructions live in the prompt
-                prompt,
-                "Cohort Synthesis",
-                420_000, // reasoning models emit a long CoT before the JSON; 240s timed out under concurrent load
-                options,
-            );
-            try {
-                const parsed = CohortSynthesisSchema.parse(JSON.parse(content));
-                log?.info("generateCohortSynthesis", "Cohort synthesis parsed", {
-                    findings: parsed.topFindings.length,
-                    disagreements: parsed.disagreements.length,
-                    frictions: parsed.biggestFrictions.length,
-                    attempt: attempt + 1,
-                });
-                return parsed;
-            } catch (parseErr) {
-                lastParseError = parseErr;
-                log?.warn("generateCohortSynthesis", `Cohort synthesis parse failed (attempt ${attempt + 1}/2)`, {
-                    contentLength: content.length,
-                    error: String(parseErr).slice(0, 300),
-                });
-            }
-        }
-        throw lastParseError instanceof Error
-            ? lastParseError
-            : new Error(`Cohort synthesis failed to parse twice: ${String(lastParseError)}`);
-    }
 }

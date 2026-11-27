@@ -17,6 +17,8 @@ import { LlmServiceImpl } from "../src/infrastructure/adapters/LlmServiceImpl";
 import { ArtifactIntakeAdapter } from "../src/infrastructure/adapters/ArtifactIntakeAdapter";
 import type { ArtifactInput } from "../src/domain/entities/ArtifactInput";
 import { SynthesizeArtifactResultsUseCase } from "../src/application/usecases/SynthesizeArtifactResultsUseCase";
+import { BuildClaimLedgerUseCase } from "../src/application/usecases/BuildClaimLedgerUseCase";
+import { buildSynthesisPlan } from "../src/application/synthesis/plan";
 import { AnalysisLogger } from "../src/infrastructure/AnalysisLogger";
 import type { Persona } from "../src/domain/entities/Persona";
 
@@ -102,7 +104,7 @@ async function main(): Promise<void> {
   };
 
   const personasStart = Date.now();
-  const responses = await useCase.execute(
+  const { responses } = await useCase.execute(
     { type: "screenshot", imageBase64: intake.screenshotBase64 ?? "", url: intake.url },
     PERSONAS,
     BUSINESS_GOAL,
@@ -135,11 +137,17 @@ async function main(): Promise<void> {
   let synthesisOk = false;
   if (completed.length > 0) {
     try {
-      await new SynthesizeArtifactResultsUseCase(llmService).execute(completed, RESEARCH_QUESTION, {
+      const ledger = await new BuildClaimLedgerUseCase(llmService).execute(completed, {
         runId,
         failedCount: responses.length - completed.length,
         totalPersonaCount: responses.length,
       });
+      const plan = buildSynthesisPlan({
+        researchQuestion: RESEARCH_QUESTION,
+        ledger,
+        personaNames: completed.map((r) => r.personaProfile?.name ?? "Unnamed persona"),
+      });
+      await new SynthesizeArtifactResultsUseCase(llmService).execute(plan, { runId });
       synthesisOk = true;
     } catch (err) {
       console.error(`[bench] synthesis failed: ${String(err)}`);

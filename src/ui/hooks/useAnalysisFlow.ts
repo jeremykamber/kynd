@@ -23,6 +23,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Persona } from '@/domain/entities/Persona'
 import type { PersonaResponse } from '@/domain/entities/PersonaResponse'
 import type { ArtifactSynthesis } from '@/domain/entities/ArtifactSynthesis'
+import type { ArtifactProfile } from '@/domain/entities/ArtifactProfile'
 import { analyzeArtifactAction } from '@/actions/analyzeArtifactAction'
 import type { ArtifactInput } from '@/domain/entities/ArtifactInput'
 import { PASTED_TEXT_LABEL, SCREENSHOT_LABEL } from '@/domain/entities/ArtifactIntakeLimits'
@@ -43,6 +44,7 @@ export interface AnalysisProgress {
   error?: string
   analyses?: PersonaResponse[]
   synthesis?: ArtifactSynthesis
+  artifactProfile?: ArtifactProfile
 }
 
 export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthesis?: ArtifactSynthesis | null) => void) {
@@ -193,7 +195,8 @@ export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthe
               clearScreenshotPoll()
               const results = update.analyses as PersonaResponse[] | undefined
               const synth = (update as any).synthesis as ArtifactSynthesis | undefined
-              useAnalysisStore.getState().markComplete(analysisId, results ?? [], synth)
+              const profile = update.artifactProfile ?? null
+              useAnalysisStore.getState().markComplete(analysisId, results ?? [], synth, profile)
               if (mountedRef.current) {
                 setAnalyses(results ?? null)
                 setSynthesis(synth ?? null)
@@ -253,7 +256,7 @@ export function useAnalysisFlow(onSuccess?: (analyses: PersonaResponse[], synthe
             }
 
             const responses = result.analyses ?? []
-            useAnalysisStore.getState().markComplete(analysisId, responses, result.synthesis)
+            useAnalysisStore.getState().markComplete(analysisId, responses, result.synthesis, result.artifactProfile)
             if (mountedRef.current) {
               setAnalyses(responses)
               setAnalysisProgress(null)

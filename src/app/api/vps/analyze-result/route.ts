@@ -26,5 +26,6 @@ export async function GET(req: NextRequest) {
     error: result.error,
     completedAt: result.completedAt,
     synthesis: result.synthesis ?? null,
+    artifactProfile: result.profile ?? null,
   });
 }

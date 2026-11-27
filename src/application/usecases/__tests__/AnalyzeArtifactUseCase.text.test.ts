@@ -30,6 +30,7 @@ function makeLlm(): LlmServicePort {
   return {
     generateSimulationTitle: vi.fn().mockResolvedValue('Is the brief concrete?'),
     generateVisceralMonologue: vi.fn().mockResolvedValue({ text: 'visceral reaction text' }),
+    extractPersonaClaims: vi.fn().mockResolvedValue([]),
     extractPersonaResponse: vi.fn().mockResolvedValue({
       overview: 'ok',
       customerJourney: [
@@ -68,7 +69,7 @@ describe('AnalyzeArtifactUseCase — text artifacts', () => {
 
   it('produces one response per persona, with no screenshot and no throw', async () => {
     const useCase = makeUseCase(llm, textIntake)
-    const responses = await useCase.execute(
+    const { responses } = await useCase.execute(
       { type: 'text', text: textIntake.text!, label: textIntake.label },
       [makePersona('Ada'), makePersona('Ben')],
       'Get sign-off from a teammate',
@@ -133,7 +134,7 @@ describe('AnalyzeArtifactUseCase — text artifacts', () => {
   it('keeps a text run working when title generation fails', async () => {
     vi.mocked(llm.generateSimulationTitle).mockRejectedValue(new Error('title model down'))
     const useCase = makeUseCase(llm, textIntake)
-    const responses = await useCase.execute(
+    const { responses } = await useCase.execute(
       { type: 'text', text: textIntake.text!, label: textIntake.label },
       [makePersona('Ada')],
       'goal',

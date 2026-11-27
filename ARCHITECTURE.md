@@ -80,7 +80,7 @@ src/
 ├── application/
 │   ├── usecases/          # One orchestrator per user-visible operation
 │   ├── interviewPipeline/ # Transcript → signals → pooled distribution → sampled persona
-│   └── synthesis/         # Cross-persona synthesis helpers (citations)
+│   └── synthesis/         # Claim ledger, plan, and synthesis validator (pure code)
 ├── infrastructure/
 │   ├── adapters/          # Port implementations: LLM, browser, RAG, chat, debate
 │   ├── services/          # IndexedDB persistence
@@ -146,7 +146,8 @@ delegates.
 | Use case | Does |
 | --- | --- |
 | `AnalyzeArtifactUseCase` | Intake → per-persona analysis → response assembly |
-| `SynthesizeArtifactResultsUseCase` | Cohort synthesis across persona responses |
+| `BuildClaimLedgerUseCase` | Batch support gate + clustering → code-owned claim ledger |
+| `SynthesizeArtifactResultsUseCase` | Writes from the ledger plan, validates, repairs once |
 | `GeneratePersonasUseCase` | Generate personas from a description; dispatches research / strategy / cluster modes |
 | `GeneratePersonasFromInterviewsUseCase` | Full interview pipeline: extract → pool → sample → generate → ID-RAG ingest |
 | `RecordStepUseCase` | Append an interaction step and refresh session memory |
@@ -215,8 +216,10 @@ analyses page → useAnalysisFlow → analyzeArtifactAction
   → AnalyzeArtifactUseCase
       intake      ArtifactIntakeAdapter (URL → RemotePlaywrightAdapter + HtmlSummarizer,
                                        screenshot or extracted text → pass-through)
-      per persona VisionAnalysisAdapter: generateVisceralMonologue → extractPersonaResponse
-      synthesis   SynthesizeArtifactResultsUseCase → ArtifactSynthesis
+      per persona VisionAnalysisAdapter: generateVisceralMonologue
+                                        → extractPersonaResponse + extractPersonaClaims (parallel)
+      ledger      BuildClaimLedgerUseCase: support gate + clustering → ClaimLedger
+      synthesis   buildSynthesisPlan → SynthesizeArtifactResultsUseCase → validate → ArtifactSynthesis
   → analysisStore (Zustand + IndexedDB)
 ```
 

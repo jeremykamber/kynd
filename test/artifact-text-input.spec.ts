@@ -216,8 +216,8 @@ describe('Artifact text input — E2E', { timeout: TEST_TIMEOUT }, () => {
     expect(await page.getByRole('button', { name: 'Run Analysis' }).first().isEnabled()).toBe(true);
 
     await page.getByRole('button', { name: 'Remove second.txt' }).click();
-    await expect(page.getByText('second.txt').count()).resolves.toBe(0);
     await page.getByText('1 of 5 documents · 11 characters').waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
+    await expect(page.getByText('second.txt').count()).resolves.toBe(0);
     await page.close();
   });
 

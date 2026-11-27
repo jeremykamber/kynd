@@ -2,6 +2,7 @@ import { Persona, PersonaSchema } from "@/domain/entities/Persona";
 import { LlmServiceImpl } from "./LlmServiceImpl";
 import { streamText, Output } from "ai";
 import { z } from "zod";
+import { DecisionRoleSchema, isDecisionRole } from "@/domain/entities/DecisionRole";
 import { stripCodeFence } from "./llmUtils";
 import { GENDERLESS_NAMES } from "@/data/genderless_names";
 import pLimit from "p-limit";
@@ -54,6 +55,9 @@ const PersonaProfileSchema = z.object({
   fearEvidence: z.array(z.string()),
   communicationStyle: z.string().min(1),
   decisionStyle: z.string().min(1),
+  decisionRole: DecisionRoleSchema.optional(),
+  currentAlternative: z.string().optional(),
+  switchingTrigger: z.string().optional(),
   domainExpertise: z.array(z.string().min(1)),
   behavioralDimensions: z.array(z.object({
     name: z.string().min(1),
@@ -392,6 +396,13 @@ export class PersonaAdapter {
       fearEvidence: Array.isArray(p.fearEvidence) ? (p.fearEvidence as string[]) : undefined,
       communicationStyle: (p.communicationStyle as string) ?? "",
       decisionStyle: (p.decisionStyle as string) ?? "",
+      ...(isDecisionRole(p.decisionRole) ? { decisionRole: p.decisionRole } : {}),
+      ...(typeof p.currentAlternative === 'string' && p.currentAlternative.trim()
+        ? { currentAlternative: p.currentAlternative.trim() }
+        : {}),
+      ...(typeof p.switchingTrigger === 'string' && p.switchingTrigger.trim()
+        ? { switchingTrigger: p.switchingTrigger.trim() }
+        : {}),
       pricingSensitivity: Number(p.pricingSensitivity) || 50,
       typicalBudget: (p.typicalBudget as string) ?? "",
       domainExpertise: Array.isArray(p.domainExpertise) ? p.domainExpertise : [],
@@ -658,6 +669,11 @@ interface Persona {
   communicationStyle: string;     // How they speak (e.g. "direct", "analytical", "warm", "cautious")
   decisionStyle: string;          // Decision process (e.g. "data-driven", "gut-driven", "consensus-seeking")
 
+  // Purchase-decision role (optional when the description does not support one)
+  decisionRole?: "economic_buyer" | "daily_user" | "blocker" | "champion";
+  currentAlternative?: string;    // What they use today instead of this product
+  switchingTrigger?: string;      // What would make them change
+
   // Pricing calibration — MUST be generated based on persona's role, industry, and experience
   pricingSensitivity: number;     // 0-100: Derived from Big Five + their role. A bootstrapped founder will be higher than a well-funded VP.
   typicalBudget: string;          // What they're used to paying based on their role and experience (e.g. "Up to $20/user/month")
@@ -683,6 +699,7 @@ CRITICAL REQUIREMENTS:
 - VALUES + FEARS: These drive motivation. Must align with Big Five and pricing calibration.
 - DISTRIBUTION: Ensure the ${personaCount} personas represent a spectrum across Big Five, pricing sensitivity, and decision styles.
 - REALISM: Occupations, budgets, and goals must match the description.
+- ROLES: Assign each persona the decisionRole that fits its job in a purchase. Use the roles that fit the batch; do not force one of each. Add currentAlternative and switchingTrigger only when the description supports them — never invent a tool, budget, or trigger.
 
 Return ONLY valid JSON without explanatory text or markdown code blocks.`;
 
@@ -775,6 +792,13 @@ Return ONLY valid JSON without explanatory text or markdown code blocks.`;
                 : [],
             communicationStyle: (p.communicationStyle as string) ?? (p.communication_style as string) ?? "",
             decisionStyle: (p.decisionStyle as string) ?? (p.decision_style as string) ?? "",
+            ...(isDecisionRole(p.decisionRole) ? { decisionRole: p.decisionRole } : {}),
+            ...(typeof p.currentAlternative === 'string' && p.currentAlternative.trim()
+              ? { currentAlternative: p.currentAlternative.trim() }
+              : {}),
+            ...(typeof p.switchingTrigger === 'string' && p.switchingTrigger.trim()
+              ? { switchingTrigger: p.switchingTrigger.trim() }
+              : {}),
 
             // Pricing calibration — LLM-generated, context-dependent
             pricingSensitivity: Number(p.pricingSensitivity) || 50,
@@ -840,12 +864,16 @@ interface Persona {
   fears: string[];            // Anxieties and risk concerns
   communicationStyle: string; // direct, analytical, cautious, etc.
   decisionStyle: string;      // data-driven, gut-driven, consensus-seeking, etc.
+  decisionRole?: "economic_buyer" | "daily_user" | "blocker" | "champion";
+  currentAlternative?: string;
+  switchingTrigger?: string;
 }
 CRITICAL REQUIREMENTS:
 - BIG FIVE ROOT CAUSES: Assign high-fidelity Big Five scalars (0-100). These are the "genes" of the persona.
 - VALUES + FEARS: These drive motivation and must align with their Big Five profile.
 - COMMUNICATION + DECISION STYLE: Must be consistent with their Big Five and occupation.
 - DISTRIBUTION: Ensure the ${personaCount} personas represent a spectrum across Big Five, values, and decision styles.
+- ROLES: Assign each persona the decisionRole that fits its job in a purchase; do not force one of each. Add currentAlternative and switchingTrigger only when the description supports them.
 Return ONLY valid JSON.`;
 
     const { partialOutputStream } = streamText({
@@ -1488,7 +1516,8 @@ CRITICAL RULES:
 DIVERSITY REQUIREMENT:
 - Every persona in the array must be a DISTINCT individual. Do NOT produce near-identical personas.
 - All personas share the same evidence pool (the same interviews/audience), but each is a different person within it. Vary across personas: age and career stage, which pain points they emphasize most, priorities, skepticism level, communication style, decision style, and life context.
-- Do not give two personas the same values, fears, or communication style. Two personas may draw on the same interview, but they should weight and interpret that evidence differently.
+- Do not give two personas the same values, fears, or communication style.
+- Assign each persona the decisionRole that fits the evidence. Do not force one of each; leave currentAlternative and switchingTrigger absent when the evidence does not state them. Two personas may draw on the same interview, but they should weight and interpret that evidence differently.
 
 Generate a JSON array of EXACTLY ${config.count} DISTINCT personas with this structure:
 {
@@ -1508,6 +1537,9 @@ Generate a JSON array of EXACTLY ${config.count} DISTINCT personas with this str
   fearEvidence: string[]; // VERBATIM fragment of the provided description per fear, parallel to fears; empty when no fragment fits
   communicationStyle: string;
   decisionStyle: string;
+  decisionRole?: "economic_buyer" | "daily_user" | "blocker" | "champion"; // role in the purchase decision
+  currentAlternative?: string; // what this persona uses today, only when the evidence states it
+  switchingTrigger?: string;   // what would make this persona change, only when the evidence states it
   domainExpertise: string[];
   behavioralDimensions: { name: string; score: number (0-100); context: string; description: string; evidence: string }[];
   identityContext: string; // Stable traits that apply across domains
@@ -1812,6 +1844,7 @@ GUIDELINES:
 - Do NOT invent names — names are assigned separately from a curated pool.
 - Write ALL fields in English, even if the source material is in another language.
 - Every persona must be a DISTINCT individual — do NOT produce near-identical personas. Vary age, career stage, emphasized pain points, values, fears, communication style, and decision style within the shared evidence pool. Do not give two personas the same values, fears, or communication style.
+- Assign each persona the decisionRole that fits the batch; do not force one of each. Leave currentAlternative and switchingTrigger absent when the input does not support them.
 - MANDATORY: every persona must include ALL fields in the structure below with non-empty values. A persona missing any field is invalid.
 - Every persona MUST include 3-5 behavioralDimensions.
 - evidenceLinks MUST quote the user's response; set attribute to the persona fields the quote supports.
@@ -1835,6 +1868,9 @@ Generate a JSON array of EXACTLY ${config.count} DISTINCT personas with this str
   fearEvidence: string[];           // VERBATIM fragment of the user's response per fear, parallel to fears; empty string when no distinct fragment fits
   communicationStyle: string;       // e.g. "direct", "analytical", "warm", "cautious"
   decisionStyle: string;            // e.g. "data-driven", "gut-driven", "consensus-seeking"
+  decisionRole?: "economic_buyer" | "daily_user" | "blocker" | "champion"; // role in the purchase decision
+  currentAlternative?: string;      // what this persona uses today, only when supported
+  switchingTrigger?: string;        // what would make this persona change, only when supported
   domainExpertise: string[];        // Domains the persona knows well
   behavioralDimensions: { name: string; score: number (0-100); context: string; description: string; evidence: string }[];  // 3-5 dimensions; evidence is a VERBATIM quote from the user's response or empty
   bestFor: string[];                // What this persona model is good at predicting (2-4 items)
@@ -1937,7 +1973,8 @@ CRITICAL RULES:
 - Label the persona with cluster information including source count.
 
 Generate a JSON array of EXACTLY ${config.count} personas with the standard structure.
-Include a 'clusterInfo' field on each persona with the actual source IDs and count.`;
+Include a 'clusterInfo' field on each persona with the actual source IDs and count.
+Assign each cluster persona a decisionRole (economic_buyer, daily_user, blocker, or champion) that fits its role in the purchase; do not force one of each.`;
 
     const user = `Generate ${config.count} cluster-mode personas for cluster: "${config.clusterLabel}"
 Source interview IDs: ${config.interviewIds.join(", ")}

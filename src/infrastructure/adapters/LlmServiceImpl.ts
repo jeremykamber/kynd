@@ -4,6 +4,7 @@ import { LlmServicePort, PricingLocation, PersonaPhaseCallback, ChatAnalysisCont
 import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
 import { PersonaAdapter } from "./PersonaAdapter";
 import { VisionAnalysisAdapter } from "./VisionAnalysisAdapter";
+import { ClaimLedgerAdapter } from "./ClaimLedgerAdapter";
 import { ChatAdapter } from "./ChatAdapter";
 import { HtmlSummarizer } from "./HtmlSummarizer";
 import { InterviewSignalExtractor } from "./InterviewSignalExtractor";
@@ -13,6 +14,8 @@ import { PricingAnalysis } from "@/domain/entities/PricingAnalysis";
 import type { PersonaResponse } from "@/domain/entities/PersonaResponse";
 import type { ArtifactSynthesis } from "@/domain/entities/ArtifactSynthesis";
 import type { ArtifactFraming, ArtifactIntake } from "@/domain/entities/ArtifactIntake";
+import type { ArtifactProfile } from "@/domain/entities/ArtifactProfile";
+import type { SynthesisDraft, SynthesisPlan } from "@/domain/entities/SynthesisPlan";
 import { StreamOfConsciousness } from "@/domain/entities/StreamOfConsciousness";
 import { ExtractedInterviewSignals } from "@/application/interviewPipeline/types";
 import { AnalysisLogger } from "@/infrastructure/AnalysisLogger";
@@ -110,6 +113,7 @@ export class LlmServiceImpl implements LlmServicePort {
 
     private personaAdapter: PersonaAdapter;
     private visionAdapter: VisionAnalysisAdapter;
+    private claimLedgerAdapter: ClaimLedgerAdapter;
     private chatAdapter: ChatAdapter;
     private htmlSummarizer: HtmlSummarizer;
     private interviewSignalExtractor: InterviewSignalExtractor;
@@ -156,6 +160,7 @@ export class LlmServiceImpl implements LlmServicePort {
 
         this.personaAdapter = new PersonaAdapter(this);
         this.visionAdapter = new VisionAnalysisAdapter(this);
+        this.claimLedgerAdapter = new ClaimLedgerAdapter(this);
         this.chatAdapter = new ChatAdapter(this);
         this.htmlSummarizer = new HtmlSummarizer(this);
         this.interviewSignalExtractor = new InterviewSignalExtractor(this);
@@ -592,7 +597,7 @@ export class LlmServiceImpl implements LlmServicePort {
         persona: Persona,
         context: ArtifactIntake,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: import("@/domain/entities/SimulationFrame").SimulationFrame }
     ): Promise<{ text: string }> {
         return this.visionAdapter.generateVisceralMonologue(
             persona,
@@ -602,11 +607,19 @@ export class LlmServiceImpl implements LlmServicePort {
         );
     }
 
+    async extractArtifactProfile(
+        context: ArtifactIntake,
+        artifact: ArtifactFraming,
+        options?: { tokenLimit?: number; runId?: string },
+    ): Promise<ArtifactProfile> {
+        return this.visionAdapter.extractArtifactProfile(context, artifact, options);
+    }
+
     async extractPersonaResponse(
         persona: Persona,
         monologueText: string,
         researchQuestion: string,
-        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming }
+        options?: { tokenLimit?: number; runId?: string; artifact?: ArtifactFraming; frame?: import("@/domain/entities/SimulationFrame").SimulationFrame; profile?: import("@/domain/entities/ArtifactProfile").ArtifactProfile; artifactText?: string }
     ): Promise<PersonaResponse> {
         return this.visionAdapter.extractPersonaResponse(
             persona,
@@ -615,12 +628,57 @@ export class LlmServiceImpl implements LlmServicePort {
             options,
         );
     }
-    async generateCohortSynthesis(
-        researchQuestion: string,
-        transcripts: Array<{ personaId: string; personaName: string; transcript: string }>,
-        options?: { runId?: string }
-    ): Promise<import("@/domain/entities/ArtifactSynthesis").CohortSynthesisContent> {
-        return this.visionAdapter.generateCohortSynthesis(researchQuestion, transcripts, options);
+    async extractPersonaClaims(
+        persona: Persona,
+        monologue: string,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.extractPersonaClaims(persona, monologue, options);
+    }
+
+    async verifyClaimSupport(
+        claims: Array<{ claimId: string; observation: string; quote: string }>,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.verifyClaimSupport(claims, options);
+    }
+
+    async clusterClaims(
+        claims: Array<{ claimId: string; topic: string; observation: string }>,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.clusterClaims(claims, options);
+    }
+
+    async synthesizeFromPlan(
+        plan: SynthesisPlan,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.synthesizeFromPlan(plan, options);
+    }
+
+    async repairSynthesis(
+        plan: SynthesisPlan,
+        draft: SynthesisDraft,
+        violations: string[],
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.repairSynthesis(plan, draft, violations, options);
+    }
+
+    async summarizeReport(
+        plan: SynthesisPlan,
+        report: ArtifactSynthesis,
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.summarizeReport(plan, report, options);
+    }
+
+    async auditPersonaReasons(
+        responses: PersonaResponse[],
+        options?: { runId?: string },
+    ) {
+        return this.claimLedgerAdapter.auditPersonaReasons(responses, options);
     }
 
     // --- Domain Gateways (Delegating to Adapters) ---

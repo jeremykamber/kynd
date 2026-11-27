@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { use, useEffect, useRef, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { useAnalysisStore } from '@/ui/stores/analysisStore'
 import { usePersonaStore } from '@/ui/stores/personaStore'
 import { useRouter } from 'next/navigation'
@@ -20,8 +20,12 @@ import type { MajorFinding } from '@/domain/entities/MajorFinding'
 import { analysisInputKind, analysisSourceLabel } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
 import type { PersonaProfile } from '@/domain/entities/PersonaProfile'
-import type { SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
+import type { ArtifactSynthesis, SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import type { StageJourney, StageOutcome } from '@/domain/entities/StageJourney'
+import type { DecisionRole } from '@/domain/entities/DecisionRole'
+import type { Verdict } from '@/domain/entities/Verdict'
+import type { ArtifactProfile } from '@/domain/entities/ArtifactProfile'
+import { CONTENT_KIND_LABEL } from '@/domain/entities/ArtifactProfile'
 import { cn } from '@/lib/utils'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
@@ -73,6 +77,20 @@ function getCurrentStep(step?: string): number {
 // different facts — an obstacle versus the persona's own choice — but the same
 // outcome for the reader, so they share Caution and differ only in the word
 // (and in the tooltip that spells the difference out).
+const ROLE_LABEL: Record<DecisionRole, string> = {
+  economic_buyer: 'Economic buyer',
+  daily_user: 'Daily user',
+  blocker: 'Blocker',
+  champion: 'Champion',
+}
+
+const DECISION_VERDICT_META: Record<Verdict, { label: string; className: string }> = {
+  adopt: { label: 'Adopt', className: 'text-success' },
+  trial: { label: 'Trial', className: 'text-primary' },
+  reject: { label: 'Reject', className: 'text-destructive' },
+  undecided: { label: 'Undecided', className: 'text-muted-foreground' },
+}
+
 const OUTCOME_META: Record<StageOutcome, { label: string; title: string; icon: typeof CheckCircleIcon; className: string }> = {
   succeeded: {
     label: 'Reached',
@@ -232,7 +250,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
             if (result.error) {
               useAnalysisStore.getState().markError(analysis.id, result.error)
             } else if (result.analyses && result.analyses.length > 0) {
-              useAnalysisStore.getState().markComplete(analysis.id, result.analyses, result.synthesis)
+              useAnalysisStore.getState().markComplete(analysis.id, result.analyses, result.synthesis, result.artifactProfile)
             }
             return
           }
@@ -276,7 +294,7 @@ export default function AnalysisDetailPage({ params }: { params: Promise<{ id: s
           clearInterval(interval);
           const result2 = await getAnalysisResultAction(analysis.id);
           if (result2.found && result2.analyses && result2.analyses.length > 0) {
-            useAnalysisStore.getState().markComplete(analysis.id, result2.analyses, result2.synthesis);
+            useAnalysisStore.getState().markComplete(analysis.id, result2.analyses, result2.synthesis, result2.artifactProfile);
           }
         }
 
@@ -620,6 +638,36 @@ function parseStructuredThoughts(thoughts: string): {
   return parts;
 }
 
+/** Warnings whose field tag is `field` or a descendant of it. */
+function warningsFor(warnings: string[] | undefined, field: string): string[] {
+  return (warnings ?? []).filter((warning) => {
+    const tag = warning.split(': ')[0]
+    return tag === field || tag.startsWith(`${field}:`)
+  })
+}
+
+/** Marks a rendered field the validator rejected after its one repair. */
+function ValidationMark({
+  warnings,
+  children,
+}: {
+  warnings: string[]
+  children: ReactNode
+}) {
+  if (warnings.length === 0) return <>{children}</>
+  return (
+    <div
+      data-validation-warning="true"
+      className="rounded-lg border-2 border-dashed border-warning-foreground/60 p-1"
+    >
+      <p className="px-2 pb-1 pt-1 text-xs font-medium text-warning-foreground">
+        Unverified field — see the report warning
+      </p>
+      {children}
+    </div>
+  )
+}
+
 function CompletedView({
   analysis,
   onRemove,
@@ -649,6 +697,17 @@ function CompletedView({
     },
     [analyses, analysis.synthesis]
   )
+
+  // Rejected claims live on the persona card, not in the cohort counts. Group
+  // them by persona once so each card only scans its own list.
+  const rejectedByPersona = useMemo(() => {
+    const map = new Map<string, NonNullable<ArtifactSynthesis['rejectedClaims']>>()
+    for (const rejected of synthesis?.rejectedClaims ?? []) {
+      const personaId = rejected.claim.personaId
+      map.set(personaId, [...(map.get(personaId) ?? []), rejected])
+    }
+    return map
+  }, [synthesis])
 
   // Resolve each response back to a full Persona once — chat needs the
   // psychometrics/backstory, not just the display projection.
@@ -703,6 +762,131 @@ function CompletedView({
             </button>
           </div>
 
+          {synthesis.verdicts && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className={SECTION_LABEL}>Verdicts</span>
+              {(Object.keys(DECISION_VERDICT_META) as Verdict[])
+                .filter((verdict) => (synthesis.verdicts?.[verdict] ?? 0) > 0)
+                .map((verdict) => (
+                  <span
+                    key={verdict}
+                    className={cn(
+                      'rounded-full border border-border px-2.5 py-1 font-medium',
+                      DECISION_VERDICT_META[verdict].className,
+                    )}
+                  >
+                    {DECISION_VERDICT_META[verdict].label}{' '}
+                    <span className="font-mono tabular-nums">
+                      {synthesis.verdicts?.[verdict] ?? 0}
+                    </span>
+                  </span>
+                ))}
+            </div>
+          )}
+
+          {analysis.artifactProfile && (
+            <div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={SECTION_LABEL}>Artifact profile</span>
+                <span className="text-xs font-medium text-foreground/80">
+                  {CONTENT_KIND_LABEL[analysis.artifactProfile.contentKind]}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {analysis.artifactProfile.confidence} confidence
+                </span>
+              </div>
+              {analysis.artifactProfile.facts.length > 0 && (
+                <dl className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                  {analysis.artifactProfile.facts.map((fact, i) => (
+                    <div key={`${fact.label}-${i}`} className="text-sm">
+                      <dt className="inline font-medium text-foreground/80">{fact.label}: </dt>
+                      <dd className="inline text-muted-foreground">
+                        {fact.value}
+                        {fact.source === 'screenshot' && (
+                          <span className="ml-1 text-xs text-muted-foreground/70">(from screenshot)</span>
+                        )}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              {analysis.artifactProfile.openQuestions.length > 0 && (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  The artifact does not state: {analysis.artifactProfile.openQuestions.join('; ')}.
+                </p>
+              )}
+              {analysis.artifactProfile.degraded.length > 0 && (
+                <div role="alert" data-profile-degraded="true" className="flex items-start gap-2 rounded-md border border-warning-foreground/40 bg-warning-foreground/5 p-3">
+                  <AlertTriangleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-foreground" />
+                  <div className="text-xs leading-relaxed text-muted-foreground">
+                    <p className="font-semibold text-foreground">Profile facts are unverified</p>
+                    <ul className="list-disc pl-4">
+                      {analysis.artifactProfile.degraded.map((note, i) => (
+                        <li key={i}>{note}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {synthesis.validationWarnings && synthesis.validationWarnings.length > 0 && (
+            <div
+              role="alert"
+              data-validation-banner="true"
+              className="flex items-start gap-3 rounded-lg border border-warning-foreground/40 bg-warning-foreground/5 p-4"
+            >
+              <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-warning-foreground" />
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold text-foreground">
+                  This report has {synthesis.validationWarnings.length} unverified {synthesis.validationWarnings.length === 1 ? 'field' : 'fields'}
+                </p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  The validator rejected these fields after one repair. They are marked inline and stamped on the PDF.
+                </p>
+                <ul className="list-disc pl-4 text-xs leading-relaxed text-muted-foreground">
+                  {synthesis.validationWarnings.map((warning, i) => (
+                    <li key={i}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {synthesis.degraded && synthesis.degraded.length > 0 && (
+            <div
+              role="status"
+              data-synthesis-degraded="true"
+              className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/20 p-4"
+            >
+              <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold text-foreground">Some evidence was dropped</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  These claims could not set a count or a finding. The report continues without them.
+                </p>
+                <ul className="list-disc pl-4 text-xs leading-relaxed text-muted-foreground">
+                  {synthesis.degraded.map((note, i) => (
+                    <li key={i}>{note}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {synthesis.missingClaimPersonaIds && synthesis.missingClaimPersonaIds.length > 0 && (
+            <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
+              {synthesis.missingClaimPersonaIds.length === 1 ? 'One persona' : `${synthesis.missingClaimPersonaIds.length} personas`} produced no claims, so {synthesis.missingClaimPersonaIds.length === 1 ? 'it does' : 'they do'} not contribute to counts or splits.
+            </p>
+          )}
+
+          {synthesis.overview && (
+            <ValidationMark warnings={warningsFor(synthesis.validationWarnings, 'overview')}>
+              <p className="max-w-prose text-base leading-relaxed text-foreground/80">{synthesis.overview}</p>
+            </ValidationMark>
+          )}
+
           {synthesis.researchQuestionAnswer && (
             /*
               The panel shrinks to the answer rather than the answer filling the
@@ -714,17 +898,23 @@ function CompletedView({
               measures the answer's own limit (DESIGN.md → Typography: report
               body text is measured in prose widths).
             */
-            <div className="w-fit rounded-lg border border-primary/10 bg-primary/5 p-5">
-              <span className="micro-label mb-2 block text-primary">The answer</span>
-              <p className="max-w-prose text-base leading-relaxed text-foreground/90">{synthesis.researchQuestionAnswer}</p>
-            </div>
+            <ValidationMark warnings={warningsFor(synthesis.validationWarnings, 'answer')}>
+              <div className="w-fit rounded-lg border border-primary/10 bg-primary/5 p-5">
+                <span className="micro-label mb-2 block text-primary">The answer</span>
+                <p className="max-w-prose text-base leading-relaxed text-foreground/90">{synthesis.researchQuestionAnswer}</p>
+              </div>
+            </ValidationMark>
           )}
 
           {synthesis.topFindings.length > 0 && (
             <section className="flex flex-col gap-4">
               <h3 className={SECTION_HEADING}>Top findings</h3>
               {synthesis.topFindings.slice(0, 5).map((finding, i) => (
-                <div key={i} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+                <ValidationMark
+                  key={i}
+                  warnings={warningsFor(synthesis.validationWarnings, `finding:${finding.groupId ?? ''}`)}
+                >
+                <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-base font-semibold leading-snug text-foreground">{finding.observation}</p>
                     <span className="micro-label shrink-0 text-muted-foreground">
@@ -772,6 +962,7 @@ function CompletedView({
                     <span>Simulated in <span className="font-mono tabular-nums">{finding.affectedPersonaCount}/{finding.totalPersonaCount}</span> personas</span>
                   </div>
                 </div>
+                </ValidationMark>
               ))}
             </section>
           )}
@@ -782,7 +973,8 @@ function CompletedView({
               {synthesis.disagreements.map((d, i) => {
                 const total = d.split.reduce((sum, s) => sum + s.personaCount, 0) || 1
                 return (
-                  <div key={i} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+                  <ValidationMark key={i} warnings={warningsFor(synthesis.validationWarnings, `split:${d.groupId ?? ''}`)}>
+                  <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                     <p className="text-base font-semibold text-foreground">{d.topic}</p>
                     <div className="flex flex-col gap-4">
                       {d.split.map((side, j) => (
@@ -803,6 +995,7 @@ function CompletedView({
                       ))}
                     </div>
                   </div>
+                  </ValidationMark>
                 )
               })}
             </section>
@@ -813,11 +1006,15 @@ function CompletedView({
               <h3 className={SECTION_HEADING}>Biggest friction points</h3>
               <ul className="flex flex-col gap-3">
                 {synthesis.biggestFrictions.slice(0, 3).map((f, i) => (
-                  <li key={i} className="flex items-start gap-3 rounded-lg border border-border bg-card p-4">
-                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-warning-foreground/10 font-mono text-xs tabular-nums text-warning-foreground">
-                      {i + 1}
-                    </span>
-                    <span className="text-sm leading-relaxed text-foreground/80">{f}</span>
+                  <li key={i}>
+                    <ValidationMark warnings={warningsFor(synthesis.validationWarnings, `friction:${i}`)}>
+                      <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4">
+                        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-warning-foreground/10 font-mono text-xs tabular-nums text-warning-foreground">
+                          {i + 1}
+                        </span>
+                        <span className="text-sm leading-relaxed text-foreground/80">{f}</span>
+                      </div>
+                    </ValidationMark>
                   </li>
                 ))}
               </ul>
@@ -836,6 +1033,7 @@ function CompletedView({
             const personaName = analysis.personaProfile?.name ?? `Persona ${index + 1}`
             const isExpanded = expandedPersonas.has(index)
             const chatPersona = resolvedPersonas[index]
+            const rejectedClaims = analysis.personaId ? rejectedByPersona.get(analysis.personaId) ?? [] : []
             const verdict =
               analysis.customerJourney && analysis.customerJourney.length > 0
                 ? journeyVerdict(analysis.customerJourney)
@@ -855,10 +1053,21 @@ function CompletedView({
                   {analysis.personaProfile && (
                     <p className="text-sm text-muted-foreground">
                       {analysis.personaProfile.occupation} · {analysis.personaProfile.communicationStyle}
+                      {analysis.decisionFrame ? ` · ${ROLE_LABEL[analysis.decisionFrame.decisionRole]}` : ''}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
+                  {analysis.verdict && (
+                    <span
+                      className={cn(
+                        'text-xs font-semibold',
+                        DECISION_VERDICT_META[analysis.verdict].className,
+                      )}
+                    >
+                      {DECISION_VERDICT_META[analysis.verdict].label}
+                    </span>
+                  )}
                   {verdict && (
                     <span
                       className={cn('hidden text-xs font-medium sm:inline', verdict.className)}
@@ -903,6 +1112,80 @@ function CompletedView({
                         {analysis.overview}
                       </p>
                     </div>
+                  )}
+
+                  {analysis.decisionFrame && (
+                    <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-4">
+                      <span className={SECTION_LABEL}>Decision frame</span>
+                      <p className="text-sm leading-relaxed text-foreground/80">
+                        <span className="font-medium">{ROLE_LABEL[analysis.decisionFrame.decisionRole]}</span>
+                        {analysis.decisionFrame.decisionRoleSource === 'fallback' ? ' (inferred)' : ''}
+                        {' — '}{analysis.decisionFrame.roleTask}
+                      </p>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        Entry point: {analysis.decisionFrame.entryPoint}
+                      </p>
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {analysis.decisionFrame.decisionQuestion}
+                      </p>
+                      {analysis.decisionFrame.currentAlternative && (
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          Uses today: {analysis.decisionFrame.currentAlternative}
+                        </p>
+                      )}
+                      {analysis.decisionFrame.switchingTrigger && (
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          Would switch if: {analysis.decisionFrame.switchingTrigger}
+                        </p>
+                      )}
+                      {analysis.verdict && (
+                        <p className="text-sm leading-relaxed text-foreground/80">
+                          Decided{' '}
+                          <span className={cn('font-semibold', DECISION_VERDICT_META[analysis.verdict].className)}>
+                            {DECISION_VERDICT_META[analysis.verdict].label.toLowerCase()}
+                          </span>
+                          {analysis.decisiveReason ? `: ${analysis.decisiveReason}` : '.'}
+                        </p>
+                      )}
+                      {analysis.decisiveReasonQuote && (
+                        <p className="max-w-prose rounded-md bg-background px-3 py-2 text-sm italic leading-relaxed text-muted-foreground">
+                          “{analysis.decisiveReasonQuote}”
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {rejectedClaims.length > 0 && (
+                    <details className="group/not-counted rounded-md border border-border/60 bg-muted/10 px-4 py-3">
+                      <summary className="flex w-fit cursor-pointer list-none items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+                        <ChevronRightIcon className="h-3.5 w-3.5 transition-transform group-open/not-counted:rotate-90" />
+                        Not counted ({rejectedClaims.length})
+                      </summary>
+                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                        These claims did not pass the support gate or the verbatim check. They stay on this card and never set a count, finding, or split.
+                      </p>
+                      <ul className="mt-3 flex flex-col gap-3">
+                        {rejectedClaims.map((rejected, i) => (
+                          <li key={i} className="rounded-md border border-border/50 bg-background/60 p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium text-foreground/80">{rejected.claim.topic}</span>
+                              <span className="rounded-full border border-border px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                                {rejected.level}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{rejected.claim.observation}</p>
+                            {rejected.claim.quote && (
+                              <p className="mt-2 border-l-2 border-border pl-3 text-sm italic leading-relaxed text-muted-foreground">
+                                “{rejected.claim.quote}”
+                              </p>
+                            )}
+                            {rejected.reason && (
+                              <p className="mt-2 text-xs leading-relaxed text-muted-foreground/80">{rejected.reason}</p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
                   )}
 
                   {analysis.customerJourney?.length > 0 && (

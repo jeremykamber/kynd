@@ -45,6 +45,41 @@ describe('PersonaAdapter', () => {
     adapter = new PersonaAdapter(mockLlm as unknown as LlmServiceImpl)
   })
 
+  describe('generateInitialPersonas decision roles', () => {
+    it('keeps the generated role, alternative, and trigger and asks for them in the prompt', async () => {
+      mockLlm.createChatCompletion.mockResolvedValue(JSON.stringify([
+        {
+          age: 34,
+          occupation: 'Head of Product',
+          educationLevel: 'MBA',
+          interests: ['research'],
+          goals: ['validate ideas'],
+          conscientiousness: 70,
+          neuroticism: 40,
+          openness: 70,
+          extraversion: 50,
+          agreeableness: 50,
+          values: ['evidence'],
+          fears: ['wasted budget'],
+          communicationStyle: 'direct',
+          decisionStyle: 'data-driven',
+          decisionRole: 'champion',
+          currentAlternative: 'a shared spreadsheet',
+          switchingTrigger: 'a demo the team can forward',
+        },
+      ]))
+
+      const personas = await adapter.generateInitialPersonas('Product leaders', 1)
+
+      expect(personas[0].decisionRole).toBe('champion')
+      expect(personas[0].currentAlternative).toBe('a shared spreadsheet')
+      expect(personas[0].switchingTrigger).toBe('a demo the team can forward')
+      const system = mockLlm.createChatCompletion.mock.calls[0][0][0].content as string
+      expect(system).toContain('decisionRole')
+      expect(system).toContain('do not force one of each')
+    })
+  })
+
   describe('generateVariationPersonas', () => {
     const defaultAdjustments = {
       bigFive: {

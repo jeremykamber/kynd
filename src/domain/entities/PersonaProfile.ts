@@ -1,3 +1,5 @@
+import type { DecisionRole } from './DecisionRole';
+
 /**
  * Lightweight display projection of a Persona, embedded in PersonaResponse.
  * Carries only the fields shown on the results page — avoids pulling the full
@@ -19,4 +21,6 @@ export interface PersonaProfile {
   fears: string[];
   communicationStyle: string;
   decisionStyle: string;
+  /** Role this persona played in the artifact decision, when known. */
+  decisionRole?: DecisionRole;
 }
