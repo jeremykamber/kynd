@@ -71,6 +71,17 @@ export const CONTENT_KIND_QUESTION: Record<ContentKind, string> = {
   other: 'Would you act on this artifact?',
 };
 
+/** Human labels for a content kind, shared by the report page and the PDF. */
+export const CONTENT_KIND_LABEL: Record<ContentKind, string> = {
+  landing_page: 'Landing page',
+  feature_brief: 'Feature brief',
+  pitch_deck: 'Pitch deck',
+  marketing_copy: 'Marketing copy',
+  video_script: 'Video script',
+  document: 'Document',
+  other: 'Other artifact',
+};
+
 export const FACT_KINDS: FactKind[] = [
   'product',
   'audience',

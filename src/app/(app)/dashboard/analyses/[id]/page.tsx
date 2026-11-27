@@ -24,7 +24,8 @@ import type { ArtifactSynthesis, SynthesizedFinding } from '@/domain/entities/Ar
 import type { StageJourney, StageOutcome } from '@/domain/entities/StageJourney'
 import type { DecisionRole } from '@/domain/entities/DecisionRole'
 import type { Verdict } from '@/domain/entities/Verdict'
-import type { ArtifactProfile, ContentKind } from '@/domain/entities/ArtifactProfile'
+import type { ArtifactProfile } from '@/domain/entities/ArtifactProfile'
+import { CONTENT_KIND_LABEL } from '@/domain/entities/ArtifactProfile'
 import { cn } from '@/lib/utils'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { resolveChatPersona } from '@/ui/dashboard/utils/resolveChatPersona'
@@ -76,16 +77,6 @@ function getCurrentStep(step?: string): number {
 // different facts — an obstacle versus the persona's own choice — but the same
 // outcome for the reader, so they share Caution and differ only in the word
 // (and in the tooltip that spells the difference out).
-const CONTENT_KIND_LABEL: Record<ContentKind, string> = {
-  landing_page: 'Landing page',
-  feature_brief: 'Feature brief',
-  pitch_deck: 'Pitch deck',
-  marketing_copy: 'Marketing copy',
-  video_script: 'Video script',
-  document: 'Document',
-  other: 'Other artifact',
-}
-
 const ROLE_LABEL: Record<DecisionRole, string> = {
   economic_buyer: 'Economic buyer',
   daily_user: 'Daily user',

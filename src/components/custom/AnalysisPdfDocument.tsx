@@ -2,6 +2,7 @@ import React from 'react'
 import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer'
 import { analysisSourceLabel } from '@/domain/entities/ArtifactAnalysis'
 import type { ArtifactAnalysis } from '@/domain/entities/ArtifactAnalysis'
+import { CONTENT_KIND_LABEL } from '@/domain/entities/ArtifactProfile'
 import type { ArtifactSynthesis, SynthesizedFinding } from '@/domain/entities/ArtifactSynthesis'
 import { fallbackSynthesis } from '@/ui/dashboard/utils/fallbackSynthesis'
 import { REPORT_DISCLAIMER, REPORT_INTRO } from '@/lib/reportDisclosure'
@@ -310,6 +311,57 @@ const styles = StyleSheet.create({
     lineHeight: 1.35,
     marginBottom: 1,
   },
+  sourceBox: {
+    backgroundColor: colors.bgLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 4,
+    padding: 10,
+    marginBottom: 14,
+  },
+  sourceLabel: {
+    fontSize: 7,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginTop: 8,
+    marginBottom: 3,
+  },
+  sourceMeta: {
+    fontSize: 8,
+    color: colors.primaryLight,
+    lineHeight: 1.35,
+    marginBottom: 1,
+  },
+  sourceFiles: {
+    fontSize: 7.5,
+    color: colors.muted,
+    lineHeight: 1.35,
+    marginBottom: 1,
+  },
+  sourceText: {
+    fontSize: 7.5,
+    color: colors.primaryLight,
+    lineHeight: 1.4,
+    marginTop: 2,
+  },
+  sourceNote: {
+    fontSize: 7,
+    color: colors.muted,
+    lineHeight: 1.35,
+    marginTop: 3,
+  },
+  factText: {
+    fontSize: 7.5,
+    color: colors.primaryLight,
+    lineHeight: 1.35,
+    marginBottom: 1,
+  },
+  factLabel: {
+    fontFamily: 'Helvetica-Bold',
+    color: colors.primaryLight,
+  },
   validationStamp: {
     position: 'absolute',
     bottom: 36,
@@ -339,6 +391,9 @@ const styles = StyleSheet.create({
 export interface AnalysisPdfDocumentProps {
   analysis: ArtifactAnalysis
 }
+
+/** Enough source text to check the report's own claims without a 20-page appendix. */
+const SOURCE_EXCERPT_LIMIT = 1800
 
 /**
  * Evidence text for a finding, annotated with the distinct persona names that
@@ -378,6 +433,14 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
     month: 'short',
     day: 'numeric',
   })
+
+  const sourceText = analysis.text?.trim() ?? ''
+  const sourceExcerpt = sourceText.slice(0, SOURCE_EXCERPT_LIMIT)
+  const sourceIsTruncated = sourceText.length > SOURCE_EXCERPT_LIMIT
+  const sourceFiles = analysis.sourceFiles ?? []
+  const profile = analysis.artifactProfile
+  const profileFacts = profile?.facts ?? []
+  const hasSource = sourceText.length > 0 || sourceFiles.length > 0 || profile !== undefined
 
   return (
     <Document
@@ -525,6 +588,65 @@ export function AnalysisPdfDocument({ analysis }: AnalysisPdfDocumentProps) {
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>
+
+      {/* ── Source artifact: what the cohort actually read ─────────────── */}
+      {hasSource && (
+        <Page size="A4" style={styles.page}>
+          <Text style={styles.sectionTitle}>Source artifact</Text>
+          <View style={styles.sourceBox}>
+            <Text style={styles.sourceMeta}>
+              {analysisSourceLabel(analysis) ?? analysis.url}
+            </Text>
+            {sourceFiles.length > 0 && (
+              <Text style={styles.sourceFiles}>
+                Files: {sourceFiles.join(' · ')}
+              </Text>
+            )}
+
+            {profile && (
+              <>
+                <Text style={styles.sourceLabel}>Artifact profile</Text>
+                <Text style={styles.sourceMeta}>
+                  {CONTENT_KIND_LABEL[profile.contentKind]} · {profile.confidence} confidence
+                </Text>
+                {profileFacts.length > 0 && (
+                  <View style={{ marginTop: 2 }}>
+                    {profileFacts.map((fact, index) => (
+                      <Text key={`${fact.label}-${index}`} style={styles.factText}>
+                        <Text style={styles.factLabel}>{fact.label}: </Text>
+                        {fact.value}
+                        {fact.source === 'screenshot' ? ' (from screenshot)' : ''}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                {profile.openQuestions.length > 0 && (
+                  <Text style={styles.sourceNote}>
+                    The artifact does not state: {profile.openQuestions.join('; ')}.
+                  </Text>
+                )}
+              </>
+            )}
+
+            {sourceText && (
+              <>
+                <Text style={styles.sourceLabel}>Analyzed text</Text>
+                <Text style={styles.sourceText}>{sourceExcerpt}</Text>
+                {sourceIsTruncated && (
+                  <Text style={styles.sourceNote}>
+                    Excerpt: {sourceExcerpt.length.toLocaleString('en-US')} of{' '}
+                    {sourceText.length.toLocaleString('en-US')} characters. The full text is in the app.
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
+          <View style={styles.footer} fixed>
+            <Text>Kynd AI · Behavioral User Simulation Report</Text>
+            <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+          </View>
+        </Page>
+      )}
 
       {/* ── Page 2+: Persona Journeys & Detailed Breakdowns ────────────── */}
       {responses.length > 0 && (

@@ -150,6 +150,49 @@ describe('AnalysisPdfDocument', () => {
     expect(text).not.toContain('Primary Points of Friction')
   })
 
+  it('shows the source artifact, its files, and the artifact profile', () => {
+    const textRun: ArtifactAnalysis = {
+      ...baseAnalysis,
+      inputKind: 'text',
+      label: 'Feature brief',
+      text: 'The product costs $49 per seat. It includes SSO and audit logs.',
+      sourceFiles: ['feature-brief.txt'],
+      artifactProfile: {
+        contentKind: 'feature_brief',
+        facts: [
+          { kind: 'product', label: 'Product', value: 'Acme', source: 'text' },
+          { kind: 'claim', label: 'Security', value: 'SSO and audit logs', source: 'text' },
+        ],
+        openQuestions: ['setup fee'],
+        stageAnchorKind: 'quote',
+        confidence: 'high',
+        degraded: [],
+      },
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: textRun }))
+
+    expect(text).toContain('Source artifact')
+    expect(text).toContain('Feature brief')
+    expect(text).toContain('feature-brief.txt')
+    expect(text).toContain('The product costs $49 per seat.')
+    expect(text).toContain('Product: Acme')
+    expect(text).toContain('Security: SSO and audit logs')
+    expect(text).toContain('The artifact does not state: setup fee.')
+  })
+
+  it('caps a long source and says how much was left out', () => {
+    const longText = 'a'.repeat(1900)
+    const textRun: ArtifactAnalysis = {
+      ...baseAnalysis,
+      inputKind: 'text',
+      label: 'Long brief',
+      text: longText,
+    }
+    const text = renderedText(AnalysisPdfDocument({ analysis: textRun }))
+
+    expect(text).toContain('Excerpt: 1,800 of 1,900 characters. The full text is in the app.')
+  })
+
   it('shows validation warnings and stamps them for the PDF', () => {
     const warned: ArtifactAnalysis = {
       ...baseAnalysis,
